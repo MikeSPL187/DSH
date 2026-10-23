@@ -3,15 +3,13 @@ pluginManagement {
         google()
         mavenCentral()
         gradlePluginPortal()
-        maven { url = java.net.URI("https://maven.aliyun.com/repository/public") }
-        maven { url = java.net.URI("https://maven.aliyun.com/repository/google") }
     }
 }
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    // 官方仓库优先：第三方镜像排在前面时，所有依赖实际都从镜像下载（供应链风险）。
+    // 国内网络需要镜像时，可在 ~/.gradle/init.gradle 里按需追加，不写进仓库。
     repositories {
-        maven { url = java.net.URI("https://maven.aliyun.com/repository/public") }
-        maven { url = java.net.URI("https://maven.aliyun.com/repository/google") }
         google()
         mavenCentral()
     }

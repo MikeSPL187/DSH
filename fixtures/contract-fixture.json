@@ -1,6 +1,6 @@
 {
   "contractVersion": "4.0.0",
-  "expectedDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "expectedDigest": "d7087fecd9dc8276a52adf811a731a30e885d1e170696ef09c83bbf9ac7f6536",
   "mockEvents": [
     {
       "type": "Ready",

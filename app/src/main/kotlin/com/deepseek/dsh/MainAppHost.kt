@@ -703,6 +703,13 @@ fun MainAppHost(
     // 进入 [pendingNativeApprovals]，由用户决定。配对 JS 插件也只在批准时安装，
     // 重扫绝不自动下载/安装任何代码。
     var pairingDialogOpen by remember { mutableStateOf(false) }
+    // 「有任务时保持后台运行」交给前台服务在划掉最近任务时判断。
+    LaunchedEffect(ui.currentAppSettings.keepAliveOnTask) {
+        com.deepseek.dsh.runtime.host.HostService.setKeepAliveOnTaskRemoved(
+            context,
+            ui.currentAppSettings.keepAliveOnTask,
+        )
+    }
     val nativeTrustStore = remember { com.deepseek.dsh.plugin.nativehost.NativePluginTrustStore(context) }
     var nativeTrustTick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     val pendingNativeApprovals = remember {
@@ -2023,8 +2030,17 @@ fun MainAppHost(
         }
         onDispose { observer?.stopWatching() }
     }
-    val files = remember(ui.activePage, ui.filesDir, runtimeUi.filesRevision) {
-        workspaceManager.listFiles(ui.filesDir)
+    // 公共存储走 FUSE，每个条目一次 stat；大目录在主线程列举会卡顿甚至 ANR。
+    // 放到 IO 线程，刷新期间保留上一份列表。
+    val files by androidx.compose.runtime.produceState(
+        initialValue = emptyList<com.deepseek.dsh.feature.files.FileItem>(),
+        ui.activePage,
+        ui.filesDir,
+        runtimeUi.filesRevision,
+    ) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            workspaceManager.listFiles(ui.filesDir)
+        }
     }
     // 全文件选择器 → 复制进当前浏览目录（工作区内），Host 才能访问。
     val filesImportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="host_service_channel_name">DSH Host 运行时</string>
+    <string name="host_service_channel_desc">保证本地 DSH Host 容器与任务后台运行</string>
+    <string name="host_service_title">DSH 本地运行时</string>
+    <string name="host_service_running">Agent 运行时保持后台运行</string>
+    <string name="host_service_stop">停止</string>
+</resources>

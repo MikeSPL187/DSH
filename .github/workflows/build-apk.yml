@@ -25,10 +25,16 @@ jobs:
         uses: actions/checkout@v7
 
       # App 通过组合构建引用独立的 SDK 仓库；CI 里把它 checkout 到 _sdk。
+      # 固定到 sdk.lock 里的 commit，保证同一个 tag 永远构建出同一份 APK（审计 F-14/N-15）。
+      - name: Read pinned SDK commit
+        id: sdk
+        run: echo "commit=$(sed -n 's/^commit=//p' sdk.lock)" >> "$GITHUB_OUTPUT"
+
       - name: Checkout native UI SDK
         uses: actions/checkout@v7
         with:
           repository: EricFL1998/dsh-mobile-plugin-sdk
+          ref: ${{ steps.sdk.outputs.commit }}
           path: _sdk
 
       # Signing material comes from repository secrets. Without them the workflow still
@@ -74,6 +80,10 @@ jobs:
         env:
           BRIDGE_DISPATCH_TOKEN: ${{ secrets.BRIDGE_RELEASE_TOKEN }}
         run: python3 .github/scripts/verify-release-coupling.py
+
+      # 单元测试（安装器/rootfs 事务/semver/bridge 限流/信任策略等）必须先通过。
+      - name: Unit tests
+        run: ./gradlew test --no-daemon --stacktrace -PdshSdkRepo="$GITHUB_WORKSPACE/_sdk"
 
       - name: Build APK
         run: |
