@@ -33,8 +33,15 @@ object AppLanguage {
         return java.util.Locale.getDefault().toLanguageTag()
     }
 
-    /** 启动时套用已保存的选择（幂等）。 */
-    fun applySaved(context: Context) = apply(context, selection(context))
+    /**
+     * 启动时套用已保存的选择（幂等）。Android 8–12 上语言已在 [wrap] 中生效：
+     * 这里不能走 [applyLegacy]，否则 onCreate → recreate → onCreate 无限循环
+     * （在 Android 8 模拟器上表现为黑屏、主线程满载）。
+     */
+    fun applySaved(context: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        apply(context, selection(context))
+    }
 
     /** 套用一次选择：更新 per-app locale 并持久化。 */
     fun apply(context: Context, selection: String) {
@@ -66,6 +73,10 @@ object AppLanguage {
 
     @Suppress("DEPRECATION")
     private fun applyLegacy(context: Context, selection: String) {
+        // Без изменения языка ничего не пересоздаём: recreate() из onCreate зацикливается.
+        if (legacyLocale(selection)?.language == context.resources.configuration.locales[0]?.language &&
+            selection != "system"
+        ) return
         val locale = legacyLocale(selection)
             ?: android.content.res.Resources.getSystem().configuration.locales[0]
         java.util.Locale.setDefault(locale)

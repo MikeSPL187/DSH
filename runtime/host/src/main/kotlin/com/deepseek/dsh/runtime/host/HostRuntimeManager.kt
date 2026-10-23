@@ -73,6 +73,14 @@ interface HostRuntimeManager {
     suspend fun assessUpdates(): UpdateAssessment
 
     suspend fun start(workspacePath: String): Result<RuntimeStatus>
+
+    /**
+     * Автоматический запуск (прогрев при открытии приложения), а не по действию
+     * пользователя. Реализация может не повторять недавнюю неудачную попытку:
+     * повтор — это кнопка «Повторить», а не тихий перезапуск proot раз в минуту.
+     */
+    suspend fun warmUp(workspacePath: String): Result<RuntimeStatus> = start(workspacePath)
+
     suspend fun stop(): Result<Unit>
 }
 

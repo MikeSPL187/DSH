@@ -184,7 +184,7 @@ fun MainAppHost(
         // 首次安装等 rootfs 准备完成后再启动；之后每次重新打开 App 立即启动 Host。
         if (java.io.File(context.filesDir, "rootfs/etc/os-release").exists()) {
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                runCatching { runtimeManager.start(activeWorkspace.absolutePath) }
+                runCatching { runtimeManager.warmUp(activeWorkspace.absolutePath) }
             }
         }
     }
@@ -1462,7 +1462,7 @@ fun MainAppHost(
                 status.phase == RuntimePhase.ERROR)
         ) {
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                runtimeManager.start(activeWorkspace.absolutePath)
+                runtimeManager.warmUp(activeWorkspace.absolutePath)
             }
         }
     }

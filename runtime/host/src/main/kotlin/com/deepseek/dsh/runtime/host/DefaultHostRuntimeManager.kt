@@ -129,6 +129,7 @@ class DefaultHostRuntimeManager(
         version: String,
         onProgress: (Float, String) -> Unit,
     ): Result<String> = withContext(Dispatchers.IO) {
+        lastStartResult = null
         val manifest = BridgePluginManifest.load(context)
             ?: return@withContext Result.failure(
                 IllegalStateException(com.deepseek.dsh.core.model.Tr.t("The APK has no bundled plugin manifest (assets/${BridgePluginManifest.ASSET})", "В APK нет встроенного манифеста плагинов (assets/${BridgePluginManifest.ASSET})", "APK 未内置插件清单（assets/${BridgePluginManifest.ASSET}）"))
@@ -144,6 +145,8 @@ class DefaultHostRuntimeManager(
     }
 
     override suspend fun installRootfs(onProgress: (Float, String) -> Unit): Result<Unit> = withContext(Dispatchers.IO) {
+        // Новый rootfs — новая попытка: прошлая ошибка запуска не должна блокировать прогрев.
+        lastStartResult = null
         layout.ensureDirectories()
         val installer = RootfsInstaller(layout)
         // 清单实时拉取：下载地址与校验值随每次发版变化，内置的那份会过期，
@@ -715,6 +718,9 @@ class DefaultHostRuntimeManager(
         /** Logcat tag。 */
         const val TAG = "DshHostRuntime"
 
+        /** Сколько автоматический прогрев не повторяет неудачный запуск Host. */
+        const val AUTO_START_COOLDOWN_MS = 5 * 60_000L
+
         /** 启动时等待 `dsh web:` URL 的上限；超时按启动失败处理，不再无限 STARTING。 */
         const val ENDPOINT_TIMEOUT_MS = 90_000L
 
@@ -771,12 +777,50 @@ class DefaultHostRuntimeManager(
             .toList()
     }.getOrDefault(emptyList())
 
-    override suspend fun start(workspacePath: String): Result<RuntimeStatus> = startMutex.withLock {
+    /** Номер последней завершённой попытки запуска и её результат (см. [start]). */
+    private val startAttempts = java.util.concurrent.atomic.AtomicLong(0)
+    @Volatile
+    private var lastStartResult: Result<RuntimeStatus>? = null
+    @Volatile
+    private var lastStartFailedAt = 0L
 
-        if (runner.isRunning()) return@withLock Result.success(runner.statusFlow.value)
+    override suspend fun warmUp(workspacePath: String): Result<RuntimeStatus> {
+        val failure = lastStartResult?.takeIf { it.isFailure }
+        if (failure != null && !runner.isRunning() &&
+            System.currentTimeMillis() - lastStartFailedAt < AUTO_START_COOLDOWN_MS
+        ) {
+            return failure
+        }
+        return start(workspacePath)
+    }
+
+    /**
+     * При открытии приложения Host запрашивают сразу несколько мест (Application,
+     * экран запуска, проверка rootfs). Раньше каждый вызов из очереди за [startMutex]
+     * после неудачной попытки заново поднимал proot — несколько тяжёлых запусков
+     * подряд и минуты до показа ошибки. Вызовы, которые ждали, пока шла попытка,
+     * теперь получают её результат; явный повтор (после ошибки) запускает новую.
+     */
+    override suspend fun start(workspacePath: String): Result<RuntimeStatus> {
+        val observedAttempt = startAttempts.get()
+        return startMutex.withLock {
+            if (runner.isRunning()) return@withLock Result.success(runner.statusFlow.value)
+            val finishedMeanwhile = lastStartResult
+            if (startAttempts.get() != observedAttempt && finishedMeanwhile != null) {
+                return@withLock finishedMeanwhile
+            }
+            startLocked(workspacePath).also {
+                lastStartResult = it
+                if (it.isFailure) lastStartFailedAt = System.currentTimeMillis()
+                startAttempts.incrementAndGet()
+            }
+        }
+    }
+
+    private suspend fun startLocked(workspacePath: String): Result<RuntimeStatus> {
         // NonCancellable：调用方的 scope 被取消（切页/重组/返回）时，不能把 runner
         // 丢在 STARTING 里。启动要么跑完、要么落到明确的 ERROR，由看门狗和超时兜底。
-        withContext(Dispatchers.IO + NonCancellable) {
+        val result = withContext(Dispatchers.IO + NonCancellable) {
         layout.ensureDirectories()
 
         val hasRootfs = File(layout.rootfsDir, "etc/os-release").isFile ||
@@ -1024,6 +1068,7 @@ class DefaultHostRuntimeManager(
         runner.markReady()
         Result.success(runner.statusFlow.value)
         }
+        return result
     }
 
     override suspend fun stop(): Result<Unit> = withContext(Dispatchers.IO) {

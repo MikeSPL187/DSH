@@ -185,7 +185,7 @@ class DshApplication : Application() {
                 "Documents/DSH-Workspace"
             )
             applicationScope.launch(Dispatchers.IO) {
-                runCatching { runtimeManager.start(workspace.absolutePath) }
+                runCatching { runtimeManager.warmUp(workspace.absolutePath) }
             }
         }
     }
