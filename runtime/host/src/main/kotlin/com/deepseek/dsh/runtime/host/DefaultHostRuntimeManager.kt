@@ -910,10 +910,16 @@ class DefaultHostRuntimeManager(
         val serviceIntent = Intent(context, HostService::class.java).apply {
             action = HostService.ACTION_START
         }
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            context.startForegroundService(serviceIntent)
-        } else {
-            context.startService(serviceIntent)
+        // Когда приложение на переднем плане, обычный startService разрешён и не
+        // требует вызвать startForeground за 5 секунд. С startForegroundService
+        // медленный главный поток (холодный старт Compose) не успевал создать сервис,
+        // и система убивала процесс RemoteServiceException — воспроизведено на
+        // эмуляторе Android 8. Из фона startService бросает IllegalStateException,
+        // тогда остаётся startForegroundService; сервис сам переходит в foreground.
+        val started = runCatching { context.startService(serviceIntent) }.isSuccess
+        if (!started && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            runCatching { context.startForegroundService(serviceIntent) }
+                .onFailure { android.util.Log.w(TAG, "HostService не запущен", it) }
         }
 
         // 3. 将 DSH_ANDROID_BRIDGE_PORT 环境变量注入 proot 容器

@@ -40,17 +40,29 @@ class HostService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        // Обязательство startForegroundService выполняем сразу при создании: на медленном
+        // устройстве onStartCommand может прийти позже лимита в 5–10 секунд.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Android 12+ может запретить foreground из фона: не роняем процесс, сервис
+            // повторит startForeground в onStartCommand.
+            runCatching {
+                startForeground(NOTIFICATION_ID, buildForegroundNotification(getString(R.string.host_service_running)))
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> {
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
+                // stopSelf(startId), а не stopSelf(): если за STOP уже стоит новый
+                // startForegroundService (быстрый перезапуск Host), безусловная остановка
+                // убивала сервис до его startForeground — система роняла процесс
+                // RemoteServiceException (воспроизведено на эмуляторе Android 8).
+                if (stopSelfResult(startId)) stopForeground(STOP_FOREGROUND_REMOVE)
                 return START_NOT_STICKY
             }
             ACTION_USER_STOP -> {
-                stopHostAndSelf()
+                stopHostAndSelf(startId)
                 return START_NOT_STICKY
             }
             else -> {
@@ -71,7 +83,7 @@ class HostService : Service() {
         super.onTaskRemoved(rootIntent)
     }
 
-    private fun stopHostAndSelf() {
+    private fun stopHostAndSelf(startId: Int? = null) {
         val manager = HostRuntimeHolder.manager
         Thread {
             if (manager != null) {
@@ -79,7 +91,7 @@ class HostService : Service() {
             }
         }.start()
         stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
+        if (startId != null) stopSelf(startId) else stopSelf()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
