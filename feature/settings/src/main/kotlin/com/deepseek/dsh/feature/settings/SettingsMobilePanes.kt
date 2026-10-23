@@ -502,6 +502,20 @@ private fun NotificationSwitchRow(
     }
 }
 
+/**
+ * 远程 Host 地址必须是 HTTPS（令牌与会话 cookie 不能在局域网明文传输）；
+ * 回环地址例外，便于通过 SSH 隧道转发到 127.0.0.1。
+ */
+internal fun isSecureRemoteUrl(raw: String): Boolean {
+    val uri = runCatching { java.net.URI(raw.trim()) }.getOrNull() ?: return false
+    val host = uri.host ?: return false
+    return when (uri.scheme?.lowercase()) {
+        "https" -> true
+        "http" -> host == "127.0.0.1" || host == "localhost" || host == "[::1]" || host == "::1"
+        else -> false
+    }
+}
+
 @Composable
 internal fun SettingsRemotePane(
     settings: AppSettings,
@@ -531,9 +545,18 @@ internal fun SettingsRemotePane(
                     value = url,
                     onValueChange = { url = it },
                     singleLine = true,
-                    placeholder = { Text("http://192.168.1.10:45153") },
+                    placeholder = { Text("https://192.168.1.10:45153") },
+                    isError = url.isNotBlank() && !isSecureRemoteUrl(url),
                     modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
                 )
+                if (url.isNotBlank() && !isSecureRemoteUrl(url)) {
+                    Text(
+                        text = stringResource(R.string.settings_pane_remote_https_required),
+                        style = SettingsText.RowDesc,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
                 Text(stringResource(R.string.settings_pane_remote_token_label), style = SettingsText.RowTitle, color = palette.labelPrimary, modifier = Modifier.padding(top = 12.dp))
                 androidx.compose.material3.OutlinedTextField(
                     value = token,
@@ -551,7 +574,7 @@ internal fun SettingsRemotePane(
                             onUpdateSettings(settings.copy(remoteHostUrl = url.trim(), remoteHostToken = token.trim()))
                             onConnectRemote(url.trim(), token.trim())
                         },
-                        enabled = url.isNotBlank(),
+                        enabled = url.isNotBlank() && isSecureRemoteUrl(url),
                     ) { Text(stringResource(R.string.settings_pane_remote_connect)) }
                     androidx.compose.material3.OutlinedButton(
                         onClick = {

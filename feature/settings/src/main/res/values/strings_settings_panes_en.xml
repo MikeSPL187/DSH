@@ -130,4 +130,5 @@
     <string name="settings_pane_models_models_hint">Leave blank to keep the provider catalogue; add IDs to expose them in the model picker.</string>
 <string name="settings_pane_models_provider_official">Built-in providers</string>
     <string name="settings_pane_models_provider_plugin">Plugin providers</string>
+    <string name="settings_pane_remote_https_required">Use an https:// address. Plain http is allowed only for 127.0.0.1 (for example through an SSH tunnel), so the token is never sent unencrypted over the network.</string>
 </resources>

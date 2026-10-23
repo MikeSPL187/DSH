@@ -282,7 +282,7 @@
     <string name="market_incompatible_version">This version is incompatible with the current DSH; it requires DSH %1$s</string>
     <string name="market_install_success">Installed %1$s</string>
     <string name="market_install_failure">Install failed: %1$s</string>
-    <string name="market_invalid_source_url">Use an http or https URL without username, password or a # fragment</string>
+    <string name="market_invalid_source_url">Use an https URL without username, password or a # fragment</string>
     <string name="market_duplicate_source">This source has already been added</string>
     <string name="market_third_party_note">Indexes are provided by third parties. Only add sources you trust: installed plugins run with your permissions.</string>
     <string name="market_sources_desc_long">The plugin marketplace is provided as an index URL. Discover browses the indexes listed here.</string>

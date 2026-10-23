@@ -282,7 +282,7 @@
     <string name="market_incompatible_version">此版本与当前的 DSH 不兼容，它要求 DSH %1$s</string>
     <string name="market_install_success">已安装 %1$s</string>
     <string name="market_install_failure">安装失败：%1$s</string>
-    <string name="market_invalid_source_url">请使用 http 或 https 地址，且不要包含用户名、密码或 # 片段</string>
+    <string name="market_invalid_source_url">请使用 https 地址，且不要包含用户名、密码或 # 片段</string>
     <string name="market_duplicate_source">已添加过这个索引源</string>
     <string name="market_third_party_note">索引由第三方提供。只添加你信任的来源：其中的插件安装后以你的权限运行</string>
     <string name="market_sources_desc_long">插件市场以一个索引文件的 URL 提供，「发现」从这里列出的索引浏览插件</string>

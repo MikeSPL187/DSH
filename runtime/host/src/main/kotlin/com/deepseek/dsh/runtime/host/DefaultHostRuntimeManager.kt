@@ -904,7 +904,7 @@ class DefaultHostRuntimeManager(
 
         // 1. 启动本地 BridgeServer 并获得 loopback 端口；token 写入 guest 的 DSH_HOME，
         // Host 侧补丁按请求携带（见 BridgeAuth）。
-        val bridge = BridgeServer(context, layout.bridgeTokenFile)
+        val bridge = BridgeServer(context, layout.bridgeTokenFile, workspacePath = workspacePath)
         val bridgePort = bridge.start()
         bridgeServer = bridge
 

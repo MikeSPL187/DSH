@@ -78,6 +78,8 @@ class SurfaceCatalogStore {
             DshSlotRegistry.SIDEBAR_WORKSPACES,
             DshSlotRegistry.SIDEBAR_PANELLIST,
             DshSlotRegistry.SIDEBAR_RIGHT_PANE_TAB,
+            DshSlotRegistry.RIGHTBAR_SESSION,
+            DshSlotRegistry.SIDEBAR_RIGHT_TAB_GUIDE_ENTRY,
             DshSlotRegistry.SIDEBAR_WORKSPACES_SESSION_MENU_ITEM -> PlacementDestination.SIDEBAR_PANEL
             DshSlotRegistry.SHELL_OVERLAY -> PlacementDestination.PLUGIN_OVERLAY
             DshSlotRegistry.SETTINGS_SECTION,

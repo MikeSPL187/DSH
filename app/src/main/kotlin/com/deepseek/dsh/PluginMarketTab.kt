@@ -343,7 +343,8 @@ internal fun PluginMarketTab(
             onAdd = {
                 val url = draftUrl.trim()
                 sourceError = when {
-                    !(url.startsWith("http://") || url.startsWith("https://")) ->
+                    // 索引决定了会安装哪些代码：只接受 HTTPS，防止中间人篡改条目。
+                    !url.startsWith("https://", ignoreCase = true) ->
                         context.getString(R.string.market_invalid_source_url)
                     current.any { it.url == url } -> context.getString(R.string.market_duplicate_source)
                     else -> null

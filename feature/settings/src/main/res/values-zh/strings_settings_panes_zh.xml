@@ -130,4 +130,5 @@
     <string name="settings_pane_models_models_hint">留空沿用提供商目录；填写的 ID 会出现在模型选择器里。</string>
 <string name="settings_pane_models_provider_official">内置提供商</string>
     <string name="settings_pane_models_provider_plugin">插件提供商</string>
+    <string name="settings_pane_remote_https_required">请使用 https:// 地址。明文 http 只允许 127.0.0.1（例如经 SSH 隧道转发），令牌不会在网络上明文传输。</string>
 </resources>
