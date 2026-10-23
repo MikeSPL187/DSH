@@ -1030,7 +1030,9 @@ class DefaultHostRuntimeManager(
         val serviceIntent = Intent(context, HostService::class.java).apply {
             action = HostService.ACTION_STOP
         }
-        context.startService(serviceIntent)
+        // 后台（例如从最近任务划掉后）startService 可能抛 IllegalStateException；
+        // Host 进程已经结束，服务停不停都不应让调用方崩溃。
+        runCatching { context.startService(serviceIntent) }
         result
     }
 

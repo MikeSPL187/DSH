@@ -222,6 +222,8 @@ class RootfsInstaller(
      * 安装标记最后才写，所以日志存在时当前 rootfs 一定不是完整的新版本。
      */
     internal fun recoverInterruptedInstall() {
+        // 本进程里正在安装时，日志与备份都是「进行中」的正常状态，不能回滚。
+        if (INSTALL_IN_PROGRESS.get()) return
         val journal = journalFile()
         if (!journal.isFile) return
         val previous = previousRootfsDir()
@@ -237,8 +239,23 @@ class RootfsInstaller(
         archive: File,
         onProgress: (InstallProgress) -> Unit,
     ): Result<Unit> {
-        layout.ensureDirectories()
         recoverInterruptedInstall()
+        if (!INSTALL_IN_PROGRESS.compareAndSet(false, true)) {
+            return Result.failure(IllegalStateException("另一个 rootfs 安装正在进行"))
+        }
+        try {
+            return installArchiveLocked(manifest, archive, onProgress)
+        } finally {
+            INSTALL_IN_PROGRESS.set(false)
+        }
+    }
+
+    private fun installArchiveLocked(
+        manifest: RootfsManifest,
+        archive: File,
+        onProgress: (InstallProgress) -> Unit,
+    ): Result<Unit> {
+        layout.ensureDirectories()
         val staging = RootfsNaming.stagingDir(layout.cacheDir, manifest.runtimeVersion)
         val previous = previousRootfsDir()
         val journal = journalFile()
@@ -556,6 +573,8 @@ class RootfsInstaller(
     }
 
     private companion object {
+        /** 进程级安装锁：RootfsInstaller 会被多处各自 new 出来。 */
+        val INSTALL_IN_PROGRESS = java.util.concurrent.atomic.AtomicBoolean(false)
         val SHA256_HEX = Regex("^[0-9a-fA-F]{64}$")
         const val MIB = 1024L * 1024
         /** 解包之外预留的空间（DSH_HOME 合并、日志、npm 缓存）。 */
