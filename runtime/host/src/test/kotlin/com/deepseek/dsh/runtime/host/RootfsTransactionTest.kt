@@ -181,3 +181,23 @@ class RootfsTransactionTest {
         assertFalse(installer.isSafeSymlinkTarget("x", ""))
     }
 }
+
+class DiagnosticsScrubTest {
+    private val tool = RuntimeBackupAndDiagnostics(RuntimeLayout(java.io.File("/nonexistent"), java.io.File("/nonexistent")))
+
+    @org.junit.Test
+    fun scrubsCommonSecretShapes() {
+        val raw = """
+            GET /?token=abc123&x=1
+            Authorization: Bearer eyJhbGciOi.payload.sig
+            x-api-key: sk-live-1234567890
+            {"apiKey": "sk-abcdefghijkl", "remoteHostToken": "tok_secret_value", "name": "ok"}
+            Cookie: dsh-web-session=s3cr3t; theme=dark
+            pushed with ghp_0123456789abcdefghijABCDEFGHIJ
+        """.trimIndent()
+        val out = tool.scrubSensitiveInfo(raw)
+        listOf("abc123", "eyJhbGciOi", "sk-live-1234567890", "sk-abcdefghijkl", "tok_secret_value", "s3cr3t", "ghp_0123456789")
+            .forEach { org.junit.Assert.assertFalse("leaked $it in:\n$out", out.contains(it)) }
+        org.junit.Assert.assertTrue(out.contains("\"name\": \"ok\""))
+    }
+}
