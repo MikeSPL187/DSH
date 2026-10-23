@@ -1163,12 +1163,14 @@ fun MainAppHost(
     val availableModelNames = effectiveModelNames.distinct()
 
     // 官方账号菜单的登录入口：浏览器 OAuth 为主，API Key 为备选（与官方 SignInDialog 一致）。
+    // Ссылки могут прийти от Host: открываем только http(s) и не падаем, если браузера нет.
     val openUrl: (String) -> Unit = { url ->
-        val intent = android.content.Intent(
-            android.content.Intent.ACTION_VIEW,
-            android.net.Uri.parse(url)
-        ).apply { flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK }
-        context.startActivity(intent)
+        val uri = android.net.Uri.parse(url)
+        if (uri.scheme == "https" || uri.scheme == "http") {
+            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
+                .apply { flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK }
+            runCatching { context.startActivity(intent) }
+        }
     }
 
     // 官方 account/watch：登录中/已存凭据/退出都由 Host 推送，整个登录流程不再轮询。

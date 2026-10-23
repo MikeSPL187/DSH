@@ -4,7 +4,6 @@ import com.deepseek.dsh.core.model.AccountBalanceInfo
 import com.deepseek.dsh.core.model.AccountProfileInfo
 import com.deepseek.dsh.core.model.DeepSeekAccountState
 import com.deepseek.dsh.core.model.DeepSeekUserProfile
-import com.deepseek.dsh.core.model.DeepSeekWallet
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,15 +48,6 @@ class DeepSeekOAuthManager {
             profile = null,
             wallets = emptyList(),
             hasApiKey = apiKey.isNotBlank()
-        )
-    }
-
-    fun signInSuccess(profile: DeepSeekUserProfile) {
-        _accountFlow.value = DeepSeekAccountState(
-            isSignedIn = true,
-            profile = profile,
-            wallets = listOf(DeepSeekWallet(currency = "CNY", balance = "100.00")),
-            hasApiKey = _accountFlow.value.hasApiKey
         )
     }
 

@@ -669,6 +669,9 @@ private fun getJson(url: String): JsonObject {
     }
 }
 
+/** Предел размера APK из магазина плагинов. */
+private const val MAX_STORE_APK_BYTES = 200L * 1024 * 1024
+
 private suspend fun downloadAndInstallApk(context: Context, asset: GitHubApkAsset) = withContext(Dispatchers.IO) {
     val dir = File(context.cacheDir, "apk-store").apply { mkdirs() }
     val target = File(dir, asset.name.replace(Regex("[^A-Za-z0-9._-]"), "_"))
@@ -676,11 +679,31 @@ private suspend fun downloadAndInstallApk(context: Context, asset: GitHubApkAsse
         .url(asset.url)
         .header("User-Agent", "dsh-mobile-plugin-store")
         .build()
-    storeClient.newCall(request).execute().use { response ->
-        if (!response.isSuccessful) error(context.getString(R.string.store_download_failed, response.code))
-        response.body?.byteStream()?.use { input ->
-            target.outputStream().use { output -> input.copyTo(output) }
-        } ?: error(context.getString(R.string.store_empty_download))
+    // Пишем во временный файл с лимитом размера: обрыв или подмена ответа не оставят
+    // «битый» APK под финальным именем и не забьют память устройства.
+    val part = File(dir, target.name + ".part")
+    try {
+        storeClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) error(context.getString(R.string.store_download_failed, response.code))
+            response.body?.byteStream()?.use { input ->
+                part.outputStream().use { output ->
+                    val buffer = ByteArray(64 * 1024)
+                    var total = 0L
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        total += read
+                        if (total > MAX_STORE_APK_BYTES) error(context.getString(R.string.store_download_failed, 413))
+                        output.write(buffer, 0, read)
+                    }
+                }
+            } ?: error(context.getString(R.string.store_empty_download))
+        }
+        if (part.length() == 0L) error(context.getString(R.string.store_empty_download))
+        target.delete()
+        if (!part.renameTo(target)) error(context.getString(R.string.store_install_failed))
+    } finally {
+        part.delete()
     }
     withContext(Dispatchers.Main) {
         val uri = FileProvider.getUriForFile(
