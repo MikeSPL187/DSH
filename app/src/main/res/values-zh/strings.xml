@@ -661,4 +661,7 @@
     <string name="native_trust_js_package">允许后还会安装配对的 Host 插件：%1$s</string>
     <string name="native_trust_allow">允许</string>
     <string name="native_trust_deny">暂不</string>
+    <string name="remote_pairing_title">配对远程 Host</string>
+    <string name="remote_pairing_desc">粘贴网关显示的配对码（二维码内容）。发送配对码之前，会先用码里的证书指纹校验连接。</string>
+    <string name="remote_pairing_connect">配对</string>
 </resources>

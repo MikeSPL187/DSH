@@ -23,6 +23,11 @@ android {
     }
 }
 
+// 导出 Room schema 并纳入版本控制：每次升级数据库版本都能对照旧 schema 写迁移。
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:protocol"))

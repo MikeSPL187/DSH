@@ -60,7 +60,12 @@ class DshApplication : Application() {
             applicationContext,
             DshDatabase::class.java,
             "dsh_app.db"
-        ).fallbackToDestructiveMigration().build()
+        )
+            // 显式迁移代替「静默删库」（审计 F-03/N-13）。只有发布前的 v1 开发库没有
+            // 已知 schema，允许从它破坏性重建；之后每次升版本都必须提供 Migration。
+            .addMigrations(*com.deepseek.dsh.core.data.DshMigrations.ALL)
+            .fallbackToDestructiveMigrationFrom(true, 1)
+            .build()
     }
 
     val cookieJar by lazy { HostCookieJar() }
@@ -144,7 +149,8 @@ class DshApplication : Application() {
     val settingsRepository: DefaultSettingsRepository by lazy {
         DefaultSettingsRepository(
             dao = database.dshDao(),
-            scope = applicationScope
+            scope = applicationScope,
+            secretCipher = com.deepseek.dsh.core.data.SecretCipher.androidKeystore(),
         )
     }
 

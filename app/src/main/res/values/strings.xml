@@ -661,4 +661,7 @@
     <string name="native_trust_js_package">Allowing will also install the paired Host plugin: %1$s</string>
     <string name="native_trust_allow">Allow</string>
     <string name="native_trust_deny">Not now</string>
+    <string name="remote_pairing_title">Pair a remote Host</string>
+    <string name="remote_pairing_desc">Paste the pairing code shown by the gateway (QR content). The connection is verified against the certificate fingerprint in the code before the pairing code is sent.</string>
+    <string name="remote_pairing_connect">Pair</string>
 </resources>

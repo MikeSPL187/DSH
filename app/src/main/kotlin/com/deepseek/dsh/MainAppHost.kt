@@ -702,6 +702,7 @@ fun MainAppHost(
     // 批准过（包名 + 证书指纹钉死）的伴侣才会是 READY；首次发现或签名变化的伴侣
     // 进入 [pendingNativeApprovals]，由用户决定。配对 JS 插件也只在批准时安装，
     // 重扫绝不自动下载/安装任何代码。
+    var pairingDialogOpen by remember { mutableStateOf(false) }
     val nativeTrustStore = remember { com.deepseek.dsh.plugin.nativehost.NativePluginTrustStore(context) }
     var nativeTrustTick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     val pendingNativeApprovals = remember {
@@ -3338,15 +3339,21 @@ fun MainAppHost(
                                     ui.activeHostId = host.id
                                 },
                                 onScanPairClick = {
-                                    val newRemote = com.deepseek.dsh.core.model.HostDescriptor.Remote(
-                                        id = "remote_${System.currentTimeMillis()}",
-                                        name = context.getString(R.string.new_paired_remote_host),
-                                        baseUrl = "https://192.168.1.120:8443",
-                                        deviceToken = "sec_pair_tok"
-                                    )
-                                    availableHosts.add(newRemote)
+                                    // 之前这里直接塞进一个写死地址与令牌的「假」远程主机；
+                                    // 现在走真实配对：粘贴网关二维码内容，校验指纹并换取令牌。
+                                    pairingDialogOpen = true
                                 }
                             )
+                            if (pairingDialogOpen) {
+                                RemotePairingDialog(
+                                    onDismiss = { pairingDialogOpen = false },
+                                    onPaired = { remote ->
+                                        availableHosts.removeAll { it.id == remote.id }
+                                        availableHosts.add(remote)
+                                        pairingDialogOpen = false
+                                    },
+                                )
+                            }
                         }
 
                         ActivePage.TERMINAL -> PageContentSlot { terminalContent() }

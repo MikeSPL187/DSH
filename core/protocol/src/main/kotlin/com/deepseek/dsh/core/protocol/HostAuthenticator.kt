@@ -48,24 +48,30 @@ class HostCookieJar : CookieJar {
     }
 }
 
+/**
+ * 用启动 token 换取 Host 的会话 cookie。
+ *
+ * cookie 必须落在**实际发请求的那个客户端**的 CookieJar 里：旧实现默认新建一个
+ * [HostCookieJar] 再去读它，而请求走的是 App 共享客户端的 jar，于是永远报告
+ * 「0 cookies」（审计 A-05/N-17）。现在默认从 [client] 自己的 jar 读取。
+ */
 class HostAuthenticator(
-    private val cookieJar: HostCookieJar = HostCookieJar(),
     private val client: OkHttpClient = OkHttpClient.Builder()
-        .cookieJar(cookieJar)
-        .build()
+        .cookieJar(HostCookieJar())
+        .build(),
 ) {
     suspend fun exchangeTokenForCookie(
         baseUrl: String,
         token: String?
     ): RemoteResult<List<Cookie>> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val parsedUrl = baseUrl.toHttpUrlOrNull()
-            ?: return@withContext RemoteResult.Failure("dsh/auth/failed", "Invalid baseUrl: $baseUrl")
+            ?: return@withContext RemoteResult.Failure("dsh/auth/failed", "Invalid baseUrl")
 
+        // token 作为查询参数编码，而不是字符串拼接（含 & # 等字符时不会被截断/注入）。
         val urlWithToken = if (token.isNullOrEmpty()) {
-            baseUrl
+            parsedUrl
         } else {
-            val sep = if (baseUrl.contains("?")) "&" else "?"
-            "$baseUrl${sep}token=$token"
+            parsedUrl.newBuilder().setQueryParameter("token", token).build()
         }
 
         val request = Request.Builder()
@@ -76,8 +82,12 @@ class HostAuthenticator(
         try {
             client.newCall(request).execute().use { response ->
                 if (response.code in 200..399) {
-                    val cookies = cookieJar.getCookies(parsedUrl.host, parsedUrl.port)
-                    RemoteResult.Success(cookies)
+                    val cookies = client.cookieJar.loadForRequest(parsedUrl)
+                    if (!token.isNullOrEmpty() && cookies.isEmpty()) {
+                        RemoteResult.Failure("dsh/auth/failed", "Host did not issue a session cookie")
+                    } else {
+                        RemoteResult.Success(cookies)
+                    }
                 } else if (response.code == 401 || response.code == 403) {
                     RemoteResult.Failure("dsh/auth/failed", "Authentication rejected (HTTP ${response.code})")
                 } else {
@@ -85,7 +95,8 @@ class HostAuthenticator(
                 }
             }
         } catch (e: IOException) {
-            RemoteResult.Failure("dsh/net/timeout", e.message ?: "Network error during auth exchange")
+            // 异常信息可能带完整 URL（含 token），不向上传递原文。
+            RemoteResult.Failure("dsh/net/timeout", "Network error during auth exchange: ${e.javaClass.simpleName}")
         }
     }
 }
