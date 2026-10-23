@@ -43,7 +43,15 @@ android {
     }
 
     buildTypes {
+        // Тестовая сборка ставится рядом с релизной (другой applicationId и своё
+        // signature-разрешение плагинов), не затирая данные установленной версии.
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            manifestPlaceholders["bindPluginPermission"] = "com.dsh.mobile.debug.permission.BIND_PLUGIN"
+        }
         release {
+            manifestPlaceholders["bindPluginPermission"] = "com.deepseek.dsh.permission.BIND_PLUGIN"
             // 1.0 以“能装、能跑”为先：暂不开启 R8 收缩，避免反射/Compose/插件
             // 入口被裁掉；后续补 keep 规则后再打开。
             isMinifyEnabled = false
@@ -70,6 +78,18 @@ android {
     }
     kotlinOptions {
         jvmTarget = "21"
+    }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        unitTests.isReturnDefaultValues = true
+        unitTests.all { test ->
+            // Офлайн-образ android-all для Robolectric: -ProbolectricDepsDir=<папка с jar>.
+            providers.gradleProperty("robolectricDepsDir").orNull?.let { dir ->
+                test.systemProperty("robolectric.offline", "true")
+                test.systemProperty("robolectric.dependency.dir", dir)
+            }
+            test.maxHeapSize = "3g"
+        }
     }
     buildFeatures {
         compose = true
@@ -119,6 +139,12 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
 
     testImplementation(libs.junit)
+    // UI-прогон экранов на JVM (Robolectric + нативная графика), см. app/src/test/.../ui/.
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }

@@ -27,6 +27,7 @@ android {
 
 dependencies {
     implementation("com.deepseek.dsh.plugin:native-sdk")
+    implementation(libs.androidx.core.ktx)
     implementation(project(":core:bridge"))
     implementation(project(":core:designsystem"))
     implementation(libs.kotlinx.serialization.json)

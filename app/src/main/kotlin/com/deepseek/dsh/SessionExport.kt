@@ -46,6 +46,16 @@ suspend fun performSessionExport(
 /** 通过 MediaStore 写入 Download 目录；返回是否成功拿到 uri。 */
 private fun saveZip(context: Context, sessionId: String, bytes: ByteArray): Boolean {
     val name = "dsh-session-" + sessionId.replace(Regex("[^A-Za-z0-9_-]"), "_") + ".zip"
+    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
+        // MediaStore.Downloads есть только с Android 10; раньше экспорт на Android 8–9 падал.
+        @Suppress("DEPRECATION")
+        val dir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+        return runCatching {
+            dir.mkdirs()
+            java.io.File(dir, name).writeBytes(bytes)
+            true
+        }.getOrDefault(false)
+    }
     val values = ContentValues().apply {
         put(MediaStore.Downloads.DISPLAY_NAME, name)
         put(MediaStore.Downloads.MIME_TYPE, "application/zip")

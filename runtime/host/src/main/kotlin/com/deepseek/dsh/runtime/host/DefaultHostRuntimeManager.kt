@@ -148,21 +148,21 @@ class DefaultHostRuntimeManager(
         val installer = RootfsInstaller(layout)
         // 清单实时拉取：下载地址与校验值随每次发版变化，内置的那份会过期，
         // 用它去下载只会得到 404 或校验失败。装不上就直接报错，不猜。
-        onProgress(0.01f, "检查最新 rootfs 版本...")
+        onProgress(0.01f, HostStrings.get(R.string.rt_check_latest, "Checking the latest rootfs version…"))
         val resolved = try {
             manifestSource().resolve(forceRefresh = true)
         } catch (e: Exception) {
             return@withContext Result.failure(
-                IllegalStateException("获取 rootfs 清单失败: ${e.message}")
+                IllegalStateException(HostStrings.get(R.string.rt_manifest_failed, "Could not fetch the rootfs manifest: %1\$s", e.message))
             )
         } ?: return@withContext Result.failure(
-            IllegalStateException("无法获取 rootfs 清单：网络不可用，且没有本地缓存")
+            IllegalStateException(HostStrings.get(R.string.rt_manifest_offline, "Cannot fetch the rootfs manifest: no network and no local cache"))
         )
         val manifest = resolved.manifest
         if (resolved.origin == RootfsManifestSource.Origin.BUNDLED) {
-            onProgress(0.01f, "使用 APK 内置清单（可能已过期）…")
+            onProgress(0.01f, HostStrings.get(R.string.rt_manifest_bundled, "Using the manifest bundled with the APK (may be outdated)…"))
         }
-        onProgress(0f, "准备安装 ${manifest.baseDistro.ifBlank { "rootfs" }}...")
+        onProgress(0f, HostStrings.get(R.string.rt_prepare, "Preparing to install %1\$s…", manifest.baseDistro.ifBlank { "rootfs" }))
 
         // App 自带 rootfs 优先；否则按 ABI 下载首次运行所需的归档。
         val abi = android.os.Build.SUPPORTED_ABIS.firstOrNull {
@@ -173,7 +173,7 @@ class DefaultHostRuntimeManager(
             val cacheArchive = File(layout.cacheDir, "rootfs-$abi.tar.gz")
             val expectedSha = manifest.assetSha256[abi]
             if (!cacheArchive.isFile || cacheArchive.length() == 0L) {
-                onProgress(0.02f, "释放内置 rootfs ($abi)...")
+                onProgress(0.02f, HostStrings.get(R.string.rt_bundled_extract, "Extracting the bundled rootfs (%1\$s)…", abi))
                 try {
                     context.assets.open(assetPath).use { input ->
                         cacheArchive.outputStream().use { output ->
@@ -182,7 +182,7 @@ class DefaultHostRuntimeManager(
                     }
                 } catch (e: Exception) {
                     return@withContext Result.failure(
-                        IllegalStateException("释放内置 rootfs 失败: ${e.message}")
+                        IllegalStateException(HostStrings.get(R.string.rt_bundled_failed, "Could not extract the bundled rootfs: %1\$s", e.message))
                     )
                 }
             }
@@ -783,7 +783,7 @@ class DefaultHostRuntimeManager(
             File(layout.rootfsDir, "usr/bin/env").isFile
         if (!hasRootfs) {
             return@withContext Result.failure(
-                IllegalStateException("rootfs 未安装：请先在运行控制页安装 Rootfs")
+                IllegalStateException(HostStrings.get(R.string.rt_not_installed, "The rootfs is not installed: install it from the runtime page first"))
             )
         }
         // APK 的 rootfs 补丁按内置清单的 DSH 版本整文件替换；已安装镜像若来自
@@ -799,9 +799,7 @@ class DefaultHostRuntimeManager(
         ) {
             return@withContext Result.failure(
                 IllegalStateException(
-                    "rootfs 与当前 APK 不兼容：已安装 $installedRootfsVersion，" +
-                        "当前 APK 的补丁目标是 dsh$expectedDsh。" +
-                        "请在设置 → 运行控制中重新安装匹配的 Rootfs。"
+                    HostStrings.get(R.string.rt_incompatible, "The rootfs is incompatible with this APK: installed %1\$s, this APK targets dsh%2\$s. Reinstall a matching rootfs in Settings → Runtime.", installedRootfsVersion, expectedDsh)
                 )
             )
         }
@@ -996,7 +994,7 @@ class DefaultHostRuntimeManager(
                 // 不要用「超时」覆盖掉真正的原因。
                 bridge.stop()
                 return@withContext Result.failure(
-                    IllegalStateException(failed.lastError ?: "Host 进程在启动中途退出")
+                    IllegalStateException(failed.lastError ?: HostStrings.get(R.string.rt_host_exited, "The Host process exited during startup"))
                 )
             }
             if (failed.phase == RuntimePhase.STOPPED) {
@@ -1008,8 +1006,8 @@ class DefaultHostRuntimeManager(
             // 一句「未能解析到端口」，而是 Host 最后打印了什么。
             runner.terminate()
             val tail = runner.statusFlow.value.logTail.takeLast(LOG_TAIL_ON_ERROR)
-            val detail = if (tail.isEmpty()) "无输出" else tail.joinToString("\n")
-            val message = "Host 启动超时（${ENDPOINT_TIMEOUT_MS / 1000} 秒内未解析到端口或 token）：\n$detail"
+            val detail = if (tail.isEmpty()) HostStrings.get(R.string.rt_no_output, "no output") else tail.joinToString("\n")
+            val message = HostStrings.get(R.string.rt_host_timeout, "Host startup timed out (no port or token within %1\$d s):\n%2\$s", ENDPOINT_TIMEOUT_MS / 1000, detail)
             runner.markError(message)
             bridge.stop()
             return@withContext Result.failure(IllegalStateException(message))

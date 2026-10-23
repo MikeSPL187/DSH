@@ -179,10 +179,10 @@ class RootfsInstaller(
             archiveUrl.isNotBlank() -> {
                 // 网络来源必须走 HTTPS 且带 SHA-256：没有校验值的远程 manifest 不能安装。
                 if (!archiveUrl.startsWith("https://", ignoreCase = true)) {
-                    return@withContext Result.failure(IllegalStateException("rootfs 下载地址必须是 HTTPS：$archiveUrl"))
+                    return@withContext Result.failure(IllegalStateException(HostStrings.get(R.string.rt_https_required, "The rootfs download URL must use HTTPS: %1\$s", archiveUrl)))
                 }
                 if (!SHA256_HEX.matches(expectedSha.removePrefix("sha256:"))) {
-                    return@withContext Result.failure(IllegalStateException("rootfs manifest 缺少有效的 SHA-256，拒绝安装"))
+                    return@withContext Result.failure(IllegalStateException(HostStrings.get(R.string.rt_sha_missing, "The rootfs manifest has no valid SHA-256; installation refused")))
                 }
                 val target = RootfsNaming.archiveCacheFile(
                     layout.cacheDir,
@@ -190,9 +190,9 @@ class RootfsInstaller(
                     abi ?: android.os.Build.SUPPORTED_ABIS?.firstOrNull().orEmpty().ifBlank { "unknown" }
                 )
                 if (!(target.isFile && digestMatches(target, expectedSha))) {
-                    onProgress(InstallProgress("下载 rootfs（${manifest.baseDistro.ifBlank { "Debian" }}）...", 0.02f))
+                    onProgress(InstallProgress(HostStrings.get(R.string.rt_download, "Downloading rootfs (%1\$s)…", manifest.baseDistro.ifBlank { "Debian" }), 0.02f))
                     val downloaded = download(effectiveManifest, target) { fraction ->
-                        onProgress(InstallProgress("下载 rootfs... ${(fraction * 100).toInt()}%", 0.02f + fraction * 0.48f))
+                        onProgress(InstallProgress(HostStrings.get(R.string.rt_download_pct, "Downloading rootfs… %1\$d%%", (fraction * 100).toInt()), 0.02f + fraction * 0.48f))
                     }
                     if (downloaded.isFailure) return@withContext downloaded
                 }
@@ -200,13 +200,13 @@ class RootfsInstaller(
             }
             else -> return@withContext Result.failure(
                 IllegalStateException(
-                    "rootfs 下载地址未配置：请填写 rootfs-manifest.json 的 downloadUrls，或推送 cache/rootfs-local.tar.gz"
+                    HostStrings.get(R.string.rt_no_url, "No rootfs download URL configured")
                 )
             )
         }
 
         if (!archive.isFile || archive.length() == 0L) {
-            return@withContext Result.failure(IllegalStateException("rootfs 压缩包不存在或为空: ${archive.absolutePath}"))
+            return@withContext Result.failure(IllegalStateException(HostStrings.get(R.string.rt_archive_missing, "The rootfs archive is missing or empty")))
         }
         return@withContext installArchive(effectiveManifest, archive, onProgress)
     }
@@ -241,7 +241,7 @@ class RootfsInstaller(
     ): Result<Unit> {
         recoverInterruptedInstall()
         if (!INSTALL_IN_PROGRESS.compareAndSet(false, true)) {
-            return Result.failure(IllegalStateException("另一个 rootfs 安装正在进行"))
+            return Result.failure(IllegalStateException(HostStrings.get(R.string.rt_busy, "Another rootfs installation is in progress")))
         }
         try {
             return installArchiveLocked(manifest, archive, onProgress)
@@ -262,11 +262,11 @@ class RootfsInstaller(
         var swapped = false
         try {
             if (manifest.sha256.isNotBlank()) {
-                onProgress(InstallProgress("校验 rootfs SHA-256...", 0.52f))
+                onProgress(InstallProgress(HostStrings.get(R.string.rt_verify, "Verifying rootfs SHA-256…"), 0.52f))
                 val actual = calculateSha256(archive)
                 if (!actual.equals(manifest.sha256.removePrefix("sha256:"), ignoreCase = true)) {
                     return Result.failure(
-                        IllegalStateException("Rootfs SHA-256 校验失败: 期望 ${manifest.sha256}，实际 $actual")
+                        IllegalStateException(HostStrings.get(R.string.rt_sha_mismatch, "Rootfs SHA-256 mismatch: expected %1\$s, got %2\$s", manifest.sha256, actual))
                     )
                 }
             }
@@ -277,26 +277,26 @@ class RootfsInstaller(
             if (usable in 1 until required) {
                 return Result.failure(
                     IllegalStateException(
-                        "存储空间不足：需要约 ${required / MIB} MB，可用 ${usable / MIB} MB。旧运行环境保持不变。"
+                        HostStrings.get(R.string.rt_no_space, "Not enough storage: about %1\$d MB needed, %2\$d MB available. The current runtime was left unchanged.", required / MIB, usable / MIB)
                     )
                 )
             }
 
-            onProgress(InstallProgress("解包 Compact rootfs...", 0.55f))
+            onProgress(InstallProgress(HostStrings.get(R.string.rt_extract, "Extracting rootfs…"), 0.55f))
             SafeFiles.deleteTree(staging)
             staging.mkdirs()
             extractTarGz(archive, staging) { fraction ->
-                onProgress(InstallProgress("解包 rootfs... ${(fraction * 100).toInt()}%", 0.55f + fraction * 0.3f))
+                onProgress(InstallProgress(HostStrings.get(R.string.rt_extract_pct, "Extracting rootfs… %1\$d%%", (fraction * 100).toInt()), 0.55f + fraction * 0.3f))
             }
 
             // rootfs 归档通常包含根目录内容；若多包了一层，则下钻。
             val source = unwrapSingleRoot(staging)
             if (!File(source, "etc/os-release").isFile && !File(source, "usr/bin/env").isFile) {
                 SafeFiles.deleteTree(staging)
-                return Result.failure(IllegalStateException("rootfs 内容不完整：缺少 etc/os-release / usr/bin/env"))
+                return Result.failure(IllegalStateException(HostStrings.get(R.string.rt_incomplete, "The rootfs is incomplete: etc/os-release / usr/bin/env missing")))
             }
 
-            onProgress(InstallProgress("替换 rootfs 目录...", 0.9f))
+            onProgress(InstallProgress(HostStrings.get(R.string.rt_replace, "Replacing the rootfs directory…"), 0.9f))
             SafeFiles.deleteTree(previous)
             journal.parentFile?.mkdirs()
             SafeFiles.writeAtomically(journal, manifest.runtimeVersion)
@@ -346,7 +346,7 @@ class RootfsInstaller(
                 File(layout.dshHomeDir, "profiles/web/pnpm-lock.yaml").delete()
             }
 
-            onProgress(InstallProgress("自检运行时工具链...", 0.95f))
+            onProgress(InstallProgress(HostStrings.get(R.string.rt_selfcheck, "Checking the runtime toolchain…"), 0.95f))
             val toolchain = verifyToolchainIntegrity()
             if (toolchain.isFailure) throw toolchain.exceptionOrNull() ?: IllegalStateException("工具链自检失败")
 
@@ -369,7 +369,7 @@ class RootfsInstaller(
             // 提交点：标记已写，删除日志与旧 rootfs。
             journal.delete()
             SafeFiles.deleteTree(previous)
-            onProgress(InstallProgress("运行时安装完成", 1.0f))
+            onProgress(InstallProgress(HostStrings.get(R.string.rt_done, "Runtime installed"), 1.0f))
             return Result.success(Unit)
         } catch (e: Throwable) {
             SafeFiles.deleteTree(staging)
@@ -413,7 +413,7 @@ class RootfsInstaller(
             val request = Request.Builder().url(manifest.downloadUrl).build()
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    return Result.failure(IllegalStateException("rootfs 下载失败: HTTP ${response.code}"))
+                    return Result.failure(IllegalStateException(HostStrings.get(R.string.rt_http_failed, "rootfs download failed: HTTP %1\$d", response.code)))
                 }
                 val body = response.body ?: return Result.failure(IllegalStateException("rootfs 下载响应为空"))
                 val total = body.contentLength()

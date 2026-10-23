@@ -140,14 +140,23 @@ fun MainAppHost(
     val externalWorkspaceDir = remember { java.io.File(android.os.Environment.getExternalStorageDirectory(), "Documents/DSH-Workspace") }
     val visibleWorkspaceDir = remember { java.io.File(android.os.Environment.getExternalStorageDirectory(), "Documents/DSH-Workspace") }
 
+    // Android 8–10: обычный runtime-запрос; Android 11+: системный экран «Доступ ко всем файлам».
+    var storageAccessTick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val legacyStoragePermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions(),
+    ) { storageAccessTick += 1 }
     val openAllFilesSettings: () -> Unit = {
-        runCatching {
-            context.startActivity(
-                android.content.Intent(
-                    android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                    android.net.Uri.parse("package:" + context.packageName)
-                ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
+        if (StorageAccess.usesAllFilesSettings) {
+            runCatching {
+                context.startActivity(
+                    android.content.Intent(
+                        android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                        android.net.Uri.parse("package:" + context.packageName)
+                    ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+            }
+        } else {
+            legacyStoragePermissionLauncher.launch(StorageAccess.legacyPermissions)
         }
     }
     // 首次启动已强制授予所有文件访问权限，工作区固定为公有 Documents，无需再迁移/回退。
@@ -160,12 +169,13 @@ fun MainAppHost(
     val ui = rememberAppUiState(
         initialSettings = persistedSettings,
         initialWorkspace = activeWorkspace,
-        initialAllFilesAccess = android.os.Environment.isExternalStorageManager(),
+        initialAllFilesAccess = StorageAccess.hasAccess(context),
     )
-    LaunchedEffect(ui.hasAllFilesAccess) {
+    LaunchedEffect(ui.hasAllFilesAccess, storageAccessTick) {
+        ui.hasAllFilesAccess = StorageAccess.hasAccess(context)
         while (!ui.hasAllFilesAccess) {
             kotlinx.coroutines.delay(1000)
-            ui.hasAllFilesAccess = android.os.Environment.isExternalStorageManager()
+            ui.hasAllFilesAccess = StorageAccess.hasAccess(context)
         }
     }
 
@@ -290,8 +300,10 @@ fun MainAppHost(
     // 录音输入：权限、录音与转写由 App 负责；草稿在 ChatScreen 里，转写结果
     // 作为一次性事件传下去（官方 composer activity 的同样职责划分）。
     val voiceRecorder = remember { com.deepseek.dsh.voice.VoiceRecorder() }
-    val voiceEnabled = remember(dshRepository.bridgePluginCatalogFlow.value) {
-        dshRepository.bridgePluginCatalogFlow.value.bundles.any {
+    // Подписка на каталог: чтение StateFlow.value в composition не перерисовывает UI при изменениях.
+    val bridgeCatalogState by dshRepository.bridgePluginCatalogFlow.collectAsState()
+    val voiceEnabled = remember(bridgeCatalogState) {
+        bridgeCatalogState.bundles.any {
             it.name == VoiceInputPluginUi.bundle && it.enabled
         }
     }
@@ -376,16 +388,16 @@ fun MainAppHost(
     }
     // 思考内容翻译（官方 cot-translation 的 reasoning body）：插件启用时给
     // ReasoningCard 提供「查看译文/查看原文」能力。
-    val cotTranslationEnabled = remember(dshRepository.bridgePluginCatalogFlow.value) {
-        dshRepository.bridgePluginCatalogFlow.value.bundles.any {
+    val cotTranslationEnabled = remember(bridgeCatalogState) {
+        bridgeCatalogState.bundles.any {
             it.name == CotTranslationPluginUi.bundle && it.enabled
         }
     }
 
     // Claude Code 模组横幅：官方在 conversation.input.dock 画一条 Host 下发的
     // 动态横幅；只有 Claude Code 子智能体插件启用且当前会话存在时订阅。
-    val claudeCodeModsEnabled = remember(dshRepository.bridgePluginCatalogFlow.value) {
-        dshRepository.bridgePluginCatalogFlow.value.bundles.any {
+    val claudeCodeModsEnabled = remember(bridgeCatalogState) {
+        bridgeCatalogState.bundles.any {
             it.name == com.deepseek.dsh.feature.chat.ClaudeCodeModsPluginUi.BUNDLE && it.enabled
         }
     }
@@ -398,8 +410,8 @@ fun MainAppHost(
     }
 
     // 会话数据诊断（开发者工具）：只读展示当前会话收到的原始帧。
-    val sessionInspectorEnabled = remember(dshRepository.bridgePluginCatalogFlow.value) {
-        dshRepository.bridgePluginCatalogFlow.value.bundles.any {
+    val sessionInspectorEnabled = remember(bridgeCatalogState) {
+        bridgeCatalogState.bundles.any {
             it.name == SessionInspectorPluginUi.BUNDLE && it.enabled
         }
     }
@@ -560,7 +572,7 @@ fun MainAppHost(
     val agentTeam by dshRepository.agentTeamFlow.collectAsState()
     // 团队动作只在「智能体团队」profile 启用时出现（官方由插件注册 header action）。
     val agentTeamEnabled = remember(bridgePluginCatalog) {
-        dshRepository.bridgePluginCatalogFlow.value.bundles.any {
+        bridgeCatalogState.bundles.any {
             it.name == AgentTeamPluginUi.BUNDLE && it.enabled
         }
     }
@@ -724,7 +736,8 @@ fun MainAppHost(
             val discovery = com.deepseek.dsh.plugin.nativehost.NativePluginDiscovery(context)
             val loader = com.deepseek.dsh.plugin.nativehost.NativePluginLoader(context)
             val appVersionCode = context.packageManager
-                .getPackageInfo(context.packageName, 0).longVersionCode.toInt()
+                .getPackageInfo(context.packageName, 0)
+                .let { androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(it).toInt() }
             val discovered = discovery.scan(
                 appVersionCode = appVersionCode,
                 supportedApiVersion = com.deepseek.dsh.plugin.nativehost.NativeAbi.CURRENT,

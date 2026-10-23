@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rt_download">Загрузка rootfs (%1$s)…</string>
+    <string name="rt_download_pct">Загрузка rootfs… %1$d%%</string>
+    <string name="rt_https_required">Адрес загрузки rootfs должен быть HTTPS: %1$s</string>
+    <string name="rt_sha_missing">В манифесте rootfs нет корректного SHA-256, установка отклонена</string>
+    <string name="rt_no_url">Адрес загрузки rootfs не настроен</string>
+    <string name="rt_archive_missing">Архив rootfs отсутствует или пуст</string>
+    <string name="rt_busy">Уже идёт другая установка rootfs</string>
+    <string name="rt_verify">Проверка SHA-256 rootfs…</string>
+    <string name="rt_sha_mismatch">SHA-256 rootfs не совпадает: ожидался %1$s, получен %2$s</string>
+    <string name="rt_no_space">Недостаточно места: нужно около %1$d МБ, доступно %2$d МБ. Текущая среда не изменена.</string>
+    <string name="rt_extract">Распаковка rootfs…</string>
+    <string name="rt_extract_pct">Распаковка rootfs… %1$d%%</string>
+    <string name="rt_incomplete">rootfs неполный: нет etc/os-release / usr/bin/env</string>
+    <string name="rt_replace">Замена каталога rootfs…</string>
+    <string name="rt_selfcheck">Проверка инструментов среды…</string>
+    <string name="rt_done">Среда установлена</string>
+    <string name="rt_http_failed">Ошибка загрузки rootfs: HTTP %1$d</string>
+    <string name="rt_check_latest">Проверка последней версии rootfs…</string>
+    <string name="rt_manifest_failed">Не удалось получить манифест rootfs: %1$s</string>
+    <string name="rt_manifest_offline">Не удалось получить манифест rootfs: нет сети и локального кэша</string>
+    <string name="rt_manifest_bundled">Используется манифест из APK (может быть устаревшим)…</string>
+    <string name="rt_prepare">Подготовка к установке %1$s…</string>
+    <string name="rt_bundled_extract">Распаковка встроенного rootfs (%1$s)…</string>
+    <string name="rt_bundled_failed">Не удалось распаковать встроенный rootfs: %1$s</string>
+    <string name="rt_not_installed">rootfs не установлен: сначала установите его на странице среды</string>
+    <string name="rt_incompatible">rootfs несовместим с этим APK: установлен %1$s, APK рассчитан на dsh%2$s. Переустановите подходящий rootfs в «Настройки → Среда».</string>
+    <string name="rt_host_exited">Процесс Host завершился во время запуска</string>
+    <string name="rt_no_output">нет вывода</string>
+    <string name="rt_host_timeout">Тайм-аут запуска Host (порт или токен не получены за %1$d с):\n%2$s</string>
+</resources>

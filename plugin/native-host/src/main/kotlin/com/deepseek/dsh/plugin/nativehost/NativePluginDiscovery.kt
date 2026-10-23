@@ -82,7 +82,7 @@ class NativePluginDiscovery(private val context: Context) {
             val fingerprint = signingFingerprint(pm, packageName) ?: return@mapNotNull null
 
             val pkgInfo = runCatching { pm.getPackageInfo(packageName, 0) }.getOrNull()
-            val versionCode = pkgInfo?.longVersionCode?.toInt() ?: 0
+            val versionCode = pkgInfo?.let { androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(it).toInt() } ?: 0
             val lastUpdateTime = pkgInfo?.lastUpdateTime ?: 0L
 
             // ABI 门禁：任一不匹配 → 标记状态，绝不进入加载流程。
@@ -120,10 +120,19 @@ class NativePluginDiscovery(private val context: Context) {
          * 因此多签名者一律返回 null（不发现、不加载）。
          */
         fun signingFingerprint(pm: PackageManager, packageName: String): String? = runCatching {
-            val info = pm.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES)
-            val signingInfo = info.signingInfo ?: return null
-            if (signingInfo.hasMultipleSigners()) return null
-            val cert = signingInfo.apkContentsSigners?.singleOrNull()?.toByteArray() ?: return null
+            val cert = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                val info = pm.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES)
+                val signingInfo = info.signingInfo ?: return null
+                if (signingInfo.hasMultipleSigners()) return null
+                signingInfo.apkContentsSigners?.singleOrNull()?.toByteArray() ?: return null
+            } else {
+                // Android 8.x: SigningInfo появился в API 28; раньше этот путь всегда падал,
+                // и на Android 8 нативные плагины не обнаруживались вовсе.
+                @Suppress("DEPRECATION")
+                val info = pm.getPackageInfo(packageName, PackageManager.GET_SIGNATURES)
+                @Suppress("DEPRECATION")
+                info.signatures?.singleOrNull()?.toByteArray() ?: return null
+            }
             val digest = java.security.MessageDigest.getInstance("SHA-256").digest(cert)
             digest.joinToString("") { "%02x".format(it) }
         }.getOrNull()

@@ -64,15 +64,15 @@ class PluginBundleInstaller(
         withContext(Dispatchers.IO) {
             val spec = PluginInstallSpec.parse(rawSpec)
                 ?: return@withContext Result.failure(
-                    IllegalStateException("无法识别的插件地址：$rawSpec")
+                    IllegalStateException(HostStrings.get(R.string.pi_bad_spec, "Unrecognized plugin address: %1\$s", rawSpec))
                 )
             if (!profileDir.isDirectory) {
                 return@withContext Result.failure(
-                    IllegalStateException("Host profile 尚未初始化：请先启动一次 Host")
+                    IllegalStateException(HostStrings.get(R.string.pi_no_profile, "The Host profile is not initialized yet: start the Host once first"))
                 )
             }
             ensurePresetLink()
-            onProgress(0.02f, "解析插件地址…")
+            onProgress(0.02f, HostStrings.get(R.string.pi_resolving, "Resolving plugin address…"))
             val budget = InstallBudget()
             val staged = try {
                 when (spec) {
@@ -82,34 +82,34 @@ class PluginBundleInstaller(
                 }
             } catch (error: Exception) {
                 return@withContext Result.failure(
-                    IllegalStateException("获取插件包失败：${error.message}")
+                    IllegalStateException(HostStrings.get(R.string.pi_fetch_failed, "Could not fetch the plugin package: %1\$s", error.message))
                 )
             }
             staged.use { packageDir ->
                 val manifest = readManifest(packageDir.dir)
                     ?: return@withContext Result.failure(
-                        IllegalStateException("插件包缺少可读的 package.json")
+                        IllegalStateException(HostStrings.get(R.string.pi_no_manifest, "The plugin package has no readable package.json"))
                     )
                 val name = manifest.name?.takeIf { it.isNotBlank() }
                     ?: return@withContext Result.failure(
-                        IllegalStateException("插件 package.json 没有包名")
+                        IllegalStateException(HostStrings.get(R.string.pi_no_name, "The plugin package.json has no name"))
                     )
                 // 包名会被拼进 node_modules 路径并在其上删除/替换目录：先校验（审计 F-01）。
                 if (!PluginInstallSpec.isValidPackageName(name)) {
                     return@withContext Result.failure(
-                        IllegalStateException("插件包名不合法：$name")
+                        IllegalStateException(HostStrings.get(R.string.pi_bad_name, "Invalid plugin package name: %1\$s", name))
                     )
                 }
                 if (spec is PluginInstallSpec.Registry && name != spec.name) {
                     return@withContext Result.failure(
-                        IllegalStateException("registry 返回的包名 $name 与请求的 ${spec.name} 不一致")
+                        IllegalStateException(HostStrings.get(R.string.pi_name_mismatch, "The registry returned package %1\$s instead of the requested %2\$s", name, spec.name))
                     )
                 }
                 val version = manifest.version.orEmpty()
                 val patchPath = manifest.patch
                 if (patchPath.isNullOrBlank()) {
                     return@withContext Result.failure(
-                        IllegalStateException("$name 没有声明 dsh.bundle.patch，不能作为插件安装")
+                        IllegalStateException(HostStrings.get(R.string.pi_no_patch, "%1\$s does not declare dsh.bundle.patch and cannot be installed as a plugin", name))
                     )
                 }
                 // 在动现有安装之前就验证 patch，失败时旧版本保持原样（审计 F-05/N-09）。
@@ -118,29 +118,29 @@ class PluginBundleInstaller(
                     ?.readText()
                 if (patchText.isNullOrBlank()) {
                     return@withContext Result.failure(
-                        IllegalStateException("$name 的 bundle patch 不可读")
+                        IllegalStateException(HostStrings.get(R.string.pi_patch_unreadable, "The bundle patch of %1\$s cannot be read", name))
                     )
                 }
-                onProgress(0.55f, "安装运行时依赖…")
+                onProgress(0.55f, HostStrings.get(R.string.pi_deps, "Installing runtime dependencies…"))
                 val plan = DependencyPlan(File(packageDir.dir, "node_modules"), budget)
                 val missing = runCatching {
                     installDependencies(packageDir.dir, manifest, onProgress, plan, depth = 0)
                 }.getOrElse { listOf(it.message ?: it.javaClass.simpleName) }
                 if (missing.isNotEmpty()) {
                     return@withContext Result.failure(
-                        IllegalStateException("依赖安装失败：${missing.joinToString()}")
+                        IllegalStateException(HostStrings.get(R.string.pi_deps_failed, "Dependency installation failed: %1\$s", missing.joinToString()))
                     )
                 }
-                onProgress(0.8f, "写入 profile…")
+                onProgress(0.8f, HostStrings.get(R.string.pi_writing, "Writing to the profile…"))
                 val committed = runCatching {
                     commitPackage(packageDir.dir, name) { mountWebAppPatch(name, patchText) }
                 }
                 committed.exceptionOrNull()?.let { error ->
                     return@withContext Result.failure(
-                        IllegalStateException("写入插件失败，已恢复原有版本：${error.message}")
+                        IllegalStateException(HostStrings.get(R.string.pi_commit_failed, "Could not write the plugin; the previous version was restored: %1\$s", error.message))
                     )
                 }
-                onProgress(1f, "已安装 $name@$version")
+                onProgress(1f, HostStrings.get(R.string.pi_installed, "Installed %1\$s@%2\$s", name, version))
                 Result.success(if (version.isBlank()) name else "$name@$version")
             }
         }
@@ -312,9 +312,9 @@ class PluginBundleInstaller(
     ): StagedPackage {
         val refSegment = spec.ref?.let { "refs/tags/$it" } ?: "HEAD"
         val url = "https://codeload.github.com/${spec.owner}/${spec.repo}/zip/$refSegment"
-        onProgress(0.05f, "下载 GitHub 归档…")
+        onProgress(0.05f, HostStrings.get(R.string.pi_dl_github, "Downloading the GitHub archive…"))
         val bytes = download(url)
-        onProgress(0.3f, "解压插件…")
+        onProgress(0.3f, HostStrings.get(R.string.pi_unpacking, "Extracting the plugin…"))
         val source = extractZipToStaging(bytes, budget)
         // GitHub 归档是源码仓库：构建产物（lib/）通常不在里面。能在 npm 上
         // 找到同一版本时，用已构建的 tarball 替换源码目录 —— 否则装上去的
@@ -330,14 +330,13 @@ class PluginBundleInstaller(
                 null
             }
             if (published != null) {
-                onProgress(0.35f, "下载已构建的 $name@$version…")
+                onProgress(0.35f, HostStrings.get(R.string.pi_dl_built, "Downloading the built %1\$s@%2\$s…", name, version))
                 source.close()
                 return extractTarGzToStaging(download(published), budget)
             }
             source.close()
             throw IllegalStateException(
-                "$name 的源码归档里没有构建产物（${manifest.main}），且 npm 上没有对应版本；" +
-                    "请先用 npm 包名安装，或安装已发布的版本"
+                HostStrings.get(R.string.pi_no_build, "The source archive of %1\$s has no build output (%2\$s) and npm has no matching version; install it by npm package name or install a published version", name, manifest.main)
             )
         }
         return source
@@ -359,19 +358,19 @@ class PluginBundleInstaller(
         onProgress: (Float, String) -> Unit,
         budget: InstallBudget,
     ): StagedPackage {
-        onProgress(0.05f, "查询 $name 版本…")
+        onProgress(0.05f, HostStrings.get(R.string.pi_query, "Looking up %1\$s versions…", name))
         val metadata = fetchRegistryMetadata(name)
-            ?: throw IllegalStateException("registry 上没有 $name")
+            ?: throw IllegalStateException(HostStrings.get(R.string.pi_not_in_registry, "%1\$s was not found in the registry", name))
         val version = selectVersion(metadata, range)
-            ?: throw IllegalStateException("$name 没有满足 ${range ?: "latest"} 的版本")
+            ?: throw IllegalStateException(HostStrings.get(R.string.pi_no_version, "%1\$s has no version matching %2\$s", name, range ?: "latest"))
         val tarball = metadata["versions"]?.jsonObjectOrNull()
             ?.get(version)?.jsonObjectOrNull()
             ?.get("dist")?.jsonObjectOrNull()
             ?.get("tarball")?.jsonPrimitive?.contentOrNull
-            ?: throw IllegalStateException("$name@$version 没有 tarball 地址")
-        onProgress(0.1f, "下载 $name@$version…")
+            ?: throw IllegalStateException(HostStrings.get(R.string.pi_no_tarball, "%1\$s@%2\$s has no tarball URL", name, version))
+        onProgress(0.1f, HostStrings.get(R.string.pi_dl, "Downloading %1\$s@%2\$s…", name, version))
         val bytes = download(tarball)
-        onProgress(0.35f, "解压 $name@$version…")
+        onProgress(0.35f, HostStrings.get(R.string.pi_unpack_ver, "Extracting %1\$s@%2\$s…", name, version))
         return extractTarGzToStaging(bytes, budget)
     }
 
@@ -400,11 +399,11 @@ class PluginBundleInstaller(
         budget: InstallBudget,
     ): StagedPackage {
         val source = resolveLocalPath(path)
-            ?: throw IllegalStateException("本地路径不在 App 可访问范围内：$path")
+            ?: throw IllegalStateException(HostStrings.get(R.string.pi_local_outside, "The local path is outside the folders the app can access: %1\$s", path))
         if (!File(source, "package.json").isFile) {
-            throw IllegalStateException("本地目录缺少 package.json：$path")
+            throw IllegalStateException(HostStrings.get(R.string.pi_local_no_manifest, "The local folder has no package.json: %1\$s", path))
         }
-        onProgress(0.3f, "复制本地插件目录…")
+        onProgress(0.3f, HostStrings.get(R.string.pi_local_copy, "Copying the local plugin folder…"))
         val staging = StagedPackage(newStagingDir())
         try {
             copyTreeLimited(source, staging.dir, budget)
@@ -490,7 +489,7 @@ class PluginBundleInstaller(
             if (depth == 0) {
                 onProgress(
                     (0.55f + (index.toFloat() / (dependencies.size + 1)) * 0.2f).coerceAtMost(0.78f),
-                    "安装依赖 $name…",
+                    HostStrings.get(R.string.pi_dep, "Installing dependency %1\$s…", name),
                 )
             }
             val parentModules = if (hoistedVersion == null) plan.rootModules else File(packageDir, "node_modules")
@@ -512,17 +511,17 @@ class PluginBundleInstaller(
         depth: Int,
     ) {
         if (++plan.budget.packages > MAX_PACKAGES) {
-            throw IllegalStateException("依赖数量超过 $MAX_PACKAGES")
+            throw IllegalStateException(HostStrings.get(R.string.pi_too_many, "More than %1\$d dependencies", MAX_PACKAGES))
         }
         val metadata = fetchRegistryMetadata(name)
-            ?: throw IllegalStateException("registry 上没有 $name")
+            ?: throw IllegalStateException(HostStrings.get(R.string.pi_not_in_registry, "%1\$s was not found in the registry", name))
         val version = selectVersion(metadata, range)
-            ?: throw IllegalStateException("没有满足 $range 的版本")
+            ?: throw IllegalStateException(HostStrings.get(R.string.pi_no_version_range, "No version matches %1\$s", range))
         val tarball = metadata["versions"]?.jsonObjectOrNull()
             ?.get(version)?.jsonObjectOrNull()
             ?.get("dist")?.jsonObjectOrNull()
             ?.get("tarball")?.jsonPrimitive?.contentOrNull
-            ?: throw IllegalStateException("没有 tarball 地址")
+            ?: throw IllegalStateException(HostStrings.get(R.string.pi_no_tarball_short, "No tarball URL"))
         val bytes = download(tarball)
         val staging = extractTarGzToStaging(bytes, plan.budget)
         staging.use { extracted ->
@@ -569,7 +568,7 @@ class PluginBundleInstaller(
      */
     private fun mountWebAppPatch(packageName: String, patchText: String) {
         val patchFile = webAppPatchFile()
-        if (!patchFile.isFile) error("dsh-web-app 的 patch 层不存在，无法挂载 $packageName")
+        if (!patchFile.isFile) error(HostStrings.get(R.string.pi_no_patch_layer, "The dsh-web-app patch layer is missing; cannot mount %1\$s", packageName))
         val marker = "# android-installed: $packageName"
         val body = patchText.trimEnd()
         // 重装/升级时用新 patch 替换旧挂载块（旧实现保留过期 patch）。
@@ -624,7 +623,7 @@ class PluginBundleInstaller(
                     if (read <= 0) break
                     buffer.write(chunk, 0, read)
                     if (buffer.size() > MAX_DOWNLOAD_BYTES) {
-                        throw IllegalStateException("下载超过 64MB：$url")
+                        throw IllegalStateException(HostStrings.get(R.string.pi_dl_too_big, "Download is larger than 64 MB: %1\$s", url))
                     }
                 }
             }
@@ -657,13 +656,13 @@ class PluginBundleInstaller(
         var packages = 0
 
         fun addEntry() {
-            if (++entries > MAX_ENTRIES) throw IllegalStateException("归档条目超过 $MAX_ENTRIES")
+            if (++entries > MAX_ENTRIES) throw IllegalStateException(HostStrings.get(R.string.pi_too_many_entries, "The archive has more than %1\$d entries", MAX_ENTRIES))
         }
 
         fun addBytes(count: Long) {
             bytes += count
             if (bytes > MAX_TOTAL_UNCOMPRESSED_BYTES) {
-                throw IllegalStateException("解压总大小超过 ${MAX_TOTAL_UNCOMPRESSED_BYTES / (1024 * 1024)}MB")
+                throw IllegalStateException(HostStrings.get(R.string.pi_too_large, "Extracted size exceeds %1\$d MB", MAX_TOTAL_UNCOMPRESSED_BYTES / (1024 * 1024)))
             }
         }
     }
@@ -678,7 +677,7 @@ class PluginBundleInstaller(
                 if (read <= 0) break
                 written += read
                 if (written > MAX_ENTRY_BYTES) {
-                    throw IllegalStateException("归档内单个文件超过 ${MAX_ENTRY_BYTES / (1024 * 1024)}MB")
+                    throw IllegalStateException(HostStrings.get(R.string.pi_entry_too_large, "A file in the archive exceeds %1\$d MB", MAX_ENTRY_BYTES / (1024 * 1024)))
                 }
                 budget?.addBytes(read.toLong())
                 output.write(buffer, 0, read)

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rt_download">下载 rootfs（%1$s）...</string>
+    <string name="rt_download_pct">下载 rootfs... %1$d%%</string>
+    <string name="rt_https_required">rootfs 下载地址必须是 HTTPS：%1$s</string>
+    <string name="rt_sha_missing">rootfs manifest 缺少有效的 SHA-256，拒绝安装</string>
+    <string name="rt_no_url">rootfs 下载地址未配置：请填写 rootfs-manifest.json 的 downloadUrls，或推送 cache/rootfs-local.tar.gz</string>
+    <string name="rt_archive_missing">rootfs 压缩包不存在或为空</string>
+    <string name="rt_busy">另一个 rootfs 安装正在进行</string>
+    <string name="rt_verify">校验 rootfs SHA-256...</string>
+    <string name="rt_sha_mismatch">Rootfs SHA-256 校验失败: 期望 %1$s，实际 %2$s</string>
+    <string name="rt_no_space">存储空间不足：需要约 %1$d MB，可用 %2$d MB。旧运行环境保持不变。</string>
+    <string name="rt_extract">解包 Compact rootfs...</string>
+    <string name="rt_extract_pct">解包 rootfs... %1$d%%</string>
+    <string name="rt_incomplete">rootfs 内容不完整：缺少 etc/os-release / usr/bin/env</string>
+    <string name="rt_replace">替换 rootfs 目录...</string>
+    <string name="rt_selfcheck">自检运行时工具链...</string>
+    <string name="rt_done">运行时安装完成</string>
+    <string name="rt_http_failed">rootfs 下载失败: HTTP %1$d</string>
+    <string name="rt_check_latest">检查最新 rootfs 版本...</string>
+    <string name="rt_manifest_failed">获取 rootfs 清单失败: %1$s</string>
+    <string name="rt_manifest_offline">无法获取 rootfs 清单：网络不可用，且没有本地缓存</string>
+    <string name="rt_manifest_bundled">使用 APK 内置清单（可能已过期）…</string>
+    <string name="rt_prepare">准备安装 %1$s...</string>
+    <string name="rt_bundled_extract">释放内置 rootfs (%1$s)...</string>
+    <string name="rt_bundled_failed">释放内置 rootfs 失败: %1$s</string>
+    <string name="rt_not_installed">rootfs 未安装：请先在运行控制页安装 Rootfs</string>
+    <string name="rt_incompatible">rootfs 与当前 APK 不兼容：已安装 %1$s，当前 APK 的补丁目标是 dsh%2$s。请在设置 → 运行控制中重新安装匹配的 Rootfs。</string>
+    <string name="rt_host_exited">Host 进程在启动中途退出</string>
+    <string name="rt_no_output">无输出</string>
+    <string name="rt_host_timeout">Host 启动超时（%1$d 秒内未解析到端口或 token）：\n%2$s</string>
+</resources>
