@@ -174,12 +174,12 @@ class PluginBundleInstaller(
             swapped = true
             afterSwap()
         } catch (error: Throwable) {
-            if (swapped) target.deleteRecursively()
+            if (swapped) SafeFiles.deleteTree(target)
             if (backup.exists()) backup.renameTo(target)
-            incoming.deleteRecursively()
+            SafeFiles.deleteTree(incoming)
             throw error
         }
-        backup.deleteRecursively()
+        SafeFiles.deleteTree(backup)
     }
 
     /**
@@ -274,7 +274,7 @@ class PluginBundleInstaller(
         runCatching {
             require(PluginInstallSpec.isValidPackageName(packageName)) { "插件包名不合法：$packageName" }
             val target = safeChild(nodeModules, packageName)
-            if (target.exists() && !target.deleteRecursively()) {
+            if (target.exists() && !SafeFiles.deleteTree(target)) {
                 error("删除插件目录失败：$packageName")
             }
             val patchFile = webAppPatchFile()
@@ -529,10 +529,10 @@ class PluginBundleInstaller(
             parentModules.mkdirs()
             val destination = safeChild(parentModules, name)
             destination.parentFile?.mkdirs()
-            destination.deleteRecursively()
+            SafeFiles.deleteTree(destination)
             if (!extracted.dir.renameTo(destination)) {
                 copyTreeLimited(extracted.dir, destination, budget = null)
-                extracted.dir.deleteRecursively()
+                SafeFiles.deleteTree(extracted.dir)
             }
             // 先登记再递归：循环依赖（A→B→A）会直接命中已提升的版本。
             if (parentModules == plan.rootModules) plan.hoisted[name] = version
@@ -817,7 +817,7 @@ class PluginBundleInstaller(
     /** 一次安装里的包目录，结束时清理。 */
     private class StagedPackage(val dir: File) : AutoCloseable {
         override fun close() {
-            dir.deleteRecursively()
+            SafeFiles.deleteTree(dir)
         }
     }
 

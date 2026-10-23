@@ -1056,7 +1056,7 @@ class DefaultHostRuntimeManager(
                     val complete = File(gitDir, "objects").isDirectory &&
                         File(gitDir, "refs").isDirectory
                     if (complete) return@forEach
-                    runCatching { gitDir.deleteRecursively() }
+                    runCatching { SafeFiles.deleteTree(gitDir) }
                 }
                 val hostPath = "/workspace/" + directory.name
                 val exec = ProotCommandBuilder.buildExec(

@@ -130,7 +130,7 @@ class BridgePluginInstaller(
         val nodeModules = File(profileDir, "node_modules").apply { mkdirs() }
         nodeModules.listFiles()
             ?.filter { it.name.startsWith(".dsh-plugin-") }
-            ?.forEach { runCatching { it.deleteRecursively() } }
+            ?.forEach { runCatching { SafeFiles.deleteTree(it) } }
 
         onProgress(0.02f, "准备下载插件 $targetVersion…")
         val archive = try {
@@ -146,7 +146,7 @@ class BridgePluginInstaller(
         onProgress(0.55f, "校验插件归档…")
         val target = File(nodeModules, BridgePluginManifest.DEFAULT_PACKAGE)
         val staging = File(nodeModules, ".dsh-plugin-incoming")
-        staging.deleteRecursively()
+        SafeFiles.deleteTree(staging)
         val contents = try {
             BridgePluginArchive.extract(
                 archive = archive.inputStream(),
@@ -155,7 +155,7 @@ class BridgePluginInstaller(
                 expectedVersion = targetVersion,
             )
         } catch (error: Exception) {
-            staging.deleteRecursively()
+            SafeFiles.deleteTree(staging)
             return@withContext Result.failure(
                 IllegalStateException("插件归档校验失败：${error.message}")
             )
@@ -167,7 +167,7 @@ class BridgePluginInstaller(
             File(nodeModules, dependency).exists()
         }
         if (missingDependencies.isNotEmpty()) {
-            staging.deleteRecursively()
+            SafeFiles.deleteTree(staging)
             return@withContext Result.failure(
                 IllegalStateException(
                     "插件依赖 ${missingDependencies.joinToString()} 未随运行时提供；" +
@@ -180,7 +180,7 @@ class BridgePluginInstaller(
         try {
             replaceDirectory(target = target, staging = staging)
         } catch (error: Exception) {
-            staging.deleteRecursively()
+            SafeFiles.deleteTree(staging)
             return@withContext Result.failure(
                 IllegalStateException("替换插件文件失败：${error.message}")
             )
@@ -237,7 +237,7 @@ class BridgePluginInstaller(
             if (hadPrevious) backup.renameTo(target)
             throw IllegalStateException("无法把新插件目录放到安装位置")
         }
-        if (hadPrevious) backup.deleteRecursively()
+        if (hadPrevious) SafeFiles.deleteTree(backup)
     }
 }
 
@@ -254,7 +254,7 @@ internal fun ensureProfilePresetLink(profileDir: File) {
     val presetLink = File(nodeModules, "@deepseek-ai")
     // 旧版本/手工排查留下的备份目录必须清掉：Host 会把它们当作独立包扫描，
     // 在设置和插件页里显示重复条目。
-    File(nodeModules, "@deepseek-ai.merged").deleteRecursively()
+    SafeFiles.deleteTree(File(nodeModules, "@deepseek-ai.merged"))
     // profiles/web -> profiles -> .dsh -> root -> rootfs 根
     val installed = File(
         profileDir,
@@ -279,7 +279,7 @@ internal fun ensureProfilePresetLink(profileDir: File) {
     val installedLinkTarget = "../../../../../usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai"
     if (presetLink.exists() && !java.nio.file.Files.isSymbolicLink(presetPath)) {
         val backup = File(nodeModules, "@deepseek-ai.local")
-        if (backup.exists()) backup.deleteRecursively()
+        if (backup.exists()) SafeFiles.deleteTree(backup)
         if (!presetLink.renameTo(backup)) return
         val linked = runCatching {
             java.nio.file.Files.createSymbolicLink(
@@ -288,7 +288,7 @@ internal fun ensureProfilePresetLink(profileDir: File) {
             )
         }.isSuccess
         if (linked) {
-            backup.deleteRecursively()
+            SafeFiles.deleteTree(backup)
             return
         }
         // 链接不可用（文件系统限制）时恢复原目录，并合并缺失的包。
@@ -297,7 +297,7 @@ internal fun ensureProfilePresetLink(profileDir: File) {
         return
     }
     if (presetLink.exists()) {
-        File(nodeModules, "@deepseek-ai.local").deleteRecursively()
+        SafeFiles.deleteTree(File(nodeModules, "@deepseek-ai.local"))
         return
     }
     val linked = runCatching {
@@ -320,7 +320,7 @@ private fun mergeInstalledPackages(installed: File, target: File) {
         if (destination.exists()) return@forEach
         runCatching {
             if (source.isDirectory) {
-                source.copyRecursively(destination, overwrite = false)
+                SafeFiles.copyTree(source, destination, overwrite = false)
             } else {
                 source.copyTo(destination, overwrite = false)
             }

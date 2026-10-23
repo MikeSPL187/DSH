@@ -1977,7 +1977,20 @@ fun MainAppHost(
                         if (hostWorkspace != null) {
                             scope.launch { dshRepository.deleteWorkspace(ui.activeHostId, hostWorkspace.id) }
                         }
-                        runCatching { target.deleteRecursively() }
+                        // 只允许删除当前工作区根目录之内的文件夹（路径可能来自 Host），
+                        // 不跟随符号链接，并且不在主线程做大目录删除（避免 ANR）。
+                        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            runCatching {
+                                val root = activeWorkspace.canonicalFile.toPath()
+                                val resolved = target.canonicalFile.toPath()
+                                if (resolved != root && resolved.startsWith(root)) {
+                                    com.deepseek.dsh.runtime.host.SafeFiles.deleteTree(target)
+                                }
+                            }
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                runtimeUi.workspaceRevision += 1
+                            }
+                        }
                         if (folder.name == runtimeUi.activeWorkspaceName) runtimeUi.activeWorkspaceName = DEFAULT_WORKSPACE_DIR_NAME
                         runtimeUi.workspaceRevision += 1
                         runtimeUi.deleteWorkspaceFolder = null

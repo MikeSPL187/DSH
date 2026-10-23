@@ -59,7 +59,9 @@ data class RootfsManifest(
 
 /**
  * rootfs 安装流水线（官方 §4.2/§4.7）：
- * 下载（可跳过）→ SHA-256 校验 → 安全解包（防路径穿越）→ 原子替换 → 工具链门禁 → 安装标记。
+ * 下载（可跳过）→ SHA-256 校验 → 空间预检 → 解包到 staging（旧 rootfs 不动）→
+ * 旧目录 rename 为备份 → 新目录 rename 到位 → 合并 DSH_HOME → 工具链门禁 → 安装标记
+ * → 删除备份。任一步失败（含进程被杀后下次启动）都回滚到旧 rootfs（审计 F-02/N-08）。
  *
  * 开发期可把镜像放到 `cache/rootfs-local.tar.gz`（无需网络），manifest 的
  * `sha256` 留空时跳过校验但会记录告警。
@@ -119,6 +121,7 @@ class RootfsInstaller(
     }
 
     fun isInstalled(manifest: RootfsManifest): Boolean {
+        recoverInterruptedInstall()
         val version = installedVersion() ?: return false
         if (version != manifest.runtimeVersion) return false
         val marker = readMarker()
@@ -174,6 +177,13 @@ class RootfsInstaller(
         val archive = when {
             localOverride.isFile -> localOverride
             archiveUrl.isNotBlank() -> {
+                // 网络来源必须走 HTTPS 且带 SHA-256：没有校验值的远程 manifest 不能安装。
+                if (!archiveUrl.startsWith("https://", ignoreCase = true)) {
+                    return@withContext Result.failure(IllegalStateException("rootfs 下载地址必须是 HTTPS：$archiveUrl"))
+                }
+                if (!SHA256_HEX.matches(expectedSha.removePrefix("sha256:"))) {
+                    return@withContext Result.failure(IllegalStateException("rootfs manifest 缺少有效的 SHA-256，拒绝安装"))
+                }
                 val target = RootfsNaming.archiveCacheFile(
                     layout.cacheDir,
                     manifest.runtimeVersion,
@@ -201,12 +211,38 @@ class RootfsInstaller(
         return@withContext installArchive(effectiveManifest, archive, onProgress)
     }
 
+    /** 上一次安装进行到一半时留下的日志文件（存在即表示未完成）。 */
+    private fun journalFile(): File = File(layout.runtimeMetaDir, "rootfs-install.pending")
+
+    /** 替换期间保存的旧 rootfs。 */
+    private fun previousRootfsDir(): File = File(layout.baseDir, "${RootfsNaming.INSTALL_DIR}.previous")
+
+    /**
+     * 如果上次安装在替换阶段被打断（kill/断电），把旧 rootfs 换回来。
+     * 安装标记最后才写，所以日志存在时当前 rootfs 一定不是完整的新版本。
+     */
+    internal fun recoverInterruptedInstall() {
+        val journal = journalFile()
+        if (!journal.isFile) return
+        val previous = previousRootfsDir()
+        if (previous.exists()) {
+            SafeFiles.deleteTree(layout.rootfsDir)
+            if (!previous.renameTo(layout.rootfsDir)) return
+        }
+        journal.delete()
+    }
+
     private fun installArchive(
         manifest: RootfsManifest,
         archive: File,
         onProgress: (InstallProgress) -> Unit,
     ): Result<Unit> {
         layout.ensureDirectories()
+        recoverInterruptedInstall()
+        val staging = RootfsNaming.stagingDir(layout.cacheDir, manifest.runtimeVersion)
+        val previous = previousRootfsDir()
+        val journal = journalFile()
+        var swapped = false
         try {
             if (manifest.sha256.isNotBlank()) {
                 onProgress(InstallProgress("校验 rootfs SHA-256...", 0.52f))
@@ -218,18 +254,19 @@ class RootfsInstaller(
                 }
             }
 
-            // 先备份 DSH_HOME 并删除旧 rootfs，避免解包时磁盘空间不足（升级场景）。
-            val preservedHome = File(layout.runtimeMetaDir, "dsh-home-preserved")
-            if (layout.dshHomeDir.exists()) {
-                preservedHome.deleteRecursively()
-                preservedHome.parentFile?.mkdirs()
-                runCatching { layout.dshHomeDir.copyRecursively(preservedHome, overwrite = true) }
+            // 新旧两份 rootfs 要同时存在一段时间：空间不够时在动旧环境之前就失败。
+            val required = estimatedUnpackedBytes(archive) + SPACE_MARGIN_BYTES
+            val usable = layout.baseDir.usableSpace
+            if (usable in 1 until required) {
+                return Result.failure(
+                    IllegalStateException(
+                        "存储空间不足：需要约 ${required / MIB} MB，可用 ${usable / MIB} MB。旧运行环境保持不变。"
+                    )
+                )
             }
-            if (layout.rootfsDir.exists()) layout.rootfsDir.deleteRecursively()
 
             onProgress(InstallProgress("解包 Compact rootfs...", 0.55f))
-            val staging = RootfsNaming.stagingDir(layout.cacheDir, manifest.runtimeVersion)
-            staging.deleteRecursively()
+            SafeFiles.deleteTree(staging)
             staging.mkdirs()
             extractTarGz(archive, staging) { fraction ->
                 onProgress(InstallProgress("解包 rootfs... ${(fraction * 100).toInt()}%", 0.55f + fraction * 0.3f))
@@ -238,47 +275,54 @@ class RootfsInstaller(
             // rootfs 归档通常包含根目录内容；若多包了一层，则下钻。
             val source = unwrapSingleRoot(staging)
             if (!File(source, "etc/os-release").isFile && !File(source, "usr/bin/env").isFile) {
+                SafeFiles.deleteTree(staging)
                 return Result.failure(IllegalStateException("rootfs 内容不完整：缺少 etc/os-release / usr/bin/env"))
             }
 
             onProgress(InstallProgress("替换 rootfs 目录...", 0.9f))
-            if (!source.renameTo(layout.rootfsDir)) {
-                source.copyRecursively(layout.rootfsDir, overwrite = true)
-                staging.deleteRecursively()
+            SafeFiles.deleteTree(previous)
+            journal.parentFile?.mkdirs()
+            SafeFiles.writeAtomically(journal, manifest.runtimeVersion)
+            if (layout.rootfsDir.exists() && !layout.rootfsDir.renameTo(previous)) {
+                throw IllegalStateException("无法备份旧 rootfs")
             }
+            swapped = true
+            if (!source.renameTo(layout.rootfsDir)) {
+                // staging 与 rootfs 都在 baseDir 下，rename 正常不会失败；兜底复制。
+                SafeFiles.copyTree(source, layout.rootfsDir)
+            }
+            SafeFiles.deleteTree(staging)
             layout.optDshDir.mkdirs()
             layout.dshHomeDir.mkdirs()
-            if (preservedHome.exists()) {
+
+            val previousHome = File(previous, "root/.dsh")
+            if (previousHome.isDirectory) {
                 // 恢复旧 DSH_HOME（会话/凭证/设置），但 node_modules 单独合并：
                 // 新镜像的 node_modules 带着新版 bridge 与官方依赖，旧目录整体盖回去会把
                 // 新 bridge 弄丢（「行在、包不在」）；但旧目录里还有用户后来装的第三方插件，
                 // 全排除又会把它们弄丢。所以：① 恢复时跳过 node_modules；② 恢复后把旧
                 // node_modules 里**新镜像没有的**包（用户插件）补进来，同名以新镜像为准。
+                // 失败会抛出并回滚，绝不在丢了用户数据的情况下继续。
                 val nodeModulesRel = "profiles/web/node_modules"
-                val preservedNodeModules = File(preservedHome, nodeModulesRel).absolutePath
-                runCatching {
-                    preservedHome.walkTopDown().forEach { src ->
-                        if (src.absolutePath.startsWith(preservedNodeModules)) return@forEach
-                        val rel = src.relativeTo(preservedHome).path
-                        val dst = File(layout.dshHomeDir, rel)
-                        if (src.isDirectory) dst.mkdirs()
-                        else runCatching { dst.parentFile?.mkdirs(); src.copyTo(dst, overwrite = true) }
+                SafeFiles.copyTree(previousHome, layout.dshHomeDir, overwrite = true) { rel ->
+                    rel == nodeModulesRel || rel.startsWith("$nodeModulesRel/")
+                }
+                val oldModules = File(previousHome, nodeModulesRel)
+                val newModules = File(layout.dshHomeDir, nodeModulesRel)
+                oldModules.listFiles()?.filter { !it.name.startsWith(".") }?.forEach { pkg ->
+                    val target = File(newModules, pkg.name)
+                    if (!java.nio.file.Files.exists(target.toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+                        newModules.mkdirs()
+                        if (java.nio.file.Files.isSymbolicLink(pkg.toPath())) {
+                            java.nio.file.Files.createSymbolicLink(
+                                target.toPath(),
+                                java.nio.file.Files.readSymbolicLink(pkg.toPath()),
+                            )
+                        } else if (pkg.isDirectory) {
+                            SafeFiles.copyTree(pkg, target, overwrite = false)
+                        }
                     }
                 }
-                // 把旧 node_modules 里新镜像缺失的包（用户装的第三方插件）补回来。
-                runCatching {
-                    val oldModules = File(preservedHome, nodeModulesRel)
-                    val newModules = File(layout.dshHomeDir, nodeModulesRel)
-                    oldModules.listFiles()?.filter { it.isDirectory && !it.name.startsWith(".") }
-                        ?.forEach { pkg ->
-                            val target = File(newModules, pkg.name)
-                            if (!target.exists()) {
-                                newModules.mkdirs()
-                                runCatching { pkg.copyRecursively(target, overwrite = false) }
-                            }
-                        }
-                }
-                preservedHome.deleteRecursively()
             }
             // 旧 profile 的 pnpm-lock 可能锁定旧版 DSH；删掉让它由新版重新解析。
             runCatching {
@@ -287,10 +331,10 @@ class RootfsInstaller(
 
             onProgress(InstallProgress("自检运行时工具链...", 0.95f))
             val toolchain = verifyToolchainIntegrity()
-            if (toolchain.isFailure) return toolchain
+            if (toolchain.isFailure) throw toolchain.exceptionOrNull() ?: IllegalStateException("工具链自检失败")
 
-            markerFile().parentFile?.mkdirs()
-            markerFile().writeText(
+            SafeFiles.writeAtomically(
+                markerFile(),
                 json.encodeToString(
                     InstallMarker.serializer(),
                     InstallMarker(
@@ -305,11 +349,40 @@ class RootfsInstaller(
                     )
                 )
             )
+            // 提交点：标记已写，删除日志与旧 rootfs。
+            journal.delete()
+            SafeFiles.deleteTree(previous)
             onProgress(InstallProgress("运行时安装完成", 1.0f))
             return Result.success(Unit)
-        } catch (e: Exception) {
-            return Result.failure(e)
+        } catch (e: Throwable) {
+            SafeFiles.deleteTree(staging)
+            if (swapped && previous.exists()) {
+                SafeFiles.deleteTree(layout.rootfsDir)
+                previous.renameTo(layout.rootfsDir)
+            }
+            if (!previous.exists()) journal.delete()
+            return Result.failure(if (e is Exception) e else IllegalStateException(e))
         }
+    }
+
+    /**
+     * 解包后大小的估计：gzip 尾部 ISIZE（原始大小 mod 2^32）与压缩包 3 倍取大，
+     * 只用于空间预检；真实不足时解包会失败并回滚。
+     */
+    private fun estimatedUnpackedBytes(archive: File): Long {
+        val isize = runCatching {
+            java.io.RandomAccessFile(archive, "r").use { raf ->
+                if (raf.length() < 4) return@use 0L
+                raf.seek(raf.length() - 4)
+                val b = ByteArray(4)
+                raf.readFully(b)
+                (b[0].toLong() and 0xff) or
+                    ((b[1].toLong() and 0xff) shl 8) or
+                    ((b[2].toLong() and 0xff) shl 16) or
+                    ((b[3].toLong() and 0xff) shl 24)
+            }
+        }.getOrDefault(0L)
+        return maxOf(isize, archive.length() * 3)
     }
 
     private fun download(
@@ -370,15 +443,26 @@ class RootfsInstaller(
                         when {
                             entry.isDirectory -> target.mkdirs()
                             entry.isSymbolicLink -> {
-                                target.parentFile?.mkdirs()
-                                runCatching {
-                                    Files.deleteIfExists(target.toPath())
-                                    Files.createSymbolicLink(target.toPath(), Paths.get(entry.linkName))
+                                // 链接目标按 guest 语义解释（proot 把绝对路径映射到 rootfs 内）。
+                                // 相对目标不得经 `..` 逃出 rootfs；App 侧所有树操作都不跟随链接
+                                // （见 SafeFiles），所以绝对目标不会被 Android 侧误用。
+                                if (!isSafeSymlinkTarget(name, entry.linkName)) {
+                                    throw IllegalStateException("rootfs 归档包含越界符号链接: $name -> ${entry.linkName}")
                                 }
+                                target.parentFile?.mkdirs()
+                                Files.deleteIfExists(target.toPath())
+                                Files.createSymbolicLink(target.toPath(), Paths.get(entry.linkName))
                             }
                             entry.isLink -> {
-                                val linkSource = File(destination, entry.linkName)
-                                if (linkSource.isFile && target.canonicalPath.startsWith(canonicalDest)) {
+                                val linkName = entry.linkName.replace('\\', '/')
+                                    .split('/')
+                                    .filter { it.isNotEmpty() && it != "." }
+                                    .joinToString("/")
+                                val linkSource = File(destination, linkName)
+                                if (!linkSource.canonicalPath.startsWith(canonicalDest)) {
+                                    throw IllegalStateException("rootfs 归档包含越界硬链接: $name -> ${entry.linkName}")
+                                }
+                                if (linkSource.isFile) {
                                     target.parentFile?.mkdirs()
                                     linkSource.copyTo(target, overwrite = true)
                                     // 硬链接同样要恢复可执行位（pnpm 等二进制依赖它）。
@@ -403,6 +487,24 @@ class RootfsInstaller(
                 }
             }
         }
+    }
+
+    /**
+     * 相对符号链接从链接所在目录出发、按路径段解析，`..` 不得越过 rootfs 根；
+     * 绝对链接在 guest 内总是落在 rootfs 里，允许。NUL 字节一律拒绝。
+     */
+    internal fun isSafeSymlinkTarget(entryName: String, linkName: String): Boolean {
+        if (linkName.isEmpty() || linkName.contains('\u0000')) return false
+        if (linkName.startsWith("/")) return true
+        val stack = ArrayDeque(entryName.split('/').filter { it.isNotEmpty() }.dropLast(1))
+        for (segment in linkName.split('/')) {
+            when (segment) {
+                "", "." -> Unit
+                ".." -> if (stack.isEmpty()) return false else stack.removeLast()
+                else -> stack.addLast(segment)
+            }
+        }
+        return true
     }
 
     private fun applyMode(file: File, mode: Int) {
@@ -451,6 +553,13 @@ class RootfsInstaller(
             }
         }
         return digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    private companion object {
+        val SHA256_HEX = Regex("^[0-9a-fA-F]{64}$")
+        const val MIB = 1024L * 1024
+        /** 解包之外预留的空间（DSH_HOME 合并、日志、npm 缓存）。 */
+        const val SPACE_MARGIN_BYTES = 256L * MIB
     }
 
     @Serializable
