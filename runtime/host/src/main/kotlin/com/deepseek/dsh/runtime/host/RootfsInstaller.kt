@@ -386,8 +386,12 @@ class RootfsInstaller(
      * 解包后大小的估计：gzip 尾部 ISIZE（原始大小 mod 2^32）与压缩包 3 倍取大，
      * 只用于空间预检；真实不足时解包会失败并回滚。
      */
-    private fun estimatedUnpackedBytes(archive: File): Long {
-        val isize = runCatching {
+    private fun estimatedUnpackedBytes(archive: File): Long =
+        maxOf(gzipUncompressedSize(archive), archive.length() * 3)
+
+    /** gzip ISIZE: несжатый размер mod 2^32 (для rootfs < 4 ГБ — точный). */
+    private fun gzipUncompressedSize(archive: File): Long =
+        runCatching {
             java.io.RandomAccessFile(archive, "r").use { raf ->
                 if (raf.length() < 4) return@use 0L
                 raf.seek(raf.length() - 4)
@@ -399,8 +403,6 @@ class RootfsInstaller(
                     ((b[3].toLong() and 0xff) shl 24)
             }
         }.getOrDefault(0L)
-        return maxOf(isize, archive.length() * 3)
-    }
 
     private fun download(
         manifest: RootfsManifest,
@@ -439,7 +441,9 @@ class RootfsInstaller(
     }
 
     private fun extractTarGz(archive: File, destination: File, onProgress: (Float) -> Unit) {
-        val totalBytes = archive.length().coerceAtLeast(1)
+        // Прогресс считаем от несжатого размера (gzip ISIZE): раньше делили на размер
+        // сжатого архива, и индикатор упирался в 100% задолго до конца распаковки.
+        val totalBytes = maxOf(gzipUncompressedSize(archive), archive.length()).coerceAtLeast(1)
         FileInputStream(archive).use { fileIn ->
             GzipCompressorInputStream(fileIn).use { gzipIn ->
                 TarArchiveInputStream(gzipIn).use { tar ->

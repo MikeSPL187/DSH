@@ -454,6 +454,8 @@ fun ModernChatScreen(
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = agentPresetLabel,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     fontSize = 12.sp,
                     lineHeight = 18.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1500,7 +1502,9 @@ fun EmptyWelcomeView(
                 fontSize = 26.sp,
                 lineHeight = 32.sp,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onBackground
+                color = MaterialTheme.colorScheme.onBackground,
+                // Длинный заголовок (ru/en) не должен сжимать бейдж в столбик по букве.
+                modifier = Modifier.weight(1f, fill = false),
             )
             Spacer(modifier = Modifier.width(8.dp))
             Surface(
@@ -1509,6 +1513,8 @@ fun EmptyWelcomeView(
             ) {
                 Text(
                     text = stringResource(R.string.chat_preview_badge),
+                    maxLines = 1,
+                    softWrap = false,
                     fontSize = 11.sp,
                     lineHeight = 16.sp,
                     color = MaterialTheme.colorScheme.primary,

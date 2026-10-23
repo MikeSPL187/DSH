@@ -132,6 +132,47 @@ class ScreensGalleryTest {
         OnboardingScreen(onComplete = {}, authenticated = true, funded = false)
     }
 
+    private fun msg(id: String, role: com.deepseek.dsh.core.model.MessageRole, text: String) =
+        com.deepseek.dsh.core.model.ChatMessage("local-host", "s1", id, role, text)
+
+    @Test
+    fun chatEmpty() = render("10_chat_empty") {
+        com.deepseek.dsh.feature.chat.ModernChatScreen(messages = emptyList(), onSendMessage = {})
+    }
+
+    @Test
+    fun chatConversation() = render("11_chat_conversation") {
+        com.deepseek.dsh.feature.chat.ModernChatScreen(
+            messages = listOf(
+                msg("m1", com.deepseek.dsh.core.model.MessageRole.USER, "Проверь безопасность установщика плагинов"),
+                msg(
+                    "m2",
+                    com.deepseek.dsh.core.model.MessageRole.ASSISTANT,
+                    "## Итог\n\n- Имена пакетов **проверяются** до записи\n- Обновление атомарное\n\n```kotlin\nval ok = PluginInstallSpec.isValidPackageName(name)\n```",
+                ),
+            ),
+            onSendMessage = {},
+        )
+    }
+
+    @Test
+    fun chatConversationDark() = render("12_chat_dark", dark = true) {
+        com.deepseek.dsh.feature.chat.ModernChatScreen(
+            messages = listOf(msg("m1", com.deepseek.dsh.core.model.MessageRole.USER, "Привет! Что умеешь?")),
+            onSendMessage = {},
+        )
+    }
+
+    @Test
+    fun plugins() = render("70_plugins") {
+        com.deepseek.dsh.PluginsScreen(
+            surfaces = emptyList(),
+            onOpenSurface = {},
+            onOpenSdui = {},
+            onInstallPlugin = { _, _ -> Result.success("") },
+        )
+    }
+
     @Test
     fun settingsRoot() = render("60_settings_root") {
         SettingsRootScreen(settings = AppSettings(), onUpdateSettings = {})
