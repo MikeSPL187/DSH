@@ -29,4 +29,8 @@
     <string name="rt_host_exited">The Host process exited during startup</string>
     <string name="rt_no_output">no output</string>
     <string name="rt_host_timeout">Host startup timed out (no port or token within %1$d s):\n%2$s</string>
+    <string name="rt_start_cancelled">Startup was stopped</string>
+    <string name="rt_cannot_start">Could not start the Host process</string>
+    <string name="rt_host_exited_code">The Host process exited (exit=%1$d): %2$s</string>
+    <string name="rt_host_crashed_code">The Host process exited unexpectedly (exit=%1$d): %2$s</string>
 </resources>

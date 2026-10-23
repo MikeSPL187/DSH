@@ -153,6 +153,7 @@ internal fun SignInDialogs(
                     value = apiKeyInput,
                     onValueChange = onApiKeyChange,
                     placeholder = stringResource(R.string.onboarding_key_placeholder),
+                    secret = true,
                 )
             },
         )

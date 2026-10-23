@@ -563,6 +563,11 @@ internal fun SettingsRemotePane(
                     onValueChange = { token = it },
                     singleLine = true,
                     placeholder = { Text("token") },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
+                        autoCorrectEnabled = false,
+                    ),
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
                 )
                 Row(

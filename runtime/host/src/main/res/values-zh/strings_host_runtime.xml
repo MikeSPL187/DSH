@@ -29,4 +29,8 @@
     <string name="rt_host_exited">Host 进程在启动中途退出</string>
     <string name="rt_no_output">无输出</string>
     <string name="rt_host_timeout">Host 启动超时（%1$d 秒内未解析到端口或 token）：\n%2$s</string>
+    <string name="rt_start_cancelled">启动已被停止</string>
+    <string name="rt_cannot_start">无法启动 Host 进程</string>
+    <string name="rt_host_exited_code">Host 进程已退出（exit=%1$d）：%2$s</string>
+    <string name="rt_host_crashed_code">Host 进程意外退出（exit=%1$d）：%2$s</string>
 </resources>

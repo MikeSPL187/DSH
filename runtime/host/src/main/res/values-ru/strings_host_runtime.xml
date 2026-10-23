@@ -29,4 +29,8 @@
     <string name="rt_host_exited">Процесс Host завершился во время запуска</string>
     <string name="rt_no_output">нет вывода</string>
     <string name="rt_host_timeout">Тайм-аут запуска Host (порт или токен не получены за %1$d с):\n%2$s</string>
+    <string name="rt_start_cancelled">Запуск остановлен</string>
+    <string name="rt_cannot_start">Не удалось запустить процесс Host</string>
+    <string name="rt_host_exited_code">Процесс Host завершился (код %1$d): %2$s</string>
+    <string name="rt_host_crashed_code">Процесс Host неожиданно завершился (код %1$d): %2$s</string>
 </resources>

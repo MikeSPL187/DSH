@@ -1041,6 +1041,12 @@ fun DshTextInput(
     onValueChange: (String) -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
+    /**
+     * Поле для секрета (API-ключ, токен): клавиатура без автозамены/подсказок/обучения
+     * и скрытые символы. Иначе клавиатура «исправляет» ключ (sk-test… → «sky test»)
+     * и запоминает его в своём словаре.
+     */
+    secret: Boolean = false,
 ) {
     val colors = dshPanelColors()
     val shape = RoundedCornerShape(12.dp)
@@ -1057,6 +1063,19 @@ fun DshTextInput(
             value = value,
             onValueChange = onValueChange,
             singleLine = true,
+            keyboardOptions = if (secret) {
+                androidx.compose.foundation.text.KeyboardOptions(
+                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
+                    autoCorrectEnabled = false,
+                )
+            } else {
+                androidx.compose.foundation.text.KeyboardOptions.Default
+            },
+            visualTransformation = if (secret) {
+                androidx.compose.ui.text.input.PasswordVisualTransformation()
+            } else {
+                androidx.compose.ui.text.input.VisualTransformation.None
+            },
             textStyle = TextStyle(
                 color = colors.labelPrimary,
                 fontSize = 13.sp,
