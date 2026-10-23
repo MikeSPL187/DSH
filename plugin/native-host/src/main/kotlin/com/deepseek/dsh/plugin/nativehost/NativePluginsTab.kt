@@ -127,7 +127,7 @@ fun NativePluginsTab(
             ),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            items(filtered, key = { it.pluginId }) { item ->
+            items(filtered, key = { "${it.pluginId}|${it.packageName.orEmpty()}" }) { item ->
                 NativePluginRow(item = item, colors = colors, onClick = { onOpenDetail(item) })
             }
         }

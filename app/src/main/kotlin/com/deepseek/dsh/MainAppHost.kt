@@ -615,7 +615,11 @@ fun MainAppHost(
     // rename/unlink/mkdtemp（ENOSYS），所以 Host 安装失败后由 App 自己下载、
     // 解压、装依赖并挂到 profile 的 patch 层。
     val appPluginInstaller = remember(layout) {
-        com.deepseek.dsh.runtime.host.PluginBundleInstaller(context, layout)
+        com.deepseek.dsh.runtime.host.PluginBundleInstaller(
+            context,
+            layout,
+            workspaceDir = { activeWorkspace },
+        )
     }
     // App 安装器挂过的包名：用来区分「随安装自带」的官方插件和用户后来装的。
     LaunchedEffect(appPluginInstaller) {
@@ -692,10 +696,21 @@ fun MainAppHost(
 
     // 扫描系统里已装的原生伴侣 APK，填充「原生插件」tab，并把 READY 的插件
     // 装载进 App 进程（触发它们的落点/工具/页面注册）。卸载/安装后回前台时
-    // 重扫（onResume 递增信号），保证「卸载即从列表摘除」。装 APK 时连带装
-    // 配对的 JS 插件（甲 manifest 声明 / 乙商店索引兜底），装完重启 Host。
+    // 重扫（onResume 递增信号），保证「卸载即从列表摘除」。
+    //
+    // 安全：伴侣代码在 App 进程内以 App 的全部权限运行，所以只有用户在确认框里
+    // 批准过（包名 + 证书指纹钉死）的伴侣才会是 READY；首次发现或签名变化的伴侣
+    // 进入 [pendingNativeApprovals]，由用户决定。配对 JS 插件也只在批准时安装，
+    // 重扫绝不自动下载/安装任何代码。
+    val nativeTrustStore = remember { com.deepseek.dsh.plugin.nativehost.NativePluginTrustStore(context) }
+    var nativeTrustTick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val pendingNativeApprovals = remember {
+        mutableStateListOf<com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin>()
+    }
+    // 本次进程内用户点过「暂不」的 (包名/指纹)，避免每次回前台都弹框；重启 App 后再询问。
+    val dismissedNativeApprovals = remember { mutableStateListOf<String>() }
     val nativePluginRescanSignal by nativePluginRescanFlow.collectAsState()
-    LaunchedEffect(nativePluginRescanSignal, appPluginInstaller) {
+    LaunchedEffect(nativePluginRescanSignal, nativeTrustTick) {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             runCatching {
             val discovery = com.deepseek.dsh.plugin.nativehost.NativePluginDiscovery(context)
@@ -705,17 +720,29 @@ fun MainAppHost(
             val discovered = discovery.scan(
                 appVersionCode = appVersionCode,
                 supportedApiVersion = com.deepseek.dsh.plugin.nativehost.NativeAbi.CURRENT,
-                pinnedFingerprints = emptyMap(),
+                pins = nativeTrustStore.pins(),
             )
             // 装载 READY 插件进 App 进程：它们的 init 块会跑 SlotRegistry.register 等。
             val ready = discovered.filter {
                 it.status == com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.READY
             }
+            val awaitingApproval = discovered.filter {
+                it.status == com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.UNTRUSTED ||
+                    it.status == com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.SIGNATURE_MISMATCH
+            }
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                pendingNativeApprovals.clear()
+                pendingNativeApprovals.addAll(
+                    awaitingApproval.filter {
+                        "${it.packageName}/${it.signatureFingerprint}" !in dismissedNativeApprovals
+                    },
+                )
+            }
             // Drop pages whose package disappeared before loading the next snapshot.
             // Otherwise an already open page could keep executing an uninstalled ClassLoader.
-            val discoveredIds = discovered.map { it.pluginId }.toSet()
+            val readyIds = ready.map { it.pluginId }.toSet()
             com.deepseek.dsh.plugin.nativesdk.pages.PageRegistry.snapshot()
-                .map { it.first }.filter { it.isNotBlank() && it !in discoveredIds }
+                .map { it.first }.filter { it.isNotBlank() && it !in readyIds }
                 .forEach { com.deepseek.dsh.plugin.nativesdk.pages.PageRegistry.removeOwner(it) }
             // Only successfully loaded companions may replace a Web settings section.
             // Replacing the whole snapshot also drops routes for uninstalled/incompatible APKs.
@@ -737,39 +764,18 @@ fun MainAppHost(
                 )
             }
             com.deepseek.dsh.plugin.nativehost.NativePageRegistry.replaceAll(nativePageRegistrations)
-            // 伴侣「装了但设置页还是 Web UI」时，先看这条日志：哪个伴侣加载成功、
-            // jsPackage 是什么、注册了哪些页面（placement:id）。
-            android.util.Log.i(
-                "NativePluginHost",
-                "loaded companions=" + nativePageRegistrations.joinToString { registration ->
-                    "${registration.pluginId}/${registration.jsPackage}=" +
-                        registration.pages.joinToString { page ->
-                            "${page.entry.placement}:${page.entry.id}"
-                        }
-                },
-            )
-            ready.forEach { plugin ->
-                runCatching {
-                    val jsPackage = com.deepseek.dsh.plugin.nativehost.NativePluginPairing
-                        .resolveJsPackage(plugin, storeLookup = null)
-                    if (jsPackage != null) {
-                        val pkgName = jsPackage.substringAfterLast('/').substringBefore('@')
-                            .ifBlank { jsPackage }
-                        val inProfile = java.io.File(
-                            layout.rootfsDir,
-                            "root/.dsh/profiles/web/node_modules/$pkgName/package.json",
-                        ).isFile
-                        val managed = runtimeUi.managedPluginPackages.any {
-                            it.equals(pkgName, ignoreCase = true) || it.equals(jsPackage, ignoreCase = true)
-                        }
-                        if (!inProfile && !managed) {
-                            val installed = appPluginInstaller.install(jsPackage) { _, _ -> }
-                            if (installed.isSuccess) {
-                                HostRuntimeHolder.restartHost?.invoke()
+            if (BuildConfig.DEBUG) {
+                // 伴侣「装了但设置页还是 Web UI」时，先看这条日志：哪个伴侣加载成功、
+                // jsPackage 是什么、注册了哪些页面（placement:id）。
+                android.util.Log.i(
+                    "NativePluginHost",
+                    "loaded companions=" + nativePageRegistrations.joinToString { registration ->
+                        "${registration.pluginId}/${registration.jsPackage}=" +
+                            registration.pages.joinToString { page ->
+                                "${page.entry.placement}:${page.entry.id}"
                             }
-                        }
-                    }
-                }
+                    },
+                )
             }
             runtimeUi.nativePluginItems = discovered.map { installed ->
                 com.deepseek.dsh.plugin.nativehost.NativePluginItem(
@@ -781,6 +787,7 @@ fun MainAppHost(
                     installed = true,
                     statusLabel = when (installed.status) {
                         com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.READY -> context.getString(R.string.plugin_status_installed)
+                        com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.UNTRUSTED -> context.getString(R.string.plugin_status_needs_approval)
                         com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.ABI_TOO_NEW -> context.getString(R.string.plugin_status_update_plugin)
                         com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.APP_TOO_OLD -> context.getString(R.string.plugin_status_update_app)
                         com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.SIGNATURE_MISMATCH -> context.getString(R.string.plugin_status_identity_mismatch)
@@ -794,6 +801,103 @@ fun MainAppHost(
             }
             }
         }
+    }
+    // 伴侣信任确认：展示包名、证书指纹与将要连带安装的 JS 插件，由用户明确批准。
+    pendingNativeApprovals.firstOrNull()?.let { candidate ->
+        val key = "${candidate.packageName}/${candidate.signatureFingerprint}"
+        val mismatch = candidate.status ==
+            com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.SIGNATURE_MISMATCH
+        val jsPackage = com.deepseek.dsh.plugin.nativehost.NativePluginPairing
+            .resolveJsPackage(candidate, storeLookup = null)
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = {
+                dismissedNativeApprovals.add(key)
+                pendingNativeApprovals.remove(candidate)
+            },
+            title = {
+                Text(
+                    stringResource(
+                        if (mismatch) R.string.native_trust_title_changed else R.string.native_trust_title,
+                    ),
+                )
+            },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    if (mismatch) {
+                        Text(
+                            text = stringResource(R.string.native_trust_changed_warning),
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 13.sp,
+                            lineHeight = 19.sp,
+                            modifier = Modifier.padding(bottom = 8.dp),
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.native_trust_desc),
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.native_trust_identity,
+                            candidate.pluginId,
+                            candidate.packageName,
+                            candidate.signatureFingerprint.chunked(2).joinToString(":"),
+                        ),
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                    if (jsPackage != null) {
+                        Text(
+                            text = stringResource(R.string.native_trust_js_package, jsPackage),
+                            fontSize = 13.sp,
+                            lineHeight = 19.sp,
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    nativeTrustStore.trust(candidate)
+                    pendingNativeApprovals.remove(candidate)
+                    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        // 配对 JS 插件只在用户批准的这一刻安装一次（确认框里已展示其来源）。
+                        if (jsPackage != null) {
+                            runCatching {
+                                val pkgName = jsPackage.substringAfterLast('/').substringBefore('@')
+                                    .ifBlank { jsPackage }
+                                val inProfile = java.io.File(
+                                    layout.rootfsDir,
+                                    "root/.dsh/profiles/web/node_modules/$pkgName/package.json",
+                                ).isFile
+                                val managed = runtimeUi.managedPluginPackages.any {
+                                    it.equals(pkgName, ignoreCase = true) ||
+                                        it.equals(jsPackage, ignoreCase = true)
+                                }
+                                if (!inProfile && !managed) {
+                                    val installed = appPluginInstaller.install(jsPackage) { _, _ -> }
+                                    if (installed.isSuccess) {
+                                        HostRuntimeHolder.restartHost?.invoke()
+                                    }
+                                }
+                            }
+                        }
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            nativeTrustTick += 1
+                        }
+                    }
+                }) { Text(stringResource(R.string.native_trust_allow)) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    dismissedNativeApprovals.add(key)
+                    pendingNativeApprovals.remove(candidate)
+                }) { Text(stringResource(R.string.native_trust_deny)) }
+            },
+        )
     }
     // 反向联动：刚装的 JS 插件有原生伴侣时，这里带上它的声明，UI 提示可装。
     // 从“JS 已装、伴生 APK 可装”跳转时，直接打开插件商店的对应仓库详情。

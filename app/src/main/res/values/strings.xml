@@ -652,4 +652,13 @@
     <string name="agent_presets_create_hint">New chat opened in Creation mode. Describe the preset you want.</string>
     <string name="right_guide_plugin_desc">Open plugin page</string>
     <string name="host_loading_data">Loading account and plugins…</string>
+    <string name="plugin_status_needs_approval">Needs approval</string>
+    <string name="native_trust_title">Allow native plugin?</string>
+    <string name="native_trust_title_changed">Native plugin identity changed</string>
+    <string name="native_trust_changed_warning">This plugin ID was previously approved for a different package or signing certificate. It may have been replaced by another app. Allow only if you just installed an update from a source you trust.</string>
+    <string name="native_trust_desc">Native plugins run inside DSH with all of its permissions and can read your workspace, tokens and settings. Allow only plugins from developers you trust.</string>
+    <string name="native_trust_identity">Plugin: %1$s\nPackage: %2$s\nCertificate SHA-256:\n%3$s</string>
+    <string name="native_trust_js_package">Allowing will also install the paired Host plugin: %1$s</string>
+    <string name="native_trust_allow">Allow</string>
+    <string name="native_trust_deny">Not now</string>
 </resources>
