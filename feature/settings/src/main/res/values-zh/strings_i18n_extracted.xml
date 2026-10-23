@@ -12,4 +12,5 @@
     <string name="settings_default_account_name">DeepSeek 用户</string>
     <string name="pwi_host_not_running">Host 未运行，无法打开完整界面</string>
     <string name="action_back_a11y">返回</string>
+    <string name="settings_pane_general_permission_unavailable">Host 未连接</string>
 </resources>

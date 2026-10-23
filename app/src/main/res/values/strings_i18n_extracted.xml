@@ -6,4 +6,6 @@
     <string name="preview_binary">Binary file, not previewed (%1$s)</string>
     <string name="a11y_open_menu">Open menu</string>
     <string name="a11y_right_sidebar">Right sidebar</string>
+    <string name="notify_error_title">DSH: error</string>
+    <string name="notify_error_body">%1$s stopped with an error</string>
 </resources>

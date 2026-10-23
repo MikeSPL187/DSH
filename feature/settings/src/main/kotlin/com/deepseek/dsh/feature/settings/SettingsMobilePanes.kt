@@ -19,7 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material3.Icon
@@ -243,17 +242,9 @@ internal fun SettingsMobileRuntimePane(
                         onUpdateSettings(currentSettings)
                     },
                 )
-                SettingsCardDivider()
-                RuntimeSwitchRow(
-                    icon = Icons.Filled.Lock,
-                    title = stringResource(R.string.settings_pane_high_risk_title),
-                    subtitle = stringResource(R.string.settings_pane_high_risk_desc),
-                    checked = currentSettings.highRiskConfirm,
-                    onCheckedChange = { checked ->
-                        currentSettings = currentSettings.copy(highRiskConfirm = checked)
-                        onUpdateSettings(currentSettings)
-                    },
-                )
+                // Переключатель «Подтверждение опасных инструментов» убран: он ни на что не
+                // влиял (одобрения задаёт пресет разрешений Host в «Общие → Разрешения»)
+                // и создавал ложное ощущение защиты.
             }
         }
         item(key = "runtime_maintenance") {
@@ -588,11 +579,13 @@ internal fun SettingsRemotePane(
                         },
                     ) { Text(stringResource(R.string.settings_pane_remote_disconnect)) }
                 }
+                // Статус показывает сохранённую настройку, а не черновик в поле ввода:
+                // иначе отклонённый http-адрес выглядел как «Remote Host configured».
                 Text(
-                    text = if (url.isBlank()) {
+                    text = if (settings.remoteHostUrl.isBlank()) {
                         stringResource(R.string.settings_pane_remote_local_host)
                     } else {
-                        stringResource(R.string.settings_pane_remote_active_host, url)
+                        stringResource(R.string.settings_pane_remote_active_host, settings.remoteHostUrl)
                     },
                     style = SettingsText.RowDesc,
                     color = palette.labelTertiary,

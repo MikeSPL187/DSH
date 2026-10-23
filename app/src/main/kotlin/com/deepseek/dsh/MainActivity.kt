@@ -115,8 +115,14 @@ class MainActivity : ComponentActivity() {
     private val nativePluginRescanFlow = kotlinx.coroutines.flow.MutableStateFlow(0)
     private var nativePackageReceiver: android.content.BroadcastReceiver? = null
 
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        UserActivity.touch()
+    }
+
     override fun onResume() {
         super.onResume()
+        UserActivity.touch()
         nativePluginRescanFlow.value += 1
     }
 

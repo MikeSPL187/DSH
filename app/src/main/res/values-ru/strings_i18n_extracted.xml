@@ -6,4 +6,6 @@
     <string name="preview_binary">Двоичный файл, предпросмотр недоступен (%1$s)</string>
     <string name="a11y_open_menu">Открыть меню</string>
     <string name="a11y_right_sidebar">Правая панель</string>
+    <string name="notify_error_title">DSH: ошибка</string>
+    <string name="notify_error_body">%1$s: ход завершился ошибкой</string>
 </resources>

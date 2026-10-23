@@ -227,17 +227,6 @@ fun MainAppHost(
     val unreadSessionIds by dshRepository.unreadSessionIdsFlow.collectAsState()
     LaunchedEffect(ui.selectedSessionId) { dshRepository.markSessionViewed(ui.selectedSessionId) }
 
-    // 会话完成通知：运行中的会话从 running 变为结束且当前不在前台时提醒。
-    val sessionRunningNow = ui.selectedSessionId != null && ui.selectedSessionId in runningSessionIds
-    LaunchedEffect(sessionRunningNow) {
-        if (runtimeUi.wasSessionRunning && !sessionRunningNow) {
-            if (ui.currentAppSettings.notificationsEnabled && ui.currentAppSettings.notifyOnTurnComplete) {
-                val title = sessions.find { it.sessionId == ui.selectedSessionId }?.title ?: context.getString(R.string.notify_session)
-                DshNotifications.notify(context, context.getString(R.string.notify_done_title), context.getString(R.string.notify_done_body, title))
-            }
-        }
-        runtimeUi.wasSessionRunning = sessionRunningNow
-    }
     LaunchedEffect(sessions, liveSessionIds) {
         // 每次打开 App：自动进入最近更新的会话，而不是停留在空白新会话页。
         if (!runtimeUi.didInitialResume && sessions.isNotEmpty()) {
@@ -268,6 +257,29 @@ fun MainAppHost(
         }
     }
 
+
+    // 会话完成通知：运行中的会话从 running 变为结束时提醒。
+    // Ход, закончившийся ошибкой («⚠️ …»), уведомляет по настройке «Ошибки»
+    // (раньше она только сохранялась), обычный — по «Завершение ответа».
+    val sessionRunningNow = ui.selectedSessionId != null && ui.selectedSessionId in runningSessionIds
+    val latestMessages by androidx.compose.runtime.rememberUpdatedState(messages)
+    LaunchedEffect(sessionRunningNow) {
+        if (runtimeUi.wasSessionRunning && !sessionRunningNow) {
+            val settings = ui.currentAppSettings
+            val title = sessions.find { it.sessionId == ui.selectedSessionId }?.title ?: context.getString(R.string.notify_session)
+            val failed = latestMessages.lastOrNull()?.let {
+                it.role == MessageRole.ASSISTANT && it.content.trimStart().startsWith("⚠️")
+            } == true
+            if (settings.notificationsEnabled) {
+                if (failed && settings.notifyOnError) {
+                    DshNotifications.notify(context, context.getString(R.string.notify_error_title), context.getString(R.string.notify_error_body, title))
+                } else if (!failed && settings.notifyOnTurnComplete) {
+                    DshNotifications.notify(context, context.getString(R.string.notify_done_title), context.getString(R.string.notify_done_body, title))
+                }
+            }
+        }
+        runtimeUi.wasSessionRunning = sessionRunningNow
+    }
 
     val catalogInfo by dshRepository.modelCatalogFlow.collectAsState()
     val hostModels = remember(catalogInfo) { catalogInfo.groups.flatMap { it.models } }
@@ -924,6 +936,41 @@ fun MainAppHost(
     // 从“JS 已装、伴生 APK 可装”跳转时，直接打开插件商店的对应仓库详情。
 
     val status by runner.statusFlow.collectAsState()
+
+    // «Авто-сон при простое»: останавливаем локальный Host после N минут без действий
+    // (если не идёт задача агента) и снова запускаем при следующем касании.
+    val idleSettings by androidx.compose.runtime.rememberUpdatedState(persistedSettings)
+    val idleRunningSessions by androidx.compose.runtime.rememberUpdatedState(runningSessionIds)
+    val idleWorkspace by androidx.compose.runtime.rememberUpdatedState(activeWorkspace)
+    var hostIdleStopped by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(30_000)
+            if (shouldIdleStopHost(
+                    idleMinutes = idleSettings.idleStopMinutes,
+                    phase = runner.statusFlow.value.phase,
+                    anySessionRunning = idleRunningSessions.isNotEmpty(),
+                    lastInteractionAt = UserActivity.lastInteraction.value,
+                    now = System.currentTimeMillis(),
+                )
+            ) {
+                hostIdleStopped = true
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    runCatching { runtimeManager.stop() }
+                }
+            }
+        }
+    }
+    LaunchedEffect(Unit) {
+        UserActivity.lastInteraction.collect {
+            if (hostIdleStopped) {
+                hostIdleStopped = false
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    runCatching { runtimeManager.start(idleWorkspace.absolutePath) }
+                }
+            }
+        }
+    }
 
     // 官方 workflow 工具在手机 profile 默认关闭：用官方 API 打开，保持与桌面一致。
     LaunchedEffect(ui.activeHostId, status.phase) {
@@ -2024,8 +2071,13 @@ fun MainAppHost(
     }
     // 文件页：展示工作区（Host 只能看到 Documents/DSH-Workpace），
     // 手机其它位置的文件用系统 picker 选后复制进工作区做「中转」。
-    DisposableEffect(ui.activePage, ui.filesDir) {
-        val observer = if (ui.activePage == ActivePage.FILES) {
+    // Список файлов виден и на странице «Файлы», и во вкладке файлов правой панели чата.
+    // Раньше наблюдатель работал только для страницы, и панель показывала список,
+    // снятый при запуске: новые файлы (в т.ч. созданные агентом) там не появлялись.
+    val filesVisible = ui.activePage == ActivePage.FILES ||
+        (ui.activePage == ActivePage.CHAT && ui.rightDrawerOpen && ui.rightDrawerTab == "files")
+    DisposableEffect(filesVisible, ui.filesDir) {
+        val observer = if (filesVisible) {
             object : android.os.FileObserver(
                 ui.filesDir.absolutePath,
                 android.os.FileObserver.CREATE or
@@ -2049,7 +2101,7 @@ fun MainAppHost(
     // 放到 IO 线程，刷新期间保留上一份列表。
     val files by androidx.compose.runtime.produceState(
         initialValue = emptyList<com.deepseek.dsh.feature.files.FileItem>(),
-        ui.activePage,
+        filesVisible,
         ui.filesDir,
         runtimeUi.filesRevision,
     ) {

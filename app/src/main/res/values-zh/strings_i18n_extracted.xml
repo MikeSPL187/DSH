@@ -6,4 +6,6 @@
     <string name="preview_binary">二进制文件，未预览（%1$s）</string>
     <string name="a11y_open_menu">打开菜单</string>
     <string name="a11y_right_sidebar">右侧边栏</string>
+    <string name="notify_error_title">DSH 出错</string>
+    <string name="notify_error_body">%1$s 运行出错</string>
 </resources>
