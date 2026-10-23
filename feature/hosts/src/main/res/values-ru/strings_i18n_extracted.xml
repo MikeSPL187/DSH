@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="host_local_name">Linux-среда на устройстве</string>
+    <string name="host_active">Активный</string>
+</resources>

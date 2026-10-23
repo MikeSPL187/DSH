@@ -44,7 +44,7 @@
     <string name="action_input_commands">Добавить файлы или выполнить команды</string>
     <string name="tag_local_processing">Локальный контейнер</string>
     <string name="perm_read_only">Только чтение</string>
-    <string name="perm_workspace_write">Запись в рабочую папку</string>
+    <string name="perm_workspace_write">Запись в папку</string>
     <string name="perm_danger_full_access">Полный доступ</string>
     <string name="perm_auto_review">Автопроверка</string>
     <string name="perm_auto_badge">ЭКСП</string>
@@ -493,7 +493,7 @@
     <string name="hosts_title">Хосты и подключения</string>
     <string name="hosts_subtitle">Сначала локально; удалённое подключение необязательно (v4.0 §11)</string>
     <string name="action_scan_pair">Сопряжение</string>
-    <string name="host_tag_local">Локальная среда</string>
+    <string name="host_tag_local">Локально</string>
     <string name="host_desc_local">127.0.0.1 (пользовательское пространство телефона)</string>
     <string name="settings_title">Настройки и параметры</string>
     <string name="settings_subtitle">Модель, политика локального Linux-контейнера, рабочая папка и безопасность</string>

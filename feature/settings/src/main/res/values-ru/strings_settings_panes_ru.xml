@@ -14,7 +14,7 @@
     <string name="settings_pane_runtime_exit_code">Код завершения: %1$d</string>
     <string name="settings_pane_runtime_phase_uninstalled">Не установлен</string>
     <string name="settings_pane_runtime_phase_installing">Установка</string>
-    <string name="settings_pane_runtime_phase_stopped">Остановлена</string>
+    <string name="settings_pane_runtime_phase_stopped">Стоп</string>
     <string name="settings_pane_runtime_phase_starting">Запуск</string>
     <string name="settings_pane_runtime_phase_running">Работает</string>
     <string name="settings_pane_runtime_phase_error">Ошибка</string>
@@ -38,13 +38,13 @@
     <string name="settings_pane_notifications_permission_desc">Если системные уведомления выключены, разрешите уведомления DSH в настройках Android</string>
     <string name="settings_pane_remote_host_label">Адрес Host</string>
     <string name="settings_pane_remote_token_label">Токен доступа (необязательно)</string>
-    <string name="settings_pane_remote_connect">Сохранить и подключиться</string>
-    <string name="settings_pane_remote_disconnect">Отключиться</string>
+    <string name="settings_pane_remote_connect">Подключить</string>
+    <string name="settings_pane_remote_disconnect">Отключить</string>
     <string name="settings_pane_remote_local_host">Сейчас используется локальный Host</string>
     <string name="settings_pane_remote_active_host">Настроен удалённый Host: %1$s</string>
     <string name="settings_pane_general_permission_title">Разрешения</string>
     <string name="settings_pane_general_permission_desc">Режим разрешений по умолчанию для новых сессий</string>
-    <string name="settings_pane_general_permission_workspace">Запись в рабочую папку</string>
+    <string name="settings_pane_general_permission_workspace">Запись в папку</string>
     <string name="settings_pane_general_permission_full">Полный доступ</string>
     <string name="settings_pane_general_language_title">Язык</string>
     <string name="settings_pane_general_language_value">Китайский</string>

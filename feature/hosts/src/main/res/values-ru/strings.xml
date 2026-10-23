@@ -64,7 +64,7 @@
     <string name="hosts_title">Хосты и подключения</string>
     <string name="hosts_subtitle">Сначала локально; удалённое подключение необязательно (v4.0 §11)</string>
     <string name="action_scan_pair">Сопряжение</string>
-    <string name="host_tag_local">Локальная среда</string>
+    <string name="host_tag_local">Локально</string>
     <string name="host_desc_local">127.0.0.1 (пользовательское пространство телефона)</string>
     <string name="approval_title">Системные и рискованные подтверждения</string>
     <string name="approval_subtitle">Действия агента под вашим строгим контролем (v4.0 §6.5)</string>
