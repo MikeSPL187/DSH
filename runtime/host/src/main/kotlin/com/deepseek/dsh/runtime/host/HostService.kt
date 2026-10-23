@@ -35,6 +35,41 @@ class HostService : Service() {
 
         private fun keepAliveOnTaskRemoved(context: Context): Boolean =
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_KEEP_ALIVE, true)
+
+        /** Держит Host после ухода из приложения, пока идёт задача; затем сервис его остановит. */
+        const val ACTION_KEEP_WHILE_TASKS = "com.deepseek.dsh.runtime.host.KEEP_WHILE_TASKS"
+
+        private const val IDLE_CHECK_MS = 30_000L
+
+        /**
+         * Оставлять ли Host работать, когда пользователь ушёл из приложения: только если
+         * включена «защита долгих задач» И задача агента действительно выполняется.
+         * Раньше выход кнопкой «Назад» обрывал идущую задачу, а смахивание из «Недавних»
+         * при включённой настройке оставляло Host в фоне навсегда даже без задач.
+         */
+        fun shouldKeepHostInBackground(context: Context): Boolean =
+            keepAliveOnTaskRemoved(context) && HostRuntimeHolder.hasRunningTasks?.invoke() == true
+    }
+
+    private val idleHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val stopWhenTasksDone = object : Runnable {
+        override fun run() {
+            if (HostRuntimeHolder.hasRunningTasks?.invoke() == true) {
+                idleHandler.postDelayed(this, IDLE_CHECK_MS)
+            } else {
+                stopHostAndSelf()
+            }
+        }
+    }
+
+    private fun watchUntilTasksDone() {
+        idleHandler.removeCallbacks(stopWhenTasksDone)
+        idleHandler.postDelayed(stopWhenTasksDone, IDLE_CHECK_MS)
+    }
+
+    override fun onDestroy() {
+        idleHandler.removeCallbacks(stopWhenTasksDone)
+        super.onDestroy()
     }
 
     override fun onCreate() {
@@ -65,6 +100,13 @@ class HostService : Service() {
                 stopHostAndSelf(startId)
                 return START_NOT_STICKY
             }
+            ACTION_KEEP_WHILE_TASKS -> {
+                runCatching {
+                    startForeground(NOTIFICATION_ID, buildForegroundNotification(getString(R.string.host_service_running)))
+                }
+                watchUntilTasksDone()
+                return START_NOT_STICKY
+            }
             else -> {
                 val notification = buildForegroundNotification(getString(R.string.host_service_running))
                 startForeground(NOTIFICATION_ID, notification)
@@ -77,7 +119,9 @@ class HostService : Service() {
         // 用户在设置里打开了「有任务时保持后台运行」：划掉界面不停 Host，前台通知
         // 一直在，可以随时点「停止」。关闭时按旧行为：连同 Host 一起停掉，不在后台
         // 留下 proot/Node 进程。（manifest 里 stopWithTask=false，否则这个回调根本不会触发。）
-        if (!keepAliveOnTaskRemoved(this)) {
+        if (shouldKeepHostInBackground(this)) {
+            watchUntilTasksDone()
+        } else {
             stopHostAndSelf()
         }
         super.onTaskRemoved(rootIntent)

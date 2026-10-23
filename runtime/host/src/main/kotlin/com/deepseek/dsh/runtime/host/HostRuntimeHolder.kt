@@ -22,4 +22,11 @@ object HostRuntimeHolder {
     /** 重启本地 Host；未处于可重启状态时返回可读的失败原因。 */
     @Volatile
     var restartHost: (suspend () -> Result<Unit>)? = null
+
+    /**
+     * Есть ли сейчас выполняющиеся задачи агента. Нужен, чтобы «защита долгих задач»
+     * держала Host в фоне только пока задача идёт, а не бесконечно.
+     */
+    @Volatile
+    var hasRunningTasks: (() -> Boolean)? = null
 }

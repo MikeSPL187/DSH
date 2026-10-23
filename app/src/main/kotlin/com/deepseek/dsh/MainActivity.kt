@@ -219,11 +219,22 @@ class MainActivity : ComponentActivity() {
         nativePackageReceiver = null
         if (isFinishing) {
             val app = application as DshApplication
-            Thread {
-                kotlinx.coroutines.runBlocking {
-                    runCatching { app.runtimeManager.stop() }
+            if (com.deepseek.dsh.runtime.host.HostService.shouldKeepHostInBackground(this)) {
+                // Идёт задача агента и включена «защита долгих задач»: не обрываем её,
+                // сервис остановит Host сам, когда задачи закончатся.
+                runCatching {
+                    startService(
+                        android.content.Intent(this, com.deepseek.dsh.runtime.host.HostService::class.java)
+                            .setAction(com.deepseek.dsh.runtime.host.HostService.ACTION_KEEP_WHILE_TASKS),
+                    )
                 }
-            }.start()
+            } else {
+                Thread {
+                    kotlinx.coroutines.runBlocking {
+                        runCatching { app.runtimeManager.stop() }
+                    }
+                }.start()
+            }
         }
         super.onDestroy()
     }
