@@ -645,7 +645,7 @@ class DshRepository(
             put("enabled", enabled)
         }
         return rpcRaw(hostId, "pluginManager/setBundleEnabled", args.toString()).mapCatching { raw ->
-            val value = remoteValueOrThrow(raw) as? JsonObject ?: error("Host 没有返回变更结果")
+            val value = remoteValueOrThrow(raw) as? JsonObject ?: error(com.deepseek.dsh.core.model.Tr.t("Host returned no change result", "Host не вернул результат изменения", "Host 没有返回变更结果"))
             fun text(key: String): String? = (value[key] as? JsonPrimitive)?.contentOrNull
             val warnings = (value["warnings"] as? kotlinx.serialization.json.JsonArray).orEmpty()
                 .mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
@@ -1096,7 +1096,6 @@ class DshRepository(
         val value = (root["result"] as? JsonObject)?.get("value") as? JsonObject
             ?: return emptyList()
         val skills = value["skills"] as? JsonArray ?: return emptyList()
-        println("DSH_SKILLS count=${skills.size}")
         return skills.mapNotNull { item ->
             val obj = item as? JsonObject ?: return@mapNotNull null
             val name = (obj["name"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null
@@ -1245,7 +1244,7 @@ class DshRepository(
     /** 读翻译上限、当前偏好与可用服务。 */
     suspend fun cotTranslationLimits(hostId: String): Result<CotTranslationLimits> =
         rpcRaw(hostId, "cotTranslation/limits", "{}").mapCatching { raw ->
-            parseCotTranslationLimits(remoteValueOrThrow(raw)) ?: error("翻译服务没有返回配置")
+            parseCotTranslationLimits(remoteValueOrThrow(raw)) ?: error(com.deepseek.dsh.core.model.Tr.t("Translation service returned no configuration", "Сервис перевода не вернул настройки", "翻译服务没有返回配置"))
         }
 
     /**
@@ -1384,7 +1383,7 @@ class DshRepository(
     /** 读取语音识别目录（服务、语言、准备状态）。 */
     suspend fun speechCatalog(hostId: String): Result<SpeechCatalog> =
         rpcRaw(hostId, "speech/catalog", "{}").mapCatching { raw ->
-            parseSpeechCatalog(remoteValueOrThrow(raw)) ?: error("语音服务没有返回目录")
+            parseSpeechCatalog(remoteValueOrThrow(raw)) ?: error(com.deepseek.dsh.core.model.Tr.t("Speech service returned no catalog", "Голосовой сервис не вернул каталог", "语音服务没有返回目录"))
         }
 
     /** 保存识别服务与语言选择（Host 方法签名是 `configure(patch)`）。 */
@@ -1458,19 +1457,19 @@ class DshRepository(
             )
         }
         return rpcRaw(hostId, "speech/transcribe", args.toString()).mapCatching { raw ->
-            val value = remoteValueOrThrow(raw) as? JsonObject ?: error("语音转写没有返回结果")
+            val value = remoteValueOrThrow(raw) as? JsonObject ?: error(com.deepseek.dsh.core.model.Tr.t("Transcription returned no result", "Распознавание речи не вернуло результат", "语音转写没有返回结果"))
             (value["text"] as? JsonPrimitive)?.contentOrNull.orEmpty()
         }
     }
 
     /** 取出 Remote 响应信封里的 `result.value`；`ok=false` 时抛出 Host 的错误码。 */
     private fun remoteValueOrThrow(raw: String): JsonElement? {        val root = credentialJson.parseToJsonElement(raw) as? JsonObject
-            ?: error("无法解析 Host 响应")
-        val result = root["result"] as? JsonObject ?: error("Host 响应缺少 result")
+            ?: error(com.deepseek.dsh.core.model.Tr.t("Could not parse the Host response", "Не удалось разобрать ответ Host", "无法解析 Host 响应"))
+        val result = root["result"] as? JsonObject ?: error(com.deepseek.dsh.core.model.Tr.t("Host response has no result", "В ответе Host нет result", "Host 响应缺少 result"))
         val ok = (result["ok"] as? JsonPrimitive)?.booleanOrNull == true
         if (!ok) {
             val error = result["error"] as? JsonObject
-            error((error?.get("code") as? JsonPrimitive)?.contentOrNull ?: "Host 拒绝了这次请求")
+            error((error?.get("code") as? JsonPrimitive)?.contentOrNull ?: com.deepseek.dsh.core.model.Tr.t("Host rejected the request", "Host отклонил запрос", "Host 拒绝了这次请求"))
         }
         val value = result["value"]
         return if (value == null || value is kotlinx.serialization.json.JsonNull) null else value
@@ -1512,7 +1511,7 @@ class DshRepository(
                 SessionInfo(
                     hostId = entity.hostId,
                     sessionId = entity.sessionId,
-                    title = entity.title ?: "未命名会话",
+                    title = entity.title ?: com.deepseek.dsh.core.model.Tr.t("Untitled session", "Сессия без названия", "未命名会话"),
                     workspacePath = entity.workspacePath,
                     status = entity.status ?: "idle",
                     updatedAt = entity.updatedAt ?: System.currentTimeMillis(),
@@ -2133,7 +2132,7 @@ class DshRepository(
                             messageId = "msg_error_${System.currentTimeMillis()}",
                             role = MessageRole.ASSISTANT.name,
                             seq = 0L,
-                            contentJson = "⚠️ 发送失败：${result.message}",
+                            contentJson = "⚠️ " + com.deepseek.dsh.core.model.Tr.t("Send failed: ${result.message}", "Не удалось отправить: ${result.message}", "发送失败：${result.message}"),
                             createdAt = System.currentTimeMillis(),
                             status = "error"
                         )

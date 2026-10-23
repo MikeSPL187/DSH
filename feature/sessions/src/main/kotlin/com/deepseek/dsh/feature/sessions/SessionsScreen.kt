@@ -82,7 +82,7 @@ fun SessionsScreen(
                         if (session.pinned) {
                             Icon(
                                 imageVector = Icons.Default.PushPin,
-                                contentDescription = "Pinned",
+                                contentDescription = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.sessions.R.string.a11y_pinned),
                                 tint = MaterialTheme.colorScheme.secondary
                             )
                         }

@@ -24,4 +24,5 @@
     <string name="drawer_rename">Переименовать</string>
     <string name="drawer_delete_workspace">Удалить рабочую папку</string>
     <string name="sessions_empty_hint">Сессий пока нет. Создайте новую или дождитесь подключения.</string>
+    <string name="a11y_pinned">Закреплено</string>
 </resources>

@@ -89,9 +89,9 @@ object NativePageRegistry {
             return SettingsPageMatch(
                 page = null,
                 reason = when {
-                    ownedRegistrations.isEmpty() -> "原生伴侣未加载或未配对（$owner）"
-                    allOwnedPages.isEmpty() -> "原生伴侣已加载，但没有注册页面"
-                    else -> "原生伴侣没有 SETTINGS 页：已注册 " +
+                    ownedRegistrations.isEmpty() -> com.deepseek.dsh.core.model.Tr.t("Native companion is not loaded or not paired ($owner)", "Нативный компаньон не загружен или не сопряжён ($owner)", "原生伴侣未加载或未配对（$owner）")
+                    allOwnedPages.isEmpty() -> com.deepseek.dsh.core.model.Tr.t("Native companion is loaded but registered no pages", "Нативный компаньон загружен, но не зарегистрировал страниц", "原生伴侣已加载，但没有注册页面")
+                    else -> com.deepseek.dsh.core.model.Tr.t("Native companion has no SETTINGS page; registered ", "У нативного компаньона нет страницы SETTINGS; зарегистрированы ", "原生伴侣没有 SETTINGS 页：已注册 ") +
                         allOwnedPages.joinToString { "${it.entry.placement}:${it.entry.id}" }
                 },
             )
@@ -110,7 +110,7 @@ object NativePageRegistry {
             return SettingsPageMatch(settingsPages.first())
         }
         val ids = settingsPages.joinToString(", ") { it.entry.id }
-        return SettingsPageMatch(page = null, reason = "原生页未匹配：$componentId；已注册 [$ids]")
+        return SettingsPageMatch(page = null, reason = com.deepseek.dsh.core.model.Tr.t("No native page matched $componentId; registered [$ids]", "Нативная страница не найдена: $componentId; зарегистрированы [$ids]", "原生页未匹配：$componentId；已注册 [$ids]"))
     }
 
     /** 匹配结果：命中的原生页，或未命中时给界面看的原因。 */

@@ -11,4 +11,5 @@
     <string name="pcp_retry">Retry</string>
     <string name="settings_default_account_name">DeepSeek User</string>
     <string name="pwi_host_not_running">Host is not running; the full UI cannot be opened</string>
+    <string name="action_back_a11y">Back</string>
 </resources>

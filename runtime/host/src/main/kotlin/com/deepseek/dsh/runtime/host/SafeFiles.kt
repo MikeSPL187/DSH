@@ -108,7 +108,7 @@ object SafeFiles {
                 output.write(text.toByteArray())
                 output.fd.sync()
             }
-            if (!tmp.renameTo(file)) throw IOException("无法写入 ${file.absolutePath}")
+            if (!tmp.renameTo(file)) throw IOException(com.deepseek.dsh.core.model.Tr.t("Cannot write ${file.absolutePath}", "Не удалось записать ${file.absolutePath}", "无法写入 ${file.absolutePath}"))
         } finally {
             tmp.delete()
         }

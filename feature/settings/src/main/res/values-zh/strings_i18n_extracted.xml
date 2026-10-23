@@ -11,4 +11,5 @@
     <string name="pcp_retry">重试</string>
     <string name="settings_default_account_name">DeepSeek 用户</string>
     <string name="pwi_host_not_running">Host 未运行，无法打开完整界面</string>
+    <string name="action_back_a11y">返回</string>
 </resources>

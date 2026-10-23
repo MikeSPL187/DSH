@@ -103,10 +103,10 @@ private data class GitHubRelease(
  *
  * 键是 `owner/repo` 的小写形式；未登记的仓库回落到「仓库名 → 可读标题」的推导规则。
  */
-private val STORE_LOCALIZED: Map<String, Pair<String, String>> = mapOf(
+private val STORE_LOCALIZED: Map<String, Pair<String, String>> get() = mapOf(
     "ericfl1998/dsh-subscription-oauth" to (
-        "订阅" to
-            "用 Kimi Code / Grok（X Premium）/ Google Antigravity / GLM 订阅账号接入模型，无需 API Key。"
+        com.deepseek.dsh.core.model.Tr.t("Subscriptions", "Подписки", "订阅") to
+            com.deepseek.dsh.core.model.Tr.t("Use Kimi Code / Grok (X Premium) / Google Antigravity / GLM subscription accounts for models, no API key needed.", "Модели через подписки Kimi Code / Grok (X Premium) / Google Antigravity / GLM — без API-ключа.", "用 Kimi Code / Grok（X Premium）/ Google Antigravity / GLM 订阅账号接入模型，无需 API Key。")
         ),
 )
 
@@ -656,7 +656,7 @@ private fun getJson(url: String): JsonObject {
             if (cached != null) return cached.value
             val detail = buildString {
                 append("GitHub API ${response.code}")
-                remaining?.let { append(" · 剩余 $it") }
+                remaining?.let { append(" · " + com.deepseek.dsh.core.model.Tr.t("remaining $it", "осталось $it", "剩余 $it")) }
                 retryAfter?.let { append(" · Retry-After ${it}s") }
                 if (body.isNotBlank()) append(" · ").append(body.take(180))
             }

@@ -120,6 +120,10 @@ class MainActivity : ComponentActivity() {
         nativePluginRescanFlow.value += 1
     }
 
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(AppLanguage.wrap(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // 统一走 edge-to-edge：键盘只通过 WindowInsets.ime 报告，系统不再 resize

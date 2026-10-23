@@ -56,6 +56,8 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -864,10 +866,23 @@ private fun OnboardingButton(
  * @param visible whether the primary action is available.
  * @param content primary action content.
  */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun ReservedCtaSlot(visible: Boolean, content: @Composable () -> Unit) {
+    // On short phones the slot sits below the fold; once a choice enables the
+    // action, scroll it into view so the user is not left without a next step.
+    val bringIntoView = remember { BringIntoViewRequester() }
+    LaunchedEffect(visible) {
+        if (visible) {
+            kotlinx.coroutines.delay(200)
+            runCatching { bringIntoView.bringIntoView() }
+        }
+    }
     Box(
-        modifier = Modifier.fillMaxWidth().height(50.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(50.dp)
+            .bringIntoViewRequester(bringIntoView),
         contentAlignment = Alignment.Center,
     ) {
         AnimatedVisibility(

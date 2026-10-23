@@ -167,7 +167,7 @@ class WebIslandContainer(
                 if (request?.isForMainFrame == true) {
                     onLoadingChanged?.invoke(false)
                     val description = error?.description?.toString()?.takeIf { it.isNotBlank() }
-                        ?: "网络错误"
+                        ?: com.deepseek.dsh.core.model.Tr.t("Network error", "Сетевая ошибка", "网络错误")
                     onFailed?.invoke(description)
                 }
                 super.onReceivedError(view, request, error)
@@ -180,7 +180,7 @@ class WebIslandContainer(
             ) {
                 if (request?.isForMainFrame == true) {
                     onLoadingChanged?.invoke(false)
-                    onFailed?.invoke("Host 返回 HTTP ${errorResponse?.statusCode ?: 0}")
+                    onFailed?.invoke(com.deepseek.dsh.core.model.Tr.t("Host returned HTTP ${errorResponse?.statusCode ?: 0}", "Host вернул HTTP ${errorResponse?.statusCode ?: 0}", "Host 返回 HTTP ${errorResponse?.statusCode ?: 0}"))
                 }
                 super.onReceivedHttpError(view, request, errorResponse)
             }

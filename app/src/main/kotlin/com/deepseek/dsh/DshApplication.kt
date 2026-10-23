@@ -154,12 +154,20 @@ class DshApplication : Application() {
         )
     }
 
+    override fun attachBaseContext(base: android.content.Context) {
+        super.attachBaseContext(AppLanguage.wrap(base))
+    }
+
     override fun onCreate() {
         // 先装记录器，EOF 兜底在其之上：被兜底吞掉的断连不会产生崩溃报告。
         TestCrashRecorder.install(this)
         installTransportEofGuard()
         super.onCreate()
         com.deepseek.dsh.runtime.host.HostStrings.init(this)
+        // Тексты из модулей без Context следуют за языком интерфейса, а не только за системным.
+        com.deepseek.dsh.core.model.Tr.language = {
+            resources.configuration.locales[0]?.language ?: java.util.Locale.getDefault().language
+        }
         runtimeLayout = RuntimeLayout(
             baseDir = filesDir,
             nativeLibraryDir = java.io.File(applicationInfo.nativeLibraryDir ?: filesDir.absolutePath)

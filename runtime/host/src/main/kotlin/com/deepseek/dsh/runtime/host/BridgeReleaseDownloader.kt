@@ -36,8 +36,8 @@ class BridgeReleaseDownloader(
         onProgress: (Float, String) -> Unit,
     ): ByteArray = withContext(Dispatchers.IO) {
         val url = archiveUrl(repository, version)
-            ?: throw IllegalArgumentException("安装源不是可识别的 GitHub 仓库：$repository")
-        onProgress(0f, "连接 GitHub…")
+            ?: throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Install source is not a recognised GitHub repository: $repository", "Источник установки — не распознанный репозиторий GitHub: $repository", "安装源不是可识别的 GitHub 仓库：$repository"))
+        onProgress(0f, com.deepseek.dsh.core.model.Tr.t("Connecting to GitHub…", "Подключение к GitHub…", "连接 GitHub…"))
         val request = Request.Builder()
             .url(url)
             .header("User-Agent", "dsh-android")
@@ -45,12 +45,12 @@ class BridgeReleaseDownloader(
             .build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
-                throw IllegalStateException("下载插件归档失败：HTTP ${response.code}")
+                throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Plugin archive download failed: HTTP ${response.code}", "Не удалось скачать архив плагина: HTTP ${response.code}", "下载插件归档失败：HTTP ${response.code}"))
             }
-            val body = response.body ?: throw IllegalStateException("插件归档响应没有内容")
+            val body = response.body ?: throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Plugin archive response is empty", "Пустой ответ с архивом плагина", "插件归档响应没有内容"))
             val contentLength = body.contentLength()
             if (contentLength > BridgePluginArchive.MAX_ARCHIVE_BYTES) {
-                throw IllegalStateException("插件归档过大：${contentLength} 字节")
+                throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Plugin archive is too large: ${contentLength} bytes", "Архив плагина слишком большой: ${contentLength} байт", "插件归档过大：${contentLength} 字节"))
             }
             val output = ByteArrayOutputStream(
                 contentLength.takeIf { it in 1..BridgePluginArchive.MAX_ARCHIVE_BYTES }?.toInt() ?: 64 * 1024
@@ -64,19 +64,19 @@ class BridgeReleaseDownloader(
                     if (read <= 0) break
                     received += read
                     if (received > BridgePluginArchive.MAX_ARCHIVE_BYTES) {
-                        throw IllegalStateException("插件归档超过 32MB 上限")
+                        throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Plugin archive exceeds the 32 MB limit", "Архив плагина больше лимита 32 МБ", "插件归档超过 32MB 上限"))
                     }
                     output.write(buffer, 0, read)
                     if (contentLength > 0) {
                         val percent = ((received * 100) / contentLength).toInt().coerceIn(0, 100)
                         if (percent != lastReported) {
                             lastReported = percent
-                            onProgress(percent / 100f, "下载插件归档 $percent%")
+                            onProgress(percent / 100f, com.deepseek.dsh.core.model.Tr.t("Downloading plugin archive $percent%", "Загрузка архива плагина $percent%", "下载插件归档 $percent%"))
                         }
                     }
                 }
             }
-            onProgress(1f, "插件归档已下载（${output.size()} 字节）")
+            onProgress(1f, com.deepseek.dsh.core.model.Tr.t("Plugin archive downloaded (${output.size()} bytes)", "Архив плагина загружен (${output.size()} байт)", "插件归档已下载（${output.size()} 字节）"))
             output.toByteArray()
         }
     }

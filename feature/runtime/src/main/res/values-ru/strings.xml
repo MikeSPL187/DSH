@@ -22,8 +22,8 @@
     <string name="onb_top_up">Пополнить кредиты</string>
     <string name="onb_later">Далее</string>
     <string name="onb_funded_top_up">Пополнить кредиты</string>
-    <string name="onb_purpose_prefix">С чем вам</string>
-    <string name="onb_purpose_suffix">помочь?</string>
+    <string name="onb_purpose_prefix">С чем</string>
+    <string name="onb_purpose_suffix">вам помочь?</string>
     <string name="onb_purpose_description">Мы настроим интерфейс и инструменты под ваш стиль работы.</string>
     <string name="onb_office">Офис и творчество</string>
     <string name="onb_office_description">Редактирование документов, работа с данными, презентации и многое другое</string>

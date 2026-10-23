@@ -241,7 +241,7 @@ fun SettingsRootScreen(
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Back",
+                                    contentDescription = androidx.compose.ui.res.stringResource(R.string.action_back_a11y),
                                     tint = textPrimary,
                                     modifier = Modifier.size(22.dp),
                                 )

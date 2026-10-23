@@ -130,7 +130,7 @@ fun RightSidebarPanel(
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_rs_panel),
-                    contentDescription = "Close",
+                    contentDescription = stringResource(R.string.action_close),
                     tint = palette.labelSecondary,
                     modifier = Modifier.size(16.dp),
                 )

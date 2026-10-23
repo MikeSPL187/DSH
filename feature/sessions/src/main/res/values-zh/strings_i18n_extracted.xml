@@ -24,4 +24,5 @@
     <string name="drawer_rename">重命名</string>
     <string name="drawer_delete_workspace">删除工作区</string>
     <string name="sessions_empty_hint">暂无会话，请点击创建或等待连接</string>
+    <string name="a11y_pinned">已置顶</string>
 </resources>

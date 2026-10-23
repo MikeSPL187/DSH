@@ -2799,7 +2799,6 @@ fun MainAppHost(
                                     }
                                 },
                                 onSendMessage = { text ->
-                                    println("DSH_SEND start text=$text selected=$ui.selectedSessionId live=$liveSessionIds")
                                     // 斜杠命令走官方 commands/execute；Host 不认识的
                                     // 回退成普通 prompt。
                                     val commandLine = text.trim()
@@ -2919,7 +2918,6 @@ fun MainAppHost(
                                             }
                                         }
                                         if (sid != null) {
-                                            println("DSH_SEND session=$sid")
                                             // 只有刚创建的会话需要把当前选择写入 modelSelection；
                                             // 已有会话不能再覆盖（之前每次都按账号 provider 重选，
                                             // Kimi/订阅模型的 provider 被改错，回复变空白）。
@@ -2937,6 +2935,18 @@ fun MainAppHost(
                                             android.widget.Toast.makeText(
                                                 context, context.getString(R.string.session_create_failed), android.widget.Toast.LENGTH_LONG
                                             ).show()
+                                            // Keep what the user typed visible: the composer is
+                                            // already cleared, so dropping the bubble loses the text.
+                                            pendingMessages.add(
+                                                ChatMessage(
+                                                    hostId = ui.activeHostId,
+                                                    sessionId = "pending",
+                                                    messageId = "local_failed_${System.nanoTime()}",
+                                                    role = MessageRole.USER,
+                                                    content = text,
+                                                    createdAt = System.currentTimeMillis(),
+                                                )
+                                            )
                                             pendingMessages.add(
                                                 ChatMessage(
                                                     hostId = ui.activeHostId,

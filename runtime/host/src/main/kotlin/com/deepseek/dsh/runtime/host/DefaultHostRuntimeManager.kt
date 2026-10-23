@@ -131,10 +131,10 @@ class DefaultHostRuntimeManager(
     ): Result<String> = withContext(Dispatchers.IO) {
         val manifest = BridgePluginManifest.load(context)
             ?: return@withContext Result.failure(
-                IllegalStateException("APK 未内置插件清单（assets/${BridgePluginManifest.ASSET}）")
+                IllegalStateException(com.deepseek.dsh.core.model.Tr.t("The APK has no bundled plugin manifest (assets/${BridgePluginManifest.ASSET})", "В APK нет встроенного манифеста плагинов (assets/${BridgePluginManifest.ASSET})", "APK 未内置插件清单（assets/${BridgePluginManifest.ASSET}）"))
             )
         if (manifest.repository.isBlank()) {
-            return@withContext Result.failure(IllegalStateException("插件清单未配置安装源"))
+            return@withContext Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Plugin manifest has no install source", "В манифесте плагинов не указан источник", "插件清单未配置安装源")))
         }
         BridgePluginInstaller(context, layout).installFromRelease(
             repository = manifest.repository,
@@ -205,7 +205,7 @@ class DefaultHostRuntimeManager(
             RuntimeAddonShim.ensure(layout)
             runner.markInstalled()
             if (!layout.prootBinary.isFile) {
-                onProgress(1f, "rootfs 已安装；缺少 ${manifest.prootLibrary}（需按 ABI 打包到 jniLibs）")
+                onProgress(1f, com.deepseek.dsh.core.model.Tr.t("rootfs installed; ${manifest.prootLibrary} is missing (must be packaged per ABI in jniLibs)", "rootfs установлен; нет ${manifest.prootLibrary} (нужно упаковать в jniLibs под ABI)", "rootfs 已安装；缺少 ${manifest.prootLibrary}（需按 ABI 打包到 jniLibs）"))
             }
         }
         result
@@ -823,7 +823,7 @@ class DefaultHostRuntimeManager(
         killStaleHostProcesses()
         if (!layout.prootBinary.isFile) {
             return@withContext Result.failure(
-                IllegalStateException("缺少 ${layout.prootBinary.name}：需把对应 ABI 的 proot 打包到 jniLibs")
+                IllegalStateException(com.deepseek.dsh.core.model.Tr.t("${layout.prootBinary.name} is missing: proot for this ABI must be packaged in jniLibs", "Нет ${layout.prootBinary.name}: proot для этого ABI должен быть в jniLibs", "缺少 ${layout.prootBinary.name}：需把对应 ABI 的 proot 打包到 jniLibs"))
             )
         }
         // proot 的 bind 目标需要存在；DSH 配置目录先创建，避免首次启动 mkdir 失败。

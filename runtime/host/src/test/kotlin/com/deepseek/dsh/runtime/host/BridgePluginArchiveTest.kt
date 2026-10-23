@@ -18,6 +18,12 @@ import java.util.zip.ZipOutputStream
  * 「包名/版本/入口不一致就拒绝、路径不许逃出目标目录」这几条安全边界。
  */
 class BridgePluginArchiveTest {
+    // Сообщения проверяются по китайскому тексту: фиксируем язык, а не берём локаль машины.
+    @org.junit.Before
+    fun pinLanguage() {
+        com.deepseek.dsh.core.model.Tr.language = { "zh" }
+    }
+
 
     private val packageName = "dsh-mobile-bridge-plugin"
 

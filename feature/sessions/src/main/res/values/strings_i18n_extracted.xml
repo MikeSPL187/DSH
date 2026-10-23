@@ -24,4 +24,5 @@
     <string name="drawer_rename">Rename</string>
     <string name="drawer_delete_workspace">Delete workspace</string>
     <string name="sessions_empty_hint">No sessions yet. Create one or wait for the connection.</string>
+    <string name="a11y_pinned">Pinned</string>
 </resources>

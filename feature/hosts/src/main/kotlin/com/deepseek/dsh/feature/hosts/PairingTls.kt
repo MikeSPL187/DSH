@@ -40,7 +40,7 @@ class PairingFingerprint private constructor(private val digest: ByteArray) {
             }
             val decoded = runCatching { java.util.Base64.getDecoder().decode(body) }.getOrNull()
                 ?: runCatching { java.util.Base64.getUrlDecoder().decode(body) }.getOrNull()
-            require(decoded != null && decoded.size == 32) { "无法识别的 TLS 指纹格式" }
+            require(decoded != null && decoded.size == 32) { com.deepseek.dsh.core.model.Tr.t("Unrecognised TLS fingerprint format", "Нераспознанный формат отпечатка TLS", "无法识别的 TLS 指纹格式") }
             return PairingFingerprint(decoded)
         }
     }

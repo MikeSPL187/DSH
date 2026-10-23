@@ -34,7 +34,7 @@ internal class SlotBridgeHost(
         scope.launch {
             val handler = NativeHost.modelSelectHandler
             if (handler == null) {
-                onResult(Result.failure(IllegalStateException("当前页面不支持切换模型")))
+                onResult(Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("This page does not support switching models", "На этой странице нельзя сменить модель", "当前页面不支持切换模型"))))
                 return@launch
             }
             onResult(handler(provider, model, reasoningEffort))
@@ -45,7 +45,7 @@ internal class SlotBridgeHost(
         scope.launch {
             val handler = NativeHost.rpcHandler
             if (handler == null) {
-                onResult(Result.failure(IllegalStateException("Host 未连接")))
+                onResult(Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Host is not connected", "Host не подключён", "Host 未连接"))))
                 return@launch
             }
             onResult(handler(method, payload).map { Json.parseToJsonElement(it) })

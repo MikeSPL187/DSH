@@ -11,6 +11,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class NativePageRegistryTest {
+    // Сообщения проверяются по китайскому тексту: фиксируем язык, а не берём локаль машины.
+    @org.junit.Before
+    fun pinLanguage() {
+        com.deepseek.dsh.core.model.Tr.language = { "zh" }
+    }
+
     private val page = TestPage("subscriptions")
     private val subscription = NativePageRegistration(
         pluginId = "changfenhuang.subscription",
