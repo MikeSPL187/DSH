@@ -22,7 +22,7 @@
     <string name="settings_pane_idle_sleep_title">空闲自动休眠</string>
     <string name="settings_pane_idle_sleep_desc">无交互 5 分钟后停止容器进程，极大降低手机功耗与发热</string>
     <string name="settings_pane_keep_alive_title">后台长任务守护</string>
-    <string name="settings_pane_keep_alive_desc">任务执行期间启用前台服务与系统唤醒锁 (WakeLock)</string>
+    <string name="settings_pane_keep_alive_desc">任务执行期间启用前台服务与系统唤醒锁 (WakeLock)；从最近任务划掉 App 后 Host 仍继续运行</string>
     <string name="settings_pane_high_risk_title">高危工具二次确认</string>
     <string name="settings_pane_high_risk_desc">执行覆盖文件、Shell、系统硬件等动作前强制弹窗审批</string>
     <string name="settings_pane_backup_title">创建用户数据快照</string>
@@ -131,4 +131,5 @@
 <string name="settings_pane_models_provider_official">内置提供商</string>
     <string name="settings_pane_models_provider_plugin">插件提供商</string>
     <string name="settings_pane_remote_https_required">请使用 https:// 地址。明文 http 只允许 127.0.0.1（例如经 SSH 隧道转发），令牌不会在网络上明文传输。</string>
+    <string name="settings_pane_general_language_russian">俄语</string>
 </resources>

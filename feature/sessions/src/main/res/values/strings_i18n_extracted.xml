@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="drawer_default_user_name">DeepSeek User</string>
+    <string name="drawer_unverified">Not verified</string>
+    <string name="drawer_search_sessions_hint">Search session names</string>
+    <string name="drawer_close_search">Close search</string>
+    <string name="drawer_search">Search</string>
+    <string name="drawer_view_options">View options</string>
+    <string name="drawer_new_workspace">New workspace</string>
+    <string name="drawer_unarchive">Unarchive</string>
+    <string name="drawer_archive_session">Archive session</string>
+    <string name="drawer_new_version">New version</string>
+    <string name="drawer_group_by">Group by</string>
+    <string name="drawer_group_workspace">By workspace</string>
+    <string name="drawer_group_tree">By workspace tree</string>
+    <string name="drawer_group_single">Single list</string>
+    <string name="drawer_sort_by">Sort by</string>
+    <string name="drawer_sort_manual">Manual order</string>
+    <string name="drawer_sort_recent">Recently updated</string>
+    <string name="drawer_filter_sessions">Filter sessions</string>
+    <string name="drawer_filter_hide_archived">Hide archived</string>
+    <string name="drawer_filter_all">All conversations (show archived)</string>
+    <string name="drawer_filter_only_archived">Only archived</string>
+    <string name="drawer_rename">Rename</string>
+    <string name="drawer_delete_workspace">Delete workspace</string>
+    <string name="sessions_empty_hint">No sessions yet. Create one or wait for the connection.</string>
+</resources>

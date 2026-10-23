@@ -170,7 +170,7 @@ internal fun NativeSlotGuard(pluginLabel: String, theme: PluginTheme, content: @
     val failed = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     if (failed.value) {
         Text(
-            text = "「$pluginLabel」内容加载出错",
+            text = androidx.compose.ui.res.stringResource(com.deepseek.dsh.plugin.nativehost.R.string.native_slot_load_failed, pluginLabel),
             style = theme.textCaption,
             color = theme.colorOnSurfaceVariant,
             modifier = Modifier.fillMaxWidth().padding(theme.spacingUnit),

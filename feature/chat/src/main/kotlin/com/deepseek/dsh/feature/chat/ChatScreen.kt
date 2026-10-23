@@ -246,7 +246,7 @@ fun ModernChatScreen(
     onLoadChangeDiff: suspend (Int) -> com.deepseek.dsh.core.protocol.ChangesDiffInfo? = { null },
     /** 点开一份产物（切到文件页并定位到该目录）。 */
     onOpenDeliverable: (com.deepseek.dsh.core.protocol.PresentedFileInfo) -> Unit = {},
-    workspaceName: String = "默认工作区",
+    workspaceName: String = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.chat.R.string.chat_default_workspace),
     /** 系统文件选择器选回的附件；由宿主负责复制进工作区后传回这里。 */
     attachments: List<ChatAttachment> = emptyList(),
     onRemoveAttachment: (ChatAttachment) -> Unit = {},
@@ -271,7 +271,7 @@ fun ModernChatScreen(
     modelGroups: List<com.deepseek.dsh.core.model.ModelProviderGroup> = emptyList(),
     onModelSelected: (provider: String, modelId: String, name: String) -> Unit = { _, _, _ -> },
     selectedPermission: PermissionPreset = PermissionPreset.WORKSPACE_WRITE,
-    agentPresetLabel: String = "标准模式",
+    agentPresetLabel: String = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.chat.R.string.chat_preset_standard_label),
     /** 当前选中的预设 id（standard/cordis），用于菜单打勾。 */
     agentPresetSelectedId: String = "standard",
     onAgentPresetSelected: (String) -> Unit = {},
@@ -2501,7 +2501,7 @@ private fun ErrorMessageBubble(text: String) {
             .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
         Text(
-            text = "运行失败",
+            text = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.chat.R.string.chat_run_failed),
             color = MaterialTheme.colorScheme.onErrorContainer,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
@@ -2843,7 +2843,7 @@ fun BottomInputBar(
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                 ) {
                     Text(
-                        text = if (voiceBusy) "识别中…" else "停止并识别",
+                        text = if (voiceBusy) androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.chat.R.string.chat_voice_recognizing) else androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.chat.R.string.chat_voice_stop_recognize),
                         color = MaterialTheme.colorScheme.onPrimary,
                         fontSize = 12.sp,
                     )

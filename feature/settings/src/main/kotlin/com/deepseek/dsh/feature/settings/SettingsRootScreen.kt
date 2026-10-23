@@ -122,7 +122,7 @@ private fun orderedSections(
 fun SettingsRootScreen(
     settings: AppSettings,
     onUpdateSettings: (AppSettings) -> Unit,
-    accountName: String = "DeepSeek 用户",
+    accountName: String = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.settings_default_account_name),
     accountBalance: String = "¥0.00",
     accountPhone: String = "",
     isSignedIn: Boolean = false,

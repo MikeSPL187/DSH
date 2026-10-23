@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="preview_missing">Файл не существует</string>
+    <string name="preview_too_large">Файл слишком большой для предпросмотра (%1$s)</string>
+    <string name="preview_read_failed">Не удалось прочитать файл</string>
+    <string name="preview_binary">Двоичный файл, предпросмотр недоступен (%1$s)</string>
+</resources>

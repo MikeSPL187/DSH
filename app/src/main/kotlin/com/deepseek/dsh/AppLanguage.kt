@@ -9,7 +9,7 @@ import android.os.LocaleList
  * App 界面语言：由用户在「设置 → 通用 → 语言」里选择，选择同时写给 Host。
  *
  * - `system` 跟随系统；
- * - `zh` / `en` 是 Host 的 `locale.preference` 取值，也是 App 的 per-app locale。
+ * - `zh` / `en` / `ru` 是 App 的 per-app locale；Host 只支持 zh/en，`ru` 同步为 `en`。
  *
  * 写入走平台的 per-app locale（Android 13+），系统会重建 Activity，资源随之切换；
  * 更老的系统没有 per-app locale，保持跟随系统，只同步 Host 语言。
@@ -17,11 +17,12 @@ import android.os.LocaleList
 object AppLanguage {
     private const val PREFS = "app_locale"
     private const val KEY = "selection"
+    private val SUPPORTED = setOf("system", "zh", "en", "ru")
 
-    /** 用户选择的原始值：`system` / `zh` / `en`。 */
+    /** 用户选择的原始值：`system` / `zh` / `en` / `ru`。 */
     fun selection(context: Context): String =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, "system")
-            ?.takeIf { it in setOf("system", "zh", "en") } ?: "system"
+            ?.takeIf { it in SUPPORTED } ?: "system"
 
     /** 生效的语言标签（BCP-47），用于 Host 语言同步。 */
     fun effectiveTag(context: Context): String {

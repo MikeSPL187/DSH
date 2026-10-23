@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="host_service_channel_name">Среда DSH Host</string>
+    <string name="host_service_channel_desc">Поддерживает работу локального контейнера DSH Host и его задач в фоне</string>
+    <string name="host_service_title">Локальная среда DSH</string>
+    <string name="host_service_running">Среда агента работает в фоне</string>
+    <string name="host_service_stop">Остановить</string>
+</resources>

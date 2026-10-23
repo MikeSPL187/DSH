@@ -157,6 +157,7 @@ internal fun SettingsGeneralPane(
                 value = when (languageTag) {
                     "zh" -> stringResource(R.string.settings_pane_general_language_chinese)
                     "en" -> stringResource(R.string.settings_pane_general_language_english)
+                    "ru" -> stringResource(R.string.settings_pane_general_language_russian)
                     else -> stringResource(R.string.settings_pane_general_language_system)
                 },
                 onClick = { showLanguageDialog = true },
@@ -171,6 +172,7 @@ internal fun SettingsGeneralPane(
                             "system" to R.string.settings_pane_general_language_system,
                             "zh" to R.string.settings_pane_general_language_chinese,
                             "en" to R.string.settings_pane_general_language_english,
+                            "ru" to R.string.settings_pane_general_language_russian,
                         ).forEach { (value, label) ->
                             Text(
                                 text = stringResource(label),

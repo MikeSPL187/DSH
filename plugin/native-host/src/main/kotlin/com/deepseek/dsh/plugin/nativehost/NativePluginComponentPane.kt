@@ -71,7 +71,7 @@ fun NativePluginComponentPane(
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "返回",
+                        contentDescription = androidx.compose.ui.res.stringResource(com.deepseek.dsh.plugin.nativehost.R.string.native_back),
                         tint = MaterialTheme.colorScheme.onBackground,
                     )
                 }

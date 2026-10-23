@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pcp_back">返回</string>
+    <string name="pcp_bridge_disconnected">bridge 未连接</string>
+    <string name="pcp_full_ui_failed">完整界面 · 加载失败</string>
+    <string name="pcp_full_ui_web">完整界面 · 真实 Web UI</string>
+    <string name="pcp_refresh">刷新</string>
+    <string name="pcp_ui_unavailable">插件界面暂不可用</string>
+    <string name="pcp_bridge_retry">bridge 未连接。等 Host 就绪后重试。</string>
+    <string name="pcp_full_ui_start_failed">完整界面启动失败</string>
+    <string name="pcp_retry">重试</string>
+    <string name="settings_default_account_name">DeepSeek 用户</string>
+    <string name="pwi_host_not_running">Host 未运行，无法打开完整界面</string>
+</resources>

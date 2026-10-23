@@ -54,7 +54,7 @@ fun PluginWebIsland(
     if (port <= 0) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(
-                text = "Host 未运行，无法打开完整界面",
+                text = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pwi_host_not_running),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(24.dp),

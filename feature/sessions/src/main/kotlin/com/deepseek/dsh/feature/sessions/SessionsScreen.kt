@@ -37,7 +37,7 @@ fun SessionsScreen(
 ) {
     if (sessions.isEmpty()) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(text = "暂无会话，请点击创建或等待连接", color = MaterialTheme.colorScheme.outline)
+            Text(text = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.sessions.R.string.sessions_empty_hint), color = MaterialTheme.colorScheme.outline)
         }
     } else {
         LazyColumn(modifier = modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {

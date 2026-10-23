@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="preview_missing">File does not exist</string>
+    <string name="preview_too_large">File is too large to preview (%1$s)</string>
+    <string name="preview_read_failed">Could not read the file</string>
+    <string name="preview_binary">Binary file, not previewed (%1$s)</string>
+</resources>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="native_back">Назад</string>
+    <string name="native_slot_load_failed">Не удалось загрузить содержимое «%1$s»</string>
+</resources>
