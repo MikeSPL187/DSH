@@ -606,7 +606,10 @@ fun MainAppHost(
         val sid = ui.selectedSessionId ?: return@LaunchedEffect
         if (sessionRunningNow) {
             while (true) {
-                dshRepository.refreshSessionStats(ui.activeHostId, sid)
+                // Статистика нужна только на экране; в фоне не опрашиваем Host каждые 1,2 с.
+                if (UserActivity.isForeground) {
+                    dshRepository.refreshSessionStats(ui.activeHostId, sid)
+                }
                 kotlinx.coroutines.delay(1200)
             }
         } else {
@@ -1803,6 +1806,12 @@ fun MainAppHost(
         var ticks = 0
         while (true) {
             kotlinx.coroutines.delay(4_000)
+            // Опрос нужен только видимому интерфейсу: в фоне или при остановленном локальном
+            // Host он лишь будил радио/CPU каждые 4 секунды и разряжал батарею.
+            if (!UserActivity.isForeground) continue
+            if (ui.activeHostId == com.deepseek.dsh.core.model.HostDescriptor.Local().id &&
+                runner.statusFlow.value.phase != RuntimePhase.RUNNING
+            ) continue
             ticks += 1
             // 桥对客户端 bundle 是增量扫描的：每轮只求值一个，结果累积。定时刷新让
             // 后续批次继续推进，扫描完成后不再产生新条目，刷新也就变成一次廉价读。
