@@ -53,6 +53,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -399,12 +401,8 @@ private fun ModelsPage(ui: SettingsUi, a: SettingsActions, toast: ToastState, on
     FsView {
         StCard {
             Text(stringResource(R.string.st_bal_title, ui.provider), style = small(12.5.sp, 16.sp), color = Dsh.colors.t3)
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(ui.balance ?: "—", style = display(26.sp, 32.sp).copy(letterSpacing = (-0.02).sp * 26), color = Dsh.colors.t1)
-                ui.balanceDays?.let {
-                    Text(" " + pluralStringResource(R.plurals.st_bal_days, it, it), style = body(14.sp, 26.sp), color = Dsh.colors.t3, modifier = Modifier.padding(bottom = 2.dp))
-                }
-            }
+            Spacer(Modifier.height(4.dp))
+            BigWithNote(ui.balance ?: "—", ui.balanceDays?.let { pluralStringResource(R.plurals.st_bal_days, it, it) })
             if (ui.monthSpent != null) {
                 Spacer(Modifier.height(14.dp))
                 val month = stringArrayResource(R.array.st_month_spent)[java.time.LocalDate.now().monthValue - 1]
@@ -573,6 +571,18 @@ private fun Field(
         }
         trailing?.invoke()
     }
+}
+
+/** Крупное число `.st-card .big` и пояснение `small` в одной строке с переносом, как в прототипе. */
+@Composable
+private fun BigWithNote(big: String, note: String?) {
+    Text(
+        buildAnnotatedString {
+            append(big)
+            if (note != null) withStyle(body(14.sp).copy(color = Dsh.colors.t3).toSpanStyle()) { append(" $note") }
+        },
+        style = display(26.sp, 25.sp), color = Dsh.colors.t1,
+    )
 }
 
 // ---------- Оформление ----------
@@ -777,10 +787,7 @@ private fun StoragePage(ui: SettingsUi, a: SettingsActions, toast: ToastState) {
     val asked = stringResource(R.string.st_ws_shared_toast)
     FsView {
         StCard {
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(s?.let { bytes(it.total) } ?: "…", style = display(26.sp, 32.sp), color = Dsh.colors.t1)
-                if (s != null && s.device > 0) Text(" " + stringResource(R.string.st_of_device, bytes(s.device)), style = body(14.sp, 26.sp), color = Dsh.colors.t3, modifier = Modifier.padding(bottom = 2.dp))
-            }
+            BigWithNote(s?.let { bytes(it.total) } ?: "…", if (s != null && s.device > 0) stringResource(R.string.st_of_device, bytes(s.device)) else null)
             val parts = s?.let { listOf(it.linux, it.projects, it.cache, it.other) } ?: emptyList()
             val sum = parts.sum().coerceAtLeast(1)
             Row(Modifier.padding(top = 4.dp, bottom = 10.dp).fillMaxWidth().height(14.dp).clip(RoundedCornerShape(7.dp)).background(Dsh.colors.s3)) {

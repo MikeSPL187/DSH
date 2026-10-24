@@ -73,7 +73,7 @@ internal object SessionInspectorPluginUi {
             modifier = Modifier
                 .fillMaxSize()
                 .background(colors.bgBase.copy(alpha = 0.99f))
-                .padding(horizontal = PluginsDimens.PageHorizontal),
+                .padding(horizontal = 16.dp),
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 Row(

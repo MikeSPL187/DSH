@@ -19,6 +19,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.unit.dp
+import com.deepseek.dsh.core.model.ScheduleInfo
 
 /**
  * Расписание автоматизаций: у каждой включённой — одно задание JobScheduler на время
@@ -228,3 +234,81 @@ private fun scheduleText(context: Context, s: com.deepseek.dsh.core.model.Schedu
         else -> context.getString(R.string.au_sched_at, s.scheduledAt.replace('T', ' ').take(16))
     }
 }
+
+/**
+ * Мост к расписанию Host: задачи, которые агент поставил сам.
+ *
+ * Список — `schedule/catalog`, отмена — `schedule/delete`.
+ */
+object ScheduleBridge {
+    /** 计划任务目录的实时数据源（取消后会自动跟着刷新）。 */
+    var flow: kotlinx.coroutines.flow.StateFlow<List<ScheduleInfo>>? = null
+        private set
+
+    /** 进入页面时主动拉一次（Host 侧新提醒不会推给客户端）。 */
+    var refresh: (suspend () -> Unit)? = null
+        private set
+
+    /** 宿主在会话 effect 里调用一次即可，避免把 lambda 内联进 MainAppHost。 */
+    fun wire(
+        repository: com.deepseek.dsh.core.data.DshRepository,
+        hostId: String,
+        scope: kotlinx.coroutines.CoroutineScope,
+    ) {
+        flow = repository.scheduleCatalogFlow
+        refresh = { runCatching { repository.refreshScheduleCatalog(hostId) } }
+        scope.launch { refresh?.invoke() }
+        canceller = { schedule ->
+            scope.launch {
+                runCatching {
+                    repository.deleteSchedule(hostId, schedule.sessionId, schedule.id)
+                }
+            }
+        }
+    }
+
+    private var canceller: ((ScheduleInfo) -> Unit)? = null
+
+    fun cancel(schedule: ScheduleInfo) {
+        canceller?.invoke(schedule)
+    }
+}
+
+
+/** Вкладка «Расписание» правой панели чата: ближайшие автоматизации и задачи агента, переход в «Автоматизацию». */
+@androidx.compose.runtime.Composable
+internal fun AutomationSidePanel(onOpen: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val source = ScheduleBridge.flow ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList<ScheduleInfo>())
+    val host: List<ScheduleInfo> by source.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(Unit) { ScheduleBridge.refresh?.invoke() }
+    val items = AutomationStore.items.filter { it.on }
+    com.deepseek.dsh.feature.settings.ui.FsView {
+        if (items.isEmpty() && host.isEmpty()) {
+            com.deepseek.dsh.feature.settings.ui.FsEmpty(context.getString(com.deepseek.dsh.feature.settings.R.string.au_empty))
+        }
+        if (items.isNotEmpty()) {
+            com.deepseek.dsh.feature.settings.ui.FsSec(context.getString(com.deepseek.dsh.feature.settings.R.string.au_mine), count = items.size.toString())
+            com.deepseek.dsh.feature.settings.ui.Gl {
+                items.forEach { a ->
+                    row {
+                        val next = AutomationStore.nextRun(a)?.let { java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT).format(java.util.Date(it)) }
+                        com.deepseek.dsh.feature.settings.ui.Gr(a.name, sub = next, leading = { com.deepseek.dsh.feature.settings.ui.Gic(com.deepseek.dsh.core.designsystem.DshGlyphs.get(a.icon)) }, onClick = onOpen)
+                    }
+                }
+            }
+        }
+        if (host.isNotEmpty()) {
+            com.deepseek.dsh.feature.settings.ui.FsSec(context.getString(com.deepseek.dsh.feature.settings.R.string.au_agent_tasks), count = host.size.toString())
+            com.deepseek.dsh.feature.settings.ui.Gl {
+                host.forEach { s -> row { com.deepseek.dsh.feature.settings.ui.Gr(s.title.ifBlank { s.prompt.take(60) }, sub = scheduleText(context, s), leading = { com.deepseek.dsh.feature.settings.ui.Gic(com.deepseek.dsh.core.designsystem.DshGlyphs.Clock) }) } }
+            }
+        }
+        com.deepseek.dsh.feature.settings.ui.KBtn(
+            context.getString(com.deepseek.dsh.feature.settings.R.string.au_title), onOpen,
+            androidx.compose.ui.Modifier.fillMaxWidthCompat().then(androidx.compose.ui.Modifier.padding(top = 16.dp)), icon = com.deepseek.dsh.core.designsystem.DshGlyphs.Clock,
+        )
+    }
+}
+
+private fun androidx.compose.ui.Modifier.fillMaxWidthCompat() = this.then(androidx.compose.ui.Modifier.fillMaxWidth())

@@ -3148,6 +3148,14 @@ fun MainAppHost(
                                 },
                                 onOpenSource = { dir -> ui.filesDir = dir; ui.activePage = ActivePage.FILES },
                                 onOpenPluginUi = { id -> ui.pluginUiOpen = id },
+                                loadCredential = { ref -> dshRepository.credentialStatus(ui.activeHostId, ref) },
+                                saveCredential = { ref, value -> dshRepository.setCredential(ui.activeHostId, ref, value) },
+                                speech = SpeechHooks(
+                                    catalog = { dshRepository.speechCatalog(ui.activeHostId) },
+                                    configure = { providerId, language -> dshRepository.speechConfigure(ui.activeHostId, providerId, language) },
+                                    prepare = { providerId, source -> dshRepository.speechPrepare(ui.activeHostId, providerId, source) },
+                                    cancelPrepare = { providerId -> dshRepository.speechCancelPrepare(ui.activeHostId, providerId) },
+                                ),
                                 onClose = { ui.activePage = ActivePage.CHAT },
                             ),
                         )
@@ -3261,8 +3269,7 @@ fun MainAppHost(
                     .padding(16.dp)
                     .fillMaxWidth(),
                 onGoInstall = {
-                    ui.pluginStoreSeedUrl = companion.storeUrl
-                    ui.pluginInitialTab = 1
+                    companion.storeUrl?.let(openUrl)
                     ui.nativeCompanionAvailable = null
                     ui.activePage = ActivePage.PLUGINS
                 },
@@ -3357,7 +3364,7 @@ fun MainAppHost(
                 deliverables = sessionDeliverables,
                 terminalContent = terminalContent,
                 scheduleContent = {
-                    SchedulesScreen(onCreateTask = { ui.activePage = ActivePage.CHAT })
+                    AutomationSidePanel(onOpen = { ui.rightDrawerOpen = false; ui.activePage = ActivePage.AUTOMATION })
                 },
                 pluginTabs = rightPanePluginTabs,
                 guideEntries = rightPaneGuideEntries,

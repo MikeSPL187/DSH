@@ -8,7 +8,6 @@ import androidx.compose.runtime.setValue
 import com.deepseek.dsh.core.bridge.BridgeNativeCompanion
 import com.deepseek.dsh.core.model.AppSettings
 import com.deepseek.dsh.core.model.SurfaceItem
-import com.deepseek.dsh.feature.settings.SettingsSectionTab
 
 /**
  * 主界面里「纯 UI 状态」的集合：对话框、浮层、插件页导航等。
@@ -41,10 +40,6 @@ class AppUiState(
     var activeOverlaySurface by mutableStateOf<SurfaceItem?>(null)
     var nativeCompanionAvailable by mutableStateOf<BridgeNativeCompanion?>(null)
 
-    var pluginStoreSeedUrl by mutableStateOf<String?>(null)
-    var pluginInitialTab by mutableStateOf(0)
-    var pluginDetailOpen by mutableStateOf(false)
-    var pluginBackSignal by mutableStateOf(0)
     var pluginChangeNotice by mutableStateOf<List<String>?>(null)
     var pluginRestartRunning by mutableStateOf(false)
     var pluginRestartError by mutableStateOf<String?>(null)

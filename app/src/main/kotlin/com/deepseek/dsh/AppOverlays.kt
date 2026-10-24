@@ -1,5 +1,7 @@
 package com.deepseek.dsh
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,35 +32,18 @@ internal fun CompanionAvailableCard(
     onGoInstall: () -> Unit,
     onIgnore: () -> Unit,
 ) {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = RoundedCornerShape(12.dp),
-        modifier = modifier,
-    ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(
-                        R.string.companion_available_title,
-                        companion.name ?: companion.pluginId,
-                    ),
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                Text(
-                    text = stringResource(R.string.companion_available_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+    // Карточка в стиле DSH: у установленного плагина есть нативная часть (APK) со своими экранами.
+    com.deepseek.dsh.feature.settings.ui.StCard(modifier.shadow(12.dp, RoundedCornerShape(22.dp))) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            com.deepseek.dsh.feature.settings.ui.Gic(com.deepseek.dsh.core.designsystem.DshGlyphs.Puzzle, com.deepseek.dsh.feature.settings.ui.Tone.Plain)
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.companion_available_title, companion.name ?: companion.pluginId), style = com.deepseek.dsh.core.designsystem.Dsh.type.bodyMedium, color = com.deepseek.dsh.core.designsystem.Dsh.colors.t1)
+                Text(stringResource(R.string.companion_available_desc), style = com.deepseek.dsh.core.designsystem.Dsh.type.footnote, color = com.deepseek.dsh.core.designsystem.Dsh.colors.t3)
             }
-            TextButton(onClick = onGoInstall) {
-                Text(stringResource(R.string.companion_go_install))
-            }
-            TextButton(onClick = onIgnore) {
-                Text(stringResource(R.string.companion_ignore))
-            }
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            com.deepseek.dsh.feature.settings.ui.KBtn(stringResource(R.string.companion_ignore), onIgnore, Modifier.weight(1f))
+            com.deepseek.dsh.feature.settings.ui.KBtn(stringResource(R.string.companion_go_install), onGoInstall, Modifier.weight(1f), kind = com.deepseek.dsh.feature.settings.ui.BtnKind.Primary)
         }
     }
 }

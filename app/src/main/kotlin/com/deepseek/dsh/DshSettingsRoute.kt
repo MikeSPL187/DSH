@@ -388,7 +388,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         }
 
         override fun restoreBackup() { restoreLauncher.launch(arrayOf("application/zip", "application/octet-stream")) }
-        override fun setBiometric(on: Boolean) { DshUserPrefs.biometric = on }
+        override fun setBiometric(on: Boolean) { BiometricLock.locked = false; DshUserPrefs.biometric = on }
 
         override suspend fun wipeAll() {
             runCatching { d.runtimeManager.stop() }
@@ -458,9 +458,9 @@ private fun openLink(context: Context, url: String) {
     runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
 }
 
-/** Отпечаток: есть ли на телефоне биометрия (Android 10+). */
+/** Отпечаток: есть ли на телефоне биометрия (Android 11+, как у экрана блокировки). */
 private fun biometricAvailable(context: Context): Boolean {
-    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) return false
+    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return false
     val bm = context.getSystemService(android.hardware.biometrics.BiometricManager::class.java) ?: return false
     @Suppress("DEPRECATION")
     return bm.canAuthenticate() == android.hardware.biometrics.BiometricManager.BIOMETRIC_SUCCESS

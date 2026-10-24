@@ -186,6 +186,8 @@ fun PluginsHomeScreen(
     initialLog: Boolean = false,
     initialSheet: String? = null,
     toast: ToastState = rememberToast(),
+    /** Собственный раздел встроенного плагина (например, подготовка модели голосового ввода). */
+    extraSection: (@Composable (pluginId: String) -> Unit)? = null,
 ) {
     val stack = remember {
         PageStack<PlPage>(PlPage.List).also {
@@ -233,7 +235,7 @@ fun PluginsHomeScreen(
         CompositionLocalProvider(LocalRise provides (rise && p == PlPage.List)) {
             when (p) {
                 PlPage.List -> PluginList(plugins, catalog, actions, toast, fresh, onFresh = { fresh = it }, open = { stack.push(PlPage.Detail(it)) }, onAdd = { sheet = "add" })
-                is PlPage.Detail -> plugins.find { it.id == p.id }?.let { PluginDetail(it, actions, toast, onLog = { stack.push(PlPage.Log(it.id)) }, onReinstall = { sheet = "add" }) }
+                is PlPage.Detail -> plugins.find { it.id == p.id }?.let { PluginDetail(it, actions, toast, onLog = { stack.push(PlPage.Log(it.id)) }, onReinstall = { sheet = "add" }, extra = extraSection) }
                 is PlPage.Log -> plugins.find { it.id == p.id }?.let { PluginLog(it, actions) }
             }
         }
@@ -520,7 +522,7 @@ private fun CatalogCard(c: CatalogUi, a: PluginsActions, toast: ToastState, onIn
 // ---------- Карточка плагина ----------
 
 @Composable
-private fun PluginDetail(p: PluginUi, a: PluginsActions, toast: ToastState, onLog: () -> Unit, onReinstall: () -> Unit) {
+private fun PluginDetail(p: PluginUi, a: PluginsActions, toast: ToastState, onLog: () -> Unit, onReinstall: () -> Unit, extra: (@Composable (String) -> Unit)? = null) {
     val c = Dsh.colors
     val scope = rememberCoroutineScope()
     val arm = rememberArm()
@@ -620,6 +622,7 @@ private fun PluginDetail(p: PluginUi, a: PluginsActions, toast: ToastState, onLo
                 }
             }
         }
+        if (extra != null && !p.blocked) extra(p.id)
         if (p.perms.isNotEmpty()) {
             GLabel(stringResource(R.string.pl_access))
             Gl {

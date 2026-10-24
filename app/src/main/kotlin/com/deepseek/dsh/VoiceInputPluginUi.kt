@@ -31,7 +31,6 @@ import androidx.compose.ui.unit.sp
 import com.deepseek.dsh.core.data.SpeechCatalog
 import com.deepseek.dsh.core.data.SpeechPreparation
 import com.deepseek.dsh.core.data.SpeechProvider
-import com.deepseek.dsh.core.designsystem.LocalDshPanelColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -64,7 +63,7 @@ internal object VoiceInputPluginUi : PluginUi {
     override fun Section(hooks: PluginUiHooks) {
         val speech = hooks.speech
         if (speech == null) {
-            Text(stringResource(R.string.voice_unavailable), color = LocalDshPanelColors.current.labelTertiary, fontSize = 13.sp)
+            com.deepseek.dsh.feature.settings.ui.SubNote(stringResource(R.string.voice_unavailable), top = 0.dp)
             return
         }
         VoicePreparationSection(speech)
@@ -132,7 +131,7 @@ private val SPEECH_ACTIVE_PHASES = setOf(
 
 @Composable
 private fun VoicePreparationSection(speech: SpeechHooks) {
-    val colors = LocalDshPanelColors.current
+    val c = com.deepseek.dsh.core.designsystem.Dsh.colors
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     var catalog by remember { mutableStateOf<SpeechCatalog?>(null) }
@@ -147,7 +146,7 @@ private fun VoicePreparationSection(speech: SpeechHooks) {
             onFailure = { loadError = context.getString(R.string.voice_unavailable) },
         )
     }
-    // 准备过程中轮询：官方是流式状态，这里用目录轮询替代（同一份 Host 状态）。
+    // Пока модель готовится — опрашиваем каталог (у Host это поток состояния).
     val active = catalog?.selected?.preparation?.phase in SPEECH_ACTIVE_PHASES
     LaunchedEffect(active, reload) {
         while (active) {
@@ -157,23 +156,17 @@ private fun VoicePreparationSection(speech: SpeechHooks) {
     }
 
     val current = catalog
-    if (loadError != null && current == null) {
-        Text(loadError!!, color = colors.labelTertiary, fontSize = 13.sp)
-        return
-    }
     if (current == null) {
-        Text(stringResource(R.string.voice_reading), color = colors.labelTertiary, fontSize = 13.sp)
+        com.deepseek.dsh.feature.settings.ui.SubNote(loadError ?: stringResource(R.string.voice_reading), top = 0.dp)
         return
     }
     val provider = current.selected
     if (provider == null) {
-        Text(stringResource(R.string.voice_unavailable), color = colors.labelTertiary, fontSize = 13.sp)
+        com.deepseek.dsh.feature.settings.ui.SubNote(stringResource(R.string.voice_unavailable), top = 0.dp)
         return
     }
 
-    // 识别服务
-    Text(stringResource(R.string.voice_service), color = colors.labelPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-    Spacer(Modifier.height(6.dp))
+    com.deepseek.dsh.feature.settings.ui.GLabel(stringResource(R.string.voice_service))
     ChoiceChipFlow(
         options = current.providers.map { item -> item.id to item.name },
         selected = provider.id,
@@ -186,24 +179,13 @@ private fun VoicePreparationSection(speech: SpeechHooks) {
             }
         },
     )
-    Spacer(Modifier.height(4.dp))
-    Text(
-        text = if (provider.location == "host-local") {
-            stringResource(R.string.voice_audio_local)
-        } else {
-            stringResource(R.string.voice_audio_cloud)
-        },
-        color = colors.labelTertiary,
-        fontSize = 11.5.sp,
-        lineHeight = 16.sp,
+    com.deepseek.dsh.feature.settings.ui.SubNote(
+        stringResource(if (provider.location == "host-local") R.string.voice_audio_local else R.string.voice_audio_cloud),
     )
 
-    // 识别语言
-    Spacer(Modifier.height(14.dp))
-    Text(stringResource(R.string.voice_language), color = colors.labelPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-    Spacer(Modifier.height(6.dp))
+    com.deepseek.dsh.feature.settings.ui.GLabel(stringResource(R.string.voice_language))
     ChoiceChipFlow(
-        options = provider.languages.map { language -> language to (speechLanguageName(language)) },
+        options = provider.languages.map { language -> language to speechLanguageName(language) },
         selected = current.language,
         enabled = !busy,
         onSelect = { language ->
@@ -215,103 +197,60 @@ private fun VoicePreparationSection(speech: SpeechHooks) {
         },
     )
 
-    // 准备卡片
+    // Карточка подготовки модели.
     val preparation = provider.preparation
-    Spacer(Modifier.height(16.dp))
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(colors.bgModulePlatform)
-            .padding(12.dp),
-    ) {
-        Text(provider.name, color = colors.labelPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-        val phase = preparation?.phase ?: "unprepared"
-        Spacer(Modifier.height(4.dp))
+    val phase = preparation?.phase ?: "unprepared"
+    com.deepseek.dsh.feature.settings.ui.StCard(Modifier.padding(top = 16.dp)) {
+        Text(provider.name, style = com.deepseek.dsh.core.designsystem.Dsh.type.bodyMedium, color = c.t1)
         Text(
-            text = speechPhaseLabel(phase),
-            color = when (phase) {
-                "failed" -> colors.stateErrorPrimary
-                "ready" -> androidx.compose.material3.MaterialTheme.colorScheme.primary
-                else -> colors.labelSecondary
-            },
-            fontSize = 12.sp,
+            speechPhaseLabel(phase),
+            style = com.deepseek.dsh.core.designsystem.Dsh.type.footnote,
+            color = when (phase) { "failed" -> c.danger; "ready" -> c.ok; else -> c.t2 },
+            modifier = Modifier.padding(top = 2.dp),
         )
         if (phase == "unprepared" && provider.location == "host-local") {
             provider.setupEstimate?.let { estimate ->
-                Spacer(Modifier.height(6.dp))
                 Text(
-                    text = stringResource(
+                    stringResource(
                         R.string.voice_estimate,
                         estimate.recommendedDiskBytes / 1_000_000_000,
                         estimate.expectedMemoryBytes / 1_000_000_000,
                         estimate.minimumMinutes,
                         estimate.maximumMinutes,
                     ),
-                    color = colors.labelTertiary,
-                    fontSize = 11.sp,
-                    lineHeight = 16.sp,
+                    style = com.deepseek.dsh.core.designsystem.Dsh.type.footnote, color = c.t3, modifier = Modifier.padding(top = 8.dp),
                 )
             }
         }
         preparation?.totalBytes?.let { total ->
             val completed = preparation.completedBytes
             if (total > 0 && completed != null) {
-                Spacer(Modifier.height(8.dp))
                 val fraction = (completed.toFloat() / total).coerceIn(0f, 1f)
-                LinearProgressIndicator(
-                    progress = { fraction },
-                    modifier = Modifier.fillMaxWidth().height(4.dp),
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = stringResource(
-                        R.string.voice_progress,
-                        completed / 1_000_000,
-                        total / 1_000_000,
-                        (fraction * 100).toInt(),
-                    ),
-                    color = colors.labelTertiary,
-                    fontSize = 11.sp,
+                com.deepseek.dsh.feature.settings.ui.Meter(
+                    stringResource(R.string.voice_progress, completed / 1_000_000, total / 1_000_000, (fraction * 100).toInt()),
+                    "${(fraction * 100).toInt()}%",
+                    fraction,
                 )
             }
         }
-        if (preparation != null && preparation.steps.isNotEmpty()) {
-            Spacer(Modifier.height(8.dp))
-            preparation.steps.forEach { step ->
-                Text(
-                    text = "${speechStepName(step.kind)} · " +
-                        (speechStepStatus(step.status)),
-                    color = if (step.status == "failed") colors.stateErrorPrimary else colors.labelTertiary,
-                    fontSize = 11.sp,
-                    lineHeight = 16.sp,
-                )
+        preparation?.steps?.takeIf { it.isNotEmpty() }?.let { steps ->
+            Column(Modifier.padding(top = 8.dp)) {
+                steps.forEach { step ->
+                    Text(
+                        "${speechStepName(step.kind)} · ${speechStepStatus(step.status)}",
+                        style = com.deepseek.dsh.core.designsystem.Dsh.type.footnote,
+                        color = if (step.status == "failed") c.danger else c.t3,
+                    )
+                }
             }
         }
         if (phase == "failed" && preparation?.message != null) {
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = stringResource(R.string.voice_prepare_failed, preparation.message.orEmpty()),
-                color = colors.stateErrorPrimary,
-                fontSize = 11.5.sp,
-                lineHeight = 16.sp,
-            )
-            Text(
-                text = stringResource(R.string.voice_prepare_hint),
-                color = colors.labelTertiary,
-                fontSize = 11.sp,
-                lineHeight = 16.sp,
-            )
-            preparation.source?.let { source ->
-                Text(stringResource(R.string.voice_download_origin, source), color = colors.labelTertiary, fontSize = 11.sp)
-            }
+            Text(stringResource(R.string.voice_prepare_failed, preparation.message.orEmpty()), style = com.deepseek.dsh.core.designsystem.Dsh.type.footnote, color = c.danger, modifier = Modifier.padding(top = 8.dp))
+            Text(stringResource(R.string.voice_prepare_hint), style = com.deepseek.dsh.core.designsystem.Dsh.type.footnote, color = c.t3)
+            preparation.source?.let { Text(stringResource(R.string.voice_download_origin, it), style = com.deepseek.dsh.core.designsystem.Dsh.type.footnote, color = c.t3) }
         }
-
-        // 下载来源
         if (provider.downloadSources.isNotEmpty()) {
-            Spacer(Modifier.height(10.dp))
-            Text(stringResource(R.string.voice_model_source), color = colors.labelPrimary, fontSize = 12.sp)
-            Spacer(Modifier.height(4.dp))
+            Text(stringResource(R.string.voice_model_source), style = com.deepseek.dsh.core.designsystem.Dsh.type.footnote, color = c.t2, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
             ChoiceChipFlow(
                 options = buildList {
                     if (provider.downloadSources.size > 1) add("" to stringResource(R.string.voice_auto_source))
@@ -322,14 +261,11 @@ private fun VoicePreparationSection(speech: SpeechHooks) {
                 onSelect = { downloadSource = it },
             )
         }
-
-        Spacer(Modifier.height(10.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (phase == "unprepared" || phase == "failed" || phase == "cancelled") {
-                ActionChip(
-                    text = if (phase == "unprepared") stringResource(R.string.voice_download_prepare) else stringResource(R.string.voice_retry_prepare),
-                    enabled = !busy,
-                    onClick = {
+                com.deepseek.dsh.feature.settings.ui.KBtn(
+                    stringResource(if (phase == "unprepared") R.string.voice_download_prepare else R.string.voice_retry_prepare),
+                    {
                         scope.launch {
                             busy = true
                             speech.prepare(provider.id, downloadSource.ifBlank { null })
@@ -337,13 +273,13 @@ private fun VoicePreparationSection(speech: SpeechHooks) {
                             busy = false
                         }
                     },
+                    kind = com.deepseek.dsh.feature.settings.ui.BtnKind.Primary, height = 44.dp, enabled = !busy, busy = busy,
                 )
             }
             if (phase in SPEECH_ACTIVE_PHASES) {
-                ActionChip(
-                    text = stringResource(R.string.voice_cancel_prepare),
-                    enabled = !busy,
-                    onClick = {
+                com.deepseek.dsh.feature.settings.ui.KBtn(
+                    stringResource(R.string.voice_cancel_prepare),
+                    {
                         scope.launch {
                             busy = true
                             speech.cancelPrepare(provider.id)
@@ -351,48 +287,9 @@ private fun VoicePreparationSection(speech: SpeechHooks) {
                             busy = false
                         }
                     },
+                    height = 44.dp, enabled = !busy,
                 )
             }
         }
-    }
-}
-
-/** 选项胶囊（选中态用主按钮底色）。 */
-@Composable
-private fun ChoiceChip(text: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
-    val colors = LocalDshPanelColors.current
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(9.dp))
-            .background(if (selected) colors.buttonPrimaryFill else colors.bgModulePlatform)
-            .border(
-                0.5.dp,
-                if (selected) colors.buttonPrimaryFill else colors.borderL2,
-                RoundedCornerShape(9.dp),
-            )
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-    ) {
-        Text(
-            text = text,
-            color = if (selected) colors.labelPrimaryForeground else colors.labelSecondary,
-            fontSize = 12.sp,
-        )
-    }
-}
-
-/** 动作胶囊（描边按钮）。 */
-@Composable
-private fun ActionChip(text: String, enabled: Boolean, onClick: () -> Unit) {
-    val colors = LocalDshPanelColors.current
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(colors.bgModulePlatform)
-            .border(0.5.dp, colors.borderL2, RoundedCornerShape(10.dp))
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-    ) {
-        Text(text = text, color = colors.labelSecondary, fontSize = 12.5.sp)
     }
 }
