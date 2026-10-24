@@ -45,6 +45,23 @@ class BridgeProtocolTest {
     }
 
     @Test
+    fun clipboardReadIsDeniedUnlessUserAllowsIt() {
+        val tokenFile = File.createTempFile("bridge", ".token")
+        tokenFile.delete()
+        val server = BridgeServer(context = android.app.Application(), tokenFile = tokenFile)
+        server.start()
+        try {
+            val response = server.dispatchRequest(
+                BridgeRequest(id = "clip", method = BridgeMethod.GET_CLIPBOARD.methodName, auth = tokenFile.readText()),
+            )
+            assertEquals(CLIPBOARD_DENIED_CODE, response.error?.code)
+        } finally {
+            server.stop()
+            tokenFile.delete()
+        }
+    }
+
+    @Test
     fun bridgeAuthUsesExactTokenMatch() {
         val token = BridgeAuth.newToken()
         assertTrue(BridgeAuth.verify(token, token))

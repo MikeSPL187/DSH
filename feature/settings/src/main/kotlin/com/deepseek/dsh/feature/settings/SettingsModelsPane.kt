@@ -397,6 +397,7 @@ private fun AddModelProviderDialog(
                             R.string.settings_pane_models_key_placeholder,
                             selected?.keyRef ?: "",
                         ),
+                        secret = true,
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     Row(
@@ -489,6 +490,7 @@ private fun AddModelProviderDialog(
                     value = customKey,
                     onValueChange = { customKey = it },
                     placeholder = stringResource(R.string.settings_pane_models_api_key),
+                    secret = true,
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
@@ -591,6 +593,7 @@ private fun ModelProviderEditor(
             value = keyInput,
             onValueChange = { keyInput = it },
             placeholder = stringResource(R.string.settings_pane_models_key_placeholder, provider.keyRef),
+            secret = true,
         )
         if (!provider.keyConfigured) {
             Spacer(modifier = Modifier.height(8.dp))

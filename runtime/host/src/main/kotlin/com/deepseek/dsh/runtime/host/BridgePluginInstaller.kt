@@ -110,16 +110,16 @@ class BridgePluginInstaller(
         val rootfsInstalled = File(layout.rootfsDir, "etc/os-release").isFile ||
             File(layout.rootfsDir, "usr/bin/env").isFile
         if (!rootfsInstalled) {
-            return@withContext Result.failure(IllegalStateException("rootfs 未安装，无法更新插件"))
+            return@withContext Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("rootfs is not installed; cannot update the plugin", "rootfs не установлен — обновить плагин нельзя", "rootfs 未安装，无法更新插件")))
         }
         if (!profileDir.isDirectory) {
             return@withContext Result.failure(
-                IllegalStateException("Host profile 尚未初始化：请先启动一次 Host 再更新插件")
+                IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Host profile is not initialized: start the Host once before updating the plugin", "Профиль Host не инициализирован: запустите Host хотя бы раз, затем обновите плагин", "Host profile 尚未初始化：请先启动一次 Host 再更新插件"))
             )
         }
         if (BridgeReleaseDownloader.archiveUrl(repository, targetVersion) == null) {
             return@withContext Result.failure(
-                IllegalStateException("插件安装源或目标版本不可用：$repository#v$targetVersion")
+                IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Plugin source or target version is unavailable: $repository#v$targetVersion", "Источник плагина или версия недоступны: $repository#v$targetVersion", "插件安装源或目标版本不可用：$repository#v$targetVersion"))
             )
         }
 
@@ -130,23 +130,23 @@ class BridgePluginInstaller(
         val nodeModules = File(profileDir, "node_modules").apply { mkdirs() }
         nodeModules.listFiles()
             ?.filter { it.name.startsWith(".dsh-plugin-") }
-            ?.forEach { runCatching { it.deleteRecursively() } }
+            ?.forEach { runCatching { SafeFiles.deleteTree(it) } }
 
-        onProgress(0.02f, "准备下载插件 $targetVersion…")
+        onProgress(0.02f, com.deepseek.dsh.core.model.Tr.t("Preparing to download plugin $targetVersion…", "Подготовка загрузки плагина $targetVersion…", "准备下载插件 $targetVersion…"))
         val archive = try {
             downloader.download(repository, targetVersion) { fraction, step ->
                 onProgress(0.02f + fraction * 0.5f, step)
             }
         } catch (error: Exception) {
             return@withContext Result.failure(
-                IllegalStateException("插件归档下载失败：${error.message}")
+                IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Plugin archive download failed: ${error.message}", "Не удалось скачать архив плагина: ${error.message}", "插件归档下载失败：${error.message}"))
             )
         }
 
-        onProgress(0.55f, "校验插件归档…")
+        onProgress(0.55f, com.deepseek.dsh.core.model.Tr.t("Verifying plugin archive…", "Проверка архива плагина…", "校验插件归档…"))
         val target = File(nodeModules, BridgePluginManifest.DEFAULT_PACKAGE)
         val staging = File(nodeModules, ".dsh-plugin-incoming")
-        staging.deleteRecursively()
+        SafeFiles.deleteTree(staging)
         val contents = try {
             BridgePluginArchive.extract(
                 archive = archive.inputStream(),
@@ -155,9 +155,9 @@ class BridgePluginInstaller(
                 expectedVersion = targetVersion,
             )
         } catch (error: Exception) {
-            staging.deleteRecursively()
+            SafeFiles.deleteTree(staging)
             return@withContext Result.failure(
-                IllegalStateException("插件归档校验失败：${error.message}")
+                IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Plugin archive verification failed: ${error.message}", "Архив плагина не прошёл проверку: ${error.message}", "插件归档校验失败：${error.message}"))
             )
         }
 
@@ -167,35 +167,42 @@ class BridgePluginInstaller(
             File(nodeModules, dependency).exists()
         }
         if (missingDependencies.isNotEmpty()) {
-            staging.deleteRecursively()
+            SafeFiles.deleteTree(staging)
             return@withContext Result.failure(
                 IllegalStateException(
-                    "插件依赖 ${missingDependencies.joinToString()} 未随运行时提供；" +
-                        "请先更新 Rootfs 镜像，再更新插件"
+                    com.deepseek.dsh.core.model.Tr.t(
+                        "Plugin dependencies ${missingDependencies.joinToString()} are not shipped with the runtime; update the Rootfs image first, then the plugin",
+                        "Зависимости плагина ${missingDependencies.joinToString()} отсутствуют в среде; сначала обновите образ Rootfs, затем плагин",
+                        "插件依赖 ${missingDependencies.joinToString()} 未随运行时提供；请先更新 Rootfs 镜像，再更新插件",
+                    )
                 )
             )
         }
 
-        onProgress(0.8f, "替换已安装的插件…")
+        onProgress(0.8f, com.deepseek.dsh.core.model.Tr.t("Replacing the installed plugin…", "Замена установленного плагина…", "替换已安装的插件…"))
         try {
             replaceDirectory(target = target, staging = staging)
         } catch (error: Exception) {
-            staging.deleteRecursively()
+            SafeFiles.deleteTree(staging)
             return@withContext Result.failure(
-                IllegalStateException("替换插件文件失败：${error.message}")
+                IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Failed to replace plugin files: ${error.message}", "Не удалось заменить файлы плагина: ${error.message}", "替换插件文件失败：${error.message}"))
             )
         }
 
-        onProgress(0.92f, "读取已安装版本…")
+        onProgress(0.92f, com.deepseek.dsh.core.model.Tr.t("Reading installed version…", "Чтение установленной версии…", "读取已安装版本…"))
         val installed = installedVersion()
         if (installed != targetVersion) {
             return@withContext Result.failure(
                 IllegalStateException(
-                    "插件文件已替换，但读到的版本是 ${installed ?: "未知"}（期望 $targetVersion）"
+                    com.deepseek.dsh.core.model.Tr.t(
+                        "Plugin files were replaced, but the installed version reads ${installed ?: "unknown"} (expected $targetVersion)",
+                        "Файлы плагина заменены, но установлена версия ${installed ?: "неизвестно"} (ожидалась $targetVersion)",
+                        "插件文件已替换，但读到的版本是 ${installed ?: "未知"}（期望 $targetVersion）",
+                    )
                 )
             )
         }
-        onProgress(1f, "插件已更新到 $installed")
+        onProgress(1f, com.deepseek.dsh.core.model.Tr.t("Plugin updated to $installed", "Плагин обновлён до $installed", "插件已更新到 $installed"))
         Result.success(installed)
     }
 
@@ -227,17 +234,17 @@ class BridgePluginInstaller(
      * @param staging 已经校验过的新插件目录。
      */
     private fun replaceDirectory(target: File, staging: File) {
-        val parent = target.parentFile ?: throw IllegalStateException("插件目录没有父目录")
+        val parent = target.parentFile ?: throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Plugin directory has no parent", "У папки плагина нет родительской папки", "插件目录没有父目录"))
         val backup = File(parent, ".dsh-plugin-previous-${System.nanoTime()}")
         val hadPrevious = target.exists()
         if (hadPrevious && !target.renameTo(backup)) {
-            throw IllegalStateException("无法移开已安装的插件目录")
+            throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Cannot move the installed plugin directory aside", "Не удалось отодвинуть папку установленного плагина", "无法移开已安装的插件目录"))
         }
         if (!staging.renameTo(target)) {
             if (hadPrevious) backup.renameTo(target)
-            throw IllegalStateException("无法把新插件目录放到安装位置")
+            throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Cannot move the new plugin directory into place", "Не удалось поместить новую папку плагина на место", "无法把新插件目录放到安装位置"))
         }
-        if (hadPrevious) backup.deleteRecursively()
+        if (hadPrevious) SafeFiles.deleteTree(backup)
     }
 }
 
@@ -254,7 +261,7 @@ internal fun ensureProfilePresetLink(profileDir: File) {
     val presetLink = File(nodeModules, "@deepseek-ai")
     // 旧版本/手工排查留下的备份目录必须清掉：Host 会把它们当作独立包扫描，
     // 在设置和插件页里显示重复条目。
-    File(nodeModules, "@deepseek-ai.merged").deleteRecursively()
+    SafeFiles.deleteTree(File(nodeModules, "@deepseek-ai.merged"))
     // profiles/web -> profiles -> .dsh -> root -> rootfs 根
     val installed = File(
         profileDir,
@@ -279,7 +286,7 @@ internal fun ensureProfilePresetLink(profileDir: File) {
     val installedLinkTarget = "../../../../../usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai"
     if (presetLink.exists() && !java.nio.file.Files.isSymbolicLink(presetPath)) {
         val backup = File(nodeModules, "@deepseek-ai.local")
-        if (backup.exists()) backup.deleteRecursively()
+        if (backup.exists()) SafeFiles.deleteTree(backup)
         if (!presetLink.renameTo(backup)) return
         val linked = runCatching {
             java.nio.file.Files.createSymbolicLink(
@@ -288,7 +295,7 @@ internal fun ensureProfilePresetLink(profileDir: File) {
             )
         }.isSuccess
         if (linked) {
-            backup.deleteRecursively()
+            SafeFiles.deleteTree(backup)
             return
         }
         // 链接不可用（文件系统限制）时恢复原目录，并合并缺失的包。
@@ -297,7 +304,7 @@ internal fun ensureProfilePresetLink(profileDir: File) {
         return
     }
     if (presetLink.exists()) {
-        File(nodeModules, "@deepseek-ai.local").deleteRecursively()
+        SafeFiles.deleteTree(File(nodeModules, "@deepseek-ai.local"))
         return
     }
     val linked = runCatching {
@@ -320,7 +327,7 @@ private fun mergeInstalledPackages(installed: File, target: File) {
         if (destination.exists()) return@forEach
         runCatching {
             if (source.isDirectory) {
-                source.copyRecursively(destination, overwrite = false)
+                SafeFiles.copyTree(source, destination, overwrite = false)
             } else {
                 source.copyTo(destination, overwrite = false)
             }

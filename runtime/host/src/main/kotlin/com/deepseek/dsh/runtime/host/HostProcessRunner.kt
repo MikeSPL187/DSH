@@ -94,7 +94,7 @@ class HostProcessRunner(
             }
             if (aborted) {
                 runCatching { proc.destroyForcibly() }
-                return@withContext Result.failure(IllegalStateException("启动已被停止"))
+                return@withContext Result.failure(IllegalStateException(HostStrings.get(R.string.rt_start_cancelled, "Startup was stopped")))
             }
 
             val pid = try {
@@ -162,7 +162,7 @@ class HostProcessRunner(
             publishStatus {
                 it.copy(
                     phase = RuntimePhase.ERROR,
-                    lastError = e.message ?: "无法启动 Host 进程"
+                    lastError = e.message ?: HostStrings.get(R.string.rt_cannot_start, "Could not start the Host process")
                 )
             }
             Result.failure(e)
@@ -200,11 +200,11 @@ class HostProcessRunner(
                 return
             }
             val tail = logLines.toList()
-            val detail = lastMeaningfulLine(tail) ?: "无输出"
+            val detail = lastMeaningfulLine(tail) ?: HostStrings.get(R.string.rt_no_output, "no output")
             val message = if (current.phase == RuntimePhase.STARTING && current.port == null) {
-                "Host 进程已退出（exit=$exitCode）：$detail"
+                HostStrings.get(R.string.rt_host_exited_code, "The Host process exited (exit=%1\$d): %2\$s", exitCode, detail)
             } else {
-                "Host 进程意外退出（exit=$exitCode）：$detail"
+                HostStrings.get(R.string.rt_host_crashed_code, "The Host process exited unexpectedly (exit=%1\$d): %2\$s", exitCode, detail)
             }
             process = null
             _statusFlow.value = current.copy(

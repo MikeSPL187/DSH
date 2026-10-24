@@ -19,7 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material3.Icon
@@ -243,15 +243,22 @@ internal fun SettingsMobileRuntimePane(
                         onUpdateSettings(currentSettings)
                     },
                 )
+                // Переключатель «Подтверждение опасных инструментов» убран: он ни на что не
+                // влиял (одобрения задаёт пресет разрешений Host в «Общие → Разрешения»)
+                // и создавал ложное ощущение защиты.
                 SettingsCardDivider()
+                val bridgeContext = androidx.compose.ui.platform.LocalContext.current
+                var clipboardAllowed by remember {
+                    mutableStateOf(com.deepseek.dsh.runtime.bridge.BridgePolicy.isClipboardReadAllowed(bridgeContext))
+                }
                 RuntimeSwitchRow(
-                    icon = Icons.Filled.Lock,
-                    title = stringResource(R.string.settings_pane_high_risk_title),
-                    subtitle = stringResource(R.string.settings_pane_high_risk_desc),
-                    checked = currentSettings.highRiskConfirm,
+                    icon = Icons.Filled.ContentPaste,
+                    title = stringResource(R.string.settings_pane_clipboard_title),
+                    subtitle = stringResource(R.string.settings_pane_clipboard_desc),
+                    checked = clipboardAllowed,
                     onCheckedChange = { checked ->
-                        currentSettings = currentSettings.copy(highRiskConfirm = checked)
-                        onUpdateSettings(currentSettings)
+                        clipboardAllowed = checked
+                        com.deepseek.dsh.runtime.bridge.BridgePolicy.setClipboardReadAllowed(bridgeContext, checked)
                     },
                 )
             }
@@ -502,6 +509,20 @@ private fun NotificationSwitchRow(
     }
 }
 
+/**
+ * 远程 Host 地址必须是 HTTPS（令牌与会话 cookie 不能在局域网明文传输）；
+ * 回环地址例外，便于通过 SSH 隧道转发到 127.0.0.1。
+ */
+internal fun isSecureRemoteUrl(raw: String): Boolean {
+    val uri = runCatching { java.net.URI(raw.trim()) }.getOrNull() ?: return false
+    val host = uri.host ?: return false
+    return when (uri.scheme?.lowercase()) {
+        "https" -> true
+        "http" -> host == "127.0.0.1" || host == "localhost" || host == "[::1]" || host == "::1"
+        else -> false
+    }
+}
+
 @Composable
 internal fun SettingsRemotePane(
     settings: AppSettings,
@@ -531,15 +552,29 @@ internal fun SettingsRemotePane(
                     value = url,
                     onValueChange = { url = it },
                     singleLine = true,
-                    placeholder = { Text("http://192.168.1.10:45153") },
+                    placeholder = { Text("https://192.168.1.10:45153") },
+                    isError = url.isNotBlank() && !isSecureRemoteUrl(url),
                     modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
                 )
+                if (url.isNotBlank() && !isSecureRemoteUrl(url)) {
+                    Text(
+                        text = stringResource(R.string.settings_pane_remote_https_required),
+                        style = SettingsText.RowDesc,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
                 Text(stringResource(R.string.settings_pane_remote_token_label), style = SettingsText.RowTitle, color = palette.labelPrimary, modifier = Modifier.padding(top = 12.dp))
                 androidx.compose.material3.OutlinedTextField(
                     value = token,
                     onValueChange = { token = it },
                     singleLine = true,
                     placeholder = { Text("token") },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
+                        autoCorrectEnabled = false,
+                    ),
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
                 )
                 Row(
@@ -551,7 +586,7 @@ internal fun SettingsRemotePane(
                             onUpdateSettings(settings.copy(remoteHostUrl = url.trim(), remoteHostToken = token.trim()))
                             onConnectRemote(url.trim(), token.trim())
                         },
-                        enabled = url.isNotBlank(),
+                        enabled = url.isNotBlank() && isSecureRemoteUrl(url),
                     ) { Text(stringResource(R.string.settings_pane_remote_connect)) }
                     androidx.compose.material3.OutlinedButton(
                         onClick = {
@@ -560,11 +595,13 @@ internal fun SettingsRemotePane(
                         },
                     ) { Text(stringResource(R.string.settings_pane_remote_disconnect)) }
                 }
+                // Статус показывает сохранённую настройку, а не черновик в поле ввода:
+                // иначе отклонённый http-адрес выглядел как «Remote Host configured».
                 Text(
-                    text = if (url.isBlank()) {
+                    text = if (settings.remoteHostUrl.isBlank()) {
                         stringResource(R.string.settings_pane_remote_local_host)
                     } else {
-                        stringResource(R.string.settings_pane_remote_active_host, url)
+                        stringResource(R.string.settings_pane_remote_active_host, settings.remoteHostUrl)
                     },
                     style = SettingsText.RowDesc,
                     color = palette.labelTertiary,

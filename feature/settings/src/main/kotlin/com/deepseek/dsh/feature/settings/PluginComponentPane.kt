@@ -107,7 +107,7 @@ fun PluginComponentPane(
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "返回",
+                        contentDescription = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_back),
                         tint = MaterialTheme.colorScheme.onBackground,
                     )
                 }
@@ -119,9 +119,9 @@ fun PluginComponentPane(
                     )
                     Text(
                         text = when {
-                            registry == null -> "bridge 未连接"
-                            webFailed != null -> "完整界面 · 加载失败"
-                            else -> "完整界面 · 真实 Web UI"
+                            registry == null -> androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_bridge_disconnected)
+                            webFailed != null -> androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_full_ui_failed)
+                            else -> androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_full_ui_web)
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -134,7 +134,7 @@ fun PluginComponentPane(
                 }) {
                     Icon(
                         imageVector = Icons.Filled.Refresh,
-                        contentDescription = "刷新",
+                        contentDescription = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_refresh),
                         tint = MaterialTheme.colorScheme.onBackground,
                     )
                 }
@@ -165,12 +165,12 @@ fun PluginComponentPane(
                         .padding(24.dp),
                 ) {
                     Text(
-                        text = "插件界面暂不可用",
+                        text = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_ui_unavailable),
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onBackground,
                     )
                     Text(
-                        text = "bridge 未连接。等 Host 就绪后重试。",
+                        text = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_bridge_retry),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -210,7 +210,7 @@ fun PluginComponentPane(
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(
-                                text = "完整界面启动失败",
+                                text = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_full_ui_start_failed),
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onErrorContainer,
                             )
@@ -223,7 +223,7 @@ fun PluginComponentPane(
                                 webFailed = null
                                 webLoading = true
                                 webReloadKey += 1
-                            }) { Text("重试") }
+                            }) { Text(androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_retry)) }
                         }
                     }
                 }

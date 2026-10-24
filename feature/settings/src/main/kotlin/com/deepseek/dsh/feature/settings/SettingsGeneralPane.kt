@@ -107,15 +107,14 @@ internal fun SettingsGeneralPane(
                 description = stringResource(R.string.settings_pane_general_permission_desc),
                 value = currentPreset?.let { value ->
                     presets.firstOrNull { it.value == value }?.name ?: value
-                } ?: when (settings.highRiskConfirm) {
-                    true -> stringResource(R.string.settings_pane_general_permission_workspace)
-                    false -> stringResource(R.string.settings_pane_general_permission_full)
-                },
+                } ?: stringResource(R.string.settings_pane_general_permission_unavailable),
                 onClick = {
+                    // Пока Host не отдал пресеты, менять нечего: раньше здесь переключался
+                    // локальный флаг, который не влиял на одобрения агента.
                     if (presets.isNotEmpty()) {
                         showPermissionDialog = true
                     } else {
-                        onUpdateSettings(settings.copy(highRiskConfirm = !settings.highRiskConfirm))
+                        PermissionPresetBridge.refresh()
                     }
                 },
             )
@@ -157,6 +156,7 @@ internal fun SettingsGeneralPane(
                 value = when (languageTag) {
                     "zh" -> stringResource(R.string.settings_pane_general_language_chinese)
                     "en" -> stringResource(R.string.settings_pane_general_language_english)
+                    "ru" -> stringResource(R.string.settings_pane_general_language_russian)
                     else -> stringResource(R.string.settings_pane_general_language_system)
                 },
                 onClick = { showLanguageDialog = true },
@@ -171,6 +171,7 @@ internal fun SettingsGeneralPane(
                             "system" to R.string.settings_pane_general_language_system,
                             "zh" to R.string.settings_pane_general_language_chinese,
                             "en" to R.string.settings_pane_general_language_english,
+                            "ru" to R.string.settings_pane_general_language_russian,
                         ).forEach { (value, label) ->
                             Text(
                                 text = stringResource(label),

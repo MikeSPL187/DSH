@@ -111,7 +111,7 @@ class RootfsManifestSource(
      */
     suspend fun requireManifest(forceRefresh: Boolean = true): RootfsManifest =
         resolve(forceRefresh)?.manifest
-            ?: error("无法获取 rootfs 清单：网络不可用，且没有本地缓存")
+            ?: error(HostStrings.get(R.string.rt_manifest_offline, "Cannot fetch the rootfs manifest: no network and no local cache"))
 
     /** 清单缓存文件；与 rootfs 安装标记同目录，避免污染 rootfs 本身。 */
     private fun cacheFile(): File = File(layout.baseDir, "runtime/${RootfsNaming.MANIFEST_CACHE_FILE}")

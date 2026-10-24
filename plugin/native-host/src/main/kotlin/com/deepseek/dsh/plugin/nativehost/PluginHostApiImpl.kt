@@ -4,6 +4,7 @@ import com.deepseek.dsh.plugin.nativesdk.contract.PluginCapabilities
 import com.deepseek.dsh.plugin.nativesdk.host.PluginHostApi
 import com.deepseek.dsh.plugin.nativesdk.host.PluginStorage
 import com.deepseek.dsh.plugin.nativesdk.theme.PluginTheme
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 
 /**
@@ -27,14 +28,23 @@ class PluginHostApiImpl(
     private val audit: (pluginId: String, capability: String) -> Unit,
 ) : PluginHostApi {
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private val dispatchScope = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO.limitedParallelism(1),
+    )
+
     override fun dispatchEvent(componentId: String, event: String, payload: JsonObject) {
         require(componentId.startsWith(pluginId)) {
-            "componentId 前缀必须等于插件 id（$pluginId），实际：$componentId"
+            com.deepseek.dsh.core.model.Tr.t("componentId prefix must equal the plugin id ($pluginId), got: $componentId", "Префикс componentId должен совпадать с id плагина ($pluginId), получено: $componentId", "componentId 前缀必须等于插件 id（$pluginId），实际：$componentId")
         }
         audit(pluginId, "dispatch:$event")
-        // dispatch 是 suspend（走 bridge 网络）；宿主在渲染线程同步调用，这里用
-        // 一个受控的作用域发起，不阻塞渲染。
-        kotlinx.coroutines.runBlocking { dispatcher(componentId, event, payload) }
+        // dispatch 是 suspend（走 bridge 网络）；宿主在渲染线程同步调用。旧实现在这里
+        // runBlocking，网络慢时直接卡住 UI 线程（ANR）。改为在串行的 IO 作用域里发出：
+        // 不阻塞渲染，同一插件的事件仍按调用顺序送达。
+        dispatchScope.launch {
+            runCatching { dispatcher(componentId, event, payload) }
+                .onFailure { android.util.Log.w("PluginHostApi", "dispatch $event failed for $pluginId", it) }
+        }
     }
 
     override fun openUrl(url: String) {
@@ -57,7 +67,7 @@ class PluginHostApiImpl(
 
     private fun requireCapability(capability: String) {
         check(capability in declaredCapabilities) {
-            "插件 $pluginId 未声明能力 $capability"
+            com.deepseek.dsh.core.model.Tr.t("Plugin $pluginId did not declare capability $capability", "Плагин $pluginId не объявил возможность $capability", "插件 $pluginId 未声明能力 $capability")
         }
     }
 

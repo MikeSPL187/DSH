@@ -68,7 +68,7 @@ class RuntimeBackupAndDiagnostics(
                     OS: Android ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})
                     Brand: ${android.os.Build.BRAND}
                     Model: ${android.os.Build.MODEL}
-                    Rootfs Base: Debian slim arm64 (Compact)
+                    ABI: ${android.os.Build.SUPPORTED_ABIS?.joinToString().orEmpty()}
                     Created: ${Date()}
                 """.trimIndent()
                 val envEntry = ZipEntry("env_summary.txt")
@@ -82,19 +82,20 @@ class RuntimeBackupAndDiagnostics(
         }
     }
 
-    private fun scrubSensitiveInfo(rawText: String): String {
-        // §4.6 诊断脱敏：token/cookie/API key
-        return rawText
-            .replace("""token=[a-zA-Z0-9_\-]+""".toRegex(), "token=REDACTED")
-            .replace("""Bearer\s+[a-zA-Z0-9_\-]+""".toRegex(), "Bearer REDACTED")
-            .replace("""sk-[a-zA-Z0-9_\-]+""".toRegex(), "sk-REDACTED")
+    internal fun scrubSensitiveInfo(rawText: String): String {
+        // §4.6 诊断脱敏：token/cookie/API key。除了 query/Bearer/sk- 之外，日志里常见
+        // JSON 字段、Cookie/Authorization 头和 GitHub 令牌，原实现会原样导出它们。
+        return SCRUB_RULES.fold(rawText) { text, (pattern, replacement) -> pattern.replace(text, replacement) }
     }
 
+    /** 递归打包目录：不跟随符号链接（node_modules 里的链接会指向整棵 rootfs 或形成环）。 */
     private fun zipDirectory(folder: File, parentFolder: String, zos: ZipOutputStream) {
         for (file in folder.listFiles() ?: emptyArray()) {
-            if (file.isDirectory) {
+            val path = file.toPath()
+            if (java.nio.file.Files.isSymbolicLink(path)) continue
+            if (java.nio.file.Files.isDirectory(path, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
                 zipDirectory(file, "$parentFolder/${file.name}", zos)
-            } else {
+            } else if (java.nio.file.Files.isRegularFile(path, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
                 zos.putNextEntry(ZipEntry("$parentFolder/${file.name}"))
                 FileInputStream(file).use { fis ->
                     fis.copyTo(zos)
@@ -102,5 +103,20 @@ class RuntimeBackupAndDiagnostics(
                 zos.closeEntry()
             }
         }
+    }
+
+    private companion object {
+        private val SECRET_KEYS =
+            "(?:token|access_?token|refresh_?token|api_?key|apikey|secret|password|passwd|authorization|cookie|session|credential|private_?key)"
+        val SCRUB_RULES: List<Pair<Regex, String>> = listOf(
+            Regex("""(?i)([?&](?:token|auth|access_token|key)=)[^&\s"']+""") to "$1REDACTED",
+            Regex("""(?i)token=[a-zA-Z0-9_\-.]+""") to "token=REDACTED",
+            Regex("""(?i)\bBearer\s+[A-Za-z0-9_\-.~+/=]+""") to "Bearer REDACTED",
+            Regex("""(?i)\b(authorization|x-api-key|cookie|set-cookie)\s*:\s*[^\r\n]+""") to "$1: REDACTED",
+            Regex("""(?i)("[A-Za-z0-9_\-]*$SECRET_KEYS[A-Za-z0-9_\-]*"\s*:\s*)"[^"]*"""") to "$1\"REDACTED\"",
+            Regex("""(?i)\b(dsh-web-session|session|sid)=[^;\s"']+""") to "$1=REDACTED",
+            Regex("""\bsk-[A-Za-z0-9_\-]{8,}""") to "sk-REDACTED",
+            Regex("""\bgh[pousr]_[A-Za-z0-9]{20,}""") to "gh_REDACTED",
+        )
     }
 }

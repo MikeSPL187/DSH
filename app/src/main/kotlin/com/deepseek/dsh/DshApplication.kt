@@ -60,7 +60,12 @@ class DshApplication : Application() {
             applicationContext,
             DshDatabase::class.java,
             "dsh_app.db"
-        ).fallbackToDestructiveMigration().build()
+        )
+            // 显式迁移代替「静默删库」（审计 F-03/N-13）。只有发布前的 v1 开发库没有
+            // 已知 schema，允许从它破坏性重建；之后每次升版本都必须提供 Migration。
+            .addMigrations(*com.deepseek.dsh.core.data.DshMigrations.ALL)
+            .fallbackToDestructiveMigrationFrom(true, 1)
+            .build()
     }
 
     val cookieJar by lazy { HostCookieJar() }
@@ -144,16 +149,28 @@ class DshApplication : Application() {
     val settingsRepository: DefaultSettingsRepository by lazy {
         DefaultSettingsRepository(
             dao = database.dshDao(),
-            scope = applicationScope
+            scope = applicationScope,
+            secretCipher = com.deepseek.dsh.core.data.SecretCipher.androidKeystore(),
         )
     }
 
+    override fun attachBaseContext(base: android.content.Context) {
+        super.attachBaseContext(AppLanguage.wrap(base))
+    }
+
     override fun onCreate() {
+        // 先装记录器，EOF 兜底在其之上：被兜底吞掉的断连不会产生崩溃报告。
+        TestCrashRecorder.install(this)
         installTransportEofGuard()
         super.onCreate()
+        com.deepseek.dsh.runtime.host.HostStrings.init(this)
+        // Тексты из модулей без Context следуют за языком интерфейса, а не только за системным.
+        com.deepseek.dsh.core.model.Tr.language = {
+            resources.configuration.locales[0]?.language ?: java.util.Locale.getDefault().language
+        }
         runtimeLayout = RuntimeLayout(
             baseDir = filesDir,
-            nativeLibraryDir = java.io.File(applicationInfo.nativeLibraryDir)
+            nativeLibraryDir = java.io.File(applicationInfo.nativeLibraryDir ?: filesDir.absolutePath)
         )
         runtimeManager = DefaultHostRuntimeManager(
             context = applicationContext,
@@ -161,14 +178,12 @@ class DshApplication : Application() {
             runner = hostRunner
         )
         HostRuntimeHolder.manager = runtimeManager
+        HostRuntimeHolder.hasRunningTasks = { dshRepository.runningSessionIdsFlow.value.isNotEmpty() }
         // App 打开即开始预热点 Host（Activity/Compose 之前）；不常驻后台。
         if (java.io.File(filesDir, "rootfs/etc/os-release").exists()) {
-            val workspace = java.io.File(
-                android.os.Environment.getExternalStorageDirectory(),
-                "Documents/DSH-Workspace"
-            )
+            val workspace = StorageAccess.workspaceRoot(this)
             applicationScope.launch(Dispatchers.IO) {
-                runCatching { runtimeManager.start(workspace.absolutePath) }
+                runCatching { runtimeManager.warmUp(workspace.absolutePath) }
             }
         }
     }

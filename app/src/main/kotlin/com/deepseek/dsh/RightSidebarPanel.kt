@@ -130,7 +130,7 @@ fun RightSidebarPanel(
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_rs_panel),
-                    contentDescription = "Close",
+                    contentDescription = stringResource(R.string.action_close),
                     tint = palette.labelSecondary,
                     modifier = Modifier.size(16.dp),
                 )
@@ -437,8 +437,9 @@ private fun RightDocumentTab(
         return
     }
     val file = remember(path) { File(path) }
+    val previewContext = androidx.compose.ui.platform.LocalContext.current
     val content by produceState<String?>(initialValue = null, key1 = path) {
-        value = withContext(Dispatchers.IO) { readPreview(file) }
+        value = withContext(Dispatchers.IO) { readPreview(previewContext, file) }
     }
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -572,11 +573,11 @@ private fun RightInfoTab(text: String) {
 }
 
 /** 读取文本预览：二进制/超限/不存在都给出人话说明。 */
-private fun readPreview(file: File): String {
-    if (!file.isFile) return "文件不存在"
-    if (file.length() > PREVIEW_LIMIT_BYTES) return "文件过大，未预览（${formatSize(file.length())}）"
-    val bytes = runCatching { file.readBytes() }.getOrNull() ?: return "读取失败"
-    if (bytes.take(4096).any { it == 0.toByte() }) return "二进制文件，未预览（${formatSize(file.length())}）"
+private fun readPreview(context: android.content.Context, file: File): String {
+    if (!file.isFile) return context.getString(R.string.preview_missing)
+    if (file.length() > PREVIEW_LIMIT_BYTES) return context.getString(R.string.preview_too_large, formatSize(file.length()))
+    val bytes = runCatching { file.readBytes() }.getOrNull() ?: return context.getString(R.string.preview_read_failed)
+    if (bytes.take(4096).any { it == 0.toByte() }) return context.getString(R.string.preview_binary, formatSize(file.length()))
     return String(bytes, Charsets.UTF_8)
 }
 

@@ -158,7 +158,7 @@ fun NativeStoreTab(
             contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            items(filtered, key = { it.pluginId }) { item ->
+            items(filtered, key = { "${it.pluginId}|${it.packageName.orEmpty()}" }) { item ->
                 NativeStoreRow(item = item, colors = colors, onClick = { onOpenDetail(item) })
             }
         }

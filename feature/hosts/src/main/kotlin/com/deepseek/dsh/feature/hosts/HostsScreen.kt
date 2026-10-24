@@ -55,12 +55,14 @@ fun HostsScreen(
     onScanPairClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val darkBg = Color(0xFF161719)
-    val cardBg = Color(0xFF212327)
-    val textPrimary = Color(0xFFEEEEEE)
-    val textSecondary = Color(0xFF9E9EA4)
-    val textMuted = Color(0xFF6E7077)
-    val accentBlue = Color(0xFF3875F6)
+    // Цвета из темы: раньше экран всегда был тёмным, даже в светлой теме приложения.
+    val scheme = MaterialTheme.colorScheme
+    val darkBg = scheme.background
+    val cardBg = scheme.surfaceVariant
+    val textPrimary = scheme.onBackground
+    val textMuted = scheme.onSurfaceVariant
+    val accentBlue = scheme.primary
+    val accentSoft = scheme.primary.copy(alpha = 0.12f)
 
     Column(
         modifier = modifier
@@ -86,7 +88,7 @@ fun HostsScreen(
             }
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = Color(0xFF20283A),
+                color = accentSoft,
                 onClick = onScanPairClick,
                 modifier = Modifier.height(34.dp)
             ) {
@@ -96,7 +98,7 @@ fun HostsScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.QrCodeScanner,
-                        contentDescription = "Scan",
+                        contentDescription = stringResource(R.string.action_scan_pair),
                         tint = accentBlue,
                         modifier = Modifier.size(16.dp)
                     )
@@ -122,7 +124,7 @@ fun HostsScreen(
 
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = if (isActive) Color(0xFF2A2E38) else cardBg,
+                    color = if (isActive) scheme.secondaryContainer else cardBg,
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onSelectHost(host) }
@@ -136,14 +138,14 @@ fun HostsScreen(
                                 .size(40.dp)
                                 .clip(CircleShape)
                                 .background(
-                                    if (isLocal) accentBlue else Color(0xFF2E3340)
+                                    if (isLocal) accentBlue else scheme.surface
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = if (isLocal) Icons.Default.PhoneAndroid else Icons.Default.Cloud,
                                 contentDescription = null,
-                                tint = if (isLocal) Color.White else accentBlue,
+                                tint = if (isLocal) scheme.onPrimary else accentBlue,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -153,7 +155,8 @@ fun HostsScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = host.name,
+                                    // Имя локального хоста в модели задано по-китайски — показываем локализованное.
+                                    text = if (host is HostDescriptor.Local) stringResource(R.string.host_local_name) else host.name,
                                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                                     color = textPrimary
                                 )
@@ -161,7 +164,7 @@ fun HostsScreen(
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Surface(
                                         shape = RoundedCornerShape(4.dp),
-                                        color = Color(0xFF20283A)
+                                        color = accentSoft
                                     ) {
                                         Text(
                                             text = stringResource(R.string.host_tag_local),
@@ -185,7 +188,7 @@ fun HostsScreen(
                         if (isActive) {
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Active",
+                                contentDescription = stringResource(R.string.host_active),
                                 tint = accentBlue,
                                 modifier = Modifier.size(20.dp)
                             )

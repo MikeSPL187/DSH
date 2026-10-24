@@ -59,7 +59,9 @@ data class RootfsManifest(
 
 /**
  * rootfs 安装流水线（官方 §4.2/§4.7）：
- * 下载（可跳过）→ SHA-256 校验 → 安全解包（防路径穿越）→ 原子替换 → 工具链门禁 → 安装标记。
+ * 下载（可跳过）→ SHA-256 校验 → 空间预检 → 解包到 staging（旧 rootfs 不动）→
+ * 旧目录 rename 为备份 → 新目录 rename 到位 → 合并 DSH_HOME → 工具链门禁 → 安装标记
+ * → 删除备份。任一步失败（含进程被杀后下次启动）都回滚到旧 rootfs（审计 F-02/N-08）。
  *
  * 开发期可把镜像放到 `cache/rootfs-local.tar.gz`（无需网络），manifest 的
  * `sha256` 留空时跳过校验但会记录告警。
@@ -119,6 +121,7 @@ class RootfsInstaller(
     }
 
     fun isInstalled(manifest: RootfsManifest): Boolean {
+        recoverInterruptedInstall()
         val version = installedVersion() ?: return false
         if (version != manifest.runtimeVersion) return false
         val marker = readMarker()
@@ -174,15 +177,22 @@ class RootfsInstaller(
         val archive = when {
             localOverride.isFile -> localOverride
             archiveUrl.isNotBlank() -> {
+                // 网络来源必须走 HTTPS 且带 SHA-256：没有校验值的远程 manifest 不能安装。
+                if (!archiveUrl.startsWith("https://", ignoreCase = true)) {
+                    return@withContext Result.failure(IllegalStateException(HostStrings.get(R.string.rt_https_required, "The rootfs download URL must use HTTPS: %1\$s", archiveUrl)))
+                }
+                if (!SHA256_HEX.matches(expectedSha.removePrefix("sha256:"))) {
+                    return@withContext Result.failure(IllegalStateException(HostStrings.get(R.string.rt_sha_missing, "The rootfs manifest has no valid SHA-256; installation refused")))
+                }
                 val target = RootfsNaming.archiveCacheFile(
                     layout.cacheDir,
                     manifest.runtimeVersion,
                     abi ?: android.os.Build.SUPPORTED_ABIS?.firstOrNull().orEmpty().ifBlank { "unknown" }
                 )
                 if (!(target.isFile && digestMatches(target, expectedSha))) {
-                    onProgress(InstallProgress("下载 rootfs（${manifest.baseDistro.ifBlank { "Debian" }}）...", 0.02f))
+                    onProgress(InstallProgress(HostStrings.get(R.string.rt_download, "Downloading rootfs (%1\$s)…", manifest.baseDistro.ifBlank { "Debian" }), 0.02f))
                     val downloaded = download(effectiveManifest, target) { fraction ->
-                        onProgress(InstallProgress("下载 rootfs... ${(fraction * 100).toInt()}%", 0.02f + fraction * 0.48f))
+                        onProgress(InstallProgress(HostStrings.get(R.string.rt_download_pct, "Downloading rootfs… %1\$d%%", (fraction * 100).toInt()), 0.02f + fraction * 0.48f))
                     }
                     if (downloaded.isFailure) return@withContext downloaded
                 }
@@ -190,15 +200,42 @@ class RootfsInstaller(
             }
             else -> return@withContext Result.failure(
                 IllegalStateException(
-                    "rootfs 下载地址未配置：请填写 rootfs-manifest.json 的 downloadUrls，或推送 cache/rootfs-local.tar.gz"
+                    HostStrings.get(R.string.rt_no_url, "No rootfs download URL configured")
                 )
             )
         }
 
         if (!archive.isFile || archive.length() == 0L) {
-            return@withContext Result.failure(IllegalStateException("rootfs 压缩包不存在或为空: ${archive.absolutePath}"))
+            return@withContext Result.failure(IllegalStateException(HostStrings.get(R.string.rt_archive_missing, "The rootfs archive is missing or empty")))
         }
         return@withContext installArchive(effectiveManifest, archive, onProgress)
+    }
+
+    /** 上一次安装进行到一半时留下的日志文件（存在即表示未完成）。 */
+    private fun journalFile(): File = File(layout.runtimeMetaDir, "rootfs-install.pending")
+
+    /** 替换期间保存的旧 rootfs。 */
+    private fun previousRootfsDir(): File = File(layout.baseDir, "${RootfsNaming.INSTALL_DIR}.previous")
+
+    /**
+     * 如果上次安装在替换阶段被打断（kill/断电），把旧 rootfs 换回来。
+     * 安装标记最后才写，所以日志存在时当前 rootfs 一定不是完整的新版本。
+     */
+    internal fun recoverInterruptedInstall() {
+        // 本进程里正在安装时，日志与备份都是「进行中」的正常状态，不能回滚。
+        if (INSTALL_IN_PROGRESS.get()) return
+        // Распаковка, прерванная до свапа (kill, выключение), оставляла staging на сотни МБ
+        // в cache. Повторная установка той же версии его чистила, другой — нет.
+        layout.cacheDir.listFiles { f -> f.isDirectory && f.name.startsWith(RootfsNaming.STAGING_PREFIX) }
+            ?.forEach { SafeFiles.deleteTree(it) }
+        val journal = journalFile()
+        if (!journal.isFile) return
+        val previous = previousRootfsDir()
+        if (previous.exists()) {
+            SafeFiles.deleteTree(layout.rootfsDir)
+            if (!previous.renameTo(layout.rootfsDir)) return
+        }
+        journal.delete()
     }
 
     private fun installArchive(
@@ -206,91 +243,119 @@ class RootfsInstaller(
         archive: File,
         onProgress: (InstallProgress) -> Unit,
     ): Result<Unit> {
+        recoverInterruptedInstall()
+        if (!INSTALL_IN_PROGRESS.compareAndSet(false, true)) {
+            return Result.failure(IllegalStateException(HostStrings.get(R.string.rt_busy, "Another rootfs installation is in progress")))
+        }
+        try {
+            return installArchiveLocked(manifest, archive, onProgress)
+        } finally {
+            INSTALL_IN_PROGRESS.set(false)
+        }
+    }
+
+    private fun installArchiveLocked(
+        manifest: RootfsManifest,
+        archive: File,
+        onProgress: (InstallProgress) -> Unit,
+    ): Result<Unit> {
         layout.ensureDirectories()
+        val staging = RootfsNaming.stagingDir(layout.cacheDir, manifest.runtimeVersion)
+        val previous = previousRootfsDir()
+        val journal = journalFile()
+        var swapped = false
         try {
             if (manifest.sha256.isNotBlank()) {
-                onProgress(InstallProgress("校验 rootfs SHA-256...", 0.52f))
+                onProgress(InstallProgress(HostStrings.get(R.string.rt_verify, "Verifying rootfs SHA-256…"), 0.52f))
                 val actual = calculateSha256(archive)
                 if (!actual.equals(manifest.sha256.removePrefix("sha256:"), ignoreCase = true)) {
                     return Result.failure(
-                        IllegalStateException("Rootfs SHA-256 校验失败: 期望 ${manifest.sha256}，实际 $actual")
+                        IllegalStateException(HostStrings.get(R.string.rt_sha_mismatch, "Rootfs SHA-256 mismatch: expected %1\$s, got %2\$s", manifest.sha256, actual))
                     )
                 }
             }
 
-            // 先备份 DSH_HOME 并删除旧 rootfs，避免解包时磁盘空间不足（升级场景）。
-            val preservedHome = File(layout.runtimeMetaDir, "dsh-home-preserved")
-            if (layout.dshHomeDir.exists()) {
-                preservedHome.deleteRecursively()
-                preservedHome.parentFile?.mkdirs()
-                runCatching { layout.dshHomeDir.copyRecursively(preservedHome, overwrite = true) }
+            // 新旧两份 rootfs 要同时存在一段时间：空间不够时在动旧环境之前就失败。
+            val required = estimatedUnpackedBytes(archive) + SPACE_MARGIN_BYTES
+            val usable = layout.baseDir.usableSpace
+            if (usable in 1 until required) {
+                return Result.failure(
+                    IllegalStateException(
+                        HostStrings.get(R.string.rt_no_space, "Not enough storage: about %1\$d MB needed, %2\$d MB available. The current runtime was left unchanged.", required / MIB, usable / MIB)
+                    )
+                )
             }
-            if (layout.rootfsDir.exists()) layout.rootfsDir.deleteRecursively()
 
-            onProgress(InstallProgress("解包 Compact rootfs...", 0.55f))
-            val staging = RootfsNaming.stagingDir(layout.cacheDir, manifest.runtimeVersion)
-            staging.deleteRecursively()
+            onProgress(InstallProgress(HostStrings.get(R.string.rt_extract, "Extracting rootfs…"), 0.55f))
+            SafeFiles.deleteTree(staging)
             staging.mkdirs()
             extractTarGz(archive, staging) { fraction ->
-                onProgress(InstallProgress("解包 rootfs... ${(fraction * 100).toInt()}%", 0.55f + fraction * 0.3f))
+                onProgress(InstallProgress(HostStrings.get(R.string.rt_extract_pct, "Extracting rootfs… %1\$d%%", (fraction * 100).toInt()), 0.55f + fraction * 0.3f))
             }
 
             // rootfs 归档通常包含根目录内容；若多包了一层，则下钻。
             val source = unwrapSingleRoot(staging)
             if (!File(source, "etc/os-release").isFile && !File(source, "usr/bin/env").isFile) {
-                return Result.failure(IllegalStateException("rootfs 内容不完整：缺少 etc/os-release / usr/bin/env"))
+                SafeFiles.deleteTree(staging)
+                return Result.failure(IllegalStateException(HostStrings.get(R.string.rt_incomplete, "The rootfs is incomplete: etc/os-release / usr/bin/env missing")))
             }
 
-            onProgress(InstallProgress("替换 rootfs 目录...", 0.9f))
-            if (!source.renameTo(layout.rootfsDir)) {
-                source.copyRecursively(layout.rootfsDir, overwrite = true)
-                staging.deleteRecursively()
+            onProgress(InstallProgress(HostStrings.get(R.string.rt_replace, "Replacing the rootfs directory…"), 0.9f))
+            SafeFiles.deleteTree(previous)
+            journal.parentFile?.mkdirs()
+            SafeFiles.writeAtomically(journal, manifest.runtimeVersion)
+            if (layout.rootfsDir.exists() && !layout.rootfsDir.renameTo(previous)) {
+                throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Cannot back up the old rootfs", "Не удалось сохранить старый rootfs", "无法备份旧 rootfs"))
             }
+            swapped = true
+            if (!source.renameTo(layout.rootfsDir)) {
+                // staging 与 rootfs 都在 baseDir 下，rename 正常不会失败；兜底复制。
+                SafeFiles.copyTree(source, layout.rootfsDir)
+            }
+            SafeFiles.deleteTree(staging)
             layout.optDshDir.mkdirs()
             layout.dshHomeDir.mkdirs()
-            if (preservedHome.exists()) {
+
+            val previousHome = File(previous, "root/.dsh")
+            if (previousHome.isDirectory) {
                 // 恢复旧 DSH_HOME（会话/凭证/设置），但 node_modules 单独合并：
                 // 新镜像的 node_modules 带着新版 bridge 与官方依赖，旧目录整体盖回去会把
                 // 新 bridge 弄丢（「行在、包不在」）；但旧目录里还有用户后来装的第三方插件，
                 // 全排除又会把它们弄丢。所以：① 恢复时跳过 node_modules；② 恢复后把旧
                 // node_modules 里**新镜像没有的**包（用户插件）补进来，同名以新镜像为准。
+                // 失败会抛出并回滚，绝不在丢了用户数据的情况下继续。
                 val nodeModulesRel = "profiles/web/node_modules"
-                val preservedNodeModules = File(preservedHome, nodeModulesRel).absolutePath
-                runCatching {
-                    preservedHome.walkTopDown().forEach { src ->
-                        if (src.absolutePath.startsWith(preservedNodeModules)) return@forEach
-                        val rel = src.relativeTo(preservedHome).path
-                        val dst = File(layout.dshHomeDir, rel)
-                        if (src.isDirectory) dst.mkdirs()
-                        else runCatching { dst.parentFile?.mkdirs(); src.copyTo(dst, overwrite = true) }
+                SafeFiles.copyTree(previousHome, layout.dshHomeDir, overwrite = true) { rel ->
+                    rel == nodeModulesRel || rel.startsWith("$nodeModulesRel/")
+                }
+                val oldModules = File(previousHome, nodeModulesRel)
+                val newModules = File(layout.dshHomeDir, nodeModulesRel)
+                oldModules.listFiles()?.filter { !it.name.startsWith(".") }?.forEach { pkg ->
+                    val target = File(newModules, pkg.name)
+                    if (!java.nio.file.Files.exists(target.toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+                        newModules.mkdirs()
+                        if (java.nio.file.Files.isSymbolicLink(pkg.toPath())) {
+                            java.nio.file.Files.createSymbolicLink(
+                                target.toPath(),
+                                java.nio.file.Files.readSymbolicLink(pkg.toPath()),
+                            )
+                        } else if (pkg.isDirectory) {
+                            SafeFiles.copyTree(pkg, target, overwrite = false)
+                        }
                     }
                 }
-                // 把旧 node_modules 里新镜像缺失的包（用户装的第三方插件）补回来。
-                runCatching {
-                    val oldModules = File(preservedHome, nodeModulesRel)
-                    val newModules = File(layout.dshHomeDir, nodeModulesRel)
-                    oldModules.listFiles()?.filter { it.isDirectory && !it.name.startsWith(".") }
-                        ?.forEach { pkg ->
-                            val target = File(newModules, pkg.name)
-                            if (!target.exists()) {
-                                newModules.mkdirs()
-                                runCatching { pkg.copyRecursively(target, overwrite = false) }
-                            }
-                        }
-                }
-                preservedHome.deleteRecursively()
             }
             // 旧 profile 的 pnpm-lock 可能锁定旧版 DSH；删掉让它由新版重新解析。
             runCatching {
                 File(layout.dshHomeDir, "profiles/web/pnpm-lock.yaml").delete()
             }
 
-            onProgress(InstallProgress("自检运行时工具链...", 0.95f))
+            onProgress(InstallProgress(HostStrings.get(R.string.rt_selfcheck, "Checking the runtime toolchain…"), 0.95f))
             val toolchain = verifyToolchainIntegrity()
-            if (toolchain.isFailure) return toolchain
+            if (toolchain.isFailure) throw toolchain.exceptionOrNull() ?: IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Toolchain self-check failed", "Самопроверка инструментов не прошла", "工具链自检失败"))
 
-            markerFile().parentFile?.mkdirs()
-            markerFile().writeText(
+            SafeFiles.writeAtomically(
+                markerFile(),
                 json.encodeToString(
                     InstallMarker.serializer(),
                     InstallMarker(
@@ -305,12 +370,43 @@ class RootfsInstaller(
                     )
                 )
             )
-            onProgress(InstallProgress("运行时安装完成", 1.0f))
+            // 提交点：标记已写，删除日志与旧 rootfs。
+            journal.delete()
+            SafeFiles.deleteTree(previous)
+            onProgress(InstallProgress(HostStrings.get(R.string.rt_done, "Runtime installed"), 1.0f))
             return Result.success(Unit)
-        } catch (e: Exception) {
-            return Result.failure(e)
+        } catch (e: Throwable) {
+            SafeFiles.deleteTree(staging)
+            if (swapped && previous.exists()) {
+                SafeFiles.deleteTree(layout.rootfsDir)
+                previous.renameTo(layout.rootfsDir)
+            }
+            if (!previous.exists()) journal.delete()
+            return Result.failure(if (e is Exception) e else IllegalStateException(e))
         }
     }
+
+    /**
+     * 解包后大小的估计：gzip 尾部 ISIZE（原始大小 mod 2^32）与压缩包 3 倍取大，
+     * 只用于空间预检；真实不足时解包会失败并回滚。
+     */
+    private fun estimatedUnpackedBytes(archive: File): Long =
+        maxOf(gzipUncompressedSize(archive), archive.length() * 3)
+
+    /** gzip ISIZE: несжатый размер mod 2^32 (для rootfs < 4 ГБ — точный). */
+    private fun gzipUncompressedSize(archive: File): Long =
+        runCatching {
+            java.io.RandomAccessFile(archive, "r").use { raf ->
+                if (raf.length() < 4) return@use 0L
+                raf.seek(raf.length() - 4)
+                val b = ByteArray(4)
+                raf.readFully(b)
+                (b[0].toLong() and 0xff) or
+                    ((b[1].toLong() and 0xff) shl 8) or
+                    ((b[2].toLong() and 0xff) shl 16) or
+                    ((b[3].toLong() and 0xff) shl 24)
+            }
+        }.getOrDefault(0L)
 
     private fun download(
         manifest: RootfsManifest,
@@ -323,9 +419,9 @@ class RootfsInstaller(
             val request = Request.Builder().url(manifest.downloadUrl).build()
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    return Result.failure(IllegalStateException("rootfs 下载失败: HTTP ${response.code}"))
+                    return Result.failure(IllegalStateException(HostStrings.get(R.string.rt_http_failed, "rootfs download failed: HTTP %1\$d", response.code)))
                 }
-                val body = response.body ?: return Result.failure(IllegalStateException("rootfs 下载响应为空"))
+                val body = response.body ?: return Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("rootfs download response is empty", "Пустой ответ при загрузке rootfs", "rootfs 下载响应为空")))
                 val total = body.contentLength()
                 body.byteStream().use { input ->
                     FileOutputStream(part).use { output ->
@@ -341,7 +437,7 @@ class RootfsInstaller(
                 }
             }
             if (part.renameTo(target)) Result.success(Unit)
-            else Result.failure(IllegalStateException("rootfs 下载文件落盘失败"))
+            else Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Failed to save the downloaded rootfs", "Не удалось сохранить загруженный rootfs", "rootfs 下载文件落盘失败")))
         } catch (e: Exception) {
             part.delete()
             Result.failure(e)
@@ -349,7 +445,9 @@ class RootfsInstaller(
     }
 
     private fun extractTarGz(archive: File, destination: File, onProgress: (Float) -> Unit) {
-        val totalBytes = archive.length().coerceAtLeast(1)
+        // Прогресс считаем от несжатого размера (gzip ISIZE): раньше делили на размер
+        // сжатого архива, и индикатор упирался в 100% задолго до конца распаковки.
+        val totalBytes = maxOf(gzipUncompressedSize(archive), archive.length()).coerceAtLeast(1)
         FileInputStream(archive).use { fileIn ->
             GzipCompressorInputStream(fileIn).use { gzipIn ->
                 TarArchiveInputStream(gzipIn).use { tar ->
@@ -365,20 +463,31 @@ class RootfsInstaller(
                         val target = File(destination, name)
                         val canonicalDest = destination.canonicalPath + File.separator
                         if (!target.canonicalPath.startsWith(canonicalDest)) {
-                            throw IllegalStateException("rootfs 归档包含非法路径: $name")
+                            throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("rootfs archive contains an invalid path: $name", "Архив rootfs содержит недопустимый путь: $name", "rootfs 归档包含非法路径: $name"))
                         }
                         when {
                             entry.isDirectory -> target.mkdirs()
                             entry.isSymbolicLink -> {
-                                target.parentFile?.mkdirs()
-                                runCatching {
-                                    Files.deleteIfExists(target.toPath())
-                                    Files.createSymbolicLink(target.toPath(), Paths.get(entry.linkName))
+                                // 链接目标按 guest 语义解释（proot 把绝对路径映射到 rootfs 内）。
+                                // 相对目标不得经 `..` 逃出 rootfs；App 侧所有树操作都不跟随链接
+                                // （见 SafeFiles），所以绝对目标不会被 Android 侧误用。
+                                if (!isSafeSymlinkTarget(name, entry.linkName)) {
+                                    throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("rootfs archive contains an escaping symlink: $name -> ${entry.linkName}", "Архив rootfs содержит выходящую наружу ссылку: $name -> ${entry.linkName}", "rootfs 归档包含越界符号链接: $name -> ${entry.linkName}"))
                                 }
+                                target.parentFile?.mkdirs()
+                                Files.deleteIfExists(target.toPath())
+                                Files.createSymbolicLink(target.toPath(), Paths.get(entry.linkName))
                             }
                             entry.isLink -> {
-                                val linkSource = File(destination, entry.linkName)
-                                if (linkSource.isFile && target.canonicalPath.startsWith(canonicalDest)) {
+                                val linkName = entry.linkName.replace('\\', '/')
+                                    .split('/')
+                                    .filter { it.isNotEmpty() && it != "." }
+                                    .joinToString("/")
+                                val linkSource = File(destination, linkName)
+                                if (!linkSource.canonicalPath.startsWith(canonicalDest)) {
+                                    throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("rootfs archive contains an escaping hard link: $name -> ${entry.linkName}", "Архив rootfs содержит выходящую наружу жёсткую ссылку: $name -> ${entry.linkName}", "rootfs 归档包含越界硬链接: $name -> ${entry.linkName}"))
+                                }
+                                if (linkSource.isFile) {
                                     target.parentFile?.mkdirs()
                                     linkSource.copyTo(target, overwrite = true)
                                     // 硬链接同样要恢复可执行位（pnpm 等二进制依赖它）。
@@ -405,6 +514,24 @@ class RootfsInstaller(
         }
     }
 
+    /**
+     * 相对符号链接从链接所在目录出发、按路径段解析，`..` 不得越过 rootfs 根；
+     * 绝对链接在 guest 内总是落在 rootfs 里，允许。NUL 字节一律拒绝。
+     */
+    internal fun isSafeSymlinkTarget(entryName: String, linkName: String): Boolean {
+        if (linkName.isEmpty() || linkName.contains('\u0000')) return false
+        if (linkName.startsWith("/")) return true
+        val stack = ArrayDeque(entryName.split('/').filter { it.isNotEmpty() }.dropLast(1))
+        for (segment in linkName.split('/')) {
+            when (segment) {
+                "", "." -> Unit
+                ".." -> if (stack.isEmpty()) return false else stack.removeLast()
+                else -> stack.addLast(segment)
+            }
+        }
+        return true
+    }
+
     private fun applyMode(file: File, mode: Int) {
         if (!file.isFile) return
         val executable = (mode and 0b001_001_001) != 0
@@ -428,7 +555,7 @@ class RootfsInstaller(
         )
         for (dir in requiredDirs) {
             if (!dir.exists()) {
-                return Result.failure(IllegalStateException("缺少核心运行时目录: ${dir.name}"))
+                return Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Missing core runtime directory: ${dir.name}", "Нет основной папки среды: ${dir.name}", "缺少核心运行时目录: ${dir.name}")))
             }
         }
         return Result.success(Unit)
@@ -451,6 +578,15 @@ class RootfsInstaller(
             }
         }
         return digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    private companion object {
+        /** 进程级安装锁：RootfsInstaller 会被多处各自 new 出来。 */
+        val INSTALL_IN_PROGRESS = java.util.concurrent.atomic.AtomicBoolean(false)
+        val SHA256_HEX = Regex("^[0-9a-fA-F]{64}$")
+        const val MIB = 1024L * 1024
+        /** 解包之外预留的空间（DSH_HOME 合并、日志、npm 缓存）。 */
+        const val SPACE_MARGIN_BYTES = 256L * MIB
     }
 
     @Serializable

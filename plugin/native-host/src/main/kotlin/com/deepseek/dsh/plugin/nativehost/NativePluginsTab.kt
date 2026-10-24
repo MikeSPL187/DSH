@@ -110,8 +110,8 @@ fun NativePluginsTab(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = if (query.isBlank()) "还没有原生插件。安装带原生界面的插件后会出现在这里。"
-                    else "没有匹配「$query」的原生插件。",
+                    text = if (query.isBlank()) com.deepseek.dsh.core.model.Tr.t("No native plugins yet. Plugins with a native UI appear here once installed.", "Нативных плагинов пока нет. Плагины с нативным интерфейсом появятся здесь после установки.", "还没有原生插件。安装带原生界面的插件后会出现在这里。")
+                    else com.deepseek.dsh.core.model.Tr.t("No native plugins match “$query”.", "Нет нативных плагинов по запросу «$query».", "没有匹配「$query」的原生插件。"),
                     color = colors.labelSecondary,
                     fontSize = 13.sp,
                     lineHeight = 20.sp,
@@ -127,7 +127,7 @@ fun NativePluginsTab(
             ),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            items(filtered, key = { it.pluginId }) { item ->
+            items(filtered, key = { "${it.pluginId}|${it.packageName.orEmpty()}" }) { item ->
                 NativePluginRow(item = item, colors = colors, onClick = { onOpenDetail(item) })
             }
         }
@@ -151,7 +151,7 @@ private fun NativeSearchField(
         contentAlignment = Alignment.CenterStart,
     ) {
         if (value.isEmpty()) {
-            Text(text = "搜索原生插件", color = colors.labelTertiary, fontSize = 13.sp)
+            Text(text = com.deepseek.dsh.core.model.Tr.t("Search native plugins", "Поиск нативных плагинов", "搜索原生插件"), color = colors.labelTertiary, fontSize = 13.sp)
         }
         BasicTextField(
             value = value,
@@ -216,7 +216,7 @@ private fun NativePluginRow(
         }
         // 状态胶囊：已装 / 可装 / 待更新
         NativeStatusChip(
-            text = item.statusLabel ?: if (item.installed) "已安装" else "可安装",
+            text = item.statusLabel ?: if (item.installed) com.deepseek.dsh.core.model.Tr.t("Installed", "Установлен", "已安装") else com.deepseek.dsh.core.model.Tr.t("Available", "Доступен", "可安装"),
             colors = colors,
             emphasized = item.installed,
         )
@@ -259,7 +259,7 @@ fun NativePluginDetail(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "‹ 原生插件",
+                text = com.deepseek.dsh.core.model.Tr.t("‹ Native plugins", "‹ Нативные плагины", "‹ 原生插件"),
                 color = colors.labelPrimary,
                 fontSize = 15.sp,
                 modifier = Modifier.clickable(onClick = onBack).padding(8.dp),
@@ -319,7 +319,7 @@ fun NativePluginDetail(
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
-                            text = "声明的能力",
+                            text = com.deepseek.dsh.core.model.Tr.t("Declared capabilities", "Объявленные возможности", "声明的能力"),
                             color = colors.labelPrimary,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
@@ -338,7 +338,7 @@ fun NativePluginDetail(
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
-                            text = "签名指纹",
+                            text = com.deepseek.dsh.core.model.Tr.t("Signing fingerprint", "Отпечаток подписи", "签名指纹"),
                             color = colors.labelPrimary,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
@@ -354,7 +354,7 @@ fun NativePluginDetail(
             if (item.installed) {
                 item {
                     Text(
-                        text = "卸载",
+                        text = com.deepseek.dsh.core.model.Tr.t("Uninstall", "Удалить", "卸载"),
                         color = colors.error,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,

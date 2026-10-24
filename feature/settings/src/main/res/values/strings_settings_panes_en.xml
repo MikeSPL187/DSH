@@ -22,7 +22,7 @@
     <string name="settings_pane_idle_sleep_title">Auto-sleep when idle</string>
     <string name="settings_pane_idle_sleep_desc">Stop the container process after 5 minutes without interaction, greatly reducing battery drain and heat</string>
     <string name="settings_pane_keep_alive_title">Background long-task guard</string>
-    <string name="settings_pane_keep_alive_desc">Enable a foreground service and system wake lock (WakeLock) while tasks run</string>
+    <string name="settings_pane_keep_alive_desc">Enable a foreground service and system wake lock (WakeLock) while tasks run; the Host keeps running when the app is swiped away from recents</string>
     <string name="settings_pane_high_risk_title">High-risk tool confirmation</string>
     <string name="settings_pane_high_risk_desc">Require popup approval before overwriting files, running shell commands, or accessing system hardware</string>
     <string name="settings_pane_backup_title">Create user data snapshot</string>
@@ -130,4 +130,6 @@
     <string name="settings_pane_models_models_hint">Leave blank to keep the provider catalogue; add IDs to expose them in the model picker.</string>
 <string name="settings_pane_models_provider_official">Built-in providers</string>
     <string name="settings_pane_models_provider_plugin">Plugin providers</string>
+    <string name="settings_pane_remote_https_required">Use an https:// address. Plain http is allowed only for 127.0.0.1 (for example through an SSH tunnel), so the token is never sent unencrypted over the network.</string>
+    <string name="settings_pane_general_language_russian">Russian</string>
 </resources>

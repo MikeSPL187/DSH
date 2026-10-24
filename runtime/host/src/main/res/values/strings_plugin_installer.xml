@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pi_bad_spec">Unrecognized plugin address: %1$s</string>
+    <string name="pi_no_profile">The Host profile is not initialized yet: start the Host once first</string>
+    <string name="pi_resolving">Resolving plugin address…</string>
+    <string name="pi_fetch_failed">Could not fetch the plugin package: %1$s</string>
+    <string name="pi_no_manifest">The plugin package has no readable package.json</string>
+    <string name="pi_no_name">The plugin package.json has no name</string>
+    <string name="pi_bad_name">Invalid plugin package name: %1$s</string>
+    <string name="pi_name_mismatch">The registry returned package %1$s instead of the requested %2$s</string>
+    <string name="pi_no_patch">%1$s does not declare dsh.bundle.patch and cannot be installed as a plugin</string>
+    <string name="pi_patch_unreadable">The bundle patch of %1$s cannot be read</string>
+    <string name="pi_deps">Installing runtime dependencies…</string>
+    <string name="pi_deps_failed">Dependency installation failed: %1$s</string>
+    <string name="pi_writing">Writing to the profile…</string>
+    <string name="pi_commit_failed">Could not write the plugin; the previous version was restored: %1$s</string>
+    <string name="pi_installed">Installed %1$s@%2$s</string>
+    <string name="pi_dl_github">Downloading the GitHub archive…</string>
+    <string name="pi_unpacking">Extracting the plugin…</string>
+    <string name="pi_dl_built">Downloading the built %1$s@%2$s…</string>
+    <string name="pi_no_build">The source archive of %1$s has no build output (%2$s) and npm has no matching version; install it by npm package name or install a published version</string>
+    <string name="pi_query">Looking up %1$s versions…</string>
+    <string name="pi_no_version">%1$s has no version matching %2$s</string>
+    <string name="pi_no_tarball">%1$s@%2$s has no tarball URL</string>
+    <string name="pi_dl">Downloading %1$s@%2$s…</string>
+    <string name="pi_unpack_ver">Extracting %1$s@%2$s…</string>
+    <string name="pi_local_outside">The local path is outside the folders the app can access: %1$s</string>
+    <string name="pi_local_no_manifest">The local folder has no package.json: %1$s</string>
+    <string name="pi_local_copy">Copying the local plugin folder…</string>
+    <string name="pi_dep">Installing dependency %1$s…</string>
+    <string name="pi_too_many">More than %1$d dependencies</string>
+    <string name="pi_no_version_range">No version matches %1$s</string>
+    <string name="pi_no_tarball_short">No tarball URL</string>
+    <string name="pi_no_patch_layer">The dsh-web-app patch layer is missing; cannot mount %1$s</string>
+    <string name="pi_dl_too_big">Download is larger than 64 MB: %1$s</string>
+    <string name="pi_too_many_entries">The archive has more than %1$d entries</string>
+    <string name="pi_too_large">Extracted size exceeds %1$d MB</string>
+    <string name="pi_entry_too_large">A file in the archive exceeds %1$d MB</string>
+    <string name="pi_not_in_registry">%1$s was not found in the registry</string>
+</resources>

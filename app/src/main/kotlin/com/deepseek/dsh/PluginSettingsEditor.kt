@@ -480,6 +480,7 @@ private fun FormField(
                             else R.string.settings_secret_unset_placeholder,
                         ),
                         modifier = Modifier.weight(1f),
+                        secret = true,
                     )
                 }
             } else {

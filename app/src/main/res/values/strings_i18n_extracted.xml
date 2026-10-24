@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="preview_missing">File does not exist</string>
+    <string name="preview_too_large">File is too large to preview (%1$s)</string>
+    <string name="preview_read_failed">Could not read the file</string>
+    <string name="preview_binary">Binary file, not previewed (%1$s)</string>
+    <string name="a11y_open_menu">Open menu</string>
+    <string name="a11y_right_sidebar">Right sidebar</string>
+    <string name="notify_error_title">DSH: error</string>
+    <string name="notify_error_body">%1$s stopped with an error</string>
+    <string name="notify_agent_waiting_body">The agent is waiting for your decision. Open DSH to answer.</string>
+    <string name="share_backup_title">Save or send the backup</string>
+    <string name="backup_failed">Could not create the backup</string>
+    <string name="share_diagnostics_title">Send diagnostics</string>
+    <string name="diagnostics_failed">Could not export diagnostics</string>
+    <string name="storage_use_private_workspace">Use a private app folder instead</string>
+    <string name="storage_use_private_workspace_desc">Files stay inside DSH (Android/data). The agent cannot see other folders on the phone; you can still import files.</string>
+</resources>

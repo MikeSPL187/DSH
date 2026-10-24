@@ -66,6 +66,10 @@ class WebIslandContainer(
      */
     private var pendingLoad: (() -> Unit)? = null
 
+    /** 诊断日志只在可调试构建输出。 */
+    private val debugLogs: Boolean =
+        context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+
     init {
         setupSecuritySettings()
         setupClients()
@@ -93,11 +97,14 @@ class WebIslandContainer(
             setAcceptThirdPartyCookies(this@WebIslandContainer, false)
         }
 
-        // 注册安全 JSBridge
-        addJavascriptInterface(JsBridge(), "DshNativeBridge")
+        // JS 接口会暴露给页面内所有 frame（含第三方插件的 iframe）。只有调用方真的
+        // 要接收消息时才注册，避免无用的攻击面（审计 F-11）。
+        if (onBridgeMessage != null) {
+            addJavascriptInterface(JsBridge(), "DshNativeBridge")
+        }
 
         // 调试构建允许 chrome://inspect 观察这个 WebView（与 Host 的联调需要）。
-        if (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) {
+        if (debugLogs) {
             runCatching { WebView.setWebContentsDebuggingEnabled(true) }
         }
     }
@@ -114,7 +121,7 @@ class WebIslandContainer(
                 super.onPageFinished(view, url)
                 pageFinished = true
                 onLoadingChanged?.invoke(false)
-                Log.d(TAG, "onPageFinished $url viewport=${view?.width}x${view?.height}")
+                debugLog { "onPageFinished ${redactToken(url)} viewport=${view?.width}x${view?.height}" }
                 // 视口高度为 0 时先修一次，再驱动 Web 客户端自己的界面——设置面板按
                 // `100vh` 布局，视口坏着的话它会被算成 0 高，只剩一层灰色蒙版。
                 repairViewportIfNeeded()
@@ -132,13 +139,15 @@ class WebIslandContainer(
                 // React 挂载，失败时保持普通界面，不影响浏览。
                 if (focusLabels.isNotEmpty()) {
                     view?.evaluateJavascript(focusScript(focusLabels, focusSectionId)) { result ->
-                        Log.d(TAG, "focus script (page finished): $result")
+                        debugLog { "focus script (page finished): $result" }
                     }
                 }
             }
 
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val uri = request?.url ?: return true
+                // 只允许 http(s)：intent:/javascript:/file: 等即使 host 相同也拒绝。
+                if (uri.scheme != "http" && uri.scheme != "https") return true
                 val host = uri.host
                 val port = if (uri.port != -1) uri.port else if (uri.scheme == "https") 443 else 80
 
@@ -158,7 +167,7 @@ class WebIslandContainer(
                 if (request?.isForMainFrame == true) {
                     onLoadingChanged?.invoke(false)
                     val description = error?.description?.toString()?.takeIf { it.isNotBlank() }
-                        ?: "网络错误"
+                        ?: com.deepseek.dsh.core.model.Tr.t("Network error", "Сетевая ошибка", "网络错误")
                     onFailed?.invoke(description)
                 }
                 super.onReceivedError(view, request, error)
@@ -171,23 +180,29 @@ class WebIslandContainer(
             ) {
                 if (request?.isForMainFrame == true) {
                     onLoadingChanged?.invoke(false)
-                    onFailed?.invoke("Host 返回 HTTP ${errorResponse?.statusCode ?: 0}")
+                    onFailed?.invoke(com.deepseek.dsh.core.model.Tr.t("Host returned HTTP ${errorResponse?.statusCode ?: 0}", "Host вернул HTTP ${errorResponse?.statusCode ?: 0}", "Host 返回 HTTP ${errorResponse?.statusCode ?: 0}"))
                 }
                 super.onReceivedHttpError(view, request, errorResponse)
             }
 
             override fun onRenderProcessGone(view: WebView?, detail: android.webkit.RenderProcessGoneDetail?): Boolean {
-                // 崩溃安全兜底
+                // 崩溃安全兜底：通知宿主（显示失败/重试），再释放这个 WebView。
+                onLoadingChanged?.invoke(false)
+                onFailed?.invoke("WebView renderer crashed")
                 destroy()
                 return true
             }
         }
         // 页面 console 转发到 logcat：Web 半边的启动失败只有在这里能看到完整原因。
+        // 只在可调试构建里转发：页面输出可能包含会话内容或令牌（审计 N-05/F-11）。
         webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(message: ConsoleMessage?): Boolean {
                 message ?: return false
-                Log.d("DshWebIsland", "${message.messageLevel()} ${message.sourceId()}:${message.lineNumber()} ${message.message()}")
-                return false
+                debugLog {
+                    "${message.messageLevel()} ${redactToken(message.sourceId())}:${message.lineNumber()} " +
+                        redactToken(message.message())
+                }
+                return true
             }
         }
     }
@@ -195,6 +210,7 @@ class WebIslandContainer(
     private inner class JsBridge {
         @JavascriptInterface
         fun postMessage(jsonString: String) {
+            if (jsonString.length > MAX_BRIDGE_MESSAGE_CHARS) return
             try {
                 val envelope = Json.decodeFromString<BridgeEnvelope>(jsonString)
                 onBridgeMessage?.invoke(envelope.type, envelope.payload?.toString() ?: "")
@@ -206,10 +222,7 @@ class WebIslandContainer(
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        Log.d(
-            TAG,
-            "onSizeChanged ${oldw}x${oldh} -> ${w}x${h} pendingLoad=${pendingLoad != null}",
-        )
+        debugLog { "onSizeChanged ${oldw}x${oldh} -> ${w}x${h} pendingLoad=${pendingLoad != null}" }
         if (w > 0 && h > 0) {
             val run = pendingLoad
             pendingLoad = null
@@ -229,7 +242,7 @@ class WebIslandContainer(
         val params = layoutParams as? android.view.ViewGroup.LayoutParams ?: return
         if (width <= 0 || height <= 0) return
         val originalHeight = params.height
-        Log.d(TAG, "nudgeViewport on ${width}x${height} params=$originalHeight")
+        debugLog { "nudgeViewport on ${width}x${height} params=$originalHeight" }
         params.height = height + 1
         requestLayout()
         postDelayed({
@@ -242,7 +255,7 @@ class WebIslandContainer(
     private fun repairViewportIfNeeded(attempt: Int = 0) {
         evaluateJavascript(VIEWPORT_PROBE) { result ->
             val ok = result?.contains("ok") == true
-            Log.d(TAG, "viewport probe (attempt $attempt): $result")
+            debugLog { "viewport probe (attempt $attempt): $result" }
             if (ok || attempt >= 2) return@evaluateJavascript
             nudgeViewport()
             postDelayed({ repairViewportIfNeeded(attempt + 1) }, 400)
@@ -275,7 +288,7 @@ class WebIslandContainer(
         focusSectionId = sectionId?.takeIf { it.isNotBlank() }
         if (!pageFinished || focusLabels.isEmpty()) return
         evaluateJavascript(focusScript(focusLabels, focusSectionId)) { result ->
-            Log.d(TAG, "focus script: $result")
+            debugLog { "focus script: $result" }
         }
     }
 
@@ -556,9 +569,21 @@ class WebIslandContainer(
         loadUrl(targetUrl)
     }
 
+    private inline fun debugLog(message: () -> String) {
+        if (debugLogs) Log.d(TAG, message())
+    }
+
     private companion object {
         /** logcat 标签：Web 岛加载与视口修复的诊断。 */
         const val TAG = "DshWebIsland"
+
+        /** JS → 原生单条消息上限。 */
+        const val MAX_BRIDGE_MESSAGE_CHARS = 256 * 1024
+
+        private val TOKEN_QUERY = Regex("""([?&](?:token|auth|access_token)=)[^&#\s]*""", RegexOption.IGNORE_CASE)
+
+        /** 把 URL/文本里的 `token=` 等查询参数值抹掉，日志里永远不出现启动凭据。 */
+        fun redactToken(text: String?): String = text?.let { TOKEN_QUERY.replace(it, "$1***") }.orEmpty()
 
         /**
          * 判断布局视口高度是否可用：`height: 100vh` 能解析出非零值才算正常。

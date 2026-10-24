@@ -4,7 +4,6 @@ import com.deepseek.dsh.core.model.AccountBalanceInfo
 import com.deepseek.dsh.core.model.AccountProfileInfo
 import com.deepseek.dsh.core.model.DeepSeekAccountState
 import com.deepseek.dsh.core.model.DeepSeekUserProfile
-import com.deepseek.dsh.core.model.DeepSeekWallet
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -52,22 +51,13 @@ class DeepSeekOAuthManager {
         )
     }
 
-    fun signInSuccess(profile: DeepSeekUserProfile) {
-        _accountFlow.value = DeepSeekAccountState(
-            isSignedIn = true,
-            profile = profile,
-            wallets = listOf(DeepSeekWallet(currency = "CNY", balance = "100.00")),
-            hasApiKey = _accountFlow.value.hasApiKey
-        )
-    }
-
     /** Host account/watch 报告 credential-stored 后，用真实资料与余额更新登录态。 */
     fun applyHostAccount(profile: AccountProfileInfo?, balance: AccountBalanceInfo?) {
         _accountFlow.value = DeepSeekAccountState(
             isSignedIn = true,
             profile = DeepSeekUserProfile(
                 id = profile?.id ?: "deepseek-account",
-                name = profile?.name ?: "已登录 DeepSeek",
+                name = profile?.name ?: com.deepseek.dsh.core.model.Tr.t("Signed in to DeepSeek", "Вход в DeepSeek выполнен", "已登录 DeepSeek"),
                 contact = profile?.contact,
                 avatarUrl = profile?.avatarUrl,
             ),

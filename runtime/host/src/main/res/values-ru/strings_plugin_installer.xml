@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pi_bad_spec">Не удалось распознать адрес плагина: %1$s</string>
+    <string name="pi_no_profile">Профиль Host ещё не создан: сначала запустите Host хотя бы раз</string>
+    <string name="pi_resolving">Разбор адреса плагина…</string>
+    <string name="pi_fetch_failed">Не удалось получить пакет плагина: %1$s</string>
+    <string name="pi_no_manifest">В пакете плагина нет читаемого package.json</string>
+    <string name="pi_no_name">В package.json плагина нет имени</string>
+    <string name="pi_bad_name">Недопустимое имя пакета плагина: %1$s</string>
+    <string name="pi_name_mismatch">Реестр вернул пакет %1$s вместо запрошенного %2$s</string>
+    <string name="pi_no_patch">%1$s не объявляет dsh.bundle.patch и не может быть установлен как плагин</string>
+    <string name="pi_patch_unreadable">Не удалось прочитать bundle patch пакета %1$s</string>
+    <string name="pi_deps">Установка зависимостей…</string>
+    <string name="pi_deps_failed">Ошибка установки зависимостей: %1$s</string>
+    <string name="pi_writing">Запись в профиль…</string>
+    <string name="pi_commit_failed">Не удалось записать плагин, восстановлена прежняя версия: %1$s</string>
+    <string name="pi_installed">Установлено: %1$s@%2$s</string>
+    <string name="pi_dl_github">Загрузка архива GitHub…</string>
+    <string name="pi_unpacking">Распаковка плагина…</string>
+    <string name="pi_dl_built">Загрузка собранного %1$s@%2$s…</string>
+    <string name="pi_no_build">В исходном архиве %1$s нет собранных файлов (%2$s), а в npm нет такой версии; установите по имени npm-пакета или опубликованную версию</string>
+    <string name="pi_query">Поиск версий %1$s…</string>
+    <string name="pi_no_version">У %1$s нет версии, подходящей под %2$s</string>
+    <string name="pi_no_tarball">У %1$s@%2$s нет адреса tarball</string>
+    <string name="pi_dl">Загрузка %1$s@%2$s…</string>
+    <string name="pi_unpack_ver">Распаковка %1$s@%2$s…</string>
+    <string name="pi_local_outside">Локальный путь вне доступных приложению папок: %1$s</string>
+    <string name="pi_local_no_manifest">В локальной папке нет package.json: %1$s</string>
+    <string name="pi_local_copy">Копирование локальной папки плагина…</string>
+    <string name="pi_dep">Установка зависимости %1$s…</string>
+    <string name="pi_too_many">Больше %1$d зависимостей</string>
+    <string name="pi_no_version_range">Нет версии, подходящей под %1$s</string>
+    <string name="pi_no_tarball_short">Нет адреса tarball</string>
+    <string name="pi_no_patch_layer">Нет слоя patch dsh-web-app, не удалось подключить %1$s</string>
+    <string name="pi_dl_too_big">Загрузка больше 64 МБ: %1$s</string>
+    <string name="pi_too_many_entries">В архиве больше %1$d записей</string>
+    <string name="pi_too_large">Распакованный размер больше %1$d МБ</string>
+    <string name="pi_entry_too_large">Файл в архиве больше %1$d МБ</string>
+    <string name="pi_not_in_registry">%1$s не найден в реестре</string>
+</resources>

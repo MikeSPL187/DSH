@@ -51,7 +51,7 @@ fun NativePluginComponentPane(
         if (host == null) null else NativePageHost(
             componentId = componentId,
             delegate = host,
-            pluginRpc = pluginRpc ?: { _, _ -> Result.failure(IllegalStateException("Host RPC 未连接")) },
+            pluginRpc = pluginRpc ?: { _, _ -> Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Host RPC is not connected", "Host RPC не подключён", "Host RPC 未连接"))) },
             dispatch = dispatchEvent ?: { _, _, _ -> },
         )
     }
@@ -71,7 +71,7 @@ fun NativePluginComponentPane(
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "返回",
+                        contentDescription = androidx.compose.ui.res.stringResource(com.deepseek.dsh.plugin.nativehost.R.string.native_back),
                         tint = MaterialTheme.colorScheme.onBackground,
                     )
                 }

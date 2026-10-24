@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <cache-path name="apk-store" path="apk-store/" />
+    <!-- Резервные копии и диагностика: отдаются только через явный «Поделиться» с временным правом чтения. -->
+    <files-path name="backups" path="backups/" />
+    <files-path name="diagnostics" path="logs/" />
 </paths>

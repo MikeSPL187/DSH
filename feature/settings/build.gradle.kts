@@ -34,6 +34,7 @@ dependencies {
     implementation("com.deepseek.dsh.plugin:native-sdk")
     implementation(project(":plugin:native-host"))
     implementation(project(":runtime:host"))
+    implementation(project(":runtime:bridge"))
     implementation(libs.kotlinx.serialization.json)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)

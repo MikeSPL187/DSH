@@ -11,7 +11,8 @@ import com.deepseek.dsh.plugin.nativesdk.contract.DshUiPlugin
  * `createPackageContext` 拿到伴侣的 ClassLoader，反射实例化它的 Service 持有的
  * 插件类，让它在 App 进程里跑一遍注册。
  *
- * 安全前提：只装载已通过 ABI 门禁 + 验签的 READY 插件。
+ * 安全前提：只装载已通过 ABI 门禁、并经用户批准（[NativePluginTrustStore] pin 一致）的
+ * READY 插件；装载前再读一次系统里的当前签名，防止扫描与装载之间 APK 被替换。
  */
 class NativePluginLoader(private val context: Context) {
 
@@ -38,8 +39,23 @@ class NativePluginLoader(private val context: Context) {
     }
 
     fun load(plugin: InstalledNativePlugin): DshUiPlugin? {
-        loadedPlugins[plugin.pluginId]?.let { return it }
         if (plugin.status != InstalledNativePlugin.Status.READY) return null
+        val cacheKey = plugin.packageName + "/" + plugin.signatureFingerprint
+        loadedPlugins[cacheKey]?.let { return it }
+        // TOCTOU：扫描到装载之间 APK 可能被更新为另一个签名者，这里以系统当前状态为准。
+        val currentFingerprint = NativePluginDiscovery.signingFingerprint(
+            context.packageManager,
+            plugin.packageName,
+        )
+        if (currentFingerprint == null ||
+            !java.security.MessageDigest.isEqual(
+                currentFingerprint.toByteArray(),
+                plugin.signatureFingerprint.lowercase().toByteArray(),
+            )
+        ) {
+            android.util.Log.w("NativePluginLoader", "signature changed before load: ${plugin.packageName}")
+            return null
+        }
         return try {
             // The companion packages the SDK for compilation, but at runtime the host
             // must own the single copy of DshUiPlugin, PageRegistry and Compose. A
@@ -58,15 +74,17 @@ class NativePluginLoader(private val context: Context) {
                 loadViaService(pluginContext.classLoader, plugin)
             }.getOrNull()
             if (viaPackage != null) {
-                loadedPlugins[plugin.pluginId] = viaPackage
+                loadedPlugins[cacheKey] = viaPackage
                 return viaPackage
             }
             val appInfo = pluginContext.applicationInfo
             val dexPath = (listOf(appInfo.sourceDir) + appInfo.splitSourceDirs.orEmpty())
                 .joinToString(java.io.File.pathSeparator)
-            val classLoader = dalvik.system.DexClassLoader(
+            // PathClassLoader, а не DexClassLoader(…, optimizedDirectory = null, …): на Android 8.0
+            // DexClassLoader делает `new File(optimizedDirectory)` и падает NPE — companion-плагины
+            // на Android 8 не загружались совсем (найдено на эмуляторе API 26).
+            val classLoader = dalvik.system.PathClassLoader(
                 dexPath,
-                null,
                 appInfo.nativeLibraryDir,
                 context.classLoader,
             )
@@ -76,6 +94,7 @@ class NativePluginLoader(private val context: Context) {
             // 这里采用「service 类名 + Plugin 后缀约定」之外的稳妥做法：反射 service 类，
             // 调它的伴生/静态方法。最稳妥：插件按契约提供一个入口类名 meta-data。
             val viaDex = loadViaService(classLoader, plugin)
+            if (viaDex != null) loadedPlugins[cacheKey] = viaDex
             viaDex
         } catch (error: Throwable) {
             android.util.Log.w("NativePluginLoader", "failed to load ${plugin.packageName}", error)

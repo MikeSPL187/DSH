@@ -137,17 +137,26 @@ fun MainAppHost(
 
     val persistedSettings by settingsRepository.settingsFlow.collectAsState()
 
-    val externalWorkspaceDir = remember { java.io.File(android.os.Environment.getExternalStorageDirectory(), "Documents/DSH-Workspace") }
-    val visibleWorkspaceDir = remember { java.io.File(android.os.Environment.getExternalStorageDirectory(), "Documents/DSH-Workspace") }
+    val externalWorkspaceDir = remember { StorageAccess.workspaceRoot(context) }
+    val visibleWorkspaceDir = remember { StorageAccess.workspaceRoot(context) }
 
+    // Android 8–10: обычный runtime-запрос; Android 11+: системный экран «Доступ ко всем файлам».
+    var storageAccessTick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val legacyStoragePermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions(),
+    ) { storageAccessTick += 1 }
     val openAllFilesSettings: () -> Unit = {
-        runCatching {
-            context.startActivity(
-                android.content.Intent(
-                    android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                    android.net.Uri.parse("package:" + context.packageName)
-                ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
+        if (StorageAccess.usesAllFilesSettings) {
+            runCatching {
+                context.startActivity(
+                    android.content.Intent(
+                        android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                        android.net.Uri.parse("package:" + context.packageName)
+                    ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+            }
+        } else {
+            legacyStoragePermissionLauncher.launch(StorageAccess.legacyPermissions)
         }
     }
     // 首次启动已强制授予所有文件访问权限，工作区固定为公有 Documents，无需再迁移/回退。
@@ -160,12 +169,13 @@ fun MainAppHost(
     val ui = rememberAppUiState(
         initialSettings = persistedSettings,
         initialWorkspace = activeWorkspace,
-        initialAllFilesAccess = android.os.Environment.isExternalStorageManager(),
+        initialAllFilesAccess = StorageAccess.hasAccess(context),
     )
-    LaunchedEffect(ui.hasAllFilesAccess) {
+    LaunchedEffect(ui.hasAllFilesAccess, storageAccessTick) {
+        ui.hasAllFilesAccess = StorageAccess.hasAccess(context)
         while (!ui.hasAllFilesAccess) {
             kotlinx.coroutines.delay(1000)
-            ui.hasAllFilesAccess = android.os.Environment.isExternalStorageManager()
+            ui.hasAllFilesAccess = StorageAccess.hasAccess(context)
         }
     }
 
@@ -174,7 +184,7 @@ fun MainAppHost(
         // 首次安装等 rootfs 准备完成后再启动；之后每次重新打开 App 立即启动 Host。
         if (java.io.File(context.filesDir, "rootfs/etc/os-release").exists()) {
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                runCatching { runtimeManager.start(activeWorkspace.absolutePath) }
+                runCatching { runtimeManager.warmUp(activeWorkspace.absolutePath) }
             }
         }
     }
@@ -217,17 +227,6 @@ fun MainAppHost(
     val unreadSessionIds by dshRepository.unreadSessionIdsFlow.collectAsState()
     LaunchedEffect(ui.selectedSessionId) { dshRepository.markSessionViewed(ui.selectedSessionId) }
 
-    // 会话完成通知：运行中的会话从 running 变为结束且当前不在前台时提醒。
-    val sessionRunningNow = ui.selectedSessionId != null && ui.selectedSessionId in runningSessionIds
-    LaunchedEffect(sessionRunningNow) {
-        if (runtimeUi.wasSessionRunning && !sessionRunningNow) {
-            if (ui.currentAppSettings.notificationsEnabled && ui.currentAppSettings.notifyOnTurnComplete) {
-                val title = sessions.find { it.sessionId == ui.selectedSessionId }?.title ?: context.getString(R.string.notify_session)
-                DshNotifications.notify(context, context.getString(R.string.notify_done_title), context.getString(R.string.notify_done_body, title))
-            }
-        }
-        runtimeUi.wasSessionRunning = sessionRunningNow
-    }
     LaunchedEffect(sessions, liveSessionIds) {
         // 每次打开 App：自动进入最近更新的会话，而不是停留在空白新会话页。
         if (!runtimeUi.didInitialResume && sessions.isNotEmpty()) {
@@ -258,6 +257,29 @@ fun MainAppHost(
         }
     }
 
+
+    // 会话完成通知：运行中的会话从 running 变为结束时提醒。
+    // Ход, закончившийся ошибкой («⚠️ …»), уведомляет по настройке «Ошибки»
+    // (раньше она только сохранялась), обычный — по «Завершение ответа».
+    val sessionRunningNow = ui.selectedSessionId != null && ui.selectedSessionId in runningSessionIds
+    val latestMessages by androidx.compose.runtime.rememberUpdatedState(messages)
+    LaunchedEffect(sessionRunningNow) {
+        if (runtimeUi.wasSessionRunning && !sessionRunningNow) {
+            val settings = ui.currentAppSettings
+            val title = sessions.find { it.sessionId == ui.selectedSessionId }?.title ?: context.getString(R.string.notify_session)
+            val failed = latestMessages.lastOrNull()?.let {
+                it.role == MessageRole.ASSISTANT && it.content.trimStart().startsWith("⚠️")
+            } == true
+            if (settings.notificationsEnabled) {
+                if (failed && settings.notifyOnError) {
+                    DshNotifications.notify(context, context.getString(R.string.notify_error_title), context.getString(R.string.notify_error_body, title))
+                } else if (!failed && settings.notifyOnTurnComplete) {
+                    DshNotifications.notify(context, context.getString(R.string.notify_done_title), context.getString(R.string.notify_done_body, title))
+                }
+            }
+        }
+        runtimeUi.wasSessionRunning = sessionRunningNow
+    }
 
     val catalogInfo by dshRepository.modelCatalogFlow.collectAsState()
     val hostModels = remember(catalogInfo) { catalogInfo.groups.flatMap { it.models } }
@@ -290,11 +312,14 @@ fun MainAppHost(
     // 录音输入：权限、录音与转写由 App 负责；草稿在 ChatScreen 里，转写结果
     // 作为一次性事件传下去（官方 composer activity 的同样职责划分）。
     val voiceRecorder = remember { com.deepseek.dsh.voice.VoiceRecorder() }
-    val voiceEnabled = remember(dshRepository.bridgePluginCatalogFlow.value) {
-        dshRepository.bridgePluginCatalogFlow.value.bundles.any {
+    // Подписка на каталог: чтение StateFlow.value в composition не перерисовывает UI при изменениях.
+    val bridgeCatalogState by dshRepository.bridgePluginCatalogFlow.collectAsState()
+    val voiceEnabled = remember(bridgeCatalogState) {
+        bridgeCatalogState.bundles.any {
             it.name == VoiceInputPluginUi.bundle && it.enabled
         }
     }
+    NotificationPermissionEffect(ui.currentAppSettings.notificationsEnabled)
     val voicePermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -376,16 +401,16 @@ fun MainAppHost(
     }
     // 思考内容翻译（官方 cot-translation 的 reasoning body）：插件启用时给
     // ReasoningCard 提供「查看译文/查看原文」能力。
-    val cotTranslationEnabled = remember(dshRepository.bridgePluginCatalogFlow.value) {
-        dshRepository.bridgePluginCatalogFlow.value.bundles.any {
+    val cotTranslationEnabled = remember(bridgeCatalogState) {
+        bridgeCatalogState.bundles.any {
             it.name == CotTranslationPluginUi.bundle && it.enabled
         }
     }
 
     // Claude Code 模组横幅：官方在 conversation.input.dock 画一条 Host 下发的
     // 动态横幅；只有 Claude Code 子智能体插件启用且当前会话存在时订阅。
-    val claudeCodeModsEnabled = remember(dshRepository.bridgePluginCatalogFlow.value) {
-        dshRepository.bridgePluginCatalogFlow.value.bundles.any {
+    val claudeCodeModsEnabled = remember(bridgeCatalogState) {
+        bridgeCatalogState.bundles.any {
             it.name == com.deepseek.dsh.feature.chat.ClaudeCodeModsPluginUi.BUNDLE && it.enabled
         }
     }
@@ -398,8 +423,8 @@ fun MainAppHost(
     }
 
     // 会话数据诊断（开发者工具）：只读展示当前会话收到的原始帧。
-    val sessionInspectorEnabled = remember(dshRepository.bridgePluginCatalogFlow.value) {
-        dshRepository.bridgePluginCatalogFlow.value.bundles.any {
+    val sessionInspectorEnabled = remember(bridgeCatalogState) {
+        bridgeCatalogState.bundles.any {
             it.name == SessionInspectorPluginUi.BUNDLE && it.enabled
         }
     }
@@ -560,7 +585,7 @@ fun MainAppHost(
     val agentTeam by dshRepository.agentTeamFlow.collectAsState()
     // 团队动作只在「智能体团队」profile 启用时出现（官方由插件注册 header action）。
     val agentTeamEnabled = remember(bridgePluginCatalog) {
-        dshRepository.bridgePluginCatalogFlow.value.bundles.any {
+        bridgeCatalogState.bundles.any {
             it.name == AgentTeamPluginUi.BUNDLE && it.enabled
         }
     }
@@ -582,7 +607,10 @@ fun MainAppHost(
         val sid = ui.selectedSessionId ?: return@LaunchedEffect
         if (sessionRunningNow) {
             while (true) {
-                dshRepository.refreshSessionStats(ui.activeHostId, sid)
+                // Статистика нужна только на экране; в фоне не опрашиваем Host каждые 1,2 с.
+                if (UserActivity.isForeground) {
+                    dshRepository.refreshSessionStats(ui.activeHostId, sid)
+                }
                 kotlinx.coroutines.delay(1200)
             }
         } else {
@@ -615,7 +643,11 @@ fun MainAppHost(
     // rename/unlink/mkdtemp（ENOSYS），所以 Host 安装失败后由 App 自己下载、
     // 解压、装依赖并挂到 profile 的 patch 层。
     val appPluginInstaller = remember(layout) {
-        com.deepseek.dsh.runtime.host.PluginBundleInstaller(context, layout)
+        com.deepseek.dsh.runtime.host.PluginBundleInstaller(
+            context,
+            layout,
+            workspaceDir = { activeWorkspace },
+        )
     }
     // App 安装器挂过的包名：用来区分「随安装自带」的官方插件和用户后来装的。
     LaunchedEffect(appPluginInstaller) {
@@ -692,30 +724,62 @@ fun MainAppHost(
 
     // 扫描系统里已装的原生伴侣 APK，填充「原生插件」tab，并把 READY 的插件
     // 装载进 App 进程（触发它们的落点/工具/页面注册）。卸载/安装后回前台时
-    // 重扫（onResume 递增信号），保证「卸载即从列表摘除」。装 APK 时连带装
-    // 配对的 JS 插件（甲 manifest 声明 / 乙商店索引兜底），装完重启 Host。
+    // 重扫（onResume 递增信号），保证「卸载即从列表摘除」。
+    //
+    // 安全：伴侣代码在 App 进程内以 App 的全部权限运行，所以只有用户在确认框里
+    // 批准过（包名 + 证书指纹钉死）的伴侣才会是 READY；首次发现或签名变化的伴侣
+    // 进入 [pendingNativeApprovals]，由用户决定。配对 JS 插件也只在批准时安装，
+    // 重扫绝不自动下载/安装任何代码。
+    var pairingDialogOpen by remember { mutableStateOf(false) }
+    // 「有任务时保持后台运行」交给前台服务在划掉最近任务时判断。
+    LaunchedEffect(ui.currentAppSettings.keepAliveOnTask) {
+        com.deepseek.dsh.runtime.host.HostService.setKeepAliveOnTaskRemoved(
+            context,
+            ui.currentAppSettings.keepAliveOnTask,
+        )
+    }
+    val nativeTrustStore = remember { com.deepseek.dsh.plugin.nativehost.NativePluginTrustStore(context) }
+    var nativeTrustTick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val pendingNativeApprovals = remember {
+        mutableStateListOf<com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin>()
+    }
+    // 本次进程内用户点过「暂不」的 (包名/指纹)，避免每次回前台都弹框；重启 App 后再询问。
+    val dismissedNativeApprovals = remember { mutableStateListOf<String>() }
     val nativePluginRescanSignal by nativePluginRescanFlow.collectAsState()
-    LaunchedEffect(nativePluginRescanSignal, appPluginInstaller) {
+    LaunchedEffect(nativePluginRescanSignal, nativeTrustTick) {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             runCatching {
             val discovery = com.deepseek.dsh.plugin.nativehost.NativePluginDiscovery(context)
             val loader = com.deepseek.dsh.plugin.nativehost.NativePluginLoader(context)
             val appVersionCode = context.packageManager
-                .getPackageInfo(context.packageName, 0).longVersionCode.toInt()
+                .getPackageInfo(context.packageName, 0)
+                .let { androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(it).toInt() }
             val discovered = discovery.scan(
                 appVersionCode = appVersionCode,
                 supportedApiVersion = com.deepseek.dsh.plugin.nativehost.NativeAbi.CURRENT,
-                pinnedFingerprints = emptyMap(),
+                pins = nativeTrustStore.pins(),
             )
             // 装载 READY 插件进 App 进程：它们的 init 块会跑 SlotRegistry.register 等。
             val ready = discovered.filter {
                 it.status == com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.READY
             }
+            val awaitingApproval = discovered.filter {
+                it.status == com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.UNTRUSTED ||
+                    it.status == com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.SIGNATURE_MISMATCH
+            }
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                pendingNativeApprovals.clear()
+                pendingNativeApprovals.addAll(
+                    awaitingApproval.filter {
+                        "${it.packageName}/${it.signatureFingerprint}" !in dismissedNativeApprovals
+                    },
+                )
+            }
             // Drop pages whose package disappeared before loading the next snapshot.
             // Otherwise an already open page could keep executing an uninstalled ClassLoader.
-            val discoveredIds = discovered.map { it.pluginId }.toSet()
+            val readyIds = ready.map { it.pluginId }.toSet()
             com.deepseek.dsh.plugin.nativesdk.pages.PageRegistry.snapshot()
-                .map { it.first }.filter { it.isNotBlank() && it !in discoveredIds }
+                .map { it.first }.filter { it.isNotBlank() && it !in readyIds }
                 .forEach { com.deepseek.dsh.plugin.nativesdk.pages.PageRegistry.removeOwner(it) }
             // Only successfully loaded companions may replace a Web settings section.
             // Replacing the whole snapshot also drops routes for uninstalled/incompatible APKs.
@@ -737,39 +801,18 @@ fun MainAppHost(
                 )
             }
             com.deepseek.dsh.plugin.nativehost.NativePageRegistry.replaceAll(nativePageRegistrations)
-            // 伴侣「装了但设置页还是 Web UI」时，先看这条日志：哪个伴侣加载成功、
-            // jsPackage 是什么、注册了哪些页面（placement:id）。
-            android.util.Log.i(
-                "NativePluginHost",
-                "loaded companions=" + nativePageRegistrations.joinToString { registration ->
-                    "${registration.pluginId}/${registration.jsPackage}=" +
-                        registration.pages.joinToString { page ->
-                            "${page.entry.placement}:${page.entry.id}"
-                        }
-                },
-            )
-            ready.forEach { plugin ->
-                runCatching {
-                    val jsPackage = com.deepseek.dsh.plugin.nativehost.NativePluginPairing
-                        .resolveJsPackage(plugin, storeLookup = null)
-                    if (jsPackage != null) {
-                        val pkgName = jsPackage.substringAfterLast('/').substringBefore('@')
-                            .ifBlank { jsPackage }
-                        val inProfile = java.io.File(
-                            layout.rootfsDir,
-                            "root/.dsh/profiles/web/node_modules/$pkgName/package.json",
-                        ).isFile
-                        val managed = runtimeUi.managedPluginPackages.any {
-                            it.equals(pkgName, ignoreCase = true) || it.equals(jsPackage, ignoreCase = true)
-                        }
-                        if (!inProfile && !managed) {
-                            val installed = appPluginInstaller.install(jsPackage) { _, _ -> }
-                            if (installed.isSuccess) {
-                                HostRuntimeHolder.restartHost?.invoke()
+            if (BuildConfig.DEBUG) {
+                // 伴侣「装了但设置页还是 Web UI」时，先看这条日志：哪个伴侣加载成功、
+                // jsPackage 是什么、注册了哪些页面（placement:id）。
+                android.util.Log.i(
+                    "NativePluginHost",
+                    "loaded companions=" + nativePageRegistrations.joinToString { registration ->
+                        "${registration.pluginId}/${registration.jsPackage}=" +
+                            registration.pages.joinToString { page ->
+                                "${page.entry.placement}:${page.entry.id}"
                             }
-                        }
-                    }
-                }
+                    },
+                )
             }
             runtimeUi.nativePluginItems = discovered.map { installed ->
                 com.deepseek.dsh.plugin.nativehost.NativePluginItem(
@@ -781,6 +824,7 @@ fun MainAppHost(
                     installed = true,
                     statusLabel = when (installed.status) {
                         com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.READY -> context.getString(R.string.plugin_status_installed)
+                        com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.UNTRUSTED -> context.getString(R.string.plugin_status_needs_approval)
                         com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.ABI_TOO_NEW -> context.getString(R.string.plugin_status_update_plugin)
                         com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.APP_TOO_OLD -> context.getString(R.string.plugin_status_update_app)
                         com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.SIGNATURE_MISMATCH -> context.getString(R.string.plugin_status_identity_mismatch)
@@ -795,10 +839,109 @@ fun MainAppHost(
             }
         }
     }
+    // 伴侣信任确认：展示包名、证书指纹与将要连带安装的 JS 插件，由用户明确批准。
+    pendingNativeApprovals.firstOrNull()?.let { candidate ->
+        val key = "${candidate.packageName}/${candidate.signatureFingerprint}"
+        val mismatch = candidate.status ==
+            com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.SIGNATURE_MISMATCH
+        val jsPackage = com.deepseek.dsh.plugin.nativehost.NativePluginPairing
+            .resolveJsPackage(candidate, storeLookup = null)
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = {
+                dismissedNativeApprovals.add(key)
+                pendingNativeApprovals.remove(candidate)
+            },
+            title = {
+                Text(
+                    stringResource(
+                        if (mismatch) R.string.native_trust_title_changed else R.string.native_trust_title,
+                    ),
+                )
+            },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    if (mismatch) {
+                        Text(
+                            text = stringResource(R.string.native_trust_changed_warning),
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 13.sp,
+                            lineHeight = 19.sp,
+                            modifier = Modifier.padding(bottom = 8.dp),
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.native_trust_desc),
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                    Text(
+                        text = stringResource(
+                            R.string.native_trust_identity,
+                            candidate.pluginId,
+                            candidate.packageName,
+                            candidate.signatureFingerprint.chunked(2).joinToString(":"),
+                        ),
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                    if (jsPackage != null) {
+                        Text(
+                            text = stringResource(R.string.native_trust_js_package, jsPackage),
+                            fontSize = 13.sp,
+                            lineHeight = 19.sp,
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    nativeTrustStore.trust(candidate)
+                    pendingNativeApprovals.remove(candidate)
+                    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        // 配对 JS 插件只在用户批准的这一刻安装一次（确认框里已展示其来源）。
+                        if (jsPackage != null) {
+                            runCatching {
+                                val pkgName = jsPackage.substringAfterLast('/').substringBefore('@')
+                                    .ifBlank { jsPackage }
+                                val inProfile = java.io.File(
+                                    layout.rootfsDir,
+                                    "root/.dsh/profiles/web/node_modules/$pkgName/package.json",
+                                ).isFile
+                                val managed = runtimeUi.managedPluginPackages.any {
+                                    it.equals(pkgName, ignoreCase = true) ||
+                                        it.equals(jsPackage, ignoreCase = true)
+                                }
+                                if (!inProfile && !managed) {
+                                    val installed = appPluginInstaller.install(jsPackage) { _, _ -> }
+                                    if (installed.isSuccess) {
+                                        HostRuntimeHolder.restartHost?.invoke()
+                                    }
+                                }
+                            }
+                        }
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            nativeTrustTick += 1
+                        }
+                    }
+                }) { Text(stringResource(R.string.native_trust_allow)) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    dismissedNativeApprovals.add(key)
+                    pendingNativeApprovals.remove(candidate)
+                }) { Text(stringResource(R.string.native_trust_deny)) }
+            },
+        )
+    }
     // 反向联动：刚装的 JS 插件有原生伴侣时，这里带上它的声明，UI 提示可装。
     // 从“JS 已装、伴生 APK 可装”跳转时，直接打开插件商店的对应仓库详情。
 
     val status by runner.statusFlow.collectAsState()
+
+    IdleHostStopEffect(runtimeManager, runner, persistedSettings.idleStopMinutes, runningSessionIds.isNotEmpty(), activeWorkspace)
 
     // 官方 workflow 工具在手机 profile 默认关闭：用官方 API 打开，保持与桌面一致。
     LaunchedEffect(ui.activeHostId, status.phase) {
@@ -810,6 +953,11 @@ fun MainAppHost(
     val accountState by oauthManager.accountFlow.collectAsState()
     val pendingApprovalWaterfalls by dshRepository.pendingWaterfallApprovalsFlow.collectAsState()
     val pendingQuestions by dshRepository.pendingQuestionsFlow.collectAsState()
+    AgentWaitingNotificationsEffect(
+        approvalIds = pendingApprovalWaterfalls.map { it.eventId },
+        questionIds = pendingQuestions.map { it.eventId },
+        notificationsEnabled = ui.currentAppSettings.notificationsEnabled,
+    )
     val hostJobs by dshRepository.jobsFlow.collectAsState()
     val hostCommands by dshRepository.hostCommandsFlow.collectAsState()
     val hostSkills by dshRepository.hostSkillsFlow.collectAsState()
@@ -1038,12 +1186,14 @@ fun MainAppHost(
     val availableModelNames = effectiveModelNames.distinct()
 
     // 官方账号菜单的登录入口：浏览器 OAuth 为主，API Key 为备选（与官方 SignInDialog 一致）。
+    // Ссылки могут прийти от Host: открываем только http(s) и не падаем, если браузера нет.
     val openUrl: (String) -> Unit = { url ->
-        val intent = android.content.Intent(
-            android.content.Intent.ACTION_VIEW,
-            android.net.Uri.parse(url)
-        ).apply { flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK }
-        context.startActivity(intent)
+        val uri = android.net.Uri.parse(url)
+        if (uri.scheme == "https" || uri.scheme == "http") {
+            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
+                .apply { flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK }
+            runCatching { context.startActivity(intent) }
+        }
     }
 
     // 官方 account/watch：登录中/已存凭据/退出都由 Host 推送，整个登录流程不再轮询。
@@ -1335,7 +1485,7 @@ fun MainAppHost(
                 status.phase == RuntimePhase.ERROR)
         ) {
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                runtimeManager.start(activeWorkspace.absolutePath)
+                runtimeManager.warmUp(activeWorkspace.absolutePath)
             }
         }
     }
@@ -1361,7 +1511,13 @@ fun MainAppHost(
 
     // 首次进入必须先授予「所有文件访问权限」，否则不能进入引导/主界面。
     if (!ui.hasAllFilesAccess) {
-        StoragePermissionGate(onRequest = openAllFilesSettings)
+        StoragePermissionGate(
+            onRequest = openAllFilesSettings,
+            onUsePrivateWorkspace = {
+                StorageAccess.choosePrivateWorkspace(context)
+                ui.hasAllFilesAccess = true
+            },
+        )
         return
     }
 
@@ -1385,6 +1541,7 @@ fun MainAppHost(
             when {
                 current.phase == RuntimePhase.RUNNING -> {
                     runtimeUi.hostProgressReady = true
+                    StartupGateMemory.passed = true
                     runtimeUi.hostStartupError = false
                     runtimeUi.hostStartupDetail = null
                 }
@@ -1416,7 +1573,10 @@ fun MainAppHost(
             },
             // Host 起不来时仍允许进入应用：设置 → 移动运行时 有完整日志，
             // 也可以在那里导出脱敏诊断包。
-            onContinue = { runtimeUi.hostProgressReady = true },
+            onContinue = {
+                runtimeUi.hostProgressReady = true
+                StartupGateMemory.passed = true
+            },
         )
         return
     }
@@ -1611,6 +1771,12 @@ fun MainAppHost(
         var ticks = 0
         while (true) {
             kotlinx.coroutines.delay(4_000)
+            // Опрос нужен только видимому интерфейсу: в фоне или при остановленном локальном
+            // Host он лишь будил радио/CPU каждые 4 секунды и разряжал батарею.
+            if (!UserActivity.isForeground) continue
+            if (ui.activeHostId == com.deepseek.dsh.core.model.HostDescriptor.Local().id &&
+                runner.statusFlow.value.phase != RuntimePhase.RUNNING
+            ) continue
             ticks += 1
             // 桥对客户端 bundle 是增量扫描的：每轮只求值一个，结果累积。定时刷新让
             // 后续批次继续推进，扫描完成后不再产生新条目，刷新也就变成一次廉价读。
@@ -1873,7 +2039,20 @@ fun MainAppHost(
                         if (hostWorkspace != null) {
                             scope.launch { dshRepository.deleteWorkspace(ui.activeHostId, hostWorkspace.id) }
                         }
-                        runCatching { target.deleteRecursively() }
+                        // 只允许删除当前工作区根目录之内的文件夹（路径可能来自 Host），
+                        // 不跟随符号链接，并且不在主线程做大目录删除（避免 ANR）。
+                        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            runCatching {
+                                val root = activeWorkspace.canonicalFile.toPath()
+                                val resolved = target.canonicalFile.toPath()
+                                if (resolved != root && resolved.startsWith(root)) {
+                                    com.deepseek.dsh.runtime.host.SafeFiles.deleteTree(target)
+                                }
+                            }
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                runtimeUi.workspaceRevision += 1
+                            }
+                        }
                         if (folder.name == runtimeUi.activeWorkspaceName) runtimeUi.activeWorkspaceName = DEFAULT_WORKSPACE_DIR_NAME
                         runtimeUi.workspaceRevision += 1
                         runtimeUi.deleteWorkspaceFolder = null
@@ -1884,8 +2063,13 @@ fun MainAppHost(
     }
     // 文件页：展示工作区（Host 只能看到 Documents/DSH-Workpace），
     // 手机其它位置的文件用系统 picker 选后复制进工作区做「中转」。
-    DisposableEffect(ui.activePage, ui.filesDir) {
-        val observer = if (ui.activePage == ActivePage.FILES) {
+    // Список файлов виден и на странице «Файлы», и во вкладке файлов правой панели чата.
+    // Раньше наблюдатель работал только для страницы, и панель показывала список,
+    // снятый при запуске: новые файлы (в т.ч. созданные агентом) там не появлялись.
+    val filesVisible = ui.activePage == ActivePage.FILES ||
+        (ui.activePage == ActivePage.CHAT && ui.rightDrawerOpen && ui.rightDrawerTab == "files")
+    DisposableEffect(filesVisible, ui.filesDir) {
+        val observer = if (filesVisible) {
             object : android.os.FileObserver(
                 ui.filesDir.absolutePath,
                 android.os.FileObserver.CREATE or
@@ -1905,8 +2089,21 @@ fun MainAppHost(
         }
         onDispose { observer?.stopWatching() }
     }
-    val files = remember(ui.activePage, ui.filesDir, runtimeUi.filesRevision) {
-        workspaceManager.listFiles(ui.filesDir)
+    // 公共存储走 FUSE，每个条目一次 stat；大目录在主线程列举会卡顿甚至 ANR。
+    // 放到 IO 线程，刷新期间保留上一份列表。
+    val files by androidx.compose.runtime.produceState(
+        initialValue = emptyList<com.deepseek.dsh.feature.files.FileItem>(),
+        filesVisible,
+        ui.filesDir,
+        runtimeUi.filesRevision,
+    ) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            // Служебная папка называется «默认工作区» на диске (на имя завязаны сессии Host);
+            // в списке показываем её локализованное название.
+            workspaceManager.listFiles(ui.filesDir).map { item ->
+                if (item.isDirectory && item.name == DEFAULT_WORKSPACE_DIR_NAME) item.copy(name = defaultWorkspaceLabel) else item
+            }
+        }
     }
     // 全文件选择器 → 复制进当前浏览目录（工作区内），Host 才能访问。
     val filesImportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -2650,7 +2847,6 @@ fun MainAppHost(
                                     }
                                 },
                                 onSendMessage = { text ->
-                                    println("DSH_SEND start text=$text selected=$ui.selectedSessionId live=$liveSessionIds")
                                     // 斜杠命令走官方 commands/execute；Host 不认识的
                                     // 回退成普通 prompt。
                                     val commandLine = text.trim()
@@ -2712,18 +2908,9 @@ fun MainAppHost(
                                             java.io.File(activeWorkspace, relative),
                                             java.io.File(java.io.File(activeWorkspace, runtimeUi.activeWorkspaceName), relative),
                                         ).firstOrNull { it.isFile }
-                                        if (file == null || !file.isFile || file.length() > 20L * 1024 * 1024) {
-                                            return@mapNotNull null
-                                        }
-                                        val encoded = android.util.Base64.encodeToString(
-                                            file.readBytes(),
-                                            android.util.Base64.NO_WRAP,
-                                        )
-                                        com.deepseek.dsh.core.protocol.PromptImagePart(
-                                            mediaType = mediaType,
-                                            base64 = encoded,
-                                            name = name,
-                                        )
+                                        if (file == null) return@mapNotNull null
+                                        // Кодирование (и уменьшение) — в фоне, перед отправкой.
+                                        Triple(file, mediaType, name)
                                     }
                                     chatAttachments.clear()
                                     pendingMessages.add(
@@ -2770,7 +2957,6 @@ fun MainAppHost(
                                             }
                                         }
                                         if (sid != null) {
-                                            println("DSH_SEND session=$sid")
                                             // 只有刚创建的会话需要把当前选择写入 modelSelection；
                                             // 已有会话不能再覆盖（之前每次都按账号 provider 重选，
                                             // Kimi/订阅模型的 provider 被改错，回复变空白）。
@@ -2783,11 +2969,28 @@ fun MainAppHost(
                                                         ?: if (accountState.hasApiKey) "deepseek-official" else "deepseek-account",
                                                 )
                                             }
-                                            dshRepository.sendMessage(ui.activeHostId, sid, outgoingText, outgoingImages)
+                                            val encodedImages = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                outgoingImages.mapNotNull { (file, mediaType, name) ->
+                                                    runCatching { PromptImageEncoder.encode(file, mediaType, name) }.getOrNull()
+                                                }
+                                            }
+                                            dshRepository.sendMessage(ui.activeHostId, sid, outgoingText, encodedImages)
                                         } else {
                                             android.widget.Toast.makeText(
                                                 context, context.getString(R.string.session_create_failed), android.widget.Toast.LENGTH_LONG
                                             ).show()
+                                            // Keep what the user typed visible: the composer is
+                                            // already cleared, so dropping the bubble loses the text.
+                                            pendingMessages.add(
+                                                ChatMessage(
+                                                    hostId = ui.activeHostId,
+                                                    sessionId = "pending",
+                                                    messageId = "local_failed_${System.nanoTime()}",
+                                                    role = MessageRole.USER,
+                                                    content = text,
+                                                    createdAt = System.currentTimeMillis(),
+                                                )
+                                            )
                                             pendingMessages.add(
                                                 ChatMessage(
                                                     hostId = ui.activeHostId,
@@ -3221,15 +3424,21 @@ fun MainAppHost(
                                     ui.activeHostId = host.id
                                 },
                                 onScanPairClick = {
-                                    val newRemote = com.deepseek.dsh.core.model.HostDescriptor.Remote(
-                                        id = "remote_${System.currentTimeMillis()}",
-                                        name = context.getString(R.string.new_paired_remote_host),
-                                        baseUrl = "https://192.168.1.120:8443",
-                                        deviceToken = "sec_pair_tok"
-                                    )
-                                    availableHosts.add(newRemote)
+                                    // 之前这里直接塞进一个写死地址与令牌的「假」远程主机；
+                                    // 现在走真实配对：粘贴网关二维码内容，校验指纹并换取令牌。
+                                    pairingDialogOpen = true
                                 }
                             )
+                            if (pairingDialogOpen) {
+                                RemotePairingDialog(
+                                    onDismiss = { pairingDialogOpen = false },
+                                    onPaired = { remote ->
+                                        availableHosts.removeAll { it.id == remote.id }
+                                        availableHosts.add(remote)
+                                        pairingDialogOpen = false
+                                    },
+                                )
+                            }
                         }
 
                         ActivePage.TERMINAL -> PageContentSlot { terminalContent() }
@@ -3278,7 +3487,14 @@ fun MainAppHost(
                             onSignOut = hostSignOut,
                             onManageAccount = { openUrl(accountState.platformUrl) },
                             onCreateBackup = {
-                                scope.launch { backupAndDiag.createUserDataBackup() }
+                                scope.launch {
+                                    shareArchive(
+                                        context,
+                                        backupAndDiag.createUserDataBackup(),
+                                        context.getString(R.string.share_backup_title),
+                                        context.getString(R.string.backup_failed),
+                                    )
+                                }
                             },
                             onCreateAgentPreset = {
                                 // 官方「让 Agent 帮我创建预设模式」：新建创造模式会话。
@@ -3292,7 +3508,14 @@ fun MainAppHost(
                                 ).show()
                             },
                             onExportDiagnostics = {
-                                scope.launch { backupAndDiag.exportDiagnosticsZip() }
+                                scope.launch {
+                                    shareArchive(
+                                        context,
+                                        backupAndDiag.exportDiagnosticsZip(),
+                                        context.getString(R.string.share_diagnostics_title),
+                                        context.getString(R.string.diagnostics_failed),
+                                    )
+                                }
                             },
                             onClose = { ui.activePage = ActivePage.CHAT },
                             pluginComponentRefresh = dshRepository.pluginComponentRefreshFlow,

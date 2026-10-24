@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rt_download">Downloading rootfs (%1$s)…</string>
+    <string name="rt_download_pct">Downloading rootfs… %1$d%%</string>
+    <string name="rt_https_required">The rootfs download URL must use HTTPS: %1$s</string>
+    <string name="rt_sha_missing">The rootfs manifest has no valid SHA-256; installation refused</string>
+    <string name="rt_no_url">No rootfs download URL configured</string>
+    <string name="rt_archive_missing">The rootfs archive is missing or empty</string>
+    <string name="rt_busy">Another rootfs installation is in progress</string>
+    <string name="rt_verify">Verifying rootfs SHA-256…</string>
+    <string name="rt_sha_mismatch">Rootfs SHA-256 mismatch: expected %1$s, got %2$s</string>
+    <string name="rt_no_space">Not enough storage: about %1$d MB needed, %2$d MB available. The current runtime was left unchanged.</string>
+    <string name="rt_extract">Extracting rootfs…</string>
+    <string name="rt_extract_pct">Extracting rootfs… %1$d%%</string>
+    <string name="rt_incomplete">The rootfs is incomplete: etc/os-release / usr/bin/env missing</string>
+    <string name="rt_replace">Replacing the rootfs directory…</string>
+    <string name="rt_selfcheck">Checking the runtime toolchain…</string>
+    <string name="rt_done">Runtime installed</string>
+    <string name="rt_http_failed">rootfs download failed: HTTP %1$d</string>
+    <string name="rt_check_latest">Checking the latest rootfs version…</string>
+    <string name="rt_manifest_failed">Could not fetch the rootfs manifest: %1$s</string>
+    <string name="rt_manifest_offline">Cannot fetch the rootfs manifest: no network and no local cache</string>
+    <string name="rt_manifest_bundled">Using the manifest bundled with the APK (may be outdated)…</string>
+    <string name="rt_prepare">Preparing to install %1$s…</string>
+    <string name="rt_bundled_extract">Extracting the bundled rootfs (%1$s)…</string>
+    <string name="rt_bundled_failed">Could not extract the bundled rootfs: %1$s</string>
+    <string name="rt_not_installed">The rootfs is not installed: install it from the runtime page first</string>
+    <string name="rt_incompatible">The rootfs is incompatible with this APK: installed %1$s, this APK targets dsh%2$s. Reinstall a matching rootfs in Settings → Runtime.</string>
+    <string name="rt_host_exited">The Host process exited during startup</string>
+    <string name="rt_no_output">no output</string>
+    <string name="rt_host_timeout">Host startup timed out (no port or token within %1$d s):\n%2$s</string>
+    <string name="rt_start_cancelled">Startup was stopped</string>
+    <string name="rt_cannot_start">Could not start the Host process</string>
+    <string name="rt_host_exited_code">The Host process exited (exit=%1$d): %2$s</string>
+    <string name="rt_host_crashed_code">The Host process exited unexpectedly (exit=%1$d): %2$s</string>
+</resources>

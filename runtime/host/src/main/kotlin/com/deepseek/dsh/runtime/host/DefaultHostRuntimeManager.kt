@@ -39,6 +39,10 @@ class DefaultHostRuntimeManager(
         // 只看本地文件与安装标记：这里判断的是「装没装」，不该因为离线而改变结论。
         runCatching {
             val installer = RootfsInstaller(layout)
+            // Сначала откатываем установку, прерванную kill/выключением во время замены
+            // rootfs, и убираем брошенный staging. Раньше это делалось только при следующей
+            // установке, а проверка при запуске смотрела на недоделанный каталог.
+            installer.recoverInterruptedInstall()
             val installed = installer.installedVersion() ?: return@runCatching false
             val marker = installer.readMarker()
             val currentAbi = android.os.Build.SUPPORTED_ABIS.firstOrNull().orEmpty()
@@ -129,12 +133,13 @@ class DefaultHostRuntimeManager(
         version: String,
         onProgress: (Float, String) -> Unit,
     ): Result<String> = withContext(Dispatchers.IO) {
+        lastStartResult = null
         val manifest = BridgePluginManifest.load(context)
             ?: return@withContext Result.failure(
-                IllegalStateException("APK 未内置插件清单（assets/${BridgePluginManifest.ASSET}）")
+                IllegalStateException(com.deepseek.dsh.core.model.Tr.t("The APK has no bundled plugin manifest (assets/${BridgePluginManifest.ASSET})", "В APK нет встроенного манифеста плагинов (assets/${BridgePluginManifest.ASSET})", "APK 未内置插件清单（assets/${BridgePluginManifest.ASSET}）"))
             )
         if (manifest.repository.isBlank()) {
-            return@withContext Result.failure(IllegalStateException("插件清单未配置安装源"))
+            return@withContext Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Plugin manifest has no install source", "В манифесте плагинов не указан источник", "插件清单未配置安装源")))
         }
         BridgePluginInstaller(context, layout).installFromRelease(
             repository = manifest.repository,
@@ -144,25 +149,27 @@ class DefaultHostRuntimeManager(
     }
 
     override suspend fun installRootfs(onProgress: (Float, String) -> Unit): Result<Unit> = withContext(Dispatchers.IO) {
+        // Новый rootfs — новая попытка: прошлая ошибка запуска не должна блокировать прогрев.
+        lastStartResult = null
         layout.ensureDirectories()
         val installer = RootfsInstaller(layout)
         // 清单实时拉取：下载地址与校验值随每次发版变化，内置的那份会过期，
         // 用它去下载只会得到 404 或校验失败。装不上就直接报错，不猜。
-        onProgress(0.01f, "检查最新 rootfs 版本...")
+        onProgress(0.01f, HostStrings.get(R.string.rt_check_latest, "Checking the latest rootfs version…"))
         val resolved = try {
             manifestSource().resolve(forceRefresh = true)
         } catch (e: Exception) {
             return@withContext Result.failure(
-                IllegalStateException("获取 rootfs 清单失败: ${e.message}")
+                IllegalStateException(HostStrings.get(R.string.rt_manifest_failed, "Could not fetch the rootfs manifest: %1\$s", e.message))
             )
         } ?: return@withContext Result.failure(
-            IllegalStateException("无法获取 rootfs 清单：网络不可用，且没有本地缓存")
+            IllegalStateException(HostStrings.get(R.string.rt_manifest_offline, "Cannot fetch the rootfs manifest: no network and no local cache"))
         )
         val manifest = resolved.manifest
         if (resolved.origin == RootfsManifestSource.Origin.BUNDLED) {
-            onProgress(0.01f, "使用 APK 内置清单（可能已过期）…")
+            onProgress(0.01f, HostStrings.get(R.string.rt_manifest_bundled, "Using the manifest bundled with the APK (may be outdated)…"))
         }
-        onProgress(0f, "准备安装 ${manifest.baseDistro.ifBlank { "rootfs" }}...")
+        onProgress(0f, HostStrings.get(R.string.rt_prepare, "Preparing to install %1\$s…", manifest.baseDistro.ifBlank { "rootfs" }))
 
         // App 自带 rootfs 优先；否则按 ABI 下载首次运行所需的归档。
         val abi = android.os.Build.SUPPORTED_ABIS.firstOrNull {
@@ -173,7 +180,7 @@ class DefaultHostRuntimeManager(
             val cacheArchive = File(layout.cacheDir, "rootfs-$abi.tar.gz")
             val expectedSha = manifest.assetSha256[abi]
             if (!cacheArchive.isFile || cacheArchive.length() == 0L) {
-                onProgress(0.02f, "释放内置 rootfs ($abi)...")
+                onProgress(0.02f, HostStrings.get(R.string.rt_bundled_extract, "Extracting the bundled rootfs (%1\$s)…", abi))
                 try {
                     context.assets.open(assetPath).use { input ->
                         cacheArchive.outputStream().use { output ->
@@ -182,7 +189,7 @@ class DefaultHostRuntimeManager(
                     }
                 } catch (e: Exception) {
                     return@withContext Result.failure(
-                        IllegalStateException("释放内置 rootfs 失败: ${e.message}")
+                        IllegalStateException(HostStrings.get(R.string.rt_bundled_failed, "Could not extract the bundled rootfs: %1\$s", e.message))
                     )
                 }
             }
@@ -205,7 +212,7 @@ class DefaultHostRuntimeManager(
             RuntimeAddonShim.ensure(layout)
             runner.markInstalled()
             if (!layout.prootBinary.isFile) {
-                onProgress(1f, "rootfs 已安装；缺少 ${manifest.prootLibrary}（需按 ABI 打包到 jniLibs）")
+                onProgress(1f, com.deepseek.dsh.core.model.Tr.t("rootfs installed; ${manifest.prootLibrary} is missing (must be packaged per ABI in jniLibs)", "rootfs установлен; нет ${manifest.prootLibrary} (нужно упаковать в jniLibs под ABI)", "rootfs 已安装；缺少 ${manifest.prootLibrary}（需按 ABI 打包到 jniLibs）"))
             }
         }
         result
@@ -715,6 +722,9 @@ class DefaultHostRuntimeManager(
         /** Logcat tag。 */
         const val TAG = "DshHostRuntime"
 
+        /** Сколько автоматический прогрев не повторяет неудачный запуск Host. */
+        const val AUTO_START_COOLDOWN_MS = 5 * 60_000L
+
         /** 启动时等待 `dsh web:` URL 的上限；超时按启动失败处理，不再无限 STARTING。 */
         const val ENDPOINT_TIMEOUT_MS = 90_000L
 
@@ -771,19 +781,59 @@ class DefaultHostRuntimeManager(
             .toList()
     }.getOrDefault(emptyList())
 
-    override suspend fun start(workspacePath: String): Result<RuntimeStatus> = startMutex.withLock {
+    /** Номер последней завершённой попытки запуска и её результат (см. [start]). */
+    private val startAttempts = java.util.concurrent.atomic.AtomicLong(0)
+    @Volatile
+    private var lastStartResult: Result<RuntimeStatus>? = null
+    @Volatile
+    private var lastStartFailedAt = 0L
 
-        if (runner.isRunning()) return@withLock Result.success(runner.statusFlow.value)
+    override suspend fun warmUp(workspacePath: String): Result<RuntimeStatus> {
+        val failure = lastStartResult?.takeIf { it.isFailure }
+        if (failure != null && !runner.isRunning() &&
+            System.currentTimeMillis() - lastStartFailedAt < AUTO_START_COOLDOWN_MS
+        ) {
+            return failure
+        }
+        return start(workspacePath)
+    }
+
+    /**
+     * При открытии приложения Host запрашивают сразу несколько мест (Application,
+     * экран запуска, проверка rootfs). Раньше каждый вызов из очереди за [startMutex]
+     * после неудачной попытки заново поднимал proot — несколько тяжёлых запусков
+     * подряд и минуты до показа ошибки. Вызовы, которые ждали, пока шла попытка,
+     * теперь получают её результат; явный повтор (после ошибки) запускает новую.
+     */
+    override suspend fun start(workspacePath: String): Result<RuntimeStatus> {
+        val observedAttempt = startAttempts.get()
+        return startMutex.withLock {
+            if (runner.isRunning()) return@withLock Result.success(runner.statusFlow.value)
+            val finishedMeanwhile = lastStartResult
+            if (startAttempts.get() != observedAttempt && finishedMeanwhile != null) {
+                return@withLock finishedMeanwhile
+            }
+            startLocked(workspacePath).also {
+                lastStartResult = it
+                if (it.isFailure) lastStartFailedAt = System.currentTimeMillis()
+                startAttempts.incrementAndGet()
+            }
+        }
+    }
+
+    private suspend fun startLocked(workspacePath: String): Result<RuntimeStatus> {
         // NonCancellable：调用方的 scope 被取消（切页/重组/返回）时，不能把 runner
         // 丢在 STARTING 里。启动要么跑完、要么落到明确的 ERROR，由看门狗和超时兜底。
-        withContext(Dispatchers.IO + NonCancellable) {
+        val result = withContext(Dispatchers.IO + NonCancellable) {
         layout.ensureDirectories()
+        // Прогрев из Application идёт сюда напрямую: откатываем прерванную замену rootfs до запуска.
+        runCatching { RootfsInstaller(layout).recoverInterruptedInstall() }
 
         val hasRootfs = File(layout.rootfsDir, "etc/os-release").isFile ||
             File(layout.rootfsDir, "usr/bin/env").isFile
         if (!hasRootfs) {
             return@withContext Result.failure(
-                IllegalStateException("rootfs 未安装：请先在运行控制页安装 Rootfs")
+                IllegalStateException(HostStrings.get(R.string.rt_not_installed, "The rootfs is not installed: install it from the runtime page first"))
             )
         }
         // APK 的 rootfs 补丁按内置清单的 DSH 版本整文件替换；已安装镜像若来自
@@ -799,9 +849,7 @@ class DefaultHostRuntimeManager(
         ) {
             return@withContext Result.failure(
                 IllegalStateException(
-                    "rootfs 与当前 APK 不兼容：已安装 $installedRootfsVersion，" +
-                        "当前 APK 的补丁目标是 dsh$expectedDsh。" +
-                        "请在设置 → 运行控制中重新安装匹配的 Rootfs。"
+                    HostStrings.get(R.string.rt_incompatible, "The rootfs is incompatible with this APK: installed %1\$s, this APK targets dsh%2\$s. Reinstall a matching rootfs in Settings → Runtime.", installedRootfsVersion, expectedDsh)
                 )
             )
         }
@@ -825,7 +873,7 @@ class DefaultHostRuntimeManager(
         killStaleHostProcesses()
         if (!layout.prootBinary.isFile) {
             return@withContext Result.failure(
-                IllegalStateException("缺少 ${layout.prootBinary.name}：需把对应 ABI 的 proot 打包到 jniLibs")
+                IllegalStateException(com.deepseek.dsh.core.model.Tr.t("${layout.prootBinary.name} is missing: proot for this ABI must be packaged in jniLibs", "Нет ${layout.prootBinary.name}: proot для этого ABI должен быть в jniLibs", "缺少 ${layout.prootBinary.name}：需把对应 ABI 的 proot 打包到 jniLibs"))
             )
         }
         // proot 的 bind 目标需要存在；DSH 配置目录先创建，避免首次启动 mkdir 失败。
@@ -904,7 +952,7 @@ class DefaultHostRuntimeManager(
 
         // 1. 启动本地 BridgeServer 并获得 loopback 端口；token 写入 guest 的 DSH_HOME，
         // Host 侧补丁按请求携带（见 BridgeAuth）。
-        val bridge = BridgeServer(context, layout.bridgeTokenFile)
+        val bridge = BridgeServer(context, layout.bridgeTokenFile, workspacePath = workspacePath)
         val bridgePort = bridge.start()
         bridgeServer = bridge
 
@@ -912,10 +960,16 @@ class DefaultHostRuntimeManager(
         val serviceIntent = Intent(context, HostService::class.java).apply {
             action = HostService.ACTION_START
         }
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            context.startForegroundService(serviceIntent)
-        } else {
-            context.startService(serviceIntent)
+        // Когда приложение на переднем плане, обычный startService разрешён и не
+        // требует вызвать startForeground за 5 секунд. С startForegroundService
+        // медленный главный поток (холодный старт Compose) не успевал создать сервис,
+        // и система убивала процесс RemoteServiceException — воспроизведено на
+        // эмуляторе Android 8. Из фона startService бросает IllegalStateException,
+        // тогда остаётся startForegroundService; сервис сам переходит в foreground.
+        val started = runCatching { context.startService(serviceIntent) }.isSuccess
+        if (!started && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            runCatching { context.startForegroundService(serviceIntent) }
+                .onFailure { android.util.Log.w(TAG, "HostService не запущен", it) }
         }
 
         // 3. 将 DSH_ANDROID_BRIDGE_PORT 环境变量注入 proot 容器
@@ -996,7 +1050,7 @@ class DefaultHostRuntimeManager(
                 // 不要用「超时」覆盖掉真正的原因。
                 bridge.stop()
                 return@withContext Result.failure(
-                    IllegalStateException(failed.lastError ?: "Host 进程在启动中途退出")
+                    IllegalStateException(failed.lastError ?: HostStrings.get(R.string.rt_host_exited, "The Host process exited during startup"))
                 )
             }
             if (failed.phase == RuntimePhase.STOPPED) {
@@ -1008,8 +1062,8 @@ class DefaultHostRuntimeManager(
             // 一句「未能解析到端口」，而是 Host 最后打印了什么。
             runner.terminate()
             val tail = runner.statusFlow.value.logTail.takeLast(LOG_TAIL_ON_ERROR)
-            val detail = if (tail.isEmpty()) "无输出" else tail.joinToString("\n")
-            val message = "Host 启动超时（${ENDPOINT_TIMEOUT_MS / 1000} 秒内未解析到端口或 token）：\n$detail"
+            val detail = if (tail.isEmpty()) HostStrings.get(R.string.rt_no_output, "no output") else tail.joinToString("\n")
+            val message = HostStrings.get(R.string.rt_host_timeout, "Host startup timed out (no port or token within %1\$d s):\n%2\$s", ENDPOINT_TIMEOUT_MS / 1000, detail)
             runner.markError(message)
             bridge.stop()
             return@withContext Result.failure(IllegalStateException(message))
@@ -1020,6 +1074,7 @@ class DefaultHostRuntimeManager(
         runner.markReady()
         Result.success(runner.statusFlow.value)
         }
+        return result
     }
 
     override suspend fun stop(): Result<Unit> = withContext(Dispatchers.IO) {
@@ -1030,7 +1085,9 @@ class DefaultHostRuntimeManager(
         val serviceIntent = Intent(context, HostService::class.java).apply {
             action = HostService.ACTION_STOP
         }
-        context.startService(serviceIntent)
+        // 后台（例如从最近任务划掉后）startService 可能抛 IllegalStateException；
+        // Host 进程已经结束，服务停不停都不应让调用方崩溃。
+        runCatching { context.startService(serviceIntent) }
         result
     }
 
@@ -1056,7 +1113,7 @@ class DefaultHostRuntimeManager(
                     val complete = File(gitDir, "objects").isDirectory &&
                         File(gitDir, "refs").isDirectory
                     if (complete) return@forEach
-                    runCatching { gitDir.deleteRecursively() }
+                    runCatching { SafeFiles.deleteTree(gitDir) }
                 }
                 val hostPath = "/workspace/" + directory.name
                 val exec = ProotCommandBuilder.buildExec(

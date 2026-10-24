@@ -99,7 +99,7 @@ import java.io.File
 class MainActivity : ComponentActivity() {
     /** 使用 app-specific 外部目录，proot/Android 11+ 才能稳定读写（不受 MANAGE_EXTERNAL_STORAGE 限制）。 */
     private val visibleWorkspaceDir: File by lazy {
-        File(android.os.Environment.getExternalStorageDirectory(), "Documents/DSH-Workspace")
+        StorageAccess.workspaceRoot(this)
     }
 
 
@@ -115,9 +115,25 @@ class MainActivity : ComponentActivity() {
     private val nativePluginRescanFlow = kotlinx.coroutines.flow.MutableStateFlow(0)
     private var nativePackageReceiver: android.content.BroadcastReceiver? = null
 
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        UserActivity.touch()
+    }
+
+    override fun onPause() {
+        UserActivity.isForeground = false
+        super.onPause()
+    }
+
     override fun onResume() {
         super.onResume()
+        UserActivity.isForeground = true
+        UserActivity.touch()
         nativePluginRescanFlow.value += 1
+    }
+
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(AppLanguage.wrap(newBase))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -209,11 +225,22 @@ class MainActivity : ComponentActivity() {
         nativePackageReceiver = null
         if (isFinishing) {
             val app = application as DshApplication
-            Thread {
-                kotlinx.coroutines.runBlocking {
-                    runCatching { app.runtimeManager.stop() }
+            if (com.deepseek.dsh.runtime.host.HostService.shouldKeepHostInBackground(this)) {
+                // Идёт задача агента и включена «защита долгих задач»: не обрываем её,
+                // сервис остановит Host сам, когда задачи закончатся.
+                runCatching {
+                    startService(
+                        android.content.Intent(this, com.deepseek.dsh.runtime.host.HostService::class.java)
+                            .setAction(com.deepseek.dsh.runtime.host.HostService.ACTION_KEEP_WHILE_TASKS),
+                    )
                 }
-            }.start()
+            } else {
+                Thread {
+                    kotlinx.coroutines.runBlocking {
+                        runCatching { app.runtimeManager.stop() }
+                    }
+                }.start()
+            }
         }
         super.onDestroy()
     }

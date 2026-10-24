@@ -119,11 +119,11 @@ data class WorkspaceFolder(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ModernNavigationDrawerContent(
-    userName: String = "DeepSeek 用户",
+    userName: String = stringResource(R.string.drawer_default_user_name),
     avatarUrl: String? = null,
     updateVersion: String? = null,
     onUpdateClick: () -> Unit = {},
-    userTag: String = "未认证",
+    userTag: String = stringResource(R.string.drawer_unverified),
     accountBalance: String = "¥0.00",
     isSignedIn: Boolean = false,
     onSignIn: () -> Unit = {},
@@ -379,7 +379,7 @@ fun ModernNavigationDrawerContent(
                     )
                     if (searchQuery.isEmpty()) {
                         Text(
-                            "搜索会话名称",
+                            stringResource(R.string.drawer_search_sessions_hint),
                             color = textMuted,
                             fontSize = 13.sp,
                             modifier = Modifier.offset(y = (-1.5).dp)
@@ -388,7 +388,7 @@ fun ModernNavigationDrawerContent(
                 }
                 Icon(
                     painter = painterResource(id = com.deepseek.dsh.core.designsystem.R.drawable.ic_close),
-                    contentDescription = "关闭搜索",
+                    contentDescription = stringResource(R.string.drawer_close_search),
                     tint = textMuted,
                     modifier = Modifier
                         .size(14.dp)
@@ -431,7 +431,7 @@ fun ModernNavigationDrawerContent(
             ) {
                 Icon(
                     painter = painterResource(id = com.deepseek.dsh.core.designsystem.R.drawable.ic_action_search_official),
-                    contentDescription = "搜索",
+                    contentDescription = stringResource(R.string.drawer_search),
                     tint = textMuted,
                     modifier = Modifier.size(14.dp)
                 )
@@ -446,7 +446,7 @@ fun ModernNavigationDrawerContent(
                 ) {
                     Icon(
                         painter = painterResource(id = com.deepseek.dsh.core.designsystem.R.drawable.ic_action_filter_official),
-                        contentDescription = "视图选项",
+                        contentDescription = stringResource(R.string.drawer_view_options),
                         tint = textMuted,
                         modifier = Modifier.size(14.dp)
                     )
@@ -475,7 +475,7 @@ fun ModernNavigationDrawerContent(
                 contentAlignment = Alignment.Center
             ) {                Icon(
                     painter = painterResource(id = com.deepseek.dsh.core.designsystem.R.drawable.ic_action_project_add_official),
-                    contentDescription = "新建工作区",
+                    contentDescription = stringResource(R.string.drawer_new_workspace),
                     tint = textMuted,
                     modifier = Modifier.size(14.dp)
                 )
@@ -812,7 +812,7 @@ fun ModernNavigationDrawerContent(
                                         painter = androidx.compose.ui.res.painterResource(
                                             com.deepseek.dsh.core.designsystem.R.drawable.ic_row_archive
                                         ),
-                                        contentDescription = if (session.archived) "取消归档" else "归档会话",
+                                        contentDescription = if (session.archived) stringResource(R.string.drawer_unarchive) else stringResource(R.string.drawer_archive_session),
                                         tint = textMuted,
                                         modifier = Modifier.size(15.dp),
                                     )
@@ -904,7 +904,7 @@ fun ModernNavigationDrawerContent(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "新版本",
+                                text = stringResource(R.string.drawer_new_version),
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 fontSize = 11.sp
                             )
@@ -1133,21 +1133,21 @@ private fun ViewOptionsMenu(
     onSortMode: (SessionSortMode) -> Unit,
     onArchiveFilter: (ArchiveFilter) -> Unit,
 ) {
-    DshMenuSectionLabel("分组方式")
-    GroupModeRow("按工作区", groupMode == WorkspaceGroupMode.WORKSPACE) { onGroupMode(WorkspaceGroupMode.WORKSPACE) }
-    GroupModeRow("按工作区树", groupMode == WorkspaceGroupMode.TREE) { onGroupMode(WorkspaceGroupMode.TREE) }
-    GroupModeRow("单列表", groupMode == WorkspaceGroupMode.SINGLE_LIST) { onGroupMode(WorkspaceGroupMode.SINGLE_LIST) }
-    DshMenuSectionLabel("排序方式")
-    GroupModeRow("手动排序", sortMode == SessionSortMode.MANUAL) { onSortMode(SessionSortMode.MANUAL) }
-    GroupModeRow("最近更新", sortMode == SessionSortMode.RECENT) { onSortMode(SessionSortMode.RECENT) }
-    DshMenuSectionLabel("筛选会话")
-    GroupModeRow("隐藏已归档", archiveFilter == ArchiveFilter.HIDE_ARCHIVED) {
+    DshMenuSectionLabel(stringResource(R.string.drawer_group_by))
+    GroupModeRow(stringResource(R.string.drawer_group_workspace), groupMode == WorkspaceGroupMode.WORKSPACE) { onGroupMode(WorkspaceGroupMode.WORKSPACE) }
+    GroupModeRow(stringResource(R.string.drawer_group_tree), groupMode == WorkspaceGroupMode.TREE) { onGroupMode(WorkspaceGroupMode.TREE) }
+    GroupModeRow(stringResource(R.string.drawer_group_single), groupMode == WorkspaceGroupMode.SINGLE_LIST) { onGroupMode(WorkspaceGroupMode.SINGLE_LIST) }
+    DshMenuSectionLabel(stringResource(R.string.drawer_sort_by))
+    GroupModeRow(stringResource(R.string.drawer_sort_manual), sortMode == SessionSortMode.MANUAL) { onSortMode(SessionSortMode.MANUAL) }
+    GroupModeRow(stringResource(R.string.drawer_sort_recent), sortMode == SessionSortMode.RECENT) { onSortMode(SessionSortMode.RECENT) }
+    DshMenuSectionLabel(stringResource(R.string.drawer_filter_sessions))
+    GroupModeRow(stringResource(R.string.drawer_filter_hide_archived), archiveFilter == ArchiveFilter.HIDE_ARCHIVED) {
         onArchiveFilter(ArchiveFilter.HIDE_ARCHIVED)
     }
-    GroupModeRow("全部对话（显示已归档）", archiveFilter == ArchiveFilter.ALL) {
+    GroupModeRow(stringResource(R.string.drawer_filter_all), archiveFilter == ArchiveFilter.ALL) {
         onArchiveFilter(ArchiveFilter.ALL)
     }
-    GroupModeRow("仅显示已归档", archiveFilter == ArchiveFilter.ONLY_ARCHIVED) {
+    GroupModeRow(stringResource(R.string.drawer_filter_only_archived), archiveFilter == ArchiveFilter.ONLY_ARCHIVED) {
         onArchiveFilter(ArchiveFilter.ONLY_ARCHIVED)
     }
 }
@@ -1174,7 +1174,7 @@ private fun WorkspaceRowMenu(
     ) {
         DshMenuRow(onClick = { onDismiss(); onRename() }) {
             DshMenuIcon(com.deepseek.dsh.core.designsystem.R.drawable.ic_action_rename_official)
-            DshMenuLabel("重命名")
+            DshMenuLabel(stringResource(R.string.drawer_rename))
         }
         DshMenuRow(onClick = { onDismiss(); onDelete() }, danger = true) {
             val error = com.deepseek.dsh.core.designsystem.dshPanelColors().stateErrorPrimary
@@ -1183,7 +1183,7 @@ private fun WorkspaceRowMenu(
                 tint = error
             )
             Text(
-                text = "删除工作区",
+                text = stringResource(R.string.drawer_delete_workspace),
                 color = error,
                 fontSize = 13.sp,
                 lineHeight = 20.sp,

@@ -372,7 +372,7 @@ fun ModernTopAppBar(
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = DshIcons.PanelLeftOutline,
-                        contentDescription = "Menu",
+                        contentDescription = stringResource(R.string.a11y_open_menu),
                         tint = barColors.labelPrimary,
                         modifier = Modifier.size(18.dp)
                     )
@@ -444,7 +444,7 @@ fun ModernTopAppBar(
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = DshIcons.PanelLeftOutline,
-                            contentDescription = "Right sidebar",
+                            contentDescription = stringResource(R.string.a11y_right_sidebar),
                             tint = barColors.labelPrimary,
                             modifier = Modifier
                                 .size(18.dp)

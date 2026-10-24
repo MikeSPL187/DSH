@@ -282,7 +282,7 @@
     <string name="market_incompatible_version">此版本与当前的 DSH 不兼容，它要求 DSH %1$s</string>
     <string name="market_install_success">已安装 %1$s</string>
     <string name="market_install_failure">安装失败：%1$s</string>
-    <string name="market_invalid_source_url">请使用 http 或 https 地址，且不要包含用户名、密码或 # 片段</string>
+    <string name="market_invalid_source_url">请使用 https 地址，且不要包含用户名、密码或 # 片段</string>
     <string name="market_duplicate_source">已添加过这个索引源</string>
     <string name="market_third_party_note">索引由第三方提供。只添加你信任的来源：其中的插件安装后以你的权限运行</string>
     <string name="market_sources_desc_long">插件市场以一个索引文件的 URL 提供，「发现」从这里列出的索引浏览插件</string>
@@ -652,4 +652,16 @@
     <string name="agent_presets_create_hint">已打开创造模式会话，描述你想要的预设即可。</string>
     <string name="right_guide_plugin_desc">打开插件页面</string>
     <string name="host_loading_data">正在加载账号与插件…</string>
+    <string name="plugin_status_needs_approval">待批准</string>
+    <string name="native_trust_title">允许这个原生插件？</string>
+    <string name="native_trust_title_changed">原生插件身份已变化</string>
+    <string name="native_trust_changed_warning">这个插件 ID 之前批准的是另一个包名或签名证书，可能已被其他应用替换。只有在你刚从可信来源安装了更新时才允许。</string>
+    <string name="native_trust_desc">原生插件会在 DSH 进程内运行，拥有 DSH 的全部权限，可以读取工作区、令牌和设置。只允许你信任的开发者的插件。</string>
+    <string name="native_trust_identity">插件：%1$s\n包名：%2$s\n证书 SHA-256：\n%3$s</string>
+    <string name="native_trust_js_package">允许后还会安装配对的 Host 插件：%1$s</string>
+    <string name="native_trust_allow">允许</string>
+    <string name="native_trust_deny">暂不</string>
+    <string name="remote_pairing_title">配对远程 Host</string>
+    <string name="remote_pairing_desc">粘贴网关显示的配对码（二维码内容）。发送配对码之前，会先用码里的证书指纹校验连接。</string>
+    <string name="remote_pairing_connect">配对</string>
 </resources>

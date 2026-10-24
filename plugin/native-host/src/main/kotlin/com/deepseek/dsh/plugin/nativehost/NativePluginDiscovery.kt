@@ -36,7 +36,12 @@ data class InstalledNativePlugin(
     /** APK 的安装/更新时间（毫秒），用于插件商店的更新提醒。 */
     val lastUpdateTime: Long = 0L,
 ) {
-    enum class Status { READY, ABI_TOO_NEW, APP_TOO_OLD, SIGNATURE_MISMATCH, DISABLED }
+    /**
+     * - READY：用户已批准且包名/签名与批准时一致，可以加载。
+     * - UNTRUSTED：首次发现、尚未经用户批准；不加载任何代码。
+     * - SIGNATURE_MISMATCH：同一 pluginId 的包名或签名与批准时不同（掉包/重签），不加载。
+     */
+    enum class Status { READY, UNTRUSTED, ABI_TOO_NEW, APP_TOO_OLD, SIGNATURE_MISMATCH, DISABLED }
 }
 
 /**
@@ -53,12 +58,13 @@ class NativePluginDiscovery(private val context: Context) {
      *
      * @param appVersionCode 当前 App 的版本码（ABI 门禁用）。
      * @param supportedApiVersion 当前 App 内 native-SDK 的 ABI 版本。
-     * @param pinnedFingerprints 已钉死的 pluginId → 指纹（首次见由调用方钉死）。
+     * @param pins 用户批准过的 pluginId → (包名, 指纹)，见 [NativePluginTrustStore]。
+     *   没有 pin 的伴侣一律是 UNTRUSTED，绝不因为「首次见到」而自动信任。
      */
     fun scan(
         appVersionCode: Int,
         supportedApiVersion: Int,
-        pinnedFingerprints: Map<String, String>,
+        pins: Map<String, NativePluginPin>,
     ): List<InstalledNativePlugin> {
         val pm = context.packageManager
         val intent = Intent(ACTION_PLUGIN_UI)
@@ -76,16 +82,18 @@ class NativePluginDiscovery(private val context: Context) {
             val fingerprint = signingFingerprint(pm, packageName) ?: return@mapNotNull null
 
             val pkgInfo = runCatching { pm.getPackageInfo(packageName, 0) }.getOrNull()
-            val versionCode = pkgInfo?.longVersionCode?.toInt() ?: 0
+            val versionCode = pkgInfo?.let { androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(it).toInt() } ?: 0
             val lastUpdateTime = pkgInfo?.lastUpdateTime ?: 0L
 
             // ABI 门禁：任一不匹配 → 标记状态，绝不进入加载流程。
             val status = when {
                 apiVersion > supportedApiVersion -> InstalledNativePlugin.Status.ABI_TOO_NEW
                 minAppVersion > appVersionCode -> InstalledNativePlugin.Status.APP_TOO_OLD
-                pinnedFingerprints[pluginId]?.let { it != fingerprint } == true ->
-                    InstalledNativePlugin.Status.SIGNATURE_MISMATCH
-                else -> InstalledNativePlugin.Status.READY
+                else -> when (NativePluginTrustPolicy.evaluate(packageName, fingerprint, pins[pluginId])) {
+                    NativePluginTrustPolicy.Verdict.TRUSTED -> InstalledNativePlugin.Status.READY
+                    NativePluginTrustPolicy.Verdict.UNTRUSTED -> InstalledNativePlugin.Status.UNTRUSTED
+                    NativePluginTrustPolicy.Verdict.MISMATCH -> InstalledNativePlugin.Status.SIGNATURE_MISMATCH
+                }
             }
 
             InstalledNativePlugin(
@@ -104,16 +112,31 @@ class NativePluginDiscovery(private val context: Context) {
         }
     }
 
-    /** 读一个包的签名证书 SHA-256 指纹（小写无分隔）。 */
-    private fun signingFingerprint(pm: PackageManager, packageName: String): String? = runCatching {
-        val info = pm.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES)
-        val signatures = info.signingInfo?.apkContentsSigners ?: return null
-        val cert = signatures.firstOrNull()?.toByteArray() ?: return null
-        val digest = java.security.MessageDigest.getInstance("SHA-256").digest(cert)
-        digest.joinToString("") { "%02x".format(it) }
-    }.getOrNull()
+    internal companion object {
+        /**
+         * 读一个包的签名证书 SHA-256 指纹（小写无分隔）。
+         *
+         * 多签名者 APK 不支持：只取一个签名者会让攻击者附加自己的证书绕过 pin，
+         * 因此多签名者一律返回 null（不发现、不加载）。
+         */
+        fun signingFingerprint(pm: PackageManager, packageName: String): String? = runCatching {
+            val cert = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                val info = pm.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES)
+                val signingInfo = info.signingInfo ?: return null
+                if (signingInfo.hasMultipleSigners()) return null
+                signingInfo.apkContentsSigners?.singleOrNull()?.toByteArray() ?: return null
+            } else {
+                // Android 8.x: SigningInfo появился в API 28; раньше этот путь всегда падал,
+                // и на Android 8 нативные плагины не обнаруживались вовсе.
+                @Suppress("DEPRECATION")
+                val info = pm.getPackageInfo(packageName, PackageManager.GET_SIGNATURES)
+                @Suppress("DEPRECATION")
+                info.signatures?.singleOrNull()?.toByteArray() ?: return null
+            }
+            val digest = java.security.MessageDigest.getInstance("SHA-256").digest(cert)
+            digest.joinToString("") { "%02x".format(it) }
+        }.getOrNull()
 
-    private companion object {
         const val ACTION_PLUGIN_UI = "com.deepseek.dsh.action.PLUGIN_UI"
         const val META_ID = "dsh.plugin.id"
         const val META_API_VERSION = "dsh.plugin.apiVersion"
