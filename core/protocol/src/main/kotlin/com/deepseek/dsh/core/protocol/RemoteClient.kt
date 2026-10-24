@@ -1639,7 +1639,12 @@ class RemoteClient(
         while (queue.size > 500) queue.pollFirst()
     }
 
-    private val followSockets = mutableListOf<okhttp3.WebSocket>()
+    /** Номер попытки переподключения follow по сессии; сбрасывается после успешного open. */
+    private val followRetries = java.util.concurrent.ConcurrentHashMap<String, Int>()
+    private val followReconnectExecutor =
+        java.util.concurrent.Executors.newSingleThreadScheduledExecutor { r ->
+            Thread(r, "dsh-follow-reconnect").apply { isDaemon = true }
+        }
     /** 每个会话只保留一条 follow 连接：打开会话和发送 prompt 都会订阅，重复会翻倍 delta。 */
     private val followSocketsBySession =
         java.util.concurrent.ConcurrentHashMap<String, okhttp3.WebSocket>()
@@ -1681,6 +1686,7 @@ class RemoteClient(
         val request = okhttp3.Request.Builder().url(wsUrl).build()
         val socket = client.newWebSocket(request, object : okhttp3.WebSocketListener() {
             override fun onOpen(webSocket: okhttp3.WebSocket, response: okhttp3.Response) {
+                followRetries.remove(sessionId)
                 val streamId = java.util.UUID.randomUUID().toString()
                 val open = buildJsonObject {
                     put("type", "open")
@@ -1800,15 +1806,44 @@ class RemoteClient(
                 }
             }
             override fun onFailure(webSocket: okhttp3.WebSocket, t: Throwable, response: okhttp3.Response?) {
-                followSocketsBySession.remove(sessionId)
+                // remove(key, value): колбэк старого сокета не должен снять запись нового,
+                // иначе следующая подписка откроет второй follow и дельты удвоятся.
+                followSocketsBySession.remove(sessionId, webSocket)
+                // Обрыв (смена сети, Doze, перезапуск Host) раньше тихо прекращал поток ответа
+                // до повторного открытия сессии. Переподключаемся с нарастающей паузой.
+                scheduleFollowReconnect(sessionId, hostId, webSocket)
+            }
+
+            override fun onClosing(webSocket: okhttp3.WebSocket, code: Int, reason: String) {
+                webSocket.close(code, null)
             }
 
             override fun onClosed(webSocket: okhttp3.WebSocket, code: Int, reason: String) {
-                followSocketsBySession.remove(sessionId)
+                followSocketsBySession.remove(sessionId, webSocket)
+                // Сам клиент follow-сокеты не закрывает: закрытие пришло от Host
+                // (перезапуск, обновление плагина) — подписку нужно восстановить.
+                scheduleFollowReconnect(sessionId, hostId, webSocket)
             }
         })
-        followSockets.add(socket)
         followSocketsBySession[sessionId] = socket
+    }
+
+    private fun scheduleFollowReconnect(sessionId: String, hostId: String, failed: okhttp3.WebSocket) {
+        val attempt = followRetries.merge(sessionId, 1, Int::plus) ?: 1
+        if (attempt > FOLLOW_MAX_RETRIES) {
+            // Дальше подписку восстановит следующее открытие сессии или отправка.
+            followRetries.remove(sessionId)
+            return
+        }
+        val delayMs = followRetryDelayMs(attempt)
+        followReconnectExecutor.schedule({
+            // Быстрый обрыв может прийти раньше, чем сокет записан в таблицу: тогда там
+            // лежит уже мёртвый сокет. Снимаем именно его и переподключаемся.
+            followSocketsBySession.remove(sessionId, failed)
+            if (followSocketsBySession[sessionId] == null && baseUrl.isNotBlank()) {
+                runCatching { startSessionFollow(sessionId, hostId) }
+            }
+        }, delayMs, java.util.concurrent.TimeUnit.MILLISECONDS)
     }
 
 
@@ -3027,9 +3062,14 @@ class RemoteClient(
             if (!forwardedStarted.add(hostId)) return
         }
         forwardedScope.launch {
+            // Пауза растёт, пока Host недоступен (остановлен, авто-сон), чтобы не будить
+            // радио/CPU каждые 2 секунды; после живого соединения снова 2 секунды.
+            var failures = 0
             while (true) {
+                val startedAt = System.currentTimeMillis()
                 runCatching { pumpForwardedStream(hostId) }
-                kotlinx.coroutines.delay(2_000L)
+                failures = if (System.currentTimeMillis() - startedAt > 10_000L) 0 else failures + 1
+                kotlinx.coroutines.delay(followRetryDelayMs(failures.coerceAtLeast(1)).coerceAtLeast(2_000L))
             }
         }
     }
@@ -3214,3 +3254,10 @@ private const val ANSWER_TIMEOUT_MS = 120_000L
 /** 提问类 waterfall 等用户操作的时间上限。 */
 private const val QUESTION_TIMEOUT_MS = 600_000L
 
+
+/** Сколько раз подряд переподключать оборванный session/follow. */
+internal const val FOLLOW_MAX_RETRIES = 8
+
+/** Пауза перед попыткой [attempt] (с 1): 1, 2, 4, 8, 16, 30, 30… секунд. */
+internal fun followRetryDelayMs(attempt: Int): Long =
+    (1_000L shl (attempt - 1).coerceIn(0, 5)).coerceAtMost(30_000L)

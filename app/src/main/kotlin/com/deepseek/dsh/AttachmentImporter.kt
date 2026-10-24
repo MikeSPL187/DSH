@@ -96,7 +96,12 @@ object AttachmentImporter {
 
     /** 不覆盖同名文件：name.png → name-1.png → name-2.png。 */
     private fun uniqueFile(dir: File, name: String): File {
-        val safe = name.substringAfterLast('/').substringAfterLast('\\').ifBlank { "attachment" }
+        // Имя приходит от стороннего провайдера: отрезаем путь, управляющие символы и «.»/«..».
+        val safe = name.substringAfterLast('/').substringAfterLast('\\')
+            .filterNot { it.isISOControl() }
+            .trim()
+            .takeUnless { it.isBlank() || it == "." || it == ".." }
+            ?: "attachment"
         var candidate = File(dir, safe)
         if (!candidate.exists()) return candidate
         val dot = safe.lastIndexOf('.')
