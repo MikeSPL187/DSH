@@ -209,7 +209,7 @@ private fun TrajectoryRowView(row: TrajectoryRow, expanded: Boolean, onClick: ()
             Text(
                 text = row.seq.toString(),
                 fontSize = 10.5.sp,
-                fontFamily = FontFamily.Monospace,
+                fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                 color = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.padding(end = 8.dp),
             )
@@ -242,7 +242,7 @@ private fun TrajectoryRowView(row: TrajectoryRow, expanded: Boolean, onClick: ()
                 text = row.raw,
                 fontSize = 10.sp,
                 lineHeight = 14.sp,
-                fontFamily = FontFamily.Monospace,
+                fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(top = 4.dp),
             )

@@ -310,7 +310,7 @@ private fun TextField(field: PluginField, value: String, numeric: Boolean, onCha
             singleLine = true,
             textStyle = TextStyle(
                 fontSize = 14.sp,
-                fontFamily = if (numeric) FontFamily.Monospace else FontFamily.Default,
+                fontFamily = if (numeric) com.deepseek.dsh.core.designsystem.DshFonts.mono else FontFamily.Default,
             ),
             keyboardOptions = KeyboardOptions(
                 keyboardType = if (numeric) KeyboardType.Number else KeyboardType.Text,

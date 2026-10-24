@@ -322,7 +322,7 @@ private fun RuntimeOutputBlock(logTail: List<String>) {
             Text(
                 text = stringResource(R.string.settings_pane_runtime_log_empty),
                 fontSize = 11.sp,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                 color = palette.labelTertiary,
             )
         } else {
@@ -330,7 +330,7 @@ private fun RuntimeOutputBlock(logTail: List<String>) {
                 Text(
                     text = line,
                     fontSize = 11.sp,
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                    fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                     color = palette.labelTertiary,
                     maxLines = 3,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,

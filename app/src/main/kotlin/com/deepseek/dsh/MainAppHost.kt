@@ -884,7 +884,7 @@ fun MainAppHost(
                         ),
                         fontSize = 12.sp,
                         lineHeight = 17.sp,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                         modifier = Modifier.padding(bottom = 8.dp),
                     )
                     if (jsPackage != null) {

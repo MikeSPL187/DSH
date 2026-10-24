@@ -320,7 +320,7 @@ internal fun SettingsUpdatePane(modifier: Modifier = Modifier) {
                                 assessment.latestPlugin ?: textUnknown,
                             ),
                             style = MaterialTheme.typography.bodyMedium,
-                            fontFamily = FontFamily.Monospace,
+                            fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                         )
                     }
                     assessment.latestPlugin == null -> Text(
@@ -473,7 +473,7 @@ internal fun SettingsUpdatePane(modifier: Modifier = Modifier) {
                             target,
                         ),
                         style = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                     )
                 }
                 rootfsStatus?.let {
@@ -628,7 +628,7 @@ internal fun SettingsUpdatePane(modifier: Modifier = Modifier) {
                         assessment.latestPlugin ?: textUnknown,
                     ),
                     style = MaterialTheme.typography.bodyMedium,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                 )
             },
             footer = {

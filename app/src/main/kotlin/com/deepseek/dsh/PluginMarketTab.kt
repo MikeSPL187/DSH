@@ -491,7 +491,7 @@ private fun MarketEntryRow(
                 Text(
                     text = meta,
                     color = colors.labelTertiary,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                     fontSize = 10.5.sp,
                 )
             }
@@ -547,7 +547,7 @@ private fun MarketEntryDetail(
                 Spacer(Modifier.height(4.dp))
                 Text("v${version.version}", color = colors.labelTertiary, fontSize = 12.sp)
             }
-            Text(entry.name, color = colors.labelTertiary, fontFamily = FontFamily.Monospace, fontSize = 11.5.sp)
+            Text(entry.name, color = colors.labelTertiary, fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono, fontSize = 11.5.sp)
             val detailDescription = entry.description
             if (detailDescription != null) {
                 Spacer(Modifier.height(10.dp))

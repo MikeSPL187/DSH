@@ -256,7 +256,7 @@ fun ModernNavigationDrawerContent(
                 Text(
                     text = "HARNESS",
                     style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.SemiBold,
                         letterSpacing = 0.6.sp

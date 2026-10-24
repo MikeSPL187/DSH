@@ -1,5 +1,11 @@
 package com.deepseek.dsh.feature.chat
 
+import com.deepseek.dsh.core.designsystem.pressScale
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Code
+import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material.icons.rounded.MenuBook
+import androidx.compose.material.icons.rounded.Terminal
 import kotlinx.serialization.json.put
 
 import androidx.compose.animation.AnimatedVisibility
@@ -75,6 +81,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -88,6 +95,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -601,26 +610,20 @@ fun ModernChatScreen(
             arrangement = com.deepseek.dsh.plugin.nativehost.SlotArrangement.BLOCK,
         ) {}
         if (messages.isEmpty() && !isSending) {
-            Box(
+            // Новая сессия: приветствие и карточки сверху, поле ввода прижато к низу.
+            Column(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
             ) {
-                Column(
+                EmptyWelcomeView(
+                    // Карточка подставляет запрос в поле, чтобы его можно было дописать.
+                    onChipClick = { prompt -> inputText = prompt },
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    EmptyWelcomeView(
-                        onChipClick = { prompt -> onSendMessage(prompt) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .offset(y = (-96).dp)
-                    )
-                    Spacer(modifier = Modifier.height(18.dp))
-                    composerBlock(true)
-                }
+                )
             }
+            composerBlock(true)
         } else if (messages.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -1466,69 +1469,99 @@ private fun MenuNavRow(label: String, value: String, onClick: () -> Unit) {
     }
 }
 /**
- * 首页居中欢迎与快捷建议胶囊（对齐 hero.headline「探索未至之境」）。
+ * Пустая сессия: приветствие по времени суток и четыре карточки-подсказки.
+ * Нажатие карточки подставляет запрос в поле ввода.
  */
 @Composable
 fun EmptyWelcomeView(
     onChipClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier.padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(56.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f))
-                .shadow(4.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.04f), spotColor = Color.Black.copy(alpha = 0.05f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                painter = painterResource(id = com.deepseek.dsh.core.designsystem.R.drawable.ic_dsh_fish_logo),
-                contentDescription = "DeepSeek Logo",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(34.dp)
-            )
+    val c = com.deepseek.dsh.core.designsystem.Dsh.colors
+    val t = com.deepseek.dsh.core.designsystem.Dsh.type
+    val hour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
+    val greeting = stringResource(
+        when {
+            hour < 5 -> R.string.chat_greet_night
+            hour < 12 -> R.string.chat_greet_morning
+            hour < 18 -> R.string.chat_greet_day
+            else -> R.string.chat_greet_evening
         }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
+    )
+    Column(modifier = modifier.padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = stringResource(R.string.chat_welcome_title),
-                fontSize = 26.sp,
-                lineHeight = 32.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onBackground,
-                // Длинный заголовок (ru/en) не должен сжимать бейдж в столбик по букве.
-                modifier = Modifier.weight(1f, fill = false),
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Surface(
-                shape = RoundedCornerShape(6.dp),
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .shadow(10.dp, RoundedCornerShape(14.dp), ambientColor = c.accent, spotColor = c.accent)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(c.accent2, c.accent))),
+                contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = stringResource(R.string.chat_preview_badge),
-                    maxLines = 1,
-                    softWrap = false,
-                    fontSize = 11.sp,
-                    lineHeight = 16.sp,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
-                )
+                Icon(Icons.Rounded.Terminal, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+            }
+            Spacer(Modifier.width(14.dp))
+            Column {
+                Text(greeting, style = t.title, color = c.t1)
+                Text(stringResource(R.string.chat_greet_sub), style = t.body, color = c.t2)
             }
         }
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = stringResource(R.string.chat_welcome_desc),
-            fontSize = 13.sp,
-            lineHeight = 20.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        Spacer(Modifier.height(22.dp))
+        com.deepseek.dsh.core.designsystem.DshSectionLabel(stringResource(R.string.chat_start_label), modifier = Modifier.padding(top = 0.dp))
+        val cards = listOf(
+            Triple(Icons.Rounded.MenuBook, R.string.chat_card_explore, R.string.chat_card_explore_sub) to R.string.chat_card_explore_prompt,
+            Triple(Icons.Rounded.BugReport, R.string.chat_card_fix, R.string.chat_card_fix_sub) to R.string.chat_card_fix_prompt,
+            Triple(Icons.Rounded.Code, R.string.chat_card_script, R.string.chat_card_script_sub) to R.string.chat_card_script_prompt,
+            Triple(Icons.Rounded.Schedule, R.string.chat_card_auto, R.string.chat_card_auto_sub) to R.string.chat_card_auto_prompt,
         )
+        cards.chunked(2).forEach { pair ->
+            Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                pair.forEach { (info, promptRes) ->
+                    val prompt = stringResource(promptRes)
+                    SuggestionCard(
+                        icon = info.first,
+                        title = stringResource(info.second),
+                        subtitle = stringResource(info.third),
+                        onClick = { onChipClick(prompt) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SuggestionCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val c = com.deepseek.dsh.core.designsystem.Dsh.colors
+    val t = com.deepseek.dsh.core.designsystem.Dsh.type
+    val interaction = remember { MutableInteractionSource() }
+    Column(
+        modifier = modifier
+            .heightIn(min = 112.dp)
+            .pressScale(interaction, 0.97f)
+            .clip(RoundedCornerShape(20.dp))
+            .background(c.s1)
+            .border(1.dp, c.line, RoundedCornerShape(20.dp))
+            .clickable(interaction, indication = androidx.compose.material3.ripple(), role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(
+            Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(c.accentSoft),
+            contentAlignment = Alignment.Center,
+        ) { Icon(icon, contentDescription = null, tint = c.accent, modifier = Modifier.size(18.dp)) }
+        Column {
+            Text(title, style = t.bodyMedium.copy(fontSize = 14.5.sp, lineHeight = 19.sp), color = c.t1)
+            Spacer(Modifier.height(2.dp))
+            Text(subtitle, style = t.footnote, color = c.t3)
+        }
     }
 }
 
@@ -2043,7 +2076,7 @@ private fun ToolMessageItem(
                 Text(
                     text = toolExpandedText(name, args, body, status),
                     style = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                         fontSize = 12.sp,
                         lineHeight = 18.sp,
                     ),
@@ -2257,7 +2290,7 @@ private fun ToolDetailSheet(detail: ToolDetailData, onDismiss: () -> Unit) {
                 Text(
                     text = detail.callId,
                     style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                        fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono
                     ),
                     color = MaterialTheme.colorScheme.outline
                 )
@@ -2279,7 +2312,7 @@ private fun ToolDetailSheet(detail: ToolDetailData, onDismiss: () -> Unit) {
                     Text(
                         text = prettyArgs,
                         style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                             fontSize = 12.sp,
                             lineHeight = 18.sp
                         ),
@@ -2308,7 +2341,7 @@ private fun ToolDetailSheet(detail: ToolDetailData, onDismiss: () -> Unit) {
                     Text(
                         text = detail.body,
                         style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                             fontSize = 12.sp,
                             lineHeight = 18.sp
                         ),
@@ -2434,16 +2467,17 @@ fun ModernMessageItem(
         horizontalAlignment = if (isUser) Alignment.End else Alignment.Start
     ) {
         if (isUser) {
+            // Пузырь пользователя: нейтральный, хвостик снизу справа.
             Surface(
-                shape = RoundedCornerShape(20.dp).copy(bottomEnd = androidx.compose.foundation.shape.CornerSize(4.dp)),
-                color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.padding(start = 48.dp)
+                shape = RoundedCornerShape(22.dp).copy(bottomEnd = androidx.compose.foundation.shape.CornerSize(6.dp)),
+                color = com.deepseek.dsh.core.designsystem.Dsh.colors.s2,
+                modifier = Modifier.padding(start = 56.dp)
             ) {
                 Text(
                     text = message.content,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                    style = com.deepseek.dsh.core.designsystem.Dsh.type.body.copy(fontSize = 16.sp, lineHeight = 23.sp),
+                    color = com.deepseek.dsh.core.designsystem.Dsh.colors.t1,
+                    modifier = Modifier.padding(horizontal = 15.dp, vertical = 11.dp)
                 )
             }
         } else if (message.role == MessageRole.TOOL) {
@@ -2661,59 +2695,55 @@ private fun ComposerTrigger(
     trailingValue: String? = null,
     labelWeight: FontWeight = FontWeight.Normal,
     compact: Boolean = false,
+    accent: Boolean = false,
+    iconOnly: Boolean = false,
 ) {
-    val colors = dshPanelColors()
+    // Чип над полем ввода: модель и режим разрешений, как в прототипе.
+    val c = com.deepseek.dsh.core.designsystem.Dsh.colors
+    val ink = if (accent) androidx.compose.ui.graphics.lerp(c.accent, c.t1, 0.18f) else c.t2
     val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
+    if (iconOnly && leadingIconResId != null) {
+        // Компактный вид: круглая кнопка с иконкой, название — для экранного чтеца.
+        Box(
+            modifier = modifier
+                .size(40.dp)
+                .pressScale(interaction, 0.9f)
+                .clip(CircleShape)
+                .background(c.s2)
+                .clickable(interaction, indication = androidx.compose.material3.ripple(), role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
+                .semantics { contentDescription = label },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(painter = painterResource(id = leadingIconResId), contentDescription = null, tint = ink, modifier = Modifier.size(18.dp))
+        }
+        return
+    }
     Row(
         modifier = modifier
-            .height(28.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (pressed) colors.interactiveHover else Color.Transparent)
-            .clickable(
-                interactionSource = interaction,
-                indication = null,
-                onClick = onClick,
-            )
-            .padding(start = if (compact) 5.dp else 8.dp, end = if (compact) 3.dp else 4.dp),
+            .height(36.dp)
+            .pressScale(interaction, 0.95f)
+            .clip(RoundedCornerShape(50))
+            .background(if (accent) c.accentSoft else c.s2)
+            .clickable(interaction, indication = androidx.compose.material3.ripple(), role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
+            .padding(start = if (compact) 9.dp else 11.dp, end = if (compact) 7.dp else 9.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(if (compact) 3.dp else 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
         if (leadingIconResId != null) {
-            Icon(
-                painter = painterResource(id = leadingIconResId),
-                contentDescription = null,
-                tint = colors.labelSecondary,
-                modifier = Modifier.size(14.dp),
-            )
+            Icon(painter = painterResource(id = leadingIconResId), contentDescription = null, tint = ink, modifier = Modifier.size(15.dp))
         }
         Text(
-            text = label,
-            color = colors.labelSecondary,
-            fontSize = 13.sp,
-            lineHeight = 20.sp,
-            fontWeight = labelWeight,
+            text = if (trailingValue.isNullOrBlank()) label else "$label · $trailingValue",
+            color = ink,
+            style = com.deepseek.dsh.core.designsystem.Dsh.type.callout.copy(fontSize = 13.sp, fontWeight = labelWeight),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(
-                max = if (trailingValue.isNullOrBlank()) 132.dp else 132.dp,
-            )
+            modifier = Modifier.widthIn(max = 190.dp),
         )
-        if (!trailingValue.isNullOrBlank()) {
-            Text(
-                text = trailingValue,
-                color = colors.labelCaption,
-                fontSize = 13.sp,
-                lineHeight = 20.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = 60.dp)
-            )
-        }
         Icon(
             painter = painterResource(id = com.deepseek.dsh.core.designsystem.R.drawable.ic_chevron_down_official),
             contentDescription = null,
-            tint = colors.labelCaption,
+            tint = ink,
             modifier = Modifier.size(14.dp),
         )
     }
@@ -2778,6 +2808,7 @@ fun BottomInputBar(
     val plusInteraction = remember { MutableInteractionSource() }
     val tightComposer = selectedModel.length > 16
     val cardShape = RoundedCornerShape(28.dp)
+    val ds = com.deepseek.dsh.core.designsystem.Dsh.colors
     var permissionAnchor by remember { mutableStateOf<Rect?>(null) }
     var modelAnchor by remember { mutableStateOf<Rect?>(null) }
     var composerOverlayAnchor by remember { mutableStateOf<Rect?>(null) }
@@ -2785,6 +2816,8 @@ fun BottomInputBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.background)
+            // Поле ввода «парит»: отступы от краёв, скругления видны целиком.
+            .padding(start = 10.dp, end = 10.dp, bottom = 6.dp)
     ) {
         // conversation.composer.dock 的官方位置是输入框底部状态行（tok/s、缓存命中、
         // 上下文旁），由 ComposerDockBar 以行内方式承载，不在输入框上方。
@@ -2872,27 +2905,23 @@ fun BottomInputBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .shadow(
-                    elevation = 4.dp,
+                    elevation = 14.dp,
                     shape = cardShape,
                     clip = false,
-                    ambientColor = Color.Black.copy(alpha = 0.04f),
-                    spotColor = Color.Black.copy(alpha = 0.05f),
+                    ambientColor = Color(0xFF1C1A46).copy(alpha = if (ds.isDark) 0.5f else 0.10f),
+                    spotColor = Color(0xFF1C1A46).copy(alpha = if (ds.isDark) 0.5f else 0.14f),
                 )
                 .clip(cardShape)
-                .background(panelColors.bgLayer2)
-                .border(0.5.dp, panelColors.borderL2, cardShape)
+                .background(ds.s1)
+                .border(1.dp, ds.line, cardShape)
                 .onGloballyPositioned { composerOverlayAnchor = it.boundsInWindow() }
         ) {
             Column(modifier = Modifier.padding(start = 0.dp, end = 4.dp, top = 8.dp)) {
                 BasicTextField(
                     value = inputText,
                     onValueChange = onInputChange,
-                    textStyle = TextStyle(
-                        fontSize = 14.sp,
-                        lineHeight = 24.sp,
-                        color = panelColors.labelPrimary,
-                    ),
-                    cursorBrush = SolidColor(panelColors.labelPrimary),
+                    textStyle = com.deepseek.dsh.core.designsystem.Dsh.type.body.copy(fontSize = 16.sp, lineHeight = 22.sp, color = ds.t1),
+                    cursorBrush = SolidColor(ds.accent),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(start = 14.dp, end = 8.dp)
@@ -2917,11 +2946,9 @@ fun BottomInputBar(
                                     Text(
                                         text = activeCommandHint
                                             ?: if (isPlanMode) stringResource(R.string.chat_input_placeholder_plan)
-                                            else stringResource(R.string.chat_input_placeholder),
-                                        fontSize = 14.sp,
-                                        lineHeight = 24.sp,
-                                        color = panelColors.labelCaption,
-                                        modifier = Modifier.offset(x = (-2).dp, y = (-3.2).dp)
+                                            else stringResource(R.string.chat_input_short),
+                                        style = com.deepseek.dsh.core.designsystem.Dsh.type.body.copy(fontSize = 16.sp, lineHeight = 22.sp),
+                                        color = ds.t3,
                                     )
                                 }
                                 innerTextField()
@@ -2944,7 +2971,7 @@ fun BottomInputBar(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 5.dp, end = 5.dp, bottom = 6.dp),
+                        .padding(start = 6.dp, end = 6.dp, bottom = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(if (tightComposer) 6.dp else 10.dp)
                 ) {
@@ -2963,12 +2990,14 @@ fun BottomInputBar(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(28.dp)
+                                .size(40.dp)
+                                .pressScale(plusInteraction, 0.9f)
                                 .clip(CircleShape)
-                                .background(panelColors.bgModulePlatform)
+                                .background(ds.s2)
                                 .clickable(
                                     interactionSource = plusInteraction,
-                                    indication = null,
+                                    indication = androidx.compose.material3.ripple(),
+                                    role = androidx.compose.ui.semantics.Role.Button,
                                     onClick = onPlusClick,
                                 ),
                             contentAlignment = Alignment.Center
@@ -2976,8 +3005,8 @@ fun BottomInputBar(
                             Icon(
                                 imageVector = DshIcons.PlusOutline,
                                 contentDescription = stringResource(R.string.action_input_commands),
-                                tint = panelColors.labelPrimary,
-                                modifier = Modifier.size(14.dp)
+                                tint = ds.t1,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
@@ -2996,7 +3025,7 @@ fun BottomInputBar(
                                 labelWeight = FontWeight.Medium,
                                 onClick = onOpenPermissionMenu,
                                 compact = tightComposer,
-                                modifier = Modifier.widthIn(max = 140.dp),
+                                iconOnly = true,
                             )
                             PermissionMenu(
                                 expanded = permissionMenuOpen,
@@ -3033,6 +3062,7 @@ fun BottomInputBar(
                                 trailingValue = if (availableModels.isEmpty()) null else effortLabel,
                                 onClick = onOpenModelMenu,
                                 compact = tightComposer,
+                                accent = true,
                             )
                             ModelEffortMenu(
                                 expanded = modelMenuOpen,
@@ -3061,17 +3091,17 @@ fun BottomInputBar(
                     if (voiceEnabled && !voiceRecording) {
                         Box(
                             modifier = Modifier
-                                .size(28.dp)
+                                .size(40.dp)
                                 .clip(CircleShape)
-                                .background(panelColors.bgModulePlatform)
-                                .clickable(enabled = !voiceBusy, onClick = onVoiceStart),
+                                .background(ds.s2)
+                                .clickable(enabled = !voiceBusy, role = androidx.compose.ui.semantics.Role.Button, onClick = onVoiceStart),
                             contentAlignment = Alignment.Center,
                         ) {
                             androidx.compose.material3.Icon(
                                 imageVector = androidx.compose.material.icons.Icons.Filled.Mic,
                                 contentDescription = stringResource(R.string.chat_mic_start),
-                                tint = panelColors.labelPrimary,
-                                modifier = Modifier.size(15.dp),
+                                tint = ds.t1,
+                                modifier = Modifier.size(19.dp),
                             )
                         }
                     }
@@ -3081,32 +3111,41 @@ fun BottomInputBar(
                     if (isGenerating) {
                         Surface(
                             shape = CircleShape,
-                            color = MaterialTheme.colorScheme.error,
+                            color = ds.t1,
                             onClick = onStop,
-                            modifier = Modifier.size(34.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = DshIcons.StopFill,
                                     contentDescription = stringResource(R.string.action_stop),
-                                    tint = MaterialTheme.colorScheme.onError,
+                                    tint = ds.bg,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
                         }
                     }
+                    // Кнопка оживает акцентом, когда есть что отправить.
+                    val canSend = inputText.isNotBlank() || attachments.isNotEmpty() || activeCommandLabel != null
+                    val sendFill by androidx.compose.animation.animateColorAsState(
+                        if (canSend) ds.accent else ds.s3, com.deepseek.dsh.core.designsystem.DshMotion.smooth(), label = "send",
+                    )
+                    val sendScale by androidx.compose.animation.core.animateFloatAsState(
+                        if (canSend) 1f else 0.92f, com.deepseek.dsh.core.designsystem.DshMotion.lively(), label = "sendScale",
+                    )
                     Surface(
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = sendFill,
                         onClick = onSend,
-                        modifier = Modifier.size(34.dp)
+                        enabled = canSend,
+                        modifier = Modifier.size(40.dp).graphicsLayer { scaleX = sendScale; scaleY = sendScale }
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = DshIcons.SendUpArrow,
                                 contentDescription = stringResource(R.string.action_send),
-                                tint = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.size(16.dp)
+                                tint = if (canSend) ds.onAccent else ds.t3,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }

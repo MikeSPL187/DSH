@@ -363,7 +363,7 @@ private fun PluginStoreDetail(
             repo.fullName,
             color = colors.labelTertiary,
             fontSize = 11.5.sp,
-            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+            fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
             modifier = Modifier.padding(top = 2.dp),
         )
         Text(

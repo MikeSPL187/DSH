@@ -187,7 +187,7 @@ fun JobOutputDialog(
                                     text = text,
                                     fontSize = 11.sp,
                                     lineHeight = 16.sp,
-                                    fontFamily = FontFamily.Monospace,
+                                    fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
                             }

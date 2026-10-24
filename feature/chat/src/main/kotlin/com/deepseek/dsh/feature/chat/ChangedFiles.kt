@@ -265,7 +265,7 @@ fun ChangeDiffSheet(
                                         " +" + hunk.newStart + "," + hunk.newLines + " @@",
                                     fontSize = 11.sp,
                                     lineHeight = 18.sp,
-                                    fontFamily = FontFamily.Monospace,
+                                    fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                                     color = MaterialTheme.colorScheme.outline,
                                     modifier = Modifier.padding(
                                         start = 16.dp,
@@ -306,7 +306,7 @@ private fun DiffLine(line: String) {
             text = line,
             fontSize = 11.sp,
             lineHeight = 20.sp,
-            fontFamily = FontFamily.Monospace,
+            fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
             color = when (sign) {
                 '+' -> DiffAdded
                 '-' -> DiffDeleted

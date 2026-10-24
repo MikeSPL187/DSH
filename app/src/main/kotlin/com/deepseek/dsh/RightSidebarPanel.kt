@@ -474,7 +474,7 @@ private fun RightDocumentTab(
             text = content ?: stringResource(R.string.right_sidebar_loading),
             fontSize = 12.sp,
             lineHeight = 18.sp,
-            fontFamily = FontFamily.Monospace,
+            fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
             color = palette.labelPrimary,
             modifier = Modifier
                 .fillMaxSize()

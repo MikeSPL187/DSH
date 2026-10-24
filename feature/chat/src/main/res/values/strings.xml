@@ -317,4 +317,23 @@
     <string name="workflow_status_interrupted">interrupted</string>
     <string name="markdown_copied">Copied</string>
     <string name="model_effort_unavailable">This model has no configurable reasoning level</string>
+    <string name="chat_greet_night">Good night</string>
+    <string name="chat_greet_morning">Good morning</string>
+    <string name="chat_greet_day">Good afternoon</string>
+    <string name="chat_greet_evening">Good evening</string>
+    <string name="chat_greet_sub">What shall we work on?</string>
+    <string name="chat_start_label">Start</string>
+    <string name="chat_card_explore">Explore the project</string>
+    <string name="chat_card_explore_sub">Structure, modules, entry points</string>
+    <string name="chat_card_explore_prompt">Explore the project and describe its structure</string>
+    <string name="chat_card_fix">Fix a bug</string>
+    <string name="chat_card_fix_sub">Find the cause and verify the fix</string>
+    <string name="chat_card_fix_prompt">The build fails. Find the cause and fix it.</string>
+    <string name="chat_card_script">Write a script</string>
+    <string name="chat_card_script_sub">Bash, Python, Node — right here</string>
+    <string name="chat_card_script_prompt">Write a script that </string>
+    <string name="chat_card_auto">Automate</string>
+    <string name="chat_card_auto_sub">Tasks on a schedule</string>
+    <string name="chat_card_auto_prompt">Every morning check dependency updates and send me a summary</string>
+    <string name="chat_input_short">Ask DSH</string>
 </resources>

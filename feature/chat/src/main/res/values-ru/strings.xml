@@ -287,4 +287,23 @@
     <string name="workflow_status_interrupted">прерван</string>
     <string name="markdown_copied">Скопировано</string>
     <string name="model_effort_unavailable">У этой модели нет настраиваемого уровня рассуждений</string>
+    <string name="chat_greet_night">Доброй ночи</string>
+    <string name="chat_greet_morning">Доброе утро</string>
+    <string name="chat_greet_day">Добрый день</string>
+    <string name="chat_greet_evening">Добрый вечер</string>
+    <string name="chat_greet_sub">Над чем поработаем?</string>
+    <string name="chat_start_label">Начать</string>
+    <string name="chat_card_explore">Разобраться в проекте</string>
+    <string name="chat_card_explore_sub">Структура, модули, точки входа</string>
+    <string name="chat_card_explore_prompt">Разберись в проекте и опиши его структуру</string>
+    <string name="chat_card_fix">Починить ошибку</string>
+    <string name="chat_card_fix_sub">Агент найдёт причину и проверит</string>
+    <string name="chat_card_fix_prompt">Сборка падает. Найди причину и исправь.</string>
+    <string name="chat_card_script">Написать скрипт</string>
+    <string name="chat_card_script_sub">Bash, Python, Node — прямо тут</string>
+    <string name="chat_card_script_prompt">Напиши скрипт, который </string>
+    <string name="chat_card_auto">Автоматизировать</string>
+    <string name="chat_card_auto_sub">Задачи по расписанию</string>
+    <string name="chat_card_auto_prompt">Каждое утро проверяй обновления зависимостей и пиши мне итог</string>
+    <string name="chat_input_short">Спросить DSH</string>
 </resources>

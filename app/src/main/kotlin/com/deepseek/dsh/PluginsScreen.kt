@@ -1457,7 +1457,7 @@ private fun BundleDetailContent(
                     Text(
                         text = bundle.packageName,
                         color = colors.labelTertiary,
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                         fontSize = 11.5.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -1540,7 +1540,7 @@ private fun BundleDetailContent(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(component.title, color = colors.labelPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                     Text(component.description.ifBlank { component.moduleName }, color = colors.labelTertiary, fontSize = 11.5.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Text(component.moduleName, color = colors.labelTertiary, fontFamily = FontFamily.Monospace, fontSize = 10.5.sp)
+                    Text(component.moduleName, color = colors.labelTertiary, fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono, fontSize = 10.5.sp)
                 }
                 // 开关反映这一行的真实状态（Host 的 Loader inventory），拨动后
                 // 由 Host 只重载这一行；Host 没把这一行解析成 Loader 入口或总开关
@@ -1586,7 +1586,7 @@ private fun BundleDetailContent(
                         }
                     }
                     Text(companion.description, color = colors.labelTertiary, fontSize = 11.5.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Text(companion.pluginId, color = colors.labelTertiary, fontFamily = FontFamily.Monospace, fontSize = 10.5.sp)
+                    Text(companion.pluginId, color = colors.labelTertiary, fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono, fontSize = 10.5.sp)
                 }
                 DshSwitch(
                     checked = companionEnabled(companion),
@@ -2074,7 +2074,7 @@ private fun InstalledSurfaceRow(
                 Text(
                     text = "Slot: ${item.slot} · ${item.kind}",
                     color = colors.labelTertiary,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                     fontSize = 11.5.sp,
                     lineHeight = 16.sp,
                     maxLines = 1,
@@ -2175,7 +2175,7 @@ private fun PluginDetailContent(
             Text(
                 text = item.pluginId,
                 color = colors.labelTertiary,
-                fontFamily = FontFamily.Monospace,
+                fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                 fontSize = 12.sp,
                 lineHeight = 18.sp,
                 maxLines = 1,
@@ -2266,7 +2266,7 @@ private fun PluginComponentRow(
             Text(
                 text = item.pluginId,
                 color = colors.labelTertiary,
-                fontFamily = FontFamily.Monospace,
+                fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                 fontSize = 11.5.sp,
                 lineHeight = 16.sp,
                 maxLines = 1,
@@ -2324,7 +2324,7 @@ internal fun DetailFactRow(label: String, value: String, monospace: Boolean = fa
                 Text(
                     text = value,
                     color = colors.labelPrimary,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                     fontSize = 12.sp,
                     lineHeight = 20.sp,
                     modifier = Modifier

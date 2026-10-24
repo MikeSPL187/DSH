@@ -92,7 +92,7 @@ fun WorkflowRunCard(run: WorkflowRunInfo, modifier: Modifier = Modifier) {
                         Text(
                             text = statusGlyph(member.status),
                             fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace,
+                            fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                             color = when (member.status) {
                                 "completed" -> MaterialTheme.colorScheme.primary
                                 "failed", "cancelled", "interrupted" ->

@@ -101,7 +101,7 @@ internal fun InstalledPluginDetailPage(
                 Text(
                     text = plugin.moduleName,
                     color = colors.labelTertiary,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                     fontSize = 11.5.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

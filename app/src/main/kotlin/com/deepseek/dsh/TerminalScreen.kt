@@ -181,7 +181,7 @@ fun TerminalScreen(
                 text = buffer.ifBlank { emptyHint.ifBlank { stringResource(R.string.terminal_empty) } },
                 fontSize = 11.sp,
                 lineHeight = 15.sp,
-                fontFamily = FontFamily.Monospace,
+                fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
                     .fillMaxSize()
@@ -234,7 +234,7 @@ fun TerminalScreen(
                 singleLine = true,
                 textStyle = androidx.compose.ui.text.TextStyle(
                     fontSize = 13.sp,
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                 ),
                 placeholder = {
                     Text(

@@ -167,7 +167,7 @@ internal fun HostStartupSplash(
                             Text(
                                 text = line,
                                 fontSize = 11.sp,
-                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                                 color = MaterialTheme.colorScheme.outline,
                                 maxLines = 3,
                                 overflow = TextOverflow.Ellipsis,

@@ -212,7 +212,7 @@ private fun RawDataContent(frames: List<SessionRawFrame>, sessionId: String?) {
                             Text(
                                 text = frame.index.toString(),
                                 color = colors.labelTertiary,
-                                fontFamily = FontFamily.Monospace,
+                                fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                                 fontSize = 10.5.sp,
                                 modifier = Modifier.width(44.dp),
                             )
@@ -227,7 +227,7 @@ private fun RawDataContent(frames: List<SessionRawFrame>, sessionId: String?) {
                             Text(
                                 text = timeFormat.format(Date(frame.timestamp)),
                                 color = colors.labelTertiary,
-                                fontFamily = FontFamily.Monospace,
+                                fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                                 fontSize = 10.sp,
                                 modifier = Modifier.width(88.dp),
                             )

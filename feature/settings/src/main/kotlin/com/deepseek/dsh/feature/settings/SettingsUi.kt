@@ -191,8 +191,8 @@ internal object SettingsText {
     val Button = TextStyle(fontSize = 15.sp, lineHeight = 22.sp)
     val SmallButton = TextStyle(fontSize = 13.sp, lineHeight = 20.sp)
     /** 代码 chip / 预设 id：12/18 等宽；11/17 等宽，手机端 13/20 与 12/18。 */
-    val Code = TextStyle(fontSize = 13.sp, lineHeight = 20.sp, fontFamily = FontFamily.Monospace)
-    val CodeSmall = TextStyle(fontSize = 12.sp, lineHeight = 18.sp, fontFamily = FontFamily.Monospace)
+    val Code = TextStyle(fontSize = 13.sp, lineHeight = 20.sp, fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono)
+    val CodeSmall = TextStyle(fontSize = 12.sp, lineHeight = 18.sp, fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono)
 }
 
 /** 设置卡片：R20 + 0.5dp 描边 + settings-card-fill。 */

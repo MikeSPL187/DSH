@@ -49,7 +49,8 @@ import androidx.compose.ui.unit.sp
 @Composable
 private fun bodyTextStyle(): TextStyle {
     val size = LocalConversationFontSize.current
-    return TextStyle(fontSize = size.sp, lineHeight = (size * 1.45f).sp)
+    // Текст ответа — Golos Text с просторным межстрочным, как в прототипе.
+    return TextStyle(fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.body, fontSize = size.sp, lineHeight = (size * 1.55f).sp)
 }
 
 @Composable
@@ -69,6 +70,7 @@ fun MarkdownMessageText(text: String, color: Color = MaterialTheme.colorScheme.o
                     },
                     lineHeight = 28.sp,
                     fontWeight = FontWeight.SemiBold,
+                    fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.display,
                     color = color,
                     modifier = Modifier.padding(top = 6.dp),
                 )
@@ -134,7 +136,7 @@ fun MarkdownMessageText(text: String, color: Color = MaterialTheme.colorScheme.o
                     ) {
                         Text(
                             text = "code",
-                            fontFamily = FontFamily.Monospace,
+                            fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                             fontSize = 10.sp,
                             color = MaterialTheme.colorScheme.outline,
                             modifier = Modifier.weight(1f),
@@ -163,7 +165,7 @@ fun MarkdownMessageText(text: String, color: Color = MaterialTheme.colorScheme.o
                     }
                     Text(
                         text = block.code,
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                         fontSize = 12.sp,
                         lineHeight = 17.sp,
                         color = MaterialTheme.colorScheme.onSurface,
@@ -191,7 +193,7 @@ fun MarkdownMessageText(text: String, color: Color = MaterialTheme.colorScheme.o
                             cells.forEach { cell ->
                                 Text(
                                     text = inlineMarkdown(cell, color),
-                                    fontFamily = FontFamily.Monospace,
+                                    fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                                     fontSize = 11.sp,
                                     lineHeight = 16.sp,
                                     fontWeight = if (index == 0) FontWeight.SemiBold else null,
@@ -396,7 +398,7 @@ private fun inlineMarkdown(source: String, color: Color): AnnotatedString = buil
             0 -> withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(candidates.third) }
             1 -> withStyle(
                 SpanStyle(
-                    fontFamily = FontFamily.Monospace,
+                    fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
                     background = color.copy(alpha = 0.08f),
                 ),
             ) { append(candidates.third) }

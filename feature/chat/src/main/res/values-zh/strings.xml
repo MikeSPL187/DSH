@@ -316,4 +316,23 @@
     <string name="workflow_status_interrupted">已中断</string>
     <string name="markdown_copied">已复制</string>
     <string name="model_effort_unavailable">当前模型没有可调的推理等级</string>
+    <string name="chat_greet_night">晚安</string>
+    <string name="chat_greet_morning">早上好</string>
+    <string name="chat_greet_day">下午好</string>
+    <string name="chat_greet_evening">晚上好</string>
+    <string name="chat_greet_sub">今天做点什么？</string>
+    <string name="chat_start_label">开始</string>
+    <string name="chat_card_explore">了解项目</string>
+    <string name="chat_card_explore_sub">结构、模块、入口</string>
+    <string name="chat_card_explore_prompt">梳理这个项目并描述它的结构</string>
+    <string name="chat_card_fix">修复问题</string>
+    <string name="chat_card_fix_sub">找到原因并验证修复</string>
+    <string name="chat_card_fix_prompt">构建失败了。找到原因并修复。</string>
+    <string name="chat_card_script">写个脚本</string>
+    <string name="chat_card_script_sub">Bash、Python、Node 都行</string>
+    <string name="chat_card_script_prompt">写一个脚本，</string>
+    <string name="chat_card_auto">自动化</string>
+    <string name="chat_card_auto_sub">定时任务</string>
+    <string name="chat_card_auto_prompt">每天早上检查依赖更新并把结果发给我</string>
+    <string name="chat_input_short">问问 DSH</string>
 </resources>
