@@ -72,6 +72,9 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.getValue
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -166,11 +169,13 @@ fun ModernNavigationDrawerContent(
     modifier: Modifier = Modifier
 ) {
     // 严格动态跟随手机系统的 MaterialTheme 调色板
-    val bgDrawer = MaterialTheme.colorScheme.surface
+    val ds = com.deepseek.dsh.core.designsystem.Dsh.colors
+    val dt = com.deepseek.dsh.core.designsystem.Dsh.type
+    val bgDrawer = ds.bg
     val btnNewChat = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
     val textPrimary = MaterialTheme.colorScheme.onSurface
     val textSecondary = MaterialTheme.colorScheme.onSurfaceVariant
-    val textMuted = MaterialTheme.colorScheme.outline
+    val textMuted = ds.t3
     val lineSep = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
     val accentPrimary = MaterialTheme.colorScheme.primary
     val selectedRowBg = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
@@ -215,91 +220,70 @@ fun ModernNavigationDrawerContent(
     Column(
         modifier = modifier
             .fillMaxHeight()
-            .width(304.dp)
+            .width(320.dp)
             .background(bgDrawer)
             .statusBarsPadding()
-            .padding(start = 10.dp, end = 10.dp, top = 16.dp, bottom = 12.dp)
+            .navigationBarsPadding()
+            .padding(start = 12.dp, end = 12.dp, top = 16.dp, bottom = 8.dp)
     ) {
-        // 1. 顶部品牌行（对齐 ui-sidebar .logoRow / .brandIdentity）：
-        //    飞鱼标识 + deepseek 字标 + 反白 HARNESS 徽章
+        // 1. Шапка: знак DSH.
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                painter = painterResource(id = com.deepseek.dsh.core.designsystem.R.drawable.ic_dsh_fish_logo),
-                contentDescription = null,
-                tint = textPrimary,
-                modifier = Modifier
-                    .height(18.dp)
-                    .width(24.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Icon(
-                painter = painterResource(id = com.deepseek.dsh.core.designsystem.R.drawable.ic_brand_wordmark),
-                contentDescription = "deepseek",
-                tint = textPrimary,
-                modifier = Modifier
-                    .height(18.dp)
-                    .width(72.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            // 徽章：反白填充 + 内嵌反色 HARNESS
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(textPrimary)
-                    .padding(horizontal = 5.dp, vertical = 1.dp)
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(ds.accent2, ds.accent))),
+                contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = "HARNESS",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 0.6.sp
-                    ),
-                    color = bgDrawer
-                )
+                Icon(androidx.compose.material.icons.Icons.Rounded.Terminal, contentDescription = null, tint = Color.White, modifier = Modifier.size(19.dp))
             }
+            Spacer(modifier = Modifier.width(11.dp))
+            Text("DSH", style = dt.headline, color = textPrimary)
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
-        // 2.「新会话」按钮（对齐 .newSession：整宽、38 高、12 圆角、0.5px 描边、内容间距 6）
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = androidx.compose.foundation.BorderStroke(
-                0.5.dp,
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
-            ),
-            onClick = onNewChatClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(38.dp)
-        ) {
+        // 2. Поиск и новая сессия в одной строке.
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Row(
-                modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(ds.s2)
+                    .clickable(role = androidx.compose.ui.semantics.Role.Button) {
+                        searchQuery = ""
+                        searchOpen = true
+                    }
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    painter = painterResource(id = com.deepseek.dsh.core.designsystem.R.drawable.ic_action_search_official),
+                    contentDescription = null,
+                    tint = textMuted,
+                    modifier = Modifier.size(17.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.drawer_search), style = dt.body, color = textMuted)
+            }
+            Spacer(Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(textPrimary)
+                    .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onNewChatClick),
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = DshIcons.NewChatOutline,
-                    contentDescription = null,
-                    tint = textPrimary,
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = stringResource(R.string.session_new),
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 14.sp
-                    ),
-                    color = textPrimary
+                    contentDescription = stringResource(R.string.session_new),
+                    tint = bgDrawer,
+                    modifier = Modifier.size(19.dp)
                 )
             }
         }
@@ -344,10 +328,10 @@ fun ModernNavigationDrawerContent(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 4.dp, end = 2.dp, bottom = 2.dp)
-                    .height(32.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+                    .padding(bottom = 2.dp)
+                    .height(44.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(ds.s2)
                     .padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -368,10 +352,7 @@ fun ModernNavigationDrawerContent(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
                         singleLine = true,
-                        textStyle = androidx.compose.ui.text.TextStyle(
-                            color = textPrimary,
-                            fontSize = 13.sp
-                        ),
+                        textStyle = dt.body.copy(color = textPrimary),
                         cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -381,8 +362,7 @@ fun ModernNavigationDrawerContent(
                         Text(
                             stringResource(R.string.drawer_search_sessions_hint),
                             color = textMuted,
-                            fontSize = 13.sp,
-                            modifier = Modifier.offset(y = (-1.5).dp)
+                            style = dt.body,
                         )
                     }
                 }
@@ -391,7 +371,8 @@ fun ModernNavigationDrawerContent(
                     contentDescription = stringResource(R.string.drawer_close_search),
                     tint = textMuted,
                     modifier = Modifier
-                        .size(14.dp)
+                        .size(40.dp)
+                        .clip(CircleShape)
                         .clickable {
                             if (searchQuery.isNotEmpty()) {
                                 searchQuery = ""
@@ -399,48 +380,30 @@ fun ModernNavigationDrawerContent(
                                 searchOpen = false
                             }
                         }
+                        .padding(12.dp)
                 )
             }
         } else {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(32.dp)
-                .padding(start = 4.dp, end = 2.dp),
+                .height(40.dp)
+                .padding(start = 8.dp, end = 0.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = stringResource(R.string.drawer_workspaces),
+                text = stringResource(R.string.drawer_workspaces).uppercase(),
                 color = textMuted,
-                fontSize = 11.sp,
-                lineHeight = 16.sp,
-                fontWeight = FontWeight.Medium,
+                style = dt.sectionLabel,
                 modifier = Modifier
                     .weight(1f)
                     .padding(bottom = 2.dp)
             )
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .clickable {
-                        searchQuery = ""
-                        searchOpen = true
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(id = com.deepseek.dsh.core.designsystem.R.drawable.ic_action_search_official),
-                    contentDescription = stringResource(R.string.drawer_search),
-                    tint = textMuted,
-                    modifier = Modifier.size(14.dp)
-                )
-            }
             Box {
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
-                        .clip(RoundedCornerShape(6.dp))
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
                         .clickable { viewMenuOpen = true },
                     contentAlignment = Alignment.Center
                 ) {
@@ -448,7 +411,7 @@ fun ModernNavigationDrawerContent(
                         painter = painterResource(id = com.deepseek.dsh.core.designsystem.R.drawable.ic_action_filter_official),
                         contentDescription = stringResource(R.string.drawer_view_options),
                         tint = textMuted,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(17.dp)
                     )
                 }
                 AnchoredMenuPopup(
@@ -469,15 +432,15 @@ fun ModernNavigationDrawerContent(
             }
             Box(
                 modifier = Modifier
-                    .size(24.dp)
-                    .clip(RoundedCornerShape(6.dp))
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable(onClick = onAddWorkspace),
                 contentAlignment = Alignment.Center
             ) {                Icon(
                     painter = painterResource(id = com.deepseek.dsh.core.designsystem.R.drawable.ic_action_project_add_official),
                     contentDescription = stringResource(R.string.drawer_new_workspace),
                     tint = textMuted,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(17.dp)
                 )
             }
         }
@@ -579,8 +542,8 @@ fun ModernNavigationDrawerContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = if (folderIndex == 0) 0.dp else 4.dp)
-                            .height(32.dp)
-                            .clip(RoundedCornerShape(10.dp))
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(13.dp))
                             .background(
                                 when {
                                     draggingFolderId == folder.id ->
@@ -706,19 +669,14 @@ fun ModernNavigationDrawerContent(
                                 }
                             ),
                             contentDescription = null,
-                            tint = if (folder.name == selectedWorkspaceName) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                textSecondary
-                            },
-                            modifier = Modifier.size(16.dp)
+                            tint = if (folder.name == selectedWorkspaceName) ds.accent else textSecondary,
+                            modifier = Modifier.size(19.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = workspaceDisplayName(folder.name),
                             color = textPrimary,
-                            fontSize = 14.sp,
-                            lineHeight = 20.sp,
+                            style = dt.bodyMedium,
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
@@ -726,7 +684,7 @@ fun ModernNavigationDrawerContent(
                         // 长按改为拖动排序后，菜单改由行尾的「⋯」打开。
                         IconButton(
                             onClick = { workspaceMenuId = folder.id },
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(40.dp),
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.MoreHoriz,
@@ -753,58 +711,56 @@ fun ModernNavigationDrawerContent(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(30.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(
-                                        if (isSelected) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
-                                        else Color.Transparent
-                                    )
+                                    .height(44.dp)
+                                    .clip(RoundedCornerShape(13.dp))
+                                    .background(if (isSelected) ds.s2 else Color.Transparent)
                                     .combinedClickable(
                                         onClick = { onSelectSession(session.sessionId) },
                                         onLongClick = { sessionMenuId = session.sessionId },
                                     )
-                                    .padding(start = 24.dp, end = 8.dp),
+                                    .padding(start = 22.dp, end = 0.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                // Агент работает в этой сессии — пульсирующая точка акцентом.
+                                Box(Modifier.width(14.dp), contentAlignment = Alignment.Center) {
+                                    if (session.isRunning) {
+                                        val pulse = androidx.compose.animation.core.rememberInfiniteTransition(label = "run")
+                                        val a by pulse.animateFloat(1f, 0.35f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(900), androidx.compose.animation.core.RepeatMode.Reverse), label = "runA")
+                                        Box(Modifier.size(7.dp).graphicsLayer { alpha = a }.clip(CircleShape).background(ds.accent))
+                                    } else if (session.pinned) {
+                                        Icon(painterResource(com.deepseek.dsh.core.designsystem.R.drawable.ic_row_pin), null, tint = textMuted, modifier = Modifier.size(12.dp))
+                                    }
+                                }
                                 Text(
                                     text = session.title,
-                                    color = textPrimary,
-                                    fontSize = 13.5.sp,
-                                    lineHeight = 20.sp,
+                                    color = if (isSelected) textPrimary else ds.t1,
+                                    style = if (isSelected) dt.bodyMedium else dt.body,
                                     maxLines = 1,
                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                     modifier = Modifier
                                         .weight(1f)
                                         .padding(start = 4.dp, end = 6.dp)
                                 )
-                                if (session.isRunning) {
-                                    androidx.compose.material3.CircularProgressIndicator(
-                                        modifier = Modifier.size(12.dp),
-                                        strokeWidth = 1.5.dp,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                } else if (session.hasUnread) {
+                                if (session.hasUnread && !session.isRunning) {
                                     Box(
                                         modifier = Modifier
                                             .size(7.dp)
                                             .clip(CircleShape)
-                                            .background(Color(0xFF34C759))
+                                            .background(ds.ok)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                 }
                                 Text(
                                     text = session.timeAgo,
-                                    color = textMuted,
-                                    fontSize = 10.sp,
-                                    lineHeight = 16.sp,
+                                    color = if (session.isRunning) ds.accent else textMuted,
+                                    style = dt.footnote,
                                     maxLines = 1
                                 )
                                 // 归档：不再藏在长按菜单里，行尾直接给一个按钮。
                                 Box(
                                     modifier = Modifier
-                                        .size(26.dp)
-                                        .clip(RoundedCornerShape(6.dp))
+                                        .size(40.dp)
+                                        .clip(CircleShape)
                                         .clickable { onToggleArchiveSession(session) },
                                     contentAlignment = Alignment.Center,
                                 ) {
@@ -855,17 +811,17 @@ fun ModernNavigationDrawerContent(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(44.dp)
-                    .clip(RoundedCornerShape(10.dp))
+                    .height(56.dp)
+                    .clip(RoundedCornerShape(14.dp))
                     .clickable { showAccountMenu = !showAccountMenu }
                     .padding(horizontal = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(36.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
+                        .background(androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFF0B37E), Color(0xFFE2767A)))),
                     contentAlignment = Alignment.Center
                 ) {
                     if (isSignedIn) {
@@ -874,23 +830,32 @@ fun ModernNavigationDrawerContent(
                         Icon(
                             imageVector = Icons.Default.MoreHoriz,
                             contentDescription = null,
-                            tint = textSecondary,
-                            modifier = Modifier.size(14.dp)
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(11.dp))
 
-                Text(
-                    text = if (isSignedIn) userName else stringResource(R.string.drawer_account_menu_more),
-                    color = textPrimary,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = if (isSignedIn) userName else stringResource(R.string.drawer_account_menu_more),
+                        color = textPrimary,
+                        style = dt.bodyMedium,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                    Text(stringResource(R.string.drawer_account_settings), color = textMuted, style = dt.footnote, maxLines = 1)
+                }
+                if (updateVersion == null) {
+                    Icon(
+                        painter = painterResource(id = com.deepseek.dsh.core.designsystem.R.drawable.ic_menu_settings),
+                        contentDescription = null,
+                        tint = textMuted,
+                        modifier = Modifier.padding(end = 8.dp).size(20.dp),
+                    )
+                }
                 if (updateVersion != null) {
                     Spacer(modifier = Modifier.width(8.dp))
                     androidx.compose.material3.Surface(
@@ -1203,24 +1168,23 @@ private fun DrawerItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(34.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp),
+            .height(44.dp)
+            .clip(RoundedCornerShape(13.dp))
+            .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
+            .padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             painter = painterResource(id = iconResId),
             contentDescription = null,
             tint = iconTint,
-            modifier = Modifier.size(16.dp)
+            modifier = Modifier.size(20.dp)
         )
-        Spacer(modifier = Modifier.width(6.dp))
+        Spacer(modifier = Modifier.width(12.dp))
         Text(
             text = title,
             color = textColor,
-            fontSize = 13.sp,
-            lineHeight = 20.sp
+            style = com.deepseek.dsh.core.designsystem.Dsh.type.bodyMedium,
         )
     }
 }
