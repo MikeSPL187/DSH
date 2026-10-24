@@ -164,6 +164,8 @@ class DshApplication : Application() {
         installTransportEofGuard()
         super.onCreate()
         com.deepseek.dsh.runtime.host.HostStrings.init(this)
+        com.deepseek.dsh.feature.settings.logic.ApiKeyVault.init(this)
+        com.deepseek.dsh.feature.settings.logic.DshUserPrefs.init(this)
         // Тексты из модулей без Context следуют за языком интерфейса, а не только за системным.
         com.deepseek.dsh.core.model.Tr.language = {
             resources.configuration.locales[0]?.language ?: java.util.Locale.getDefault().language

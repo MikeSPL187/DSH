@@ -49,6 +49,12 @@ internal object StorageAccess {
             .putBoolean(KEY_PRIVATE_WORKSPACE, true).commit()
     }
 
+    /** Вернуть рабочую папку в общую память телефона (нужен доступ ко всем файлам). */
+    fun chooseSharedWorkspace(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean(KEY_PRIVATE_WORKSPACE, false).commit()
+    }
+
     /** Корень рабочей папки — единственный источник пути для UI, Host и моста. */
     fun workspaceRoot(context: Context): java.io.File =
         if (usesPrivateWorkspace(context)) {

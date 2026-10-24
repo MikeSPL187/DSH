@@ -75,6 +75,9 @@ internal fun saveModelProvider(
         if (key.isNotBlank()) {
             val credArgs = JSONObject().put("ref", provider.keyRef).put("value", key).toString()
             repository.rpcRaw(hostId, "credentials/set", credArgs)
+            // Копия в Android Keystore: «Настройки» показывают ••••1234 и баланс, сам ключ наружу не отдаётся.
+            val ref = if (provider.id.contains("deepseek") || provider.keyRef.contains("DEEPSEEK", ignoreCase = true)) DEEPSEEK_VAULT_REF else provider.keyRef
+            com.deepseek.dsh.feature.settings.logic.ApiKeyVault.save(ref, key)
         }
         if (provider.settingsNs.isNotBlank()) {
             val ops = JSONArray()

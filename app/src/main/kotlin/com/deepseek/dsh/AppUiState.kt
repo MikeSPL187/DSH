@@ -27,7 +27,7 @@ class AppUiState(
     var activeHostId by mutableStateOf("local-host")
     var selectedSessionId by mutableStateOf<String?>(null)
     var currentAppSettings by mutableStateOf(initialSettings)
-    var settingsInitialSection by mutableStateOf<SettingsSectionTab?>(null)
+    var settingsInitialSection by mutableStateOf<com.deepseek.dsh.feature.settings.ui.StPage?>(null)
     var hasAllFilesAccess by mutableStateOf(initialAllFilesAccess)
     var filesDir by mutableStateOf(initialWorkspace)
 

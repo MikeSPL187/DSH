@@ -2260,7 +2260,7 @@ fun MainAppHost(
                     },
                     onUpdateClick = {
                         scope.launch { drawerState.close() }
-                        ui.settingsInitialSection = com.deepseek.dsh.feature.settings.SettingsSectionTab.UPDATE
+                        ui.settingsInitialSection = com.deepseek.dsh.feature.settings.ui.StPage.About
                         ui.activePage = ActivePage.SETTINGS
                     },
                     userTag = if (accountState.isSignedIn) {
@@ -3377,99 +3377,35 @@ fun MainAppHost(
 
                         ActivePage.TERMINAL -> PageContentSlot { terminalContent() }
 
-                        ActivePage.SETTINGS -> AppSettingsPage(
-                            settings = ui.currentAppSettings,
-                            onSettingsChange = { updated -> ui.currentAppSettings = updated },
-                            initialSection = ui.settingsInitialSection,
-                            repository = dshRepository,
-                            settingsRepository = settingsRepository,
-                            activeHostId = ui.activeHostId,
-                            scope = scope,
-                            availableModels = availableModelNames,
-                            modelProvidersRaw = runtimeUi.modelProvidersRaw,
-                            onProvidersRaw = { runtimeUi.modelProvidersRaw = it },
-                            modelSettingsRaw = runtimeUi.modelSettingsRaw,
-                            onSettingsRaw = { runtimeUi.modelSettingsRaw = it },
-                            modelCredentialsRaw = runtimeUi.modelCredentialsRaw,
-                            onCredentialsRaw = { runtimeUi.modelCredentialsRaw = it },
-                            routableProviders = runtimeUi.registeredProviderIds,
-                            onRoutableProviders = { runtimeUi.registeredProviderIds = it },
-                            builtInPlugins = builtInPluginsList,
-                            pluginSlotEntries = pluginSlotEntries,
-                            pluginSettingsPages = pluginSettingsPages,
-                            runtimeStatus = status,
-                            hostPort = status?.port ?: dshApplication.localHostPort,
-                            hostToken = status?.token ?: dshApplication.localHostToken,
-                            hostPortProvider = {
-                                dshApplication.localHostPort.takeIf { it > 0 } ?: (status?.port ?: 0)
-                            },
-                            onStartRuntime = {
-                                scope.launch { runtimeManager.start(activeWorkspace.absolutePath) }
-                            },
-                            onStopRuntime = { scope.launch { runtimeManager.stop() } },
-                            onOpenSettingsDocument = {
-                                scope.launch { dshRepository.openSettingsDocument(ui.activeHostId) }
-                            },
-                            accountName = accountState.profile?.name
-                                ?: stringResource(R.string.drawer_default_user),
-                            accountBalance = accountState.wallets.firstOrNull()
-                                ?.let { formatAmount(it.balance) } ?: "¥0.00",
-                            accountPhone = accountState.profile?.contact ?: "",
-                            isSignedIn = accountState.isSignedIn,
-                            avatarUrl = accountState.profile?.avatarUrl,
-                            onSignIn = { ui.showSignInDialog = true },
-                            onSignOut = hostSignOut,
-                            onManageAccount = { openUrl(accountState.platformUrl) },
-                            onCreateBackup = {
-                                scope.launch {
-                                    shareArchive(
-                                        context,
-                                        backupAndDiag.createUserDataBackup(),
-                                        context.getString(R.string.share_backup_title),
-                                        context.getString(R.string.backup_failed),
+                        ActivePage.SETTINGS -> DshSettingsRoute(
+                            SettingsDeps(
+                                ui = ui, runtimeUi = runtimeUi, repository = dshRepository, settingsRepository = settingsRepository,
+                                runtimeManager = runtimeManager, layout = layout, backup = backupAndDiag, oauthManager = oauthManager,
+                                officialNamespaces = officialModelNamespaces, workspace = activeWorkspace, availableModels = availableModelNames,
+                                remotes = availableHosts,
+                                pluginsOn = bridgePluginCatalog.bundles.count { it.enabled } +
+                                    runtimeUi.nativePluginItems.count { it.statusLabel == context.getString(R.string.plugin_status_installed) },
+                                trustedNative = runtimeUi.nativePluginItems.filter { it.signatureFingerprint != null }.map { item ->
+                                    com.deepseek.dsh.feature.settings.ui.TrustedPluginRow(
+                                        id = item.pluginId, name = item.name, letter = item.name.take(1).uppercase(),
+                                        hue = (item.pluginId.hashCode().toLong() and 0xffff).toFloat() % 360f,
+                                        cert = item.signatureFingerprint.orEmpty().chunked(2).let { c -> if (c.size > 6) c.take(3).joinToString(":") + "…" + c.takeLast(2).joinToString(":") else c.joinToString(":") },
+                                        blocked = item.statusLabel == context.getString(R.string.plugin_status_identity_mismatch),
                                     )
-                                }
-                            },
-                            onCreateAgentPreset = {
-                                // 官方「让 Agent 帮我创建预设模式」：新建创造模式会话。
-                                ui.pendingAgentPreset = "cordis"
-                                ui.selectedSessionId = null
-                                ui.activePage = ActivePage.CHAT
-                                android.widget.Toast.makeText(
-                                    context,
-                                    context.getString(R.string.agent_presets_create_hint),
-                                    android.widget.Toast.LENGTH_LONG,
-                                ).show()
-                            },
-                            onExportDiagnostics = {
-                                scope.launch {
-                                    shareArchive(
-                                        context,
-                                        backupAndDiag.exportDiagnosticsZip(),
-                                        context.getString(R.string.share_diagnostics_title),
-                                        context.getString(R.string.diagnostics_failed),
-                                    )
-                                }
-                            },
-                            onClose = { ui.activePage = ActivePage.CHAT },
-                            pluginComponentRefresh = dshRepository.pluginComponentRefreshFlow,
-                            pluginRpc = { method, payload ->
-                                val first = dshRepository.pluginRpc(
-                                    ui.activeHostId,
-                                    method,
-                                    payload.toString(),
-                                )
-                                val firstText = first.getOrNull() ?: first.exceptionOrNull()?.message
-                                if (ensureMissingPluginDir(context, firstText)) {
-                                    dshRepository.pluginRpc(ui.activeHostId, method, payload.toString())
-                                } else {
-                                    first
-                                }
-                            },
-                            loadPluginSettings = { ns -> dshRepository.pluginSettingsDocument(ns) },
-                            savePluginSettings = { ns, patch, revision ->
-                                dshRepository.updatePluginSettings(ns, patch, revision)
-                            },
+                                },
+                                openAllFilesSettings = openAllFilesSettings,
+                                onWorkspaceChanged = { workspaceChoiceKey++ },
+                                onPairRemote = { ui.activePage = ActivePage.HOSTS; pairingDialogOpen = true },
+                                onOpenTerminal = { ui.activePage = ActivePage.TERMINAL },
+                                onOpenPlugins = { ui.activePage = ActivePage.PLUGINS },
+                                onOpenAutomation = { ui.activePage = ActivePage.AUTOMATION },
+                                automationsOn = ScheduleBridge.flow?.value?.size ?: 0,
+                                automationModel = "" to 0,
+                                onAutomationModel = { _, _ -> },
+                                onClose = { ui.activePage = ActivePage.CHAT },
+                            ),
+                            status = status,
+                            initialPage = ui.settingsInitialSection,
                         )
 
                         ActivePage.RUNTIME -> {

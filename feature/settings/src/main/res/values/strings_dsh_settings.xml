@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Settings, after docs/design/dsh-prototype.html (#screen-settings). -->
+<resources>
+    <string name="st_back">Back</string>
+    <string name="st_title">Settings</string>
+    <string name="st_models">Models &amp; keys</string>
+    <string name="st_models_sub">Providers and spending</string>
+    <string name="st_look">Appearance</string>
+    <string name="st_look_sub">Theme, language, font</string>
+    <string name="st_agent">Agent</string>
+    <string name="st_agent_sub">Permissions and behaviour</string>
+    <string name="st_host">Host</string>
+    <string name="st_host_sub">Local Linux environment</string>
+    <string name="st_storage">Storage</string>
+    <string name="st_storage_sub">Space on the phone</string>
+    <string name="st_security">Security</string>
+    <string name="st_security_sub">Data and trust</string>
+    <string name="st_notif">Notifications</string>
+    <string name="st_about">About</string>
+    <string name="st_search">Search settings</string>
+    <string name="st_nothing">Nothing found</string>
+    <string-array name="st_index">
+        <item>api key deepseek provider balance spending default model</item>
+        <item>theme light dark language english russian code font size vibration haptics</item>
+        <item>approval edits permissions clipboard reasoning</item>
+        <item>host linux debian sleep battery background remote pairing restart terminal</item>
+        <item>space cache rootfs logs backup export clean workspace folder</item>
+        <item>clipboard plugins trust certificate biometric fingerprint lock encryption keystore wipe data</item>
+        <item>notifications tasks automation</item>
+        <item>version licenses log bug report updates</item>
+    </string-array>
+    <string name="st_prof_key">Own %1$s key · API</string>
+    <string name="st_prof_nokey">No key connected — tap to add one</string>
+    <string name="st_bal_balance">balance</string>
+    <string name="st_bal_today">today</string>
+    <string name="st_bal_tokens">this month</string>
+    <string name="st_g_work">Work</string>
+    <string name="st_g_device">Device</string>
+    <string name="st_g_app">App</string>
+    <string name="st_plugins">Plugins</string>
+    <string name="st_automation">Automation</string>
+    <plurals name="st_plugins_on">
+        <item quantity="one">%d on</item>
+        <item quantity="other">%d on</item>
+    </plurals>
+    <plurals name="st_auto_on">
+        <item quantity="one">%d active</item>
+        <item quantity="other">%d active</item>
+    </plurals>
+    <string name="st_host_running">running</string>
+    <string name="st_host_stopped">stopped</string>
+    <string name="st_theme_light">Porcelain</string>
+    <string name="st_theme_dark">Graphite</string>
+    <string name="st_theme_system">System</string>
+    <string name="st_appr_ask_short">Ask</string>
+    <string name="st_appr_auto_short">Auto in folder</string>
+
+    <string name="st_bal_title">%1$s balance</string>
+    <plurals name="st_bal_days">
+        <item quantity="one">≈ %d day at current spend</item>
+        <item quantity="other">≈ %d days at current spend</item>
+    </plurals>
+    <string-array name="st_month_spent">
+        <item>Spent in January</item><item>Spent in February</item><item>Spent in March</item>
+        <item>Spent in April</item><item>Spent in May</item><item>Spent in June</item>
+        <item>Spent in July</item><item>Spent in August</item><item>Spent in September</item>
+        <item>Spent in October</item><item>Spent in November</item><item>Spent in December</item>
+    </string-array>
+    <string name="st_providers">Providers</string>
+    <string name="st_key_none">No key added</string>
+    <string name="st_key_dots">Key ••••%1$s</string>
+    <string name="st_key_dots_added">Key ••••%1$s · added %2$s</string>
+    <string name="st_key_ok">working</string>
+    <string name="st_key_bad">rejected</string>
+    <string name="st_key_offline">offline</string>
+    <string name="st_key_unknown">not checked</string>
+    <string name="st_key_add">add</string>
+    <string name="st_custom">Custom provider</string>
+    <string name="st_custom_sub">Any OpenAI-compatible API</string>
+    <string name="st_defaults">Defaults</string>
+    <string name="st_model">Model</string>
+    <string name="st_reasoning">Reasoning</string>
+    <string name="st_for_auto">For automations</string>
+    <string name="st_key">Key</string>
+    <string name="st_key_replace">Replace key</string>
+    <string name="st_key_add_full">Add key</string>
+    <string name="st_key_site">Manage keys on the website</string>
+    <string name="st_key_delete">Delete key from device</string>
+    <string name="st_key_delete_arm">Tap again to delete the key</string>
+    <string name="st_key_deleted">Key deleted from the device</string>
+    <string name="st_key_note">The key is encrypted with Android Keystore and is never shown in full: it can\'t be viewed or copied from DSH — only replaced or deleted.</string>
+    <string name="st_key_lead">Paste a new key — the old one stops being used right away.</string>
+    <string name="st_custom_lead">The address must start with https://. DSH checks the key with a /models request.</string>
+    <string name="st_custom_name">Name, e.g. OpenRouter</string>
+    <string name="st_custom_url">API address</string>
+    <string name="st_key_field">API key</string>
+    <string name="st_key_show">Show key</string>
+    <string name="st_key_hide">Hide key</string>
+    <string name="st_key_paste">Paste</string>
+    <string name="st_key_checking">Checking the key…</string>
+    <string name="st_key_works">The key works</string>
+    <string name="st_key_rejected">The key was rejected — make sure you copied all of it</string>
+    <string name="st_key_noconn">Can\'t reach the provider — the key will be saved unchecked</string>
+    <string name="st_key_safe">The key is kept in Android\'s secure storage</string>
+    <string name="st_key_saved">Key saved</string>
+    <string name="st_key_save_failed">Couldn\'t save the key — Host isn\'t responding</string>
+    <string name="st_cancel">Cancel</string>
+    <string name="st_save">Save</string>
+
+    <string name="st_theme">Theme</string>
+    <string name="st_language">Language</string>
+    <string name="st_lang_instant">The language applies right away, no restart</string>
+    <string name="st_code_size">Code font size</string>
+    <string name="st_haptics">Vibrate on actions</string>
+    <string name="st_chat_size_note">Chat text size follows the Android system setting.</string>
+
+    <string name="st_edits">File edits</string>
+    <string name="st_appr_ask">Ask every time</string>
+    <string name="st_appr_ask_sub">The agent shows the changes and waits for your “yes”</string>
+    <string name="st_appr_auto">On its own in the workspace</string>
+    <string name="st_appr_auto_sub">Edits inside the project need no approval and show in “Changes”</string>
+    <string name="st_appr_never">Deleting and commands outside the project — always asked</string>
+    <string name="st_appr_never_sub">This can\'t be turned off</string>
+    <string name="st_appr_unavailable">Host hasn\'t sent its permission rules yet — your choice applies once it answers.</string>
+    <string name="st_phone_access">Phone access</string>
+    <string name="st_clipboard">Read the clipboard</string>
+    <string name="st_clipboard_sub">Off: the agent can\'t see what you copied</string>
+    <string name="st_clipboard_on_sub">On: the agent can read copied text</string>
+    <string name="st_clip_on">The agent can now read the clipboard</string>
+    <string name="st_clip_off">The clipboard is closed to the agent</string>
+    <string name="st_sessions">Sessions</string>
+    <string name="st_compress">Compress long context</string>
+    <string name="st_compress_auto">automatically</string>
+    <string name="st_workspace">Workspace folder</string>
+    <string name="st_ws_private">Inside DSH</string>
+    <string name="st_ws_private_sub">Private, no permissions needed</string>
+    <string name="st_ws_shared">In phone storage</string>
+    <string name="st_ws_shared_sub">Visible to other apps, needs All files access</string>
+    <string name="st_ws_shared_toast">Android will ask for “All files access”</string>
+
+    <string name="st_host_local">Local Host</string>
+    <string name="st_host_works">Running</string>
+    <string name="st_host_off">Stopped</string>
+    <string name="st_host_mem">Memory</string>
+    <string name="st_host_cpu">CPU</string>
+    <string name="st_host_restart">Restart</string>
+    <string name="st_host_restarting">Restarting…</string>
+    <string name="st_host_stop">Stop</string>
+    <string name="st_host_start">Start</string>
+    <string name="st_host_restarted">Host restarted</string>
+    <string name="st_host_started">Host started</string>
+    <string name="st_host_stopped_toast">Host stopped · the agent is unavailable</string>
+    <string name="st_host_failed">Host didn\'t respond — try again</string>
+    <string name="st_battery">Battery</string>
+    <string name="st_sleep">Sleep when idle</string>
+    <string name="st_sleep_sub">Host stops when the agent isn\'t working</string>
+    <string name="st_min">%d min</string>
+    <string name="st_never">Never</string>
+    <string name="st_keep_bg">Keep running while a task is going</string>
+    <string name="st_keep_bg_sub">The agent finishes even if you leave the app</string>
+    <string name="st_remotes">Remote Hosts</string>
+    <string name="st_online">online</string>
+    <string name="st_offline">offline</string>
+    <string name="st_pair">Pair with a QR code</string>
+    <string name="st_pair_sub">HTTPS only, fingerprint checked</string>
+    <string name="st_env">Environment</string>
+    <string name="st_updated">updated %1$s</string>
+    <string name="st_open_term">Open terminal</string>
+    <string name="st_host_log">Host log</string>
+
+    <string name="st_of_device">of %1$s on the phone</string>
+    <string name="st_part_linux">Linux</string>
+    <string name="st_part_projects">Projects</string>
+    <string name="st_part_cache">Cache</string>
+    <string name="st_part_other">Other</string>
+    <string name="st_free">Free up space</string>
+    <string name="st_cache">Build and package cache</string>
+    <string name="st_cache_sub">Rebuilt when needed</string>
+    <string name="st_logs">Logs</string>
+    <string name="st_logs_sub">Older than 7 days</string>
+    <string name="st_done">Done</string>
+    <string name="st_freed">Freed %1$s</string>
+    <string name="st_backup">Backup</string>
+    <string name="st_export">Export sessions</string>
+    <string name="st_export_sub">Without API keys</string>
+    <string name="st_restore">Restore from backup</string>
+    <string-array name="st_units"><item>B</item><item>KB</item><item>MB</item><item>GB</item><item>TB</item></string-array>
+
+    <string name="st_bio">Fingerprint unlock</string>
+    <string name="st_bio_sub">Ask when DSH opens</string>
+    <string name="st_trusted">Trusted native plugins</string>
+    <string name="st_sig_changed">signature changed</string>
+    <string name="st_trusted_ok">trusted</string>
+    <string name="st_open">Open</string>
+    <string name="st_protection">Data protection</string>
+    <string name="st_api_keys">API keys</string>
+    <string name="st_in_keystore">in Android Keystore</string>
+    <string name="st_remotes_short">Remote Hosts</string>
+    <string name="st_https_only">HTTPS only</string>
+    <string name="st_clip_short">Clipboard</string>
+    <string name="st_clip_open">open to the agent</string>
+    <string name="st_clip_closed">closed</string>
+    <string name="st_wipe">Delete all DSH data</string>
+    <string name="st_wipe_arm">Tap again — sessions, keys and Linux will be deleted</string>
+
+    <string name="st_n_done">The agent finished a task</string>
+    <string name="st_n_done_sub">When the app is in the background</string>
+    <string name="st_n_ask">The agent needs a decision</string>
+    <string name="st_n_ask_sub">Approving edits and deletions</string>
+    <string name="st_n_auto">Automations</string>
+    <string name="st_always">Always</string>
+    <string name="st_on_error">On error</string>
+    <string name="st_n_auto_note">Each automation can set its own rule in its settings.</string>
+    <string name="st_n_system">System settings</string>
+
+    <string name="st_check_updates">Check for updates</string>
+    <string name="st_up_to_date">up to date</string>
+    <string name="st_update_to">%1$s available</string>
+    <string name="st_latest_toast">You have the latest version</string>
+    <string name="st_report">Report a problem</string>
+    <string name="st_report_sub">With the log, without keys or files</string>
+    <string name="st_whats_new">What\'s new</string>
+    <string name="st_licenses">Licenses</string>
+    <string name="st_about_note">Based on deepseek-harness-mobile 1.0.6. Works with DeepSeek Harness.</string>
+    <string name="st_model_default">Default model</string>
+    <string name="st_models_empty">Host hasn\'t sent the model list yet</string>
+</resources>
