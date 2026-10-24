@@ -319,6 +319,23 @@ fun MainAppHost(
             it.name == VoiceInputPluginUi.bundle && it.enabled
         }
     }
+    // Android 13+: без runtime-разрешения POST_NOTIFICATIONS система молча блокирует
+    // все уведомления DSH (готово, ошибка, запрос одобрения). Раньше оно не запрашивалось.
+    // Спрашиваем один раз, пока в настройках включены уведомления.
+    val notificationPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+    ) { _ -> }
+    LaunchedEffect(ui.currentAppSettings.notificationsEnabled) {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) return@LaunchedEffect
+        if (!ui.currentAppSettings.notificationsEnabled) return@LaunchedEffect
+        val prefs = context.getSharedPreferences("dsh_permissions", android.content.Context.MODE_PRIVATE)
+        val granted = context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (!granted && !prefs.getBoolean("notifications_asked", false)) {
+            prefs.edit().putBoolean("notifications_asked", true).apply()
+            runCatching { notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS) }
+        }
+    }
     val voicePermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -1580,6 +1597,7 @@ fun MainAppHost(
             when {
                 current.phase == RuntimePhase.RUNNING -> {
                     runtimeUi.hostProgressReady = true
+                    StartupGateMemory.passed = true
                     runtimeUi.hostStartupError = false
                     runtimeUi.hostStartupDetail = null
                 }
@@ -1611,7 +1629,10 @@ fun MainAppHost(
             },
             // Host 起不来时仍允许进入应用：设置 → 移动运行时 有完整日志，
             // 也可以在那里导出脱敏诊断包。
-            onContinue = { runtimeUi.hostProgressReady = true },
+            onContinue = {
+                runtimeUi.hostProgressReady = true
+                StartupGateMemory.passed = true
+            },
         )
         return
     }
@@ -2133,7 +2154,11 @@ fun MainAppHost(
         runtimeUi.filesRevision,
     ) {
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            workspaceManager.listFiles(ui.filesDir)
+            // Служебная папка называется «默认工作区» на диске (на имя завязаны сессии Host);
+            // в списке показываем её локализованное название.
+            workspaceManager.listFiles(ui.filesDir).map { item ->
+                if (item.isDirectory && item.name == DEFAULT_WORKSPACE_DIR_NAME) item.copy(name = defaultWorkspaceLabel) else item
+            }
         }
     }
     // 全文件选择器 → 复制进当前浏览目录（工作区内），Host 才能访问。

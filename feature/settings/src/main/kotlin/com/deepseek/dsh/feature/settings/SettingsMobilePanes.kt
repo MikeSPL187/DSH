@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material3.Icon
@@ -245,6 +246,21 @@ internal fun SettingsMobileRuntimePane(
                 // Переключатель «Подтверждение опасных инструментов» убран: он ни на что не
                 // влиял (одобрения задаёт пресет разрешений Host в «Общие → Разрешения»)
                 // и создавал ложное ощущение защиты.
+                SettingsCardDivider()
+                val bridgeContext = androidx.compose.ui.platform.LocalContext.current
+                var clipboardAllowed by remember {
+                    mutableStateOf(com.deepseek.dsh.runtime.bridge.BridgePolicy.isClipboardReadAllowed(bridgeContext))
+                }
+                RuntimeSwitchRow(
+                    icon = Icons.Filled.ContentPaste,
+                    title = stringResource(R.string.settings_pane_clipboard_title),
+                    subtitle = stringResource(R.string.settings_pane_clipboard_desc),
+                    checked = clipboardAllowed,
+                    onCheckedChange = { checked ->
+                        clipboardAllowed = checked
+                        com.deepseek.dsh.runtime.bridge.BridgePolicy.setClipboardReadAllowed(bridgeContext, checked)
+                    },
+                )
             }
         }
         item(key = "runtime_maintenance") {

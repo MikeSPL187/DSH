@@ -210,6 +210,15 @@ class BridgeServer(
                 }
 
                 BridgeMethod.GET_CLIPBOARD.methodName -> {
+                    if (!BridgePolicy.isClipboardReadAllowed(context)) {
+                        return BridgeResponse(
+                            id = request.id,
+                            error = BridgeError(
+                                code = CLIPBOARD_DENIED_CODE,
+                                message = "Clipboard access is disabled in DSH settings (Mobile runtime)",
+                            ),
+                        )
+                    }
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                     val text = clipboard?.primaryClip?.getItemAt(0)?.text?.toString() ?: ""
                     val res = buildJsonObject { put("text", text) }
@@ -423,3 +432,6 @@ class BridgeServer(
 
 
 
+
+/** Код ошибки моста: чтение буфера обмена запрещено настройкой пользователя. */
+internal const val CLIPBOARD_DENIED_CODE = -32010

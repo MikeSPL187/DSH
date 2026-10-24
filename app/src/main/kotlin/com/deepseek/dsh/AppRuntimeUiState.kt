@@ -70,7 +70,12 @@ class AppRuntimeUiState(
     var forceRootfsInstall by mutableStateOf(false)
 
     // Host 启动提示
-    var hostProgressReady by mutableStateOf(false)
+    /**
+     * Пройден ли экран запуска Host. Значение переживает пересоздание Activity (смена
+     * языка) в пределах процесса: иначе после смены языка пользователь снова попадал
+     * на экран запуска и должен был нажимать «Всё равно продолжить».
+     */
+    var hostProgressReady by mutableStateOf(StartupGateMemory.passed)
     var hostStartupError by mutableStateOf(false)
     var hostStartupDetail by mutableStateOf<String?>(null)
     var hostRetryKey by mutableStateOf(0)
@@ -112,3 +117,9 @@ fun rememberAppRuntimeUiState(
     initialOnboarding: Boolean,
     initialRootfsProgress: Pair<Float, String>,
 ): AppRuntimeUiState = remember { AppRuntimeUiState(initialOnboarding, initialRootfsProgress) }
+
+/** Память о пройденном экране запуска на время жизни процесса. */
+internal object StartupGateMemory {
+    @Volatile
+    var passed: Boolean = false
+}

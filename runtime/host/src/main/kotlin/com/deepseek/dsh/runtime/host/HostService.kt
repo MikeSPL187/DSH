@@ -40,6 +40,7 @@ class HostService : Service() {
         const val ACTION_KEEP_WHILE_TASKS = "com.deepseek.dsh.runtime.host.KEEP_WHILE_TASKS"
 
         private const val IDLE_CHECK_MS = 30_000L
+        private const val WAKE_LOCK_TIMEOUT_MS = 2 * 60_000L
 
         /**
          * Оставлять ли Host работать, когда пользователь ушёл из приложения: только если
@@ -67,14 +68,44 @@ class HostService : Service() {
         idleHandler.postDelayed(stopWhenTasksDone, IDLE_CHECK_MS)
     }
 
+    /**
+     * Настройка обещала «системную блокировку сна на время задач», но WAKE_LOCK не
+     * брался ни разу: с выключенным экраном CPU засыпал и долгая задача агента вставала.
+     * Держим PARTIAL_WAKE_LOCK, только пока задача реально идёт; таймаут страхует от утечки.
+     */
+    private var wakeLock: android.os.PowerManager.WakeLock? = null
+    private val wakeLockTick = object : Runnable {
+        override fun run() {
+            val needed = keepAliveOnTaskRemoved(this@HostService) &&
+                HostRuntimeHolder.hasRunningTasks?.invoke() == true
+            if (needed) {
+                val lock = wakeLock ?: (getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager)
+                    ?.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "dsh:agent-task")
+                    ?.apply { setReferenceCounted(false) }
+                    .also { wakeLock = it }
+                runCatching { lock?.acquire(WAKE_LOCK_TIMEOUT_MS) }
+            } else {
+                releaseWakeLock()
+            }
+            idleHandler.postDelayed(this, IDLE_CHECK_MS)
+        }
+    }
+
+    private fun releaseWakeLock() {
+        wakeLock?.let { lock -> if (lock.isHeld) runCatching { lock.release() } }
+    }
+
     override fun onDestroy() {
         idleHandler.removeCallbacks(stopWhenTasksDone)
+        idleHandler.removeCallbacks(wakeLockTick)
+        releaseWakeLock()
         super.onDestroy()
     }
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        idleHandler.post(wakeLockTick)
         // Обязательство startForegroundService выполняем сразу при создании: на медленном
         // устройстве onStartCommand может прийти позже лимита в 5–10 секунд.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

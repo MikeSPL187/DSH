@@ -13,4 +13,6 @@
     <string name="pwi_host_not_running">Host is not running; the full UI cannot be opened</string>
     <string name="action_back_a11y">Back</string>
     <string name="settings_pane_general_permission_unavailable">Host not connected</string>
+    <string name="settings_pane_clipboard_title">Let the agent read the clipboard</string>
+    <string name="settings_pane_clipboard_desc">Plugins and tools in the Host can read what you copied (passwords, codes). Off by default.</string>
 </resources>

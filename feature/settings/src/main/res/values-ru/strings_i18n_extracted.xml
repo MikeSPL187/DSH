@@ -13,4 +13,6 @@
     <string name="pwi_host_not_running">Host не запущен, полный интерфейс открыть нельзя</string>
     <string name="action_back_a11y">Назад</string>
     <string name="settings_pane_general_permission_unavailable">Host не подключён</string>
+    <string name="settings_pane_clipboard_title">Разрешить агенту читать буфер обмена</string>
+    <string name="settings_pane_clipboard_desc">Плагины и инструменты Host смогут читать скопированное (пароли, коды). По умолчанию выключено.</string>
 </resources>
