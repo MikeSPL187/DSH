@@ -186,4 +186,8 @@
     <string name="ob_retry">重试</string>
     <string name="ob_notify_title">DSH 已就绪</string>
     <string name="ob_notify_text">Linux 已安装，可以开始了。</string>
+    <string name="ob_err_tls">无法建立安全连接。请检查手机日期和时间，或换个网络。</string>
+    <string name="ob_err_offline">没有网络连接。连接后点“重试”。</string>
+    <string name="ob_err_space">空间不足：Linux 需要约 1.5 GB。</string>
+    <string name="ob_err_generic">安装中断，请点“重试”。</string>
 </resources>

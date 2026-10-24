@@ -207,7 +207,7 @@ class ScreensGalleryTest {
     @Test fun ob3() = renderOb("54_ob_linux", install = installing) { keyOk(); tap("Продолжить"); tap("Продолжить") }
     @Test fun ob3Dark() = renderOb("54b_ob_linux_dark", dark = true, install = installing) { keyOk(); tap("Продолжить"); tap("Продолжить") }
     @Test fun ob3Done() = renderOb("55_ob_linux_done", install = installed) { keyOk(); tap("Продолжить"); tap("Продолжить") }
-    @Test fun ob3Error() = renderOb("55b_ob_linux_error", install = installing.copy(error = "Не удалось скачать rootfs: нет соединения")) { keyOk(); tap("Продолжить"); tap("Продолжить") }
+    @Test fun ob3Error() = renderOb("55b_ob_linux_error", install = installing.copy(error = "Не удалось установить защищённое соединение. Проверьте дату и время на телефоне или другую сеть.", errorDetail = "java.security.cert.CertPathValidatorException: Trust anchor for certification path not found.")) { keyOk(); tap("Продолжить"); tap("Продолжить") }
 
     @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
     @Test fun ob0Narrow() = renderOb("56_ob_welcome_360")

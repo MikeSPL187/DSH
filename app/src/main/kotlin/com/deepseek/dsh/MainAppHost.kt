@@ -844,7 +844,8 @@ fun MainAppHost(
         }
     }
     // 伴侣信任确认：展示包名、证书指纹与将要连带安装的 JS 插件，由用户明确批准。
-    pendingNativeApprovals.firstOrNull()?.let { candidate ->
+    // На первом запуске не перебиваем онбординг: спросим, когда он закончится.
+    pendingNativeApprovals.firstOrNull()?.takeIf { !runtimeUi.showOnboarding }?.let { candidate ->
         val key = "${candidate.packageName}/${candidate.signatureFingerprint}"
         val mismatch = candidate.status ==
             com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.SIGNATURE_MISMATCH

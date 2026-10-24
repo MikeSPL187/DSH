@@ -161,4 +161,8 @@
     <string name="ob_retry">Повторить</string>
     <string name="ob_notify_title">DSH готов к работе</string>
     <string name="ob_notify_text">Linux установлен — можно начинать.</string>
+    <string name="ob_err_tls">Не удалось установить защищённое соединение. Проверьте дату и время на телефоне или другую сеть.</string>
+    <string name="ob_err_offline">Нет соединения с интернетом. Подключитесь и нажмите «Повторить».</string>
+    <string name="ob_err_space">Не хватает места: Linux нужно около 1,5 ГБ.</string>
+    <string name="ob_err_generic">Установка прервалась. Нажмите «Повторить».</string>
 </resources>
