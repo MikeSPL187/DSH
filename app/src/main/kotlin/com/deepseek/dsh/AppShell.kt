@@ -271,7 +271,7 @@ internal fun StoragePermissionGate(onRequest: () -> Unit, onUsePrivateWorkspace:
             }
             Spacer(modifier = Modifier.height(10.dp))
             // Аудит F-07: можно работать без доступа ко всем файлам — в папке приложения.
-            val gateActivity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+            val gateActivity = androidx.activity.compose.LocalActivity.current
             OutlinedButton(
                 onClick = {
                     onUsePrivateWorkspace()

@@ -52,10 +52,11 @@ android {
         }
         release {
             manifestPlaceholders["bindPluginPermission"] = "com.deepseek.dsh.permission.BIND_PLUGIN"
-            // 1.0 以“能装、能跑”为先：暂不开启 R8 收缩，避免反射/Compose/插件
-            // 入口被裁掉；后续补 keep 规则后再打开。
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // Аудит F-18: R8 включён. Публичная поверхность, с которой линкуются нативные
+            // плагины (SDK, Compose, AndroidX, Kotlin), сохранена в proguard-rules.pro;
+            // релиз проверен на эмуляторе вместе с загрузкой companion-плагина.
+            isMinifyEnabled = true
+            isShrinkResources = true
             signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -158,3 +159,12 @@ dependencies {
 
 
 
+
+// Галерея экранов использует ComponentActivity из ui-test-manifest, который подключён только
+// к debug (тестовая Activity не должна попадать в релизный APK). В release-варианте её
+// не запускаем — те же экраны проверяются в testDebugUnitTest.
+tasks.withType<Test>().configureEach {
+    if (name == "testReleaseUnitTest") {
+        exclude("**/ScreensGalleryTest*")
+    }
+}
