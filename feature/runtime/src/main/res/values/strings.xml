@@ -186,4 +186,8 @@
     <string name="ob_retry">Retry</string>
     <string name="ob_notify_title">DSH is ready</string>
     <string name="ob_notify_text">Linux is installed — you can start.</string>
+    <string name="ob_err_tls">Could not establish a secure connection. Check the date and time on the phone, or try another network.</string>
+    <string name="ob_err_offline">No internet connection. Connect and tap “Retry”.</string>
+    <string name="ob_err_space">Not enough free space: Linux needs about 1.5 GB.</string>
+    <string name="ob_err_generic">Something went wrong while installing. Tap “Retry”.</string>
 </resources>

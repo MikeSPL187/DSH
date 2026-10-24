@@ -56,7 +56,10 @@ internal fun FirstRunOnboarding(
     var notify by rememberSaveable { mutableStateOf(true) }
     var finishing by remember { mutableStateOf(false) }
 
-    val install = rememberLinuxInstall(runtimeUi)
+    val install = rememberLinuxInstall(runtimeUi).let { s ->
+        val raw = s.error
+        if (raw == null) s else s.copy(error = context.getString(installErrorText(raw)), errorDetail = raw)
+    }
 
     // «Сообщить о готовности»: одно уведомление, если в этот момент приложение свёрнуто.
     LaunchedEffect(install.done) {
@@ -130,6 +133,18 @@ internal fun FirstRunOnboarding(
             }
         },
     )
+}
+
+/** Понятная причина сбоя установки по тексту исключения. */
+private fun installErrorText(raw: String): Int {
+    val t = raw.lowercase()
+    return when {
+        "cert" in t || "ssl" in t || "tls" in t || "handshake" in t -> com.deepseek.dsh.feature.runtime.R.string.ob_err_tls
+        "unknownhost" in t || "unable to resolve" in t || "timeout" in t || "timed out" in t ||
+            "network" in t || "connect" in t || "offline" in t || "нет сети" in t -> com.deepseek.dsh.feature.runtime.R.string.ob_err_offline
+        "enospc" in t || "no space" in t || "space left" in t -> com.deepseek.dsh.feature.runtime.R.string.ob_err_space
+        else -> com.deepseek.dsh.feature.runtime.R.string.ob_err_generic
+    }
 }
 
 /**

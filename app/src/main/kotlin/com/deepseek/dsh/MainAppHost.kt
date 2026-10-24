@@ -3278,7 +3278,8 @@ fun MainAppHost(
         }
         PluginIslandOverlays()
         // Нашёлся нативный плагин, пока пользователь не в «Плагинах», — спрашиваем о доверии поверх экрана.
-        if (ui.activePage != ActivePage.PLUGINS) {
+        // На первом запуске не перебиваем онбординг: спросим, когда он закончится.
+        if (ui.activePage != ActivePage.PLUGINS && !runtimeUi.showOnboarding) {
             pendingNativeApprovals.firstOrNull()?.let { c ->
                 com.deepseek.dsh.feature.settings.ui.PluginTrustOverlay(trustOf(context, c), onTrust = { trustNativePlugin(c) }, onDismiss = { dismissNativePlugin(c) })
             }

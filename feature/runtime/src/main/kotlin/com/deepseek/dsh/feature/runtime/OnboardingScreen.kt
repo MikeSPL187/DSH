@@ -132,7 +132,8 @@ data class OnboardingKey(
  * @property unpackPercent распаковано, %.
  * @property etaSeconds сколько осталось, null — пока неизвестно.
  * @property done Linux установлен и Host отвечает.
- * @property error текст ошибки; null — ошибок нет.
+ * @property error понятная причина ошибки; null — ошибок нет.
+ * @property errorDetail техническая подробность мелким шрифтом.
  */
 @Immutable
 data class LinuxInstall(
@@ -145,6 +146,7 @@ data class LinuxInstall(
     val etaSeconds: Int? = null,
     val done: Boolean = false,
     val error: String? = null,
+    val errorDetail: String? = null,
 )
 
 /** Языки интерфейса в переключателе сверху: тег и самоназвание. */
@@ -960,10 +962,20 @@ private fun LinuxStep(install: LinuxInstall, notify: Boolean, onNotifyChange: (B
         if (install.error != null) {
             Text(
                 install.error,
-                style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.sp, lineHeight = 18.sp),
+                style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.5.sp, lineHeight = 19.sp),
                 color = c.danger,
-                modifier = Modifier.padding(top = 2.dp, bottom = 10.dp),
+                modifier = Modifier.padding(top = 2.dp, bottom = if (install.errorDetail == null) 10.dp else 2.dp),
             )
+            if (install.errorDetail != null) {
+                Text(
+                    install.errorDetail,
+                    style = TextStyle(fontFamily = DshFonts.mono, fontSize = 11.sp, lineHeight = 15.sp),
+                    color = c.t3,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(bottom = 10.dp),
+                )
+            }
         }
     }
     // `.ob-notif`: строка группы с переключателем.
