@@ -661,7 +661,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .ob-eye { display: block; font-size: 12.5px; font-weight: 500; color: var(--accent); margin-top: 6px; }
 .ob-step h2 { margin: 6px 0 8px; font-family: var(--font-display); font-weight: 600; font-size: 27px; line-height: 1.15; letter-spacing: -0.02em; }
 .ob-lead { margin: 0 0 22px; font-size: 15px; line-height: 1.5; color: var(--t2); }
-.ob-prov { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 3px; background: var(--s2); border-radius: 14px; margin-bottom: 14px; }
+.ob-prov { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; padding: 3px; background: var(--s2); border-radius: 14px; margin-bottom: 14px; }
 .ob-prov button { height: 40px; border-radius: 11px; font-size: 14px; color: var(--t2); transition: background .25s, color .25s, box-shadow .25s; }
 .ob-prov button[aria-checked="true"] { background: var(--s1); color: var(--t1); font-weight: 500; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
 .ob-field { display: block; }
@@ -1258,7 +1258,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
             <h2>Подключите модель</h2>
             <p class="ob-lead">DSH работает с DeepSeek по вашему API-ключу. Вы платите провайдеру только за то, что используете.</p>
             <div class="ob-prov" role="radiogroup" id="obProv">
-              <button role="radio" aria-checked="true">DeepSeek</button><button role="radio" aria-checked="false">Kimi</button><button role="radio" aria-checked="false">Свой API</button>
+              <button role="radio" aria-checked="true">DeepSeek</button><button role="radio" aria-checked="false">Свой API</button>
             </div>
             <label class="ob-field" id="obField">
               <span class="ob-fl">API-ключ</span>
@@ -1347,7 +1347,6 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <h3>Модель</h3>
         <div role="radiogroup">
           <button class="model" role="radio" aria-checked="true"><span class="radio"></span><span><b>DeepSeek V4<span class="tag">по умолчанию</span></b><small>Основная модель: код, тексты, анализ.</small></span></button>
-          <button class="model" role="radio" aria-checked="false"><span class="radio"></span><span><b>Kimi K2</b><small>Через подписку. Хорош на длинных задачах в больших проектах.</small></span></button>
           <button class="model" role="radio" aria-checked="false"><span class="radio"></span><span><b>Свой провайдер</b><small>Любой OpenAI-совместимый API по вашему ключу.</small></span></button>
         </div>
         <h3 style="margin-top:18px">Рассуждение</h3>
@@ -2957,7 +2956,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     about: ["О приложении", ""],
   };
   const INDEX = [
-    ["models", "API-ключ DeepSeek Kimi провайдер баланс расход модель по умолчанию"], ["look", "тема светлая тёмная язык русский english шрифт кода размер"],
+    ["models", "API-ключ DeepSeek провайдер баланс расход модель по умолчанию"], ["look", "тема светлая тёмная язык русский english шрифт кода размер"],
     ["agent", "одобрение правки разрешения буфер обмена clipboard глубина рассуждения"], ["host", "host linux debian сон засыпать батарея фон удалённый сопряжение перезапуск"],
     ["storage", "место кэш rootfs логи резервная копия экспорт очистить рабочая папка"], ["security", "буфер обмена плагины доверие сертификат биометрия блокировка шифрование keystore"],
     ["notif", "уведомления задачи автоматизация вибрация"], ["about", "версия лицензии журнал отчёт об ошибке"],
@@ -2982,7 +2981,6 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <div class="st-meters"><div class="st-m"><div class="lb"><span>Потрачено в октябре</span><b>7,60 $</b></div><div class="bar"><i style="width:38%"></i></div></div></div></div>
       <div class="glabel">Провайдеры</div>
       <div class="gl"><div class="st-row"><span class="si c1"><svg class="i"><use href="#i-key"/></svg></span><span class="tx">DeepSeek<small class="key-dots">sk-7f3a••••••9a65</small></span><span class="val okc">работает</span></div>
-        <div class="st-row"><span class="si c6"><svg class="i"><use href="#i-key"/></svg></span><span class="tx">Kimi<small>Через подписку</small></span><button class="clean" data-sttoast="Вход в Kimi">Подключить</button></div>
         <button class="st-row" data-sttoast="Добавить OpenAI-совместимый API"><span class="si c6"><svg class="i"><use href="#i-plus"/></svg></span><span class="tx">Свой провайдер<small>Любой OpenAI-совместимый API</small></span><svg class="i sm chev-r"><use href="#i-right"/></svg></button></div>
       <div class="glabel">По умолчанию</div>
       <div class="gl">${row("i-cpu", "c1", "Модель", "DeepSeek V4", "", ' data-act="model"')}${row("i-sliders", "c2", "Рассуждение", "Высокий", "", ' data-act="model"')}${row("i-clock", "c7", "Для автоматизаций", "V4 · Низкий")}</div>
