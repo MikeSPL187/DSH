@@ -306,4 +306,14 @@
     <string name="chat_card_auto_sub">Задачи по расписанию</string>
     <string name="chat_card_auto_prompt">Каждое утро проверяй обновления зависимостей и пиши мне итог</string>
     <string name="chat_input_short">Спросить DSH</string>
+    <string name="chat_approval_tier_destructive">Необратимо</string>
+    <string name="chat_approval_tier_write">Нужно ваше решение</string>
+    <string name="chat_approval_sheet_title">Агент просит разрешения</string>
+    <string name="chat_approval_no_reason">Агент хочет выполнить этот шаг.</string>
+    <string name="chat_approval_irreversible">Отменить нельзя: файлы не попадут в корзину.</string>
+    <string name="chat_approval_tap_again">Нажмите ещё раз</string>
+    <string name="chat_approval_reject">Отклонить</string>
+    <string name="chat_approval_allow_once">Разрешить</string>
+    <string name="chat_approval_armed_hint">Нажмите ещё раз в течение 3 секунд</string>
+    <string name="chat_approval_two_taps">Необратимо — подтверждение двумя касаниями</string>
 </resources>

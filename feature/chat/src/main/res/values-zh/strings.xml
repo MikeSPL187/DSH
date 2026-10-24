@@ -335,4 +335,14 @@
     <string name="chat_card_auto_sub">定时任务</string>
     <string name="chat_card_auto_prompt">每天早上检查依赖更新并把结果发给我</string>
     <string name="chat_input_short">问问 DSH</string>
+    <string name="chat_approval_tier_destructive">不可撤销</string>
+    <string name="chat_approval_tier_write">需要你的确认</string>
+    <string name="chat_approval_sheet_title">智能体请求许可</string>
+    <string name="chat_approval_no_reason">智能体想执行这一步。</string>
+    <string name="chat_approval_irreversible">无法撤销：文件不会进入回收站。</string>
+    <string name="chat_approval_tap_again">再点一次</string>
+    <string name="chat_approval_reject">拒绝</string>
+    <string name="chat_approval_allow_once">允许</string>
+    <string name="chat_approval_armed_hint">3 秒内再点一次以确认</string>
+    <string name="chat_approval_two_taps">不可撤销——需点两次确认</string>
 </resources>

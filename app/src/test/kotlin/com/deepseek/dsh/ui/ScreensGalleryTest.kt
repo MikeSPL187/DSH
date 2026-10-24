@@ -17,6 +17,13 @@ import com.deepseek.dsh.feature.sessions.SessionDisplayItem
 import com.deepseek.dsh.feature.sessions.WorkspaceFolder
 import com.deepseek.dsh.feature.settings.SettingsRootScreen
 import com.deepseek.dsh.feature.settings.SettingsSectionTab
+import androidx.compose.ui.test.performClick
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -155,6 +162,60 @@ class ScreensGalleryTest {
         )
     }
 
+    private fun tool(id: String, name: String, status: String, body: String, args: String) =
+        msg(id, com.deepseek.dsh.core.model.MessageRole.TOOL, "\u0002TOOL\u0002$id\u0002$name\u0002$status\u0002$body\u0002$args")
+
+    private val agentTurn
+        get() = listOf(
+            msg("u1", com.deepseek.dsh.core.model.MessageRole.USER, "Сборка падает после обновления Compose. Найди причину и исправь."),
+            tool("t1", "read_file", "ok", "[versions]", "{\"path\":\"gradle/libs.versions.toml\"}"),
+            tool("t2", "bash", "error", "BUILD FAILED in 12s", "{\"command\":\"./gradlew :app:assembleDebug\"}"),
+            tool("t3", "edit_file", "ok", "1 line changed", "{\"path\":\"gradle/libs.versions.toml\"}"),
+            msg("a1", com.deepseek.dsh.core.model.MessageRole.ASSISTANT, "Причина — несовместимые версии: компилятор Compose требует Kotlin 2.0.21. Я обновил версию в `gradle/libs.versions.toml`, сборка проходит."),
+        )
+
+    private fun renderAgent(name: String, dark: Boolean) {
+        compose.mainClock.autoAdvance = false
+        compose.setContent { DshTheme(darkTheme = dark) { com.deepseek.dsh.feature.chat.ModernChatScreen(messages = agentTurn, onSendMessage = {}) } }
+        compose.mainClock.advanceTimeBy(800)
+        // Раскрываем ход работы, чтобы снять карточки шагов.
+        compose.onAllNodes(androidx.compose.ui.test.hasText("Готово", substring = true))[0].performClick()
+        compose.mainClock.advanceTimeBy(1_500)
+        ScreenShots.capture(compose, name, compose.activity)
+    }
+
+    @Test
+    fun chatAgentWork() = renderAgent("13_chat_agent", dark = false)
+
+    @Test
+    fun chatAgentWorkDark() = renderAgent("14_chat_agent_dark", dark = true)
+
+    @Test
+    fun approvalWrite() = render("15_approval_write") {
+        com.deepseek.dsh.feature.chat.ModernChatScreen(messages = agentTurn.take(2), onSendMessage = {})
+        SheetPreview {
+            com.deepseek.dsh.feature.chat.ApprovalSheetContent(
+            toolName = "edit_file",
+            reason = "Версия Kotlin не подходит компилятору Compose. Агент изменит одну строку.",
+            args = "{\"path\":\"gradle/libs.versions.toml\"}",
+            onAllow = {}, onReject = {},
+            )
+        }
+    }
+
+    @Test
+    fun approvalDestructive() = render("16_approval_danger", dark = true) {
+        com.deepseek.dsh.feature.chat.ModernChatScreen(messages = agentTurn.take(2), onSendMessage = {})
+        SheetPreview {
+            com.deepseek.dsh.feature.chat.ApprovalSheetContent(
+            toolName = "bash",
+            reason = "Для ночного архива не хватает 1,2 ГБ. Это самые крупные файлы, которые пересоздаются сборкой.",
+            args = "{\"command\":\"rm -rf build/ ~/.gradle/caches\"}",
+            onAllow = {}, onReject = {},
+            )
+        }
+    }
+
     @Test
     fun chatConversationDark() = render("12_chat_dark", dark = true) {
         com.deepseek.dsh.feature.chat.ModernChatScreen(
@@ -197,6 +258,22 @@ class ScreensGalleryTest {
                 org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
             }
             ScreenShots.capture(compose, "6${index + 1}_settings_${tab.id}", compose.activity)
+        }
+    }
+
+    /** Лист поверх затемнённого экрана — как его видит пользователь. */
+    @Composable
+    private fun SheetPreview(content: @Composable () -> Unit) {
+        val c = com.deepseek.dsh.core.designsystem.Dsh.colors
+        androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize().background(c.scrim)) {
+            androidx.compose.foundation.layout.Column(
+                androidx.compose.ui.Modifier
+                    .align(androidx.compose.ui.Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .background(c.s1)
+                    .padding(top = 20.dp),
+            ) { content() }
         }
     }
 }

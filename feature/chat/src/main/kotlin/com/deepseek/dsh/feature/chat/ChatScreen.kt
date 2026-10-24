@@ -49,6 +49,13 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Checklist
+import androidx.compose.material.icons.rounded.HelpOutline
+import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Mic
@@ -1765,34 +1772,32 @@ private fun TurnCompletedRow(
         seconds >= 60 -> stringResource(R.string.chat_duration_minutes, seconds / 60, seconds % 60)
         else -> stringResource(R.string.chat_duration_seconds, seconds)
     }
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .height(22.dp)
-                .combinedClickable(onClick = onClick, onLongClick = onLongClick),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = if (duration == null) {
-                    stringResource(R.string.chat_completed)
-                } else {
-                    stringResource(R.string.chat_completed_with_duration, duration)
-                },
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.outline
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Icon(
-                imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.outline
-            )
-        }
-        androidx.compose.material3.HorizontalDivider(
-            thickness = 0.5.dp,
-            color = MaterialTheme.colorScheme.outlineVariant,
-            modifier = Modifier.padding(top = 6.dp, bottom = 2.dp)
+    val ds = com.deepseek.dsh.core.designsystem.Dsh.colors
+    // «Готово · 1 мин 4 с»: зелёная отметка, нажатие раскрывает ход работы.
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 44.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick, role = androidx.compose.ui.semantics.Role.Button),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier.size(22.dp).clip(RoundedCornerShape(7.dp)).background(ds.okSoft),
+            contentAlignment = Alignment.Center,
+        ) { Icon(Icons.Default.Check, contentDescription = null, tint = ds.ok, modifier = Modifier.size(14.dp)) }
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = if (duration == null) stringResource(R.string.chat_completed) else stringResource(R.string.chat_completed_with_duration, duration),
+            style = com.deepseek.dsh.core.designsystem.Dsh.type.callout,
+            color = ds.t2,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            imageVector = if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = ds.t3
         )
     }
 }
@@ -1818,29 +1823,27 @@ private fun ToolProcessGroup(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(24.dp)
-                    .clickable(onClick = onToggle),
+                    .heightIn(min = 44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onToggle),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (isRunning) {
-                    androidx.compose.material3.CircularProgressIndicator(
-                        modifier = Modifier.size(13.dp),
-                        strokeWidth = 1.5.dp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Build,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                val ds = com.deepseek.dsh.core.designsystem.Dsh.colors
+                Box(
+                    Modifier.size(22.dp).clip(RoundedCornerShape(7.dp)).background(if (isRunning) ds.accentSoft else ds.s2),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (isRunning) {
+                        androidx.compose.material3.CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 1.75.dp, color = ds.accent)
+                    } else {
+                        Icon(imageVector = Icons.Default.Build, contentDescription = null, modifier = Modifier.size(13.dp), tint = ds.t2)
+                    }
                 }
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(10.dp))
                 Text(
                     text = if (isRunning) processVerb(activeName, done = false) else summary,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = com.deepseek.dsh.core.designsystem.Dsh.type.callout,
+                    color = ds.t2,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
@@ -1854,7 +1857,10 @@ private fun ToolProcessGroup(
             }
         }
         AnimatedVisibility(visible = if (!header) true else expanded) {
-            Column(modifier = Modifier.padding(start = if (header) 20.dp else 0.dp, top = 2.dp)) {
+            Column(
+                modifier = Modifier.padding(start = if (header) 32.dp else 0.dp, top = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 items.filterNot { it.role == MessageRole.TOOL && toolStatus(it) == "running" }.forEach { item ->
                     if (item.role == MessageRole.ASSISTANT) {
                         val separator = item.content.indexOf('\u0001')
@@ -1946,11 +1952,15 @@ private fun ToolMessageItem(
                 }
             }
         }
+        val ds = com.deepseek.dsh.core.designsystem.Dsh.colors
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(24.dp)
-                .clickable {
+                .heightIn(min = 52.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(ds.s1)
+                .border(1.dp, if (status == "error") ds.danger.copy(alpha = 0.35f) else ds.line, RoundedCornerShape(16.dp))
+                .clickable(role = androidx.compose.ui.semantics.Role.Button) {
                     onOpenDetail(
                         ToolDetailData(
                             callId = callId,
@@ -1963,48 +1973,46 @@ private fun ToolMessageItem(
                 },
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = toolIcon(name),
-                contentDescription = null,
-                modifier = Modifier.size(14.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = toolTitle(name),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            // Карточка шага: иконка, что делает агент, и аргумент моноширинным.
+            Spacer(Modifier.width(10.dp))
             Box(
-                modifier = Modifier
-                    .padding(horizontal = 8.dp)
-                    .size(2.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.outline)
-            )
-            Text(
-                text = summary,
-                style = MaterialTheme.typography.labelMedium,
-                color = if (status == "error") MaterialTheme.colorScheme.error
-                else MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
+                Modifier.size(28.dp).clip(RoundedCornerShape(9.dp)).background(if (status == "error") ds.dangerSoft else ds.s2),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(imageVector = toolIcon(name), contentDescription = null, modifier = Modifier.size(15.dp), tint = if (status == "error") ds.danger else ds.t2)
+            }
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
+                Text(
+                    text = toolTitle(name),
+                    style = com.deepseek.dsh.core.designsystem.Dsh.type.bodyMedium.copy(fontSize = 14.sp, lineHeight = 18.sp),
+                    color = ds.t1,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (summary.isNotBlank()) {
+                    Text(
+                        text = summary,
+                        style = com.deepseek.dsh.core.designsystem.Dsh.type.codeSmall,
+                        color = if (status == "error") ds.danger else ds.t3,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
             if (status == "running" || status == "error") {
                 Text(
                     text = stringResource(if (status == "running") R.string.tool_detail_running else R.string.tool_detail_error),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (status == "error") MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.outline,
+                    style = com.deepseek.dsh.core.designsystem.Dsh.type.footnote,
+                    color = if (status == "error") ds.danger else ds.t3,
                     modifier = Modifier.padding(start = 6.dp)
                 )
             }
             Icon(
-                imageVector = if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
+                imageVector = Icons.Default.KeyboardArrowRight,
                 contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.outline
+                modifier = Modifier.padding(start = 4.dp, end = 8.dp).size(18.dp),
+                tint = ds.t3
             )
         }
         if (name.contains("ask_user_question") && status == "running") {
@@ -2013,10 +2021,10 @@ private fun ToolMessageItem(
                 Column(modifier = Modifier.padding(start = 22.dp, top = 4.dp)) {
                     askQuestions.forEach { q ->
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surface,
+                            shape = RoundedCornerShape(18.dp),
+                            color = com.deepseek.dsh.core.designsystem.Dsh.colors.s1,
                             border = androidx.compose.foundation.BorderStroke(
-                                0.5.dp, MaterialTheme.colorScheme.outlineVariant
+                                1.dp, com.deepseek.dsh.core.designsystem.Dsh.colors.accent.copy(alpha = 0.35f)
                             ),
                             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
                         ) {
@@ -2045,14 +2053,15 @@ private fun ToolMessageItem(
                                                     onAnswerUserQuestion(callId, q.id, option.label)
                                                 }
                                             }
+                                            .heightIn(min = 44.dp)
                                             .padding(vertical = 8.dp, horizontal = 4.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Box(
                                             modifier = Modifier
-                                                .size(14.dp)
+                                                .size(20.dp)
                                                 .clip(CircleShape)
-                                                .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                                                .border(1.75.dp, com.deepseek.dsh.core.designsystem.Dsh.colors.accent, CircleShape)
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
@@ -2396,7 +2405,19 @@ private fun toolExpandedText(
     }
 }
 
-private fun toolIcon(name: String) = Icons.Default.Build
+private fun toolIcon(name: String): androidx.compose.ui.graphics.vector.ImageVector {
+    val n = name.lowercase()
+    return when {
+        n.contains("bash") || n.contains("shell") || n.contains("exec") || n.contains("command") -> Icons.Rounded.Terminal
+        n.contains("edit") || n.contains("write") || n.contains("patch") || n.contains("replace") -> Icons.Rounded.Edit
+        n.contains("read") || n.contains("view") || n.contains("cat") -> Icons.Rounded.Description
+        n.contains("grep") || n.contains("search") || n.contains("find") || n.contains("glob") || n.contains("list") -> Icons.Rounded.Search
+        n.contains("web") || n.contains("fetch") || n.contains("http") -> Icons.Rounded.Public
+        n.contains("ask") || n.contains("question") -> Icons.Rounded.HelpOutline
+        n.contains("todo") || n.contains("plan") -> Icons.Rounded.Checklist
+        else -> Icons.Default.Build
+    }
+}
 @Composable
 private fun toolTitle(name: String): String = when {
     name.contains("bash") || name.contains("shell") -> stringResource(R.string.tool_title_cmd)

@@ -1962,24 +1962,27 @@ fun MainAppHost(
                 dshRepository.respondApprovalWaterfall(ui.activeHostId, waterfall.eventId, approved)
             }
         }
-        com.deepseek.dsh.core.designsystem.DshDialog(
-            onDismiss = { answer(false) },
-            title = stringResource(R.string.approval_request_title),
-            closeLabel = stringResource(R.string.action_close),
-            description = if (reason.isNullOrBlank()) toolName else "$toolName · $reason",
-            footer = {
-                com.deepseek.dsh.core.designsystem.DshDialogButton(
-                    text = stringResource(R.string.approval_reject), primary = false, enabled = true,
-                    onClick = { answer(false) },
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                com.deepseek.dsh.core.designsystem.DshDialogButton(
-                    text = stringResource(R.string.approval_allow_once), primary = true, enabled = true,
-                    onClick = { answer(true) },
-                )
-            },
-            content = {},
-        )
+        val callId = (waterfall.request["callId"] as? kotlinx.serialization.json.JsonPrimitive)?.content
+        // Причина на языке интерфейса, если Host прислал перевод.
+        val localizedReason = (waterfall.request["displayReason"] as? kotlinx.serialization.json.JsonObject)?.let { map ->
+            val lang = java.util.Locale.getDefault().language
+            ((map[lang] ?: map["en"]) as? kotlinx.serialization.json.JsonPrimitive)?.content
+        } ?: reason
+        // Аргументы вызова — из сообщения инструмента с тем же callId.
+        val callArgs = remember(callId, messages) {
+            if (callId.isNullOrBlank()) null else messages.lastOrNull { m ->
+                m.role == com.deepseek.dsh.core.model.MessageRole.TOOL && m.content.split(2.toChar()).getOrNull(2) == callId
+            }?.content?.split(2.toChar())?.getOrNull(6)
+        }
+        androidx.compose.runtime.key(waterfall.eventId) {
+            com.deepseek.dsh.feature.chat.ApprovalSheet(
+                toolName = toolName,
+                reason = localizedReason,
+                args = callArgs,
+                onAllow = { answer(true) },
+                onReject = { answer(false) },
+            )
+        }
     }
 
     // 官方 user-questions/request：原生回答弹窗（选项 / 自定义回答）。

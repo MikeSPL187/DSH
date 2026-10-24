@@ -336,4 +336,14 @@
     <string name="chat_card_auto_sub">Tasks on a schedule</string>
     <string name="chat_card_auto_prompt">Every morning check dependency updates and send me a summary</string>
     <string name="chat_input_short">Ask DSH</string>
+    <string name="chat_approval_tier_destructive">Irreversible</string>
+    <string name="chat_approval_tier_write">Needs your approval</string>
+    <string name="chat_approval_sheet_title">The agent asks for permission</string>
+    <string name="chat_approval_no_reason">The agent wants to run this step.</string>
+    <string name="chat_approval_irreversible">This cannot be undone: files do not go to a trash.</string>
+    <string name="chat_approval_tap_again">Tap again</string>
+    <string name="chat_approval_reject">Decline</string>
+    <string name="chat_approval_allow_once">Allow</string>
+    <string name="chat_approval_armed_hint">Tap again within 3 seconds to confirm</string>
+    <string name="chat_approval_two_taps">Irreversible — confirm with two taps</string>
 </resources>
