@@ -224,6 +224,10 @@ class RootfsInstaller(
     internal fun recoverInterruptedInstall() {
         // 本进程里正在安装时，日志与备份都是「进行中」的正常状态，不能回滚。
         if (INSTALL_IN_PROGRESS.get()) return
+        // Распаковка, прерванная до свапа (kill, выключение), оставляла staging на сотни МБ
+        // в cache. Повторная установка той же версии его чистила, другой — нет.
+        layout.cacheDir.listFiles { f -> f.isDirectory && f.name.startsWith(RootfsNaming.STAGING_PREFIX) }
+            ?.forEach { SafeFiles.deleteTree(it) }
         val journal = journalFile()
         if (!journal.isFile) return
         val previous = previousRootfsDir()

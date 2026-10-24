@@ -39,6 +39,10 @@ class DefaultHostRuntimeManager(
         // 只看本地文件与安装标记：这里判断的是「装没装」，不该因为离线而改变结论。
         runCatching {
             val installer = RootfsInstaller(layout)
+            // Сначала откатываем установку, прерванную kill/выключением во время замены
+            // rootfs, и убираем брошенный staging. Раньше это делалось только при следующей
+            // установке, а проверка при запуске смотрела на недоделанный каталог.
+            installer.recoverInterruptedInstall()
             val installed = installer.installedVersion() ?: return@runCatching false
             val marker = installer.readMarker()
             val currentAbi = android.os.Build.SUPPORTED_ABIS.firstOrNull().orEmpty()
@@ -822,6 +826,8 @@ class DefaultHostRuntimeManager(
         // 丢在 STARTING 里。启动要么跑完、要么落到明确的 ERROR，由看门狗和超时兜底。
         val result = withContext(Dispatchers.IO + NonCancellable) {
         layout.ensureDirectories()
+        // Прогрев из Application идёт сюда напрямую: откатываем прерванную замену rootfs до запуска.
+        runCatching { RootfsInstaller(layout).recoverInterruptedInstall() }
 
         val hasRootfs = File(layout.rootfsDir, "etc/os-release").isFile ||
             File(layout.rootfsDir, "usr/bin/env").isFile

@@ -36,8 +36,10 @@ object RootfsNaming {
     fun archiveCacheFile(cacheDir: File, runtimeVersion: String, abi: String): File =
         File(cacheDir, archiveFileName(runtimeVersion.replace('/', '-'), abi.replace('/', '-')))
 
+    const val STAGING_PREFIX = "dsh-rootfs-staging-"
+
     fun stagingDir(cacheDir: File, runtimeVersion: String): File =
-        File(cacheDir, "dsh-rootfs-staging-${runtimeVersion.replace('/', '-')}")
+        File(cacheDir, STAGING_PREFIX + runtimeVersion.replace('/', '-'))
 
     /**
      * 从 runtimeVersion 里取 DSH 版本段。

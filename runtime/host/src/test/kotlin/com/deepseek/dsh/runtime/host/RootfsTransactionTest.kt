@@ -154,6 +154,25 @@ class RootfsTransactionTest {
     }
 
     @Test
+    fun staleStagingFromAnInterruptedExtractionIsRemoved() {
+        val root = tempRoot()
+        try {
+            val layout = RuntimeLayout(baseDir = root, nativeLibraryDir = File(root, "lib"))
+            val stale = RootfsNaming.stagingDir(layout.cacheDir, "1.0.11-dsh0.2.1-rc.2-bridge2.0.7")
+            File(stale, "usr/bin").mkdirs()
+            File(stale, "usr/bin/node").writeText("partial")
+            val download = File(layout.cacheDir, "keep-me.tar.gz").apply { writeText("archive") }
+
+            RootfsInstaller(layout).recoverInterruptedInstall()
+
+            assertFalse(stale.exists())
+            assertTrue("downloaded archives are kept for reuse", download.isFile)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun symlinkEscapingRootIsRejected() = runBlocking {
         val root = tempRoot()
         try {
