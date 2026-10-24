@@ -1,6 +1,6 @@
 package com.deepseek.dsh.core.designsystem
 
-import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -180,9 +180,9 @@ object DshSpace {
 object DshMotion {
     private fun stiffness(response: Double) = ((2 * PI / response) * (2 * PI / response)).toFloat()
 
-    fun <T> smooth(): AnimationSpec<T> = spring(dampingRatio = 1f, stiffness = stiffness(0.45))
-    fun <T> snappy(): AnimationSpec<T> = spring(dampingRatio = 0.86f, stiffness = stiffness(0.32))
-    fun <T> lively(): AnimationSpec<T> = spring(dampingRatio = 0.72f, stiffness = stiffness(0.5))
+    fun <T> smooth(): SpringSpec<T> = spring(dampingRatio = 1f, stiffness = stiffness(0.45))
+    fun <T> snappy(): SpringSpec<T> = spring(dampingRatio = 0.86f, stiffness = stiffness(0.32))
+    fun <T> lively(): SpringSpec<T> = spring(dampingRatio = 0.72f, stiffness = stiffness(0.5))
 }
 
 /** Доступ к токенам: `Dsh.colors.accent`, `Dsh.type.body`. */

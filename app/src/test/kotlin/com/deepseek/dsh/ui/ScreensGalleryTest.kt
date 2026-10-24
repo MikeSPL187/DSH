@@ -139,6 +139,51 @@ class ScreensGalleryTest {
         OnboardingScreen(onComplete = {}, authenticated = true, funded = false)
     }
 
+    /** Первый запуск: проходит шаги нажатиями и снимает экран, на котором остановился. */
+    private fun renderOnboarding(name: String, dark: Boolean, vararg taps: String) {
+        compose.mainClock.autoAdvance = false
+        compose.setContent { DshTheme(darkTheme = dark) { OnboardingScreen(onComplete = {}, authenticated = true, funded = true) } }
+        compose.mainClock.advanceTimeBy(1_000)
+        for (tap in taps) {
+            compose.onAllNodes(androidx.compose.ui.test.hasText(tap, substring = true))[0].performClick()
+            compose.mainClock.advanceTimeBy(1_200)
+        }
+        ScreenShots.capture(compose, name, compose.activity)
+    }
+
+    @Test
+    fun onboardingSignInDark() = render("50b_onboarding_signin_dark", dark = true) {
+        OnboardingScreen(onComplete = {}, authenticated = false)
+    }
+
+    @Test
+    fun onboardingCredit() = renderOnboarding("52_onboarding_credit", false, "Начало работы")
+
+    @Test
+    fun onboardingCreditDark() = renderOnboarding("52b_onboarding_credit_dark", true, "Начало работы")
+
+    @Test
+    fun onboardingPurposeEmpty() = renderOnboarding("53_onboarding_purpose", false, "Начало работы", "Продолжить")
+
+    @Test
+    fun onboardingPurposeDark() = renderOnboarding("53b_onboarding_purpose_dark", true, "Начало работы", "Продолжить", "Программирование")
+
+    @Test
+    fun onboardingProcess() = renderOnboarding("54_onboarding_process", false, "Начало работы", "Продолжить", "Программирование", "Продолжить", "Ключевые детали")
+
+    @Test
+    fun onboardingProcessDark() = renderOnboarding("54b_onboarding_process_dark", true, "Начало работы", "Продолжить", "Программирование", "Продолжить")
+
+    @Config(qualifiers = "ru-w360dp-h640dp-xxhdpi")
+    @Test
+    fun onboardingNarrow() = render("55_onboarding_narrow") {
+        OnboardingScreen(onComplete = {}, authenticated = false)
+    }
+
+    @Config(qualifiers = "ru-w360dp-h640dp-xxhdpi")
+    @Test
+    fun onboardingProcessNarrow() = renderOnboarding("56_onboarding_process_narrow", false, "Начало работы", "Продолжить", "Программирование", "Продолжить", "Все подробности")
+
     private fun msg(id: String, role: com.deepseek.dsh.core.model.MessageRole, text: String) =
         com.deepseek.dsh.core.model.ChatMessage("local-host", "s1", id, role, text)
 

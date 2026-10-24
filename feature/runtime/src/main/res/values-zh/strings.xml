@@ -18,11 +18,11 @@
 
     <!-- 首次打开引导（对齐桌面端 Onboarding 文案，移动端布局适配） -->
     <string name="onb_welcome">欢迎使用</string>
-    <string name="onb_brand">DeepSeek Harness</string>
-    <string name="onb_introduction">DeepSeek Harness 会以本地文件夹作为工作区，通过调用各种工具，读写本机文件，完成搜索整理资料、制作文档表格、编写代码、排查问题等各种任务。</string>
+    <string name="onb_brand">DSH</string>
+    <string name="onb_introduction">DSH 会以本地文件夹作为工作区，通过调用各种工具，读写本机文件，完成搜索整理资料、制作文档表格、编写代码、排查问题等各种任务。</string>
     <string name="onb_start">开始设置</string>
     <string name="onb_credit">准备可用额度</string>
-    <string name="onb_credit_description">DeepSeek Harness 执行任务时，会根据模型与工具使用的 token 量扣除额度。请提前添加额度，避免任务在执行过程中被迫中断。你的余额只会在 Agent 实际执行任务时消耗。</string>
+    <string name="onb_credit_description">DSH 执行任务时，会根据模型与工具使用的 token 量扣除额度。请提前添加额度，避免任务在执行过程中被迫中断。你的余额只会在 Agent 实际执行任务时消耗。</string>
     <string name="onb_top_up">去充值</string>
     <string name="onb_later">下一步</string>
     <string name="onb_funded_top_up">去充值</string>
@@ -35,7 +35,7 @@
     <string name="onb_development_description">修改代码、调试问题、运行命令和管理项目文件等</string>
     <string name="onb_continue">继续</string>
     <string name="onb_process">你希望看到多少工作过程？</string>
-    <string name="onb_process_description">这只会影响工作过程的展示方式，不会影响 DeepSeek Harness 的工作能力。</string>
+    <string name="onb_process_description">这只会影响工作过程的展示方式，不会影响 DSH 的工作能力。</string>
     <string name="onb_compact">聚焦结果</string>
     <string name="onb_compact_description">只看结果，保持界面简洁明了</string>
     <string name="onb_standard">关键细节</string>
@@ -49,7 +49,7 @@
     <string name="onb_skip_description">你可以随时前往 设置 → 通用设置 中调整工作过程、性能与用量展示方式或开启代码工作工具。</string>
     <string name="onb_keep_setting">继续设置</string>
     <string name="onb_no_credit_title">暂时跳过充值？</string>
-    <string name="onb_no_credit_description">没有可用额度时，DeepSeek Harness 将无法开始新的任务。你可以稍后前往 设置 → 账号与余额 进行充值。</string>
+    <string name="onb_no_credit_description">没有可用额度时，DSH 将无法开始新的任务。你可以稍后前往 设置 → 账号与余额 进行充值。</string>
     <string name="onb_understood">我知道了</string>
     <string name="onb_go_top_up">前往充值</string>
     <string name="onb_close">关闭</string>
@@ -169,4 +169,22 @@
     <string name="onb_auth_add_key">添加 API Key</string>
     <string name="onb_auth_later">稍后</string>
     <string name="onb_welcome_desc">组装无限可能，共探智能上限</string>
+    <string name="onb_tagline">直接在手机上工作的编程智能体</string>
+    <string name="onb_feat_linux">真正的 Linux</string>
+    <string name="onb_feat_linux_sub">无需电脑即可使用终端、git、Python 和 Node</string>
+    <string name="onb_feat_agent">智能体替你干活</string>
+    <string name="onb_feat_agent_sub">阅读项目、修改代码并自行检查构建</string>
+    <string name="onb_feat_control">一切由你掌控</string>
+    <string name="onb_feat_control_sub">修改和删除都需要你的同意</string>
+    <string name="onb_auth_note">项目和文件保留在本设备上</string>
+    <string name="onb_step_of">第 %1$d 步，共 %2$d 步</string>
+    <string name="onb_purpose_title">需要 DSH 帮你做什么？</string>
+    <string name="onb_credit_fact_tokens">只为 Token 付费</string>
+    <string name="onb_credit_fact_tokens_sub">模型和工具在工作时消耗额度</string>
+    <string name="onb_credit_fact_idle">空闲时不消耗</string>
+    <string name="onb_credit_fact_idle_sub">只有智能体执行任务时才会扣费</string>
+    <string name="onb_credit_fact_later">随时可以充值</string>
+    <string name="onb_credit_fact_later_sub">设置 → 账户</string>
+    <string name="onb_recommended">推荐</string>
+    <string name="onb_choose_one">选择一项以继续</string>
 </resources>

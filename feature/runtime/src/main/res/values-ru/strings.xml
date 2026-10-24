@@ -14,11 +14,11 @@
     <string name="nav_runtime">Среда выполнения</string>
     <string name="nav_new_session">Новая сессия</string>
     <string name="onb_welcome">Добро пожаловать в</string>
-    <string name="onb_brand">DeepSeek Harness</string>
-    <string name="onb_introduction">DeepSeek Harness работает в локальной папке и с помощью инструментов читает и пишет файлы на вашем устройстве. Он помогает искать и упорядочивать информацию, создавать документы и таблицы, писать код, разбираться с проблемами и многое другое.</string>
+    <string name="onb_brand">DSH</string>
+    <string name="onb_introduction">DSH работает в локальной папке и с помощью инструментов читает и пишет файлы на вашем устройстве. Он помогает искать и упорядочивать информацию, создавать документы и таблицы, писать код, разбираться с проблемами и многое другое.</string>
     <string name="onb_start">Начало работы</string>
     <string name="onb_credit">Пополнить кредиты</string>
-    <string name="onb_credit_description">DeepSeek Harness списывает кредиты за токены, которые расходуют модели и инструменты. Пополните баланс заранее, чтобы задачи не прерывались. Баланс расходуется только во время работы агента над задачей.</string>
+    <string name="onb_credit_description">DSH списывает кредиты за токены, которые расходуют модели и инструменты. Пополните баланс заранее, чтобы задачи не прерывались. Баланс расходуется только во время работы агента над задачей.</string>
     <string name="onb_top_up">Пополнить кредиты</string>
     <string name="onb_later">Далее</string>
     <string name="onb_funded_top_up">Пополнить кредиты</string>
@@ -31,7 +31,7 @@
     <string name="onb_development_description">Правка кода, отладка, выполнение команд, работа с файлами проекта и многое другое</string>
     <string name="onb_continue">Продолжить</string>
     <string name="onb_process">Сколько подробностей показывать?</string>
-    <string name="onb_process_description">Это меняет только отображение хода работы, а не возможности DeepSeek Harness.</string>
+    <string name="onb_process_description">Это меняет только отображение хода работы, а не возможности DSH.</string>
     <string name="onb_compact">Только результаты</string>
     <string name="onb_compact_description">Только результаты в чистом и простом интерфейсе</string>
     <string name="onb_standard">Ключевые детали</string>
@@ -45,7 +45,7 @@
     <string name="onb_skip_description">Отображение хода работы, производительности и расхода, а также инструменты разработчика можно изменить в любой момент в «Настройки → Общие».</string>
     <string name="onb_keep_setting">Продолжить настройку</string>
     <string name="onb_no_credit_title">Не пополнять кредиты?</string>
-    <string name="onb_no_credit_description">Без кредитов DeepSeek Harness не сможет запускать новые задачи. Пополнить можно позже в «Настройки → Аккаунт».</string>
+    <string name="onb_no_credit_description">Без кредитов DSH не сможет запускать новые задачи. Пополнить можно позже в «Настройки → Аккаунт».</string>
     <string name="onb_understood">Понятно</string>
     <string name="onb_go_top_up">Пополнить кредиты</string>
     <string name="onb_close">Закрыть</string>
@@ -144,4 +144,22 @@
     <string name="onb_auth_add_key">Добавить API-ключ</string>
     <string name="onb_auth_later">Позже</string>
     <string name="onb_welcome_desc">Раскрывайте потенциал. Исследуйте интеллект.</string>
+    <string name="onb_tagline">Агент для программирования, который работает прямо на телефоне</string>
+    <string name="onb_feat_linux">Настоящий Linux</string>
+    <string name="onb_feat_linux_sub">Терминал, git, Python и Node без компьютера</string>
+    <string name="onb_feat_agent">Агент делает работу</string>
+    <string name="onb_feat_agent_sub">Читает проект, правит код и сам проверяет сборку</string>
+    <string name="onb_feat_control">Под вашим контролем</string>
+    <string name="onb_feat_control_sub">Правки и удаление — только с вашего согласия</string>
+    <string name="onb_auth_note">Проекты и файлы остаются на этом устройстве</string>
+    <string name="onb_step_of">Шаг %1$d из %2$d</string>
+    <string name="onb_purpose_title">С чем вам помочь?</string>
+    <string name="onb_credit_fact_tokens">Оплата только за токены</string>
+    <string name="onb_credit_fact_tokens_sub">Модели и инструменты тратят кредиты по ходу работы</string>
+    <string name="onb_credit_fact_idle">Без дела ничего не тратится</string>
+    <string name="onb_credit_fact_idle_sub">Списание идёт, только пока агент выполняет задачу</string>
+    <string name="onb_credit_fact_later">Пополнить можно в любой момент</string>
+    <string name="onb_credit_fact_later_sub">Настройки → Аккаунт</string>
+    <string name="onb_recommended">Рекомендуем</string>
+    <string name="onb_choose_one">Выберите вариант, чтобы продолжить</string>
 </resources>
