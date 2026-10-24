@@ -319,23 +319,7 @@ fun MainAppHost(
             it.name == VoiceInputPluginUi.bundle && it.enabled
         }
     }
-    // Android 13+: без runtime-разрешения POST_NOTIFICATIONS система молча блокирует
-    // все уведомления DSH (готово, ошибка, запрос одобрения). Раньше оно не запрашивалось.
-    // Спрашиваем один раз, пока в настройках включены уведомления.
-    val notificationPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
-    ) { _ -> }
-    LaunchedEffect(ui.currentAppSettings.notificationsEnabled) {
-        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) return@LaunchedEffect
-        if (!ui.currentAppSettings.notificationsEnabled) return@LaunchedEffect
-        val prefs = context.getSharedPreferences("dsh_permissions", android.content.Context.MODE_PRIVATE)
-        val granted = context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) ==
-            android.content.pm.PackageManager.PERMISSION_GRANTED
-        if (!granted && !prefs.getBoolean("notifications_asked", false)) {
-            prefs.edit().putBoolean("notifications_asked", true).apply()
-            runCatching { notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS) }
-        }
-    }
+    NotificationPermissionEffect(ui.currentAppSettings.notificationsEnabled)
     val voicePermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -957,40 +941,7 @@ fun MainAppHost(
 
     val status by runner.statusFlow.collectAsState()
 
-    // «Авто-сон при простое»: останавливаем локальный Host после N минут без действий
-    // (если не идёт задача агента) и снова запускаем при следующем касании.
-    val idleSettings by androidx.compose.runtime.rememberUpdatedState(persistedSettings)
-    val idleRunningSessions by androidx.compose.runtime.rememberUpdatedState(runningSessionIds)
-    val idleWorkspace by androidx.compose.runtime.rememberUpdatedState(activeWorkspace)
-    var hostIdleStopped by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            kotlinx.coroutines.delay(30_000)
-            if (shouldIdleStopHost(
-                    idleMinutes = idleSettings.idleStopMinutes,
-                    phase = runner.statusFlow.value.phase,
-                    anySessionRunning = idleRunningSessions.isNotEmpty(),
-                    lastInteractionAt = UserActivity.lastInteraction.value,
-                    now = System.currentTimeMillis(),
-                )
-            ) {
-                hostIdleStopped = true
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    runCatching { runtimeManager.stop() }
-                }
-            }
-        }
-    }
-    LaunchedEffect(Unit) {
-        UserActivity.lastInteraction.collect {
-            if (hostIdleStopped) {
-                hostIdleStopped = false
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    runCatching { runtimeManager.start(idleWorkspace.absolutePath) }
-                }
-            }
-        }
-    }
+    IdleHostStopEffect(runtimeManager, runner, persistedSettings.idleStopMinutes, runningSessionIds.isNotEmpty(), activeWorkspace)
 
     // 官方 workflow 工具在手机 profile 默认关闭：用官方 API 打开，保持与桌面一致。
     LaunchedEffect(ui.activeHostId, status.phase) {
@@ -1002,24 +953,11 @@ fun MainAppHost(
     val accountState by oauthManager.accountFlow.collectAsState()
     val pendingApprovalWaterfalls by dshRepository.pendingWaterfallApprovalsFlow.collectAsState()
     val pendingQuestions by dshRepository.pendingQuestionsFlow.collectAsState()
-    // Агент ждёт решения, а приложение свёрнуто: без уведомления запрос молча истекал,
-    // и задача завершалась отказом.
-    val notifiedWaitingIds = remember { mutableSetOf<String>() }
-    LaunchedEffect(pendingApprovalWaterfalls, pendingQuestions) {
-        val waiting = pendingApprovalWaterfalls.map { it.eventId to true } +
-            pendingQuestions.map { it.eventId to false }
-        waiting.forEach { (eventId, isApproval) ->
-            if (notifiedWaitingIds.add(eventId) && !UserActivity.isForeground &&
-                ui.currentAppSettings.notificationsEnabled
-            ) {
-                DshNotifications.notify(
-                    context,
-                    context.getString(if (isApproval) R.string.approval_request_title else R.string.question_request_title),
-                    context.getString(R.string.notify_agent_waiting_body),
-                )
-            }
-        }
-    }
+    AgentWaitingNotificationsEffect(
+        approvalIds = pendingApprovalWaterfalls.map { it.eventId },
+        questionIds = pendingQuestions.map { it.eventId },
+        notificationsEnabled = ui.currentAppSettings.notificationsEnabled,
+    )
     val hostJobs by dshRepository.jobsFlow.collectAsState()
     val hostCommands by dshRepository.hostCommandsFlow.collectAsState()
     val hostSkills by dshRepository.hostSkillsFlow.collectAsState()
