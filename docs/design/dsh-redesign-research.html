@@ -1,0 +1,337 @@
+<title>DSH: исследование и план редизайна</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geologica:wght@400;500;600;700&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: одна колонка чтения 720px; варианты дизайна — сетка мини-телефонов; таблицы в своих скролл-контейнерах */
+:root {
+  --bg: #f6f6f4;
+  --paper: #ffffff;
+  --ink: #16171a;
+  --ink-2: #4a4d55;
+  --ink-3: #7c808a;
+  --line: #e4e4e0;
+  --accent: #3d5afe;
+  --accent-soft: #e8ecff;
+  --ok: #1f8a5b;
+  --warn: #b26a00;
+  --font-display: "Geologica", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Golos Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111215; --paper: #18191d; --ink: #ecedef; --ink-2: #b4b7be; --ink-3: #868a93;
+    --line: #2a2c31; --accent: #8396ff; --accent-soft: #1e2440; --ok: #4cc28d; --warn: #e3a64a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111215; --paper: #18191d; --ink: #ecedef; --ink-2: #b4b7be; --ink-3: #868a93;
+  --line: #2a2c31; --accent: #8396ff; --accent-soft: #1e2440; --ok: #4cc28d; --warn: #e3a64a;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.6; }
+.wrap { max-width: 760px; margin: 0 auto; padding-block: 40px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.2; }
+h1 { font-size: clamp(30px, 6vw, 44px); font-weight: 700; letter-spacing: -0.02em; margin: 0 0 12px; }
+h2 { font-size: 26px; font-weight: 600; letter-spacing: -0.01em; margin: 56px 0 14px; padding-top: 24px; border-top: 1px solid var(--line); }
+h3 { font-size: 19px; font-weight: 600; margin: 30px 0 8px; }
+p, li { color: var(--ink-2); max-width: 66ch; }
+strong { color: var(--ink); font-weight: 600; }
+.lede { font-size: 19px; color: var(--ink-2); }
+.meta { font-size: 13px; color: var(--ink-3); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 18px; }
+.toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 0; padding: 0; list-style: none; }
+.toc a { display: inline-block; font-size: 14px; padding: 6px 12px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+.toc a:hover, .toc a:focus-visible { border-color: var(--accent); outline: none; }
+code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+.note { font-size: 14px; color: var(--ink-3); }
+.src { font-size: 12px; color: var(--ink-3); vertical-align: super; text-decoration: none; }
+.src:hover { color: var(--accent); }
+ul { padding-left: 20px; }
+li { margin: 4px 0; }
+.table { overflow-x: auto; margin: 14px 0; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 560px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink-2); }
+th { font-family: var(--font-display); font-weight: 600; color: var(--ink); font-size: 13px; letter-spacing: 0.02em; background: color-mix(in srgb, var(--paper) 70%, var(--bg)); }
+tr:last-child td { border-bottom: 0; }
+td strong { color: var(--ink); }
+.callout { background: var(--accent-soft); border-radius: 14px; padding: 16px 18px; margin: 18px 0; }
+.callout p { margin: 0; color: var(--ink); }
+
+/* Варианты направлений — мини-телефоны */
+.choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 18px; margin: 20px 0; }
+.choice { min-width: 0; }
+.choice h4 { font-family: var(--font-display); font-size: 16px; margin: 10px 0 2px; color: var(--ink); }
+.choice p { font-size: 14px; margin: 0; }
+.phone { aspect-ratio: 9 / 18.5; max-width: 100%; border-radius: 30px; padding: 10px; background: #0b0b0d; box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 12px 28px rgba(0,0,0,.18); }
+.screen { height: 100%; border-radius: 22px; overflow: hidden; position: relative; display: flex; flex-direction: column; font-family: var(--font-body); }
+.bar { display: flex; align-items: center; justify-content: space-between; padding: 14px 14px 6px; font-size: 11px; }
+.dot { width: 22px; height: 22px; border-radius: 50%; }
+.msgs { flex: 1; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.u { align-self: flex-end; max-width: 78%; font-size: 10.5px; padding: 7px 10px; border-radius: 14px 14px 4px 14px; line-height: 1.35; }
+.a { font-size: 10.5px; line-height: 1.45; max-width: 92%; }
+.tool { font-family: var(--font-mono); font-size: 9.5px; padding: 6px 8px; border-radius: 9px; }
+.composer { margin: 0 10px 12px; border-radius: 18px; padding: 9px 10px 9px 12px; font-size: 10.5px; display: flex; align-items: center; justify-content: space-between; }
+.send { width: 22px; height: 22px; border-radius: 50%; }
+/* A — Фарфор */
+.v-a { background: #fbfbfa; color: #17181b; }
+.v-a .u { background: #eceef2; }
+.v-a .tool { background: #f1f2f4; color: #4b4f58; }
+.v-a .composer { background: #fff; box-shadow: 0 2px 10px rgba(20,22,30,.08); color: #8a8e97; }
+.v-a .send { background: #17181b; }
+/* B — Графит */
+.v-b { background: #101114; color: #e9eaec; }
+.v-b .u { background: #23252b; }
+.v-b .tool { background: #191b1f; color: #9aa0ab; border: 1px solid #262931; }
+.v-b .composer { background: #1b1d22; color: #7d828c; border: 1px solid #2a2d34; }
+.v-b .send { background: #e9eaec; }
+/* C — Стекло */
+.v-c { background: radial-gradient(120% 70% at 20% 0%, #d9e1ff 0%, transparent 60%), radial-gradient(90% 60% at 100% 100%, #ffe3d6 0%, transparent 55%), #f3f3f6; color: #16171b; }
+.v-c .u { background: rgba(255,255,255,.62); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.7); }
+.v-c .tool { background: rgba(255,255,255,.5); color: #4a4e58; border: 1px solid rgba(255,255,255,.65); }
+.v-c .composer { background: rgba(255,255,255,.55); backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,.8); color: #7a7f8a; box-shadow: 0 6px 18px rgba(30,40,80,.12); }
+.v-c .send { background: #16171b; }
+.swatches { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+.sw { display: flex; align-items: center; gap: 10px; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; font-size: 14px; min-width: 0; }
+.sw i { width: 28px; height: 28px; border-radius: 8px; flex: none; }
+.sw b { font-weight: 600; color: var(--ink); display: block; }
+.sw span { color: var(--ink-3); font-size: 12.5px; }
+.steps { counter-reset: s; list-style: none; padding: 0; display: grid; gap: 12px; }
+.steps li { counter-increment: s; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px 14px 52px; position: relative; max-width: none; }
+.steps li::before { content: counter(s); position: absolute; left: 16px; top: 14px; width: 24px; height: 24px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font: 600 13px/24px var(--font-display); text-align: center; }
+.steps li b { color: var(--ink); }
+.motion { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 14px 0; }
+.mcard { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 14px; min-width: 0; }
+.mcard b { display: block; color: var(--ink); font-family: var(--font-display); }
+.mcard .mono { color: var(--ink-3); font-size: 12px; }
+.track { height: 30px; position: relative; margin-top: 10px; border-radius: 8px; background: color-mix(in srgb, var(--line) 55%, transparent); overflow: hidden; }
+.ball { position: absolute; top: 5px; left: 6px; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); }
+.mcard:hover .ball, .mcard:focus-within .ball { left: calc(100% - 26px); }
+.m-smooth .ball { transition: left .45s cubic-bezier(.22,1,.36,1); }
+.m-snappy .ball { transition: left .32s cubic-bezier(.2,1.25,.4,1); }
+.m-bouncy .ball { transition: left .55s cubic-bezier(.3,1.55,.5,1); }
+@media (prefers-reduced-motion: reduce) { .ball { transition: none !important; } }
+footer { margin-top: 56px; font-size: 13px; color: var(--ink-3); }
+footer ol { padding-left: 18px; }
+footer li { color: var(--ink-3); font-size: 13px; }
+a { color: var(--accent); }
+</style>
+
+<div class="wrap">
+  <div class="meta">DSH · редизайн · октябрь 2026</div>
+  <h1>Исследование рынка и план редизайна</h1>
+  <p class="lede">Цель: мобильный AI-агент для общения и программирования с интерфейсом уровня Claude и ChatGPT, премиальной анимацией в духе Apple и рабочими инструментами, которых у них на телефоне нет: файлы, терминал, плагины.</p>
+  <ul class="toc">
+    <li><a href="#market">Рынок</a></li>
+    <li><a href="#findings">Выводы</a></li>
+    <li><a href="#position">Позиционирование</a></li>
+    <li><a href="#directions">Варианты дизайна</a></li>
+    <li><a href="#screens">Экраны</a></li>
+    <li><a href="#system">Дизайн-система</a></li>
+    <li><a href="#motion">Анимация</a></li>
+    <li><a href="#plan">План работ</a></li>
+    <li><a href="#review">Проверка макетов</a></li>
+  </ul>
+
+  <h2 id="market">1. Рынок</h2>
+  <p>Публичных разборов мобильных интерфейсов AI-приложений мало, и большая часть источников вторична. Ниже отмечено, что подтверждено источником, а что — мой разбор приложений.</p>
+
+  <div class="table"><table>
+    <thead><tr><th>Продукт</th><th>Что сильное</th><th>Что слабое</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Claude</strong></td><td>Спокойный экран: приветствие по времени суток, поле ввода по центру и внизу, анимированный логотип во время ответа. Интерактивные приложения и графики прямо в чате<a class="src" href="#s2">[2]</a>. Меню слева, выбор модели сверху<a class="src" href="#s1">[1]</a>.</td><td>Два значка микрофона, неочевидные «+» и волна голосового режима, названия моделей без пояснений, «призрак» для приватного чата не объясняет себя<a class="src" href="#s1">[1]</a>.</td></tr>
+      <tr><td><strong>ChatGPT</strong></td><td>Минималистичный белый экран, единая точка входа для текста, голоса, камеры и файлов, явные состояния: ожидание, поток, инструмент, готово<a class="src" href="#s3">[3]</a>. Тестируется компактное меню вложений<a class="src" href="#s4">[4]</a>.</td><td>Меню вложений из одних значков прячет возможности<a class="src" href="#s3">[3]</a>; новое компактное меню медленнее для опытных пользователей<a class="src" href="#s4">[4]</a>.</td></tr>
+      <tr><td><strong>Gemini</strong></td><td>Поле ввода стало листом снизу, который сливается с клавиатурой; выбор модели переехал в него<a class="src" href="#s5">[5]</a>.</td><td>Слои различаются только тенью; меню «+» тоже лист — много листов подряд.</td></tr>
+      <tr><td><strong>Claude Code / Codex на телефоне</strong></td><td>Управление агентом с телефона, задачи в фоне.</td><td>Нужен включённый компьютер или облако: телефон — пульт, а не рабочее место<a class="src" href="#s6">[6]</a>.</td></tr>
+      <tr><td><strong>Termux, Blink Shell</strong></td><td>Строка служебных клавиш (Esc, Tab, Ctrl, Alt, стрелки), «залипающие» модификаторы, жесты между сессиями<a class="src" href="#s7">[7]</a>.</td><td>Это терминалы, а не агенты: нет чата, файлов и одобрений.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Платформенные тренды</h3>
+  <ul>
+    <li><strong>Apple Liquid Glass (iOS 26).</strong> Управление — отдельный стеклянный слой над контентом; панели уменьшаются при прокрутке, чтобы отдать место содержимому; стекло двух видов, обычное — для навигации и кнопок<a class="src" href="#s8">[8]</a>.</li>
+    <li><strong>Material 3 Expressive (Android 16).</strong> Движение на пружинах (жёсткость, затухание, скорость) вместо кривых Безье; две семьи пружин — пространственные (позиция, размер) и эффектные (прозрачность, цвет)<a class="src" href="#s9">[9]</a>. Рекомендуют не больше 1–2 «героических» моментов на сценарий и уважать системное отключение анимаций<a class="src" href="#s9">[9]</a>.</li>
+    <li><strong>Пружины Apple.</strong> Пресеты smooth (без отскока), snappy (лёгкий), bouncy (заметный)<a class="src" href="#s10">[10]</a>. Ориентиры сообщества: отклик около 0,3 с для быстрых действий и 0,5 с по умолчанию, затухание 0,75–0,95<a class="src" href="#s10">[10]</a>.</li>
+  </ul>
+
+  <h3>Паттерны агентного интерфейса</h3>
+  <ul>
+    <li>Карточка вызова инструмента в три фазы: объявление, выполнение, результат; повторные вызовы сворачиваются со счётчиком<a class="src" href="#s11">[11]</a>.</li>
+    <li>Одобрения по уровню риска: чтение без вопроса, запись — один раз на область с «всегда разрешать», удаление — каждый раз и другим видом диалога<a class="src" href="#s11">[11]</a>.</li>
+    <li>Итог «сначала изменения»: список файлов с +/− до текста; плюс блок «проверено / предположено / не сделано»<a class="src" href="#s11">[11]</a>.</li>
+    <li>Фоновые задачи с индикатором в навигации, который меняет цвет, когда нужен ответ<a class="src" href="#s11">[11]</a>.</li>
+    <li>Кнопка «Стоп» на виду во время ответа; поле ввода не перекрывает последнее сообщение — самая частая ошибка мобильных AI-чатов<a class="src" href="#s12">[12]</a>.</li>
+  </ul>
+
+  <h2 id="findings">2. Выводы для DSH</h2>
+  <ol>
+    <li><strong>Экран чата — главный.</strong> У лидеров всё вращается вокруг одного поля ввода. У нас оно перегружено: папка, режим, модель, запись, статистика токенов в четыре строки.</li>
+    <li><strong>Агент на телефоне без компьютера — наше уникальное преимущество.</strong> Claude Code и Codex на телефоне — пульты; у нас Host, файлы и терминал живут на устройстве. Дизайн должен это показывать, а не прятать в правой панели.</li>
+    <li><strong>Работу агента нужно показывать понятным языком:</strong> шаги, файлы, изменения, одобрения по риску. Сейчас это «Готово за 0 с» и сырые тексты.</li>
+    <li><strong>Премиальность — это движение и тишина,</strong> а не украшения: пружинные переходы, общий элемент между экранами, тактильный отклик, панели, уступающие место содержимому.</li>
+    <li><strong>Технические экраны (запуск Host, rootfs, плагины) — это первое впечатление.</strong> Сейчас пользователь видит логи proot. Нужны человеческие состояния с подробностями «под капотом» по запросу.</li>
+  </ol>
+
+  <h2 id="position">3. Позиционирование</h2>
+  <div class="callout"><p><strong>DSH — карманная рабочая станция с AI-агентом.</strong> Разговаривает как лучший ассистент, работает как IDE: проект, файлы, терминал и агент в одном приложении, офлайн-ядро прямо на телефоне, безопасность по умолчанию.</p></div>
+
+  <h2 id="directions">4. Варианты дизайна — нужен ваш выбор</h2>
+  <p>Три визуальных направления. Во всех одинаковая структура и анимация; различаются материал, свет и характер.</p>
+  <div class="choices">
+    <div class="choice">
+      <div class="phone"><div class="screen v-a">
+        <div class="bar"><span>≡</span><b>DSH</b><span class="dot" style="background:#e7e9ee"></span></div>
+        <div class="msgs">
+          <div class="u">Найди, почему падает сборка</div>
+          <div class="tool">✓ Прочитал build.gradle.kts · 3 файла</div>
+          <div class="a">Причина в версии Kotlin: плагин Compose ждёт 2.0. Исправил и проверил сборку.</div>
+        </div>
+        <div class="composer"><span>Спросить DSH…</span><span class="send"></span></div>
+      </div></div>
+      <h4>A. Фарфор</h4>
+      <p>Светлая, тихая, «бумажная» основа; глубина — мягкими тенями. Ближе всего к Claude и Apple.</p>
+    </div>
+    <div class="choice">
+      <div class="phone"><div class="screen v-b">
+        <div class="bar"><span>≡</span><b>DSH</b><span class="dot" style="background:#2a2d34"></span></div>
+        <div class="msgs">
+          <div class="u">Найди, почему падает сборка</div>
+          <div class="tool">✓ Прочитал build.gradle.kts · 3 файла</div>
+          <div class="a">Причина в версии Kotlin: плагин Compose ждёт 2.0. Исправил и проверил сборку.</div>
+        </div>
+        <div class="composer"><span>Спросить DSH…</span><span class="send"></span></div>
+      </div></div>
+      <h4>B. Графит</h4>
+      <p>Тёмная основа для работы и кода; глубина — светлыми слоями и тонкими гранями. Характер инструмента для разработчика.</p>
+    </div>
+    <div class="choice">
+      <div class="phone"><div class="screen v-c">
+        <div class="bar"><span>≡</span><b>DSH</b><span class="dot" style="background:rgba(255,255,255,.7)"></span></div>
+        <div class="msgs">
+          <div class="u">Найди, почему падает сборка</div>
+          <div class="tool">✓ Прочитал build.gradle.kts · 3 файла</div>
+          <div class="a">Причина в версии Kotlin: плагин Compose ждёт 2.0. Исправил и проверил сборку.</div>
+        </div>
+        <div class="composer"><span>Спросить DSH…</span><span class="send"></span></div>
+      </div></div>
+      <h4>C. Стекло</h4>
+      <p>Полупрозрачные слои управления над мягкой атмосферой, в духе Liquid Glass. Самый «вау», но дороже в реализации и требовательнее к контрасту.</p>
+    </div>
+  </div>
+  <p class="note">Каждое направление получит полноценную светлую и тёмную тему; на мини-макетах показана основная.</p>
+
+  <h3>Фирменный цвет</h3>
+  <div class="swatches">
+    <div class="sw"><i style="background:#4d6bfe"></i><div><b>Синий DeepSeek</b><span>преемственность с экосистемой</span></div></div>
+    <div class="sw"><i style="background:#6c5ce7"></i><div><b>Индиго</b><span>своя идентичность, «умный»</span></div></div>
+    <div class="sw"><i style="background:#0fa58a"></i><div><b>Нефрит</b><span>спокойный, «рабочий»</span></div></div>
+    <div class="sw"><i style="background:#e8873a"></i><div><b>Янтарь</b><span>тёплый, дружелюбный</span></div></div>
+  </div>
+
+  <h3>Навигация</h3>
+  <div class="table"><table>
+    <thead><tr><th>Модель</th><th>Как устроено</th><th>Плюсы и минусы</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Чат + боковое меню</strong></td><td>Как Claude и ChatGPT: чат на весь экран, сессии и проекты в меню слева, инструменты (файлы, терминал) — листами снизу.</td><td>Привычно, максимум места чату. Инструменты на шаг глубже.</td></tr>
+      <tr><td><strong>Нижняя панель вкладок</strong></td><td>Чат · Проекты · Терминал · Настройки.</td><td>Инструменты в один тап. Отнимает высоту, отходит от стандарта AI-чатов.</td></tr>
+      <tr><td><strong>Чат + плавающий док</strong></td><td>Чат-первый, но над полем ввода — компактный стеклянный док: файлы, терминал, задачи агента; при прокрутке сжимается.</td><td>Уникально для DSH, показывает силу продукта. Сложнее в реализации.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Шрифты (кириллица — обязательна)</h3>
+  <ul>
+    <li><strong>Golos Text</strong> — текст интерфейса и сообщений: создан для экрана и русского языка, спокойный и читабельный. Этот отчёт набран им.</li>
+    <li><strong>Geologica</strong> — заголовки: геометричный, с характером, хорошо держит кириллицу.</li>
+    <li><strong>JetBrains Mono</strong> — код и терминал: лучший моноширинный с кириллицей, лигатуры.</li>
+  </ul>
+  <p class="note">Альтернатива — системный Roboto/Google Sans Flex: меньше размер APK, меньше индивидуальности.</p>
+
+  <h2 id="screens">5. Экраны</h2>
+  <p>Инвентаризация текущего приложения — 9 групп и около 40 состояний. Каждую группу получит интерактивный макет.</p>
+  <div class="table"><table>
+    <thead><tr><th>Группа</th><th>Экраны и состояния</th><th>Главная задача редизайна</th></tr></thead>
+    <tbody>
+      <tr><td><strong>1. Первый запуск</strong></td><td>Приветствие, вход / API-ключ, кредиты, цель, детализация, доступ к файлам или приватная папка, подготовка окружения (скачивание, распаковка), ошибка запуска Host</td><td>Сократить шаги, превратить установку rootfs в красивое ожидание с прогрессом и пояснениями, логи — только по запросу</td></tr>
+      <tr><td><strong>2. Чат</strong></td><td>Пустой, разговор, поток ответа, размышления, вызовы инструментов, изменения файлов, ошибка, остановка, очередь сообщений</td><td>Главный экран продукта: типографика ответа, карточки инструментов в три фазы, итог «сначала изменения»</td></tr>
+      <tr><td><strong>3. Поле ввода</strong></td><td>Текст, вложения, «/» команды, «@» файлы, выбор модели и уровня рассуждений, режим (обычный / создание), права, голос</td><td>Одна строка вместо четырёх, остальное — в листе «+» и чипах; ничего не перекрывает ответ</td></tr>
+      <tr><td><strong>4. Одобрения и вопросы</strong></td><td>Запрос одобрения (чтение / запись / опасное), вопрос агента, доверие нативному плагину</td><td>Три уровня риска с разным видом, понятное «что будет сделано»</td></tr>
+      <tr><td><strong>5. Навигация</strong></td><td>Боковое меню: новые сессии, поиск, рабочие папки, закреплённые и архив; переключение Host</td><td>Сессии с превью и статусом агента, быстрый поиск</td></tr>
+      <tr><td><strong>6. Инструменты</strong></td><td>Файлы, предпросмотр, терминал со служебными клавишами, план, результаты</td><td>Отдельные полноценные экраны вместо узкой правой панели</td></tr>
+      <tr><td><strong>7. Плагины</strong></td><td>Установленные, магазин, карточка, установка, нативные плагины</td><td>Магазин уровня App Store: обложки, доверие и разрешения на виду</td></tr>
+      <tr><td><strong>8. Автоматизация</strong></td><td>Список задач по расписанию, создание, история запусков</td><td>Понятное расписание человеческим языком</td></tr>
+      <tr><td><strong>9. Настройки</strong></td><td>Аккаунт, общие, модели, плагины, наборы агента, среда, уведомления, удалённое подключение, обновления</td><td>Группировка по задачам пользователя, поиск по настройкам</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2 id="system">6. Дизайн-система</h2>
+  <ul>
+    <li><strong>Цвет:</strong> 10–12 семантических токенов (фон, поверхности 1–3, текст 1–3, линия, акцент, успех, внимание, ошибка) × светлая и тёмная тема; контраст текста не ниже WCAG AA (4,5:1).</li>
+    <li><strong>Типографика:</strong> шкала 12 / 13 / 15 / 17 / 20 / 24 / 32; текст ответа 16 с межстрочным 1,55; учёт системного размера шрифта.</li>
+    <li><strong>Сетка:</strong> шаг 4 dp; поля экрана 16 / 20 dp; зоны касания не меньше 48 dp.</li>
+    <li><strong>Форма:</strong> радиусы 10 / 16 / 24 / полный; карточки только там, где это отдельный объект (инструмент, файл, одобрение).</li>
+    <li><strong>Глубина:</strong> 3 уровня (контент, плавающее управление, листы и диалоги); в тёмной теме — светлее поверхность вместо тени.</li>
+    <li><strong>Иконки:</strong> единый набор с одной толщиной линии 1,75; заполненный вариант для активного состояния.</li>
+    <li><strong>Тактильный отклик:</strong> лёгкий — выбор, средний — отправка и одобрение, «тик» — переключатели; выключается в настройках.</li>
+  </ul>
+
+  <h2 id="motion">7. Анимация</h2>
+  <p>Наведите или нажмите на карточку, чтобы увидеть характер пружины.</p>
+  <div class="motion">
+    <div class="mcard m-smooth" tabindex="0"><b>Плавная</b><span class="mono">затухание 1,0 · отклик 0,45 с</span><p class="note">Переходы между экранами, листы, появление ответа</p><div class="track"><span class="ball"></span></div></div>
+    <div class="mcard m-snappy" tabindex="0"><b>Быстрая</b><span class="mono">затухание 0,85 · отклик 0,3 с</span><p class="note">Кнопки, чипы, переключатели, меню</p><div class="track"><span class="ball"></span></div></div>
+    <div class="mcard m-bouncy" tabindex="0"><b>Живая</b><span class="mono">затухание 0,7 · отклик 0,5 с</span><p class="note">Только «героические» моменты: отправка, готово, одобрено</p><div class="track"><span class="ball"></span></div></div>
+  </div>
+  <ul>
+    <li><strong>Правило:</strong> всё движение — пружины (в Compose — <code>spring(dampingRatio, stiffness)</code>), прерываемые жестом без рывков.</li>
+    <li><strong>Связность:</strong> общий элемент между экранами (сессия → чат, файл → предпросмотр, карточка плагина → страница).</li>
+    <li><strong>Поток ответа:</strong> текст появляется мягким проявлением слов, без мигающего курсора; высота сообщения растёт пружиной.</li>
+    <li><strong>Сдержанность:</strong> не больше двух заметных моментов на сценарий; при системном «без анимации» — мгновенные переходы.</li>
+    <li><strong>Производительность:</strong> 60/120 кадров, базовый профиль запуска, без перекомпозиции всего экрана на каждый токен.</li>
+  </ul>
+
+  <h2 id="plan">8. Технический план</h2>
+  <ol class="steps">
+    <li><b>Решения по направлению</b> — ваш выбор: материал, цвет, навигация, шрифты. Затем — лист дизайн-системы (токены, компоненты, движение) как отдельная страница.</li>
+    <li><b>Интерактивный прототип</b> — HTML в рамке телефона, светлая и тёмная тема, реальные русские тексты, переходы и анимации на пружинах. Порядок: чат и поле ввода → работа агента и одобрения → навигация → первый запуск → инструменты → плагины → автоматизация → настройки.</li>
+    <li><b>Проверка каждого макета</b> по чек-листу ниже, минимум два прохода; не проходит — переделка до соответствия. Вы смотрите прототип на телефоне по ссылке и даёте замечания.</li>
+    <li><b>Реализация в Compose:</b> новая тема и токены в <code>core/designsystem</code>, библиотека компонентов с превью, затем экраны в том же порядке; старый UI заменяется по экрану, без «большого взрыва».</li>
+    <li><b>Декомпозиция</b> <code>MainAppHost</code> и <code>ChatScreen</code> (аудит F-13) — вместе с переносом экранов: каждый экран — свой файл и своё состояние.</li>
+    <li><b>Проверка в приложении:</b> скриншот-тесты Robolectric для каждого экрана в обеих темах, прогон на эмуляторе, замер плавности (пропущенные кадры), TalkBack и крупный шрифт.</li>
+  </ol>
+
+  <h2 id="review">9. Как проверяется каждый макет</h2>
+  <div class="table"><table>
+    <thead><tr><th>Критерий</th><th>Что проверяется</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Задача за 3 секунды</strong></td><td>Главное действие экрана понятно без подписи и находится в зоне большого пальца.</td></tr>
+      <tr><td><strong>Иерархия</strong></td><td>Один главный элемент; второстепенное тише; нет двух одинаково громких кнопок.</td></tr>
+      <tr><td><strong>Контраст</strong></td><td>Текст ≥ 4,5:1, крупный ≥ 3:1, в обеих темах.</td></tr>
+      <tr><td><strong>Касание</strong></td><td>Цели ≥ 48 dp, между ними ≥ 8 dp; ничего важного у краёв экрана и под жестовой полосой.</td></tr>
+      <tr><td><strong>Длинный русский текст</strong></td><td>Надписи не обрезаются; кнопки и чипы переносятся или сокращаются осмысленно.</td></tr>
+      <tr><td><strong>Состояния</strong></td><td>Пусто, загрузка, ошибка, нет сети, Host не запущен — каждое продумано.</td></tr>
+      <tr><td><strong>Движение</strong></td><td>Переход объясняет, откуда пришёл и куда ушёл элемент; анимацию можно прервать; есть режим без анимации.</td></tr>
+      <tr><td><strong>Сравнение</strong></td><td>Экран поставлен рядом с аналогом у Claude/ChatGPT: наш не хуже по ясности и лучше по пользе.</td></tr>
+    </tbody>
+  </table></div>
+
+  <footer>
+    <p><b>Источники</b></p>
+    <ol>
+      <li id="s1"><a href="https://ixd.prattsi.org/2026/02/design-critique-claude-mobile-app/">Design Critique: Claude Mobile App — IXD@Pratt</a></li>
+      <li id="s2"><a href="https://support.claude.com/en/articles/12138966">Claude release notes — Anthropic Support</a></li>
+      <li id="s3"><a href="https://screensdesign.com/articles/chatgpt-mobile-app-design/">ChatGPT mobile app design — ScreensDesign</a></li>
+      <li id="s4"><a href="https://www.androidauthority.com/chatgpt-mobile-attachment-ui-update-3631648/">ChatGPT mobile attachment UI update — Android Authority</a></li>
+      <li id="s5"><a href="https://9to5google.com/?p=691958">Gemini prompt bar redesign — 9to5Google</a></li>
+      <li id="s6"><a href="https://amux.io/guides/best-phone-apps-for-coding-agents-2026/">Best phone apps to control coding agents 2026 — amux</a></li>
+      <li id="s7"><a href="https://docs.blink.sh/basics/customize">Blink Shell docs</a></li>
+      <li id="s8"><a href="https://www.createwithswift.com/exploring-a-new-visual-language-liquid-glass/">Exploring a new visual language: Liquid Glass — Create with Swift</a></li>
+      <li id="s9"><a href="https://proandroiddev.com/android-16-x-material-3-e-biggest-ui-change-yet-updates-for-android-jetpack-compose-and-flutter-35d6b53a5242">Android 16 × Material 3 Expressive — ProAndroidDev</a></li>
+      <li id="s10"><a href="https://www.createwithswift.com/understanding-spring-animations-in-swiftui/">Understanding spring animations in SwiftUI — Create with Swift</a></li>
+      <li id="s11"><a href="https://www.setproduct.com/blog/ai-agent-ui-design-patterns">16 AI agent UI design patterns — Setproduct</a></li>
+      <li id="s12"><a href="https://www.aydesign.ai/blog/ai-streaming-response-ui-patterns-2026">AI streaming response UI patterns — AYDesign</a></li>
+    </ol>
+  </footer>
+</div>
