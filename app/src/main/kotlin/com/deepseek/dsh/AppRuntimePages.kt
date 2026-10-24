@@ -105,7 +105,8 @@ fun RuntimeControlScreen(
     val status by runner.statusFlow.collectAsState()
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
-    val workspaceDir = remember { java.io.File(context.getExternalFilesDir(null) ?: context.filesDir, "DSH-Workspace") }
+    // Та же папка, что у чата и Host (раньше здесь был другой каталог — агент видел пустую папку).
+    val workspaceDir = remember { StorageAccess.workspaceRoot(context) }
     var installProgress by remember { mutableStateOf<Pair<Float, String>?>(null) }
     var isInstalling by remember { mutableStateOf(false) }
 

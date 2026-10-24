@@ -137,8 +137,8 @@ fun MainAppHost(
 
     val persistedSettings by settingsRepository.settingsFlow.collectAsState()
 
-    val externalWorkspaceDir = remember { java.io.File(android.os.Environment.getExternalStorageDirectory(), "Documents/DSH-Workspace") }
-    val visibleWorkspaceDir = remember { java.io.File(android.os.Environment.getExternalStorageDirectory(), "Documents/DSH-Workspace") }
+    val externalWorkspaceDir = remember { StorageAccess.workspaceRoot(context) }
+    val visibleWorkspaceDir = remember { StorageAccess.workspaceRoot(context) }
 
     // Android 8–10: обычный runtime-запрос; Android 11+: системный экран «Доступ ко всем файлам».
     var storageAccessTick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
@@ -1573,7 +1573,13 @@ fun MainAppHost(
 
     // 首次进入必须先授予「所有文件访问权限」，否则不能进入引导/主界面。
     if (!ui.hasAllFilesAccess) {
-        StoragePermissionGate(onRequest = openAllFilesSettings)
+        StoragePermissionGate(
+            onRequest = openAllFilesSettings,
+            onUsePrivateWorkspace = {
+                StorageAccess.choosePrivateWorkspace(context)
+                ui.hasAllFilesAccess = true
+            },
+        )
         return
     }
 

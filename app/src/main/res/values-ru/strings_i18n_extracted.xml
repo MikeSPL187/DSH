@@ -13,4 +13,6 @@
     <string name="backup_failed">Не удалось создать резервную копию</string>
     <string name="share_diagnostics_title">Отправить диагностику</string>
     <string name="diagnostics_failed">Не удалось экспортировать диагностику</string>
+    <string name="storage_use_private_workspace">Работать в приватной папке приложения</string>
+    <string name="storage_use_private_workspace_desc">Файлы хранятся внутри DSH (Android/data). Агент не увидит другие папки телефона; файлы можно импортировать.</string>
 </resources>

@@ -99,7 +99,7 @@ import java.io.File
 class MainActivity : ComponentActivity() {
     /** 使用 app-specific 外部目录，proot/Android 11+ 才能稳定读写（不受 MANAGE_EXTERNAL_STORAGE 限制）。 */
     private val visibleWorkspaceDir: File by lazy {
-        File(android.os.Environment.getExternalStorageDirectory(), "Documents/DSH-Workspace")
+        StorageAccess.workspaceRoot(this)
     }
 
 

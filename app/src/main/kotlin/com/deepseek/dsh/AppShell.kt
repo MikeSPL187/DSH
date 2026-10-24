@@ -230,7 +230,7 @@ internal fun HostStartupSplash(
     }
 }
 @Composable
-internal fun StoragePermissionGate(onRequest: () -> Unit) {
+internal fun StoragePermissionGate(onRequest: () -> Unit, onUsePrivateWorkspace: () -> Unit = {}) {
     androidx.compose.material3.Surface(
         color = MaterialTheme.colorScheme.background,
         modifier = Modifier.fillMaxSize()
@@ -269,6 +269,26 @@ internal fun StoragePermissionGate(onRequest: () -> Unit) {
             ) {
                 Text(stringResource(R.string.storage_permission_grant))
             }
+            Spacer(modifier = Modifier.height(10.dp))
+            // Аудит F-07: можно работать без доступа ко всем файлам — в папке приложения.
+            val gateActivity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+            OutlinedButton(
+                onClick = {
+                    onUsePrivateWorkspace()
+                    // Пути рабочей папки вычисляются при создании экрана: пересоздаём его.
+                    gateActivity?.recreate()
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.storage_use_private_workspace))
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.storage_use_private_workspace_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
 
         }
     }
