@@ -80,9 +80,11 @@ class NativePluginLoader(private val context: Context) {
             val appInfo = pluginContext.applicationInfo
             val dexPath = (listOf(appInfo.sourceDir) + appInfo.splitSourceDirs.orEmpty())
                 .joinToString(java.io.File.pathSeparator)
-            val classLoader = dalvik.system.DexClassLoader(
+            // PathClassLoader, а не DexClassLoader(…, optimizedDirectory = null, …): на Android 8.0
+            // DexClassLoader делает `new File(optimizedDirectory)` и падает NPE — companion-плагины
+            // на Android 8 не загружались совсем (найдено на эмуляторе API 26).
+            val classLoader = dalvik.system.PathClassLoader(
                 dexPath,
-                null,
                 appInfo.nativeLibraryDir,
                 context.classLoader,
             )
