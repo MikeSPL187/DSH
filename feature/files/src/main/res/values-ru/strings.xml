@@ -106,4 +106,17 @@
     <string name="files_up">Вверх</string>
     <string name="files_imported">Импортировано в рабочую папку файлов: %1$d</string>
     <string name="files_send">Отправить</string>
+    <string name="files_page_title">Файлы</string>
+    <string name="files_search_hint">Найти в этой папке</string>
+    <string name="files_search_close">Закрыть поиск</string>
+    <string name="files_section_folders">Папки</string>
+    <string name="files_section_files">Файлы</string>
+    <string name="files_empty_title">Здесь пока пусто</string>
+    <string name="files_empty_desc">Файлы, которые создаст агент, появятся здесь. Можно импортировать файл с телефона.</string>
+    <string name="files_import_action">Импортировать файл</string>
+    <string name="files_attach">Прикрепить к сообщению</string>
+    <string name="files_not_found">Ничего не нашлось по «%1$s»</string>
+    <string name="files_back">Назад</string>
+    <string name="files_root">Рабочая папка</string>
+    <string name="files_folder_items">Папка</string>
 </resources>

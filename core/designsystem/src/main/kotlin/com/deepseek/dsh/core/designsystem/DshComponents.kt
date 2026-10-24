@@ -57,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /**
  * Пружинное сжатие при нажатии — отклик для кнопок и карточек.
@@ -243,10 +244,10 @@ fun DshRow(
 fun DshSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, contentDescription: String? = null) {
     val haptics = LocalHapticFeedback.current
     val track by animateColorAsState(if (checked) Dsh.colors.accent else Dsh.colors.s3, DshMotion.smooth(), label = "track")
-    val offset by animateDpAsState(if (checked) 20.dp else 0.dp, DshMotion.lively(), label = "thumb")
+    val offset by animateDpAsState(if (checked) 15.dp else 0.dp, DshMotion.lively(), label = "thumb")
     Box(
         modifier = modifier
-            .size(width = 52.dp, height = 44.dp)
+            .size(width = 46.dp, height = 44.dp)
             .toggleable(
                 value = checked,
                 enabled = enabled,
@@ -259,17 +260,17 @@ fun DshSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: Mo
     ) {
         Box(
             Modifier
-                .size(width = 44.dp, height = 26.dp)
+                .size(width = 38.dp, height = 23.dp)
                 .graphicsLayer { alpha = if (enabled) 1f else 0.5f }
                 .clip(CircleShape)
                 .background(track)
-                .padding(3.dp),
+                .padding(2.5.dp),
         ) {
             Box(
                 Modifier
                     .offset(x = offset)
-                    .size(20.dp)
-                    .shadow(2.dp, CircleShape)
+                    .size(18.dp)
+                    .shadow(1.5.dp, CircleShape)
                     .clip(CircleShape)
                     .background(Color.White),
             )
@@ -326,7 +327,7 @@ fun DshSegmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit, 
 
 enum class DshButtonKind { Primary, Ghost, Danger, Text }
 
-/** Кнопка 48 dp с пружинным нажатием. */
+/** Кнопка 44 dp (большая — 52 dp на всю ширину), пружинное нажатие, как `.btn` в прототипе. */
 @Composable
 fun DshButton(
     text: String,
@@ -336,6 +337,7 @@ fun DshButton(
     enabled: Boolean = true,
     icon: ImageVector? = null,
     contentPadding: PaddingValues = PaddingValues(horizontal = 18.dp),
+    big: Boolean = false,
 ) {
     val c = Dsh.colors
     val (fill, ink) = when {
@@ -348,9 +350,9 @@ fun DshButton(
     val interaction = remember { MutableInteractionSource() }
     Row(
         modifier = modifier
-            .heightIn(min = 48.dp)
+            .heightIn(min = if (big) 52.dp else 44.dp)
             .pressScale(interaction)
-            .clip(RoundedCornerShape(DshSpace.controlRadius))
+            .clip(RoundedCornerShape(if (big) 16.dp else DshSpace.controlRadius))
             .background(fill)
             .clickable(interaction, indication = androidx.compose.material3.ripple(), enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(contentPadding),
@@ -358,7 +360,7 @@ fun DshButton(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.size(18.dp))
-        Text(text, style = Dsh.type.bodyMedium, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(text, style = Dsh.type.bodyMedium.copy(fontSize = if (big) 16.sp else 15.sp), color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

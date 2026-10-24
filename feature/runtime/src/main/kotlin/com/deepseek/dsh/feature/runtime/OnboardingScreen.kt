@@ -4,13 +4,20 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,9 +25,9 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,791 +43,1037 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBackIos
-import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Bolt
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Code
-import androidx.compose.material.icons.rounded.Description
-import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Shield
-import androidx.compose.material.icons.rounded.Terminal
-import androidx.compose.material.icons.rounded.Timer
-import androidx.compose.material.icons.rounded.Checklist
-import androidx.compose.material.icons.rounded.BugReport
-import androidx.compose.material.icons.rounded.TaskAlt
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.deepseek.dsh.core.designsystem.Dsh
 import com.deepseek.dsh.core.designsystem.DshButton
-import com.deepseek.dsh.core.designsystem.DshButtonKind
-import com.deepseek.dsh.core.designsystem.DshDialog
-import com.deepseek.dsh.core.designsystem.DshDialogButton
-import com.deepseek.dsh.core.designsystem.DshDivider
 import com.deepseek.dsh.core.designsystem.DshFonts
-import com.deepseek.dsh.core.designsystem.DshGroup
-import com.deepseek.dsh.core.designsystem.DshIconButton
-import com.deepseek.dsh.core.designsystem.DshIconTile
+import com.deepseek.dsh.core.designsystem.DshGlyphs
 import com.deepseek.dsh.core.designsystem.DshMotion
-import com.deepseek.dsh.core.designsystem.DshPanelDefaults
-import com.deepseek.dsh.core.designsystem.DshRow
-import com.deepseek.dsh.core.designsystem.DshTileColors
-import com.deepseek.dsh.core.designsystem.LocalDshPanelColors
+import com.deepseek.dsh.core.designsystem.DshSwitch
 import com.deepseek.dsh.core.designsystem.pressScale
 import kotlinx.coroutines.delay
 
+/** Чей API подключается на шаге «Подключите модель». */
+enum class OnboardingProvider { DEEPSEEK, CUSTOM }
+
+/** Итог проверки ключа. */
+sealed interface KeyCheck {
+    /** Ключ работает; [balance] — остаток DeepSeek, [models] — модели своего API. */
+    data class Ok(val balance: String? = null, val models: List<String> = emptyList()) : KeyCheck
+    data object Bad : KeyCheck
+    data object Offline : KeyCheck
+}
+
+/** Ключ, который нужно сохранить, когда Host будет готов. */
+data class OnboardingKey(
+    val provider: OnboardingProvider,
+    val baseUrl: String,
+    val key: String,
+    val models: List<String>,
+)
+
 /**
- * Первый запуск DSH на телефоне: вход → приветствие → кредиты → задачи → подробность.
+ * Состояние установки Linux для шага 3.
  *
- * Логика шагов и смысл настроек взяты из настольного клиента (DesktopOnboarding):
- * те же переходы, диалоги подтверждения и результат [OnboardingResult]. Вид — из
- * прототипа DSH: шапка «Назад» с индикатором шагов, «Шаг N из 3», карточки выбора
- * и кнопка действия внизу экрана, всё на токенах дизайн-системы.
+ * @property progress общий прогресс 0..1.
+ * @property stage текущий этап: 0 — загрузка, 1 — распаковка, 2 — проверка (запуск Host).
+ * @property downloadPercent скачано, %; [downloadedBytes] из [totalBytes] — если размер известен.
+ * @property unpackPercent распаковано, %.
+ * @property etaSeconds сколько осталось, null — пока неизвестно.
+ * @property done Linux установлен и Host отвечает.
+ * @property error текст ошибки; null — ошибок нет.
+ */
+@Immutable
+data class LinuxInstall(
+    val progress: Float = 0f,
+    val stage: Int = 0,
+    val downloadPercent: Int = 0,
+    val downloadedBytes: Long = 0,
+    val totalBytes: Long = 0,
+    val unpackPercent: Int = 0,
+    val etaSeconds: Int? = null,
+    val done: Boolean = false,
+    val error: String? = null,
+)
+
+/** Языки интерфейса в переключателе сверху: тег и самоназвание. */
+private val Languages = listOf("ru" to "Русский", "en" to "English", "zh" to "中文")
+
+/**
+ * Первый запуск DSH — точная копия экрана `#onboard` из прототипа:
+ * приветствие → «Подключите модель» → «Где хранить проекты» → «Устанавливаю Linux».
  *
- * @param onComplete вызывается, когда пользователь закончил или пропустил настройку.
- * @param onRecharge открывает пополнение; null отключает все кнопки пополнения.
- * @param funded есть ли на счёте кредиты — задаёт порядок кнопок на шаге кредитов.
- * @param authenticated без входа и без API-ключа сначала показывается страница входа.
- * @param modifier внешний модификатор.
+ * Экран ничего не сохраняет сам: ключ, папку и установку ведёт приложение через колбэки.
+ *
+ * @param install ход установки Linux, идёт в фоне с первой секунды.
+ * @param sharedAccessGranted дан ли доступ ко всем файлам (для варианта «В памяти телефона»).
+ * @param checkKey проверка ключа у провайдера (сеть), вызывается после паузы в наборе.
+ * @param onWhereKey открыть страницу получения ключа.
+ * @param onChoosePrivate выбрана приватная папка внутри DSH.
+ * @param onRequestShared запросить доступ ко всем файлам.
+ * @param onRetryInstall повторить установку после ошибки.
+ * @param notify включено ли уведомление о готовности; [onNotifyChange] — переключение.
+ * @param language текущий язык (`ru`/`en`/`zh`); [onLanguage] — выбор другого.
+ * @param onRestoreBackup восстановление из резервной копии; null — кнопки нет.
+ * @param onFinish «Начать работу»: ключ (или null, если пропущен).
  */
 @Composable
 fun OnboardingScreen(
-    onComplete: (OnboardingResult) -> Unit,
-    onRecharge: (() -> Unit)? = null,
-    funded: Boolean = true,
-    authenticated: Boolean = true,
-    onSignIn: () -> Unit = {},
-    onAddApiKey: () -> Unit = {},
+    install: LinuxInstall,
+    sharedAccessGranted: Boolean,
+    checkKey: suspend (OnboardingProvider, String, String) -> KeyCheck,
+    onWhereKey: () -> Unit,
+    onChoosePrivate: () -> Unit,
+    onRequestShared: () -> Unit,
+    onRetryInstall: () -> Unit,
+    notify: Boolean,
+    onNotifyChange: (Boolean) -> Unit,
+    language: String,
+    onLanguage: (String) -> Unit,
+    onFinish: (OnboardingKey?) -> Unit,
     modifier: Modifier = Modifier,
+    onRestoreBackup: (() -> Unit)? = null,
 ) {
     val c = Dsh.colors
-    // Пользователь с входом или ключом сразу видит приветствие, без страницы входа.
-    var step by remember { mutableStateOf(if (authenticated) OnboardingStep.WELCOME else OnboardingStep.AUTH) }
-    var purpose by remember { mutableStateOf<OnboardingPurpose?>(null) }
-    var process by remember { mutableStateOf<OnboardingProcess?>(null) }
-    var confirmation by remember { mutableStateOf<OnboardingConfirmation?>(null) }
+    var step by rememberSaveable { mutableStateOf(0) }
+    var dir by remember { mutableStateOf(1) }
+    // Ключ в сохранённое состояние не кладём: оно может попасть на диск.
+    var provider by rememberSaveable { mutableStateOf(OnboardingProvider.DEEPSEEK) }
+    var baseUrl by rememberSaveable { mutableStateOf("") }
+    var key by remember { mutableStateOf("") }
+    var check by remember { mutableStateOf<KeyCheck?>(null) }
+    var checking by remember { mutableStateOf(false) }
+    var shared by rememberSaveable { mutableStateOf(false) }
+    var waitingShared by rememberSaveable { mutableStateOf(false) }
 
-    var creditFunded by remember { mutableStateOf<Boolean?>(null) }
-    // Порядок кнопок на шаге кредитов фиксируется при первом входе: пополнение
-    // баланса, пока шаг открыт, не должно менять кнопки местами.
-    LaunchedEffect(step) {
-        if (step == OnboardingStep.CREDIT && creditFunded == null) creditFunded = funded
-    }
-    val effectiveFunded = creditFunded ?: funded
-    val canRecharge = onRecharge != null
-
-    fun finish(skipped: Boolean) {
-        onComplete(OnboardingResult.of(purpose, process, skipped))
+    fun go(to: Int) {
+        dir = if (to > step) 1 else -1
+        step = to
     }
 
-    // Вход и добавление ключа завершаются асинхронно: как только они готовы — приветствие.
-    LaunchedEffect(authenticated) {
-        if (authenticated && step == OnboardingStep.AUTH) step = OnboardingStep.WELCOME
+    val urlOk = provider == OnboardingProvider.DEEPSEEK || baseUrl.trim().startsWith("https://")
+    // Проверка ключа: через 400 мс после последнего изменения, как в прототипе.
+    val checkFn by rememberUpdatedState(checkKey)
+    LaunchedEffect(provider, baseUrl, key) {
+        check = null
+        checking = false
+        if (key.isBlank() || !urlOk || (provider == OnboardingProvider.CUSTOM && baseUrl.isBlank())) return@LaunchedEffect
+        delay(400)
+        checking = true
+        check = runCatching { checkFn(provider, baseUrl.trim(), key.trim()) }.getOrDefault(KeyCheck.Offline)
+        checking = false
     }
+    val keyAccepted = !checking && (check is KeyCheck.Ok || (check == KeyCheck.Offline && key.trim().length >= 16))
 
-    fun goBack() {
-        step = when (step) {
-            OnboardingStep.AUTH, OnboardingStep.WELCOME -> OnboardingStep.WELCOME
-            OnboardingStep.CREDIT -> OnboardingStep.WELCOME
-            OnboardingStep.PURPOSE -> OnboardingStep.CREDIT
-            OnboardingStep.PROCESS -> OnboardingStep.PURPOSE
+    // Доступ ко всем файлам выдаётся в системных настройках: вернулись с ним — идём дальше.
+    LaunchedEffect(sharedAccessGranted, waitingShared) {
+        if (waitingShared && sharedAccessGranted && step == 2) {
+            waitingShared = false
+            go(3)
         }
     }
 
-    val inSteps = step.number > 0
-    // Системный «Назад» листает шаги назад, а открытый диалог — закрывает.
-    BackHandler(enabled = confirmation == null && inSteps) { goBack() }
-    BackHandler(enabled = confirmation != null) { confirmation = null }
+    BackHandler(enabled = step > 0) { go(step - 1) }
 
-    Box(modifier = modifier.fillMaxSize().background(c.bg)) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .then(if (confirmation != null) Modifier.blur(10.dp) else Modifier),
-        ) {
-            OnboardingTopBar(
-                step = step.number,
-                visible = inSteps,
-                onBack = { goBack() },
-                onSkip = {
-                    confirmation = if (step == OnboardingStep.CREDIT) {
-                        OnboardingConfirmation.CREDIT_SKIP
-                    } else {
-                        OnboardingConfirmation.SKIP
-                    }
-                },
-            )
-            AnimatedContent(
-                targetState = step,
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                transitionSpec = {
-                    // Вперёд — новый шаг въезжает справа, назад — слева; пружина без отскока.
-                    val forward = targetState.ordinal >= initialState.ordinal
-                    val enter = slideInHorizontally(DshMotion.smooth()) { w -> if (forward) w / 4 else -w / 4 } +
-                        fadeIn(DshMotion.smooth())
-                    val exit = slideOutHorizontally(DshMotion.smooth()) { w -> if (forward) -w / 6 else w / 6 } +
-                        fadeOut(DshMotion.snappy())
-                    enter togetherWith exit
-                },
-                label = "onboarding-page",
-            ) { current ->
-                when (current) {
-                    OnboardingStep.AUTH -> HeroPage {
-                        DshButton(stringResource(R.string.onb_auth_login), onSignIn, Modifier.fillMaxWidth())
-                        Spacer(Modifier.height(8.dp))
-                        DshButton(stringResource(R.string.onb_auth_add_key), onAddApiKey, Modifier.fillMaxWidth(), kind = DshButtonKind.Ghost)
-                        FootNote(Icons.Rounded.Lock, stringResource(R.string.onb_auth_note))
-                    }
-
-                    OnboardingStep.WELCOME -> HeroPage {
-                        DshButton(stringResource(R.string.onb_start), { step = OnboardingStep.CREDIT }, Modifier.fillMaxWidth())
-                    }
-
-                    OnboardingStep.CREDIT -> CreditPage(
-                        funded = effectiveFunded,
-                        canRecharge = canRecharge,
-                        onPrimary = {
-                            if (effectiveFunded) {
-                                step = OnboardingStep.PURPOSE
-                            } else {
-                                confirmation = null
-                                onRecharge?.invoke()
-                            }
-                        },
-                        onSecondary = {
-                            if (effectiveFunded) {
-                                onRecharge?.invoke()
-                            } else {
-                                // «Далее» без кредитов сначала спрашивает подтверждение.
-                                confirmation = OnboardingConfirmation.CREDIT
-                            }
-                        },
-                    )
-
-                    OnboardingStep.PURPOSE -> PurposePage(
-                        purpose = purpose,
-                        onPurposeChange = { purpose = it },
-                        onContinue = {
-                            // Только офисные задачи — настройка заканчивается здесь,
-                            // шаг подробности им не нужен.
-                            if (purpose == OnboardingPurpose.OFFICE) {
-                                finish(skipped = false)
-                            } else {
-                                step = OnboardingStep.PROCESS
-                            }
-                        },
-                    )
-
-                    OnboardingStep.PROCESS -> ProcessPage(
-                        process = process,
-                        onProcessChange = { process = it },
-                        onEnter = { finish(skipped = false) },
-                    )
+    val primaryText: String
+    val primaryEnabled: Boolean
+    val onPrimary: () -> Unit
+    when (step) {
+        0 -> { primaryText = stringResource(R.string.ob_start); primaryEnabled = true; onPrimary = { go(1) } }
+        1 -> { primaryText = stringResource(R.string.ob_continue); primaryEnabled = keyAccepted; onPrimary = { go(2) } }
+        2 -> {
+            val ask = shared && !sharedAccessGranted
+            primaryText = stringResource(if (ask) R.string.ob_allow else R.string.ob_continue)
+            primaryEnabled = true
+            onPrimary = {
+                when {
+                    !shared -> { onChoosePrivate(); go(3) }
+                    sharedAccessGranted -> go(3)
+                    else -> { waitingShared = true; onRequestShared() }
                 }
             }
         }
-
-        confirmation?.let { kind ->
-            OnboardingConfirmationDialog(
-                kind = kind,
-                canRecharge = canRecharge,
-                onClose = { confirmation = null },
-                onContinueSetup = { confirmation = null },
-                onUnderstood = {
-                    confirmation = null
-                    if (kind == OnboardingConfirmation.CREDIT) {
-                        step = OnboardingStep.PURPOSE
-                    } else {
-                        finish(skipped = true)
-                    }
-                },
-                onEnterApp = {
-                    confirmation = null
-                    finish(skipped = true)
-                },
-                onRecharge = {
-                    confirmation = null
-                    onRecharge?.invoke()
+        else -> {
+            primaryText = stringResource(
+                when {
+                    install.error != null -> R.string.ob_retry
+                    install.done -> R.string.ob_begin
+                    else -> R.string.ob_installing
                 },
             )
-        }
-    }
-}
-
-/** Шаги первого запуска; [number] — номер в индикаторе, 0 — до шагов. */
-private enum class OnboardingStep(val number: Int) { AUTH(0), WELCOME(0), CREDIT(1), PURPOSE(2), PROCESS(3) }
-
-private enum class OnboardingConfirmation { CREDIT, CREDIT_SKIP, SKIP }
-
-private const val STEP_COUNT = 3
-
-// ---------------------------------------------------------------------------
-// Шапка и общий каркас страниц
-// ---------------------------------------------------------------------------
-
-/**
- * Шапка: «Назад» слева, индикатор шагов по центру, «Пропустить» справа.
- * На приветствии всё это скрыто, но место остаётся — экран не прыгает.
- */
-@Composable
-private fun OnboardingTopBar(step: Int, visible: Boolean, onBack: () -> Unit, onSkip: () -> Unit) {
-    val c = Dsh.colors
-    val alpha by animateFloatAsState(if (visible) 1f else 0f, DshMotion.smooth(), label = "onb-top")
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(52.dp)
-            .padding(horizontal = 4.dp)
-            .graphicsLayer { this.alpha = alpha },
-    ) {
-        DshIconButton(
-            icon = Icons.AutoMirrored.Rounded.ArrowBackIos,
-            contentDescription = stringResource(R.string.onb_back),
-            enabled = visible,
-            onClick = onBack,
-            modifier = Modifier.align(Alignment.CenterStart),
-        )
-        Row(
-            Modifier.align(Alignment.Center),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            for (i in 1..STEP_COUNT) {
-                val current = i == step
-                val width by animateDpAsState(if (current) 30.dp else 18.dp, DshMotion.snappy(), label = "onb-dot-w")
-                val color by animateColorAsState(
-                    when {
-                        current -> c.accent
-                        i < step -> c.accent.copy(alpha = 0.4f)
-                        else -> c.s3
-                    },
-                    DshMotion.smooth(),
-                    label = "onb-dot-c",
-                )
-                Box(Modifier.size(width = width, height = 4.dp).clip(CircleShape).background(color))
+            primaryEnabled = install.done || install.error != null
+            onPrimary = {
+                if (install.error != null) {
+                    onRetryInstall()
+                } else {
+                    val saved = key.trim().takeIf { it.isNotEmpty() && keyAccepted }?.let {
+                        OnboardingKey(provider, baseUrl.trim(), it, (check as? KeyCheck.Ok)?.models.orEmpty())
+                    }
+                    onFinish(saved)
+                }
             }
         }
-        val interaction = remember { MutableInteractionSource() }
-        Box(
-            Modifier
-                .align(Alignment.CenterEnd)
-                .heightIn(min = 44.dp)
-                .pressScale(interaction)
-                .clip(RoundedCornerShape(22.dp))
-                .clickable(interaction, ripple(), enabled = visible, role = Role.Button, onClick = onSkip)
-                .padding(horizontal = 12.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(stringResource(R.string.onb_skip), style = Dsh.type.callout, color = c.t2)
-        }
     }
-}
 
-/**
- * Каркас страницы: прокручиваемое содержимое и закреплённые внизу действия.
- * На маленьком экране текст прокручивается, а кнопка всегда под пальцем.
- */
-@Composable
-private fun OnboardingPage(
-    bottom: @Composable ColumnScope.() -> Unit,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    val scroll = rememberScrollState()
-    val bg = Dsh.colors.bg
-    Column(Modifier.fillMaxSize()) {
-        Box(Modifier.weight(1f).fillMaxWidth()) {
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scroll)
-                    .padding(horizontal = 22.dp)
-                    .padding(top = 8.dp, bottom = 20.dp),
-                content = content,
-            )
-            // Если текст не поместился, нижний край мягко гаснет — видно, что можно прокрутить.
-            val fade by animateFloatAsState(if (scroll.canScrollForward) 1f else 0f, DshMotion.smooth(), label = "onb-fade")
-            Box(
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(28.dp)
-                    .graphicsLayer { alpha = fade }
-                    .background(Brush.verticalGradient(listOf(bg.copy(alpha = 0f), bg))),
-            )
+    Column(modifier.fillMaxSize().background(c.bg).statusBarsPadding()) {
+        TopBar(step, language, onLanguage, onBack = { go(step - 1) })
+        AnimatedContent(
+            targetState = step,
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            transitionSpec = {
+                val forward = dir > 0
+                (slideInHorizontally(DshMotion.smooth()) { w -> if (forward) w else -w }) togetherWith
+                    (slideOutHorizontally(DshMotion.smooth()) { w -> if (forward) -w * 3 / 10 else w * 3 / 10 } + fadeOut(DshMotion.smooth()))
+            },
+            label = "ob-step",
+        ) { current ->
+            StepPage(current) {
+                when (current) {
+                    0 -> Hero()
+                    1 -> ModelStep(
+                        provider = provider,
+                        onProvider = { provider = it },
+                        baseUrl = baseUrl,
+                        onBaseUrl = { baseUrl = it },
+                        key = key,
+                        onKey = { key = it },
+                        urlOk = urlOk,
+                        checking = checking,
+                        check = check,
+                        onWhereKey = onWhereKey,
+                        dir = dir,
+                    )
+                    2 -> WorkspaceStep(shared, { shared = it; waitingShared = false }, sharedAccessGranted, dir)
+                    else -> LinuxStep(install, notify, onNotifyChange, dir)
+                }
+            }
         }
-        Column(
-            Modifier.fillMaxWidth().padding(start = 22.dp, end = 22.dp, top = 8.dp, bottom = 16.dp),
-            content = bottom,
+        Bottom(
+            primaryText = primaryText,
+            primaryEnabled = primaryEnabled,
+            onPrimary = onPrimary,
+            altText = when (step) {
+                0 -> if (onRestoreBackup != null) stringResource(R.string.ob_restore) else null
+                1 -> stringResource(R.string.ob_skip_key)
+                else -> null
+            },
+            onAlt = { if (step == 0) onRestoreBackup?.invoke() else { key = ""; go(2) } },
         )
     }
 }
 
-/** Плавный подъём элемента при появлении страницы, с небольшой задержкой по порядку. */
+// ---------------------------------------------------------------------------
+// Шапка и низ
+// ---------------------------------------------------------------------------
+
+/** `.ob-top`: «Назад», индикатор шагов и язык. */
 @Composable
-private fun Modifier.rise(order: Int): Modifier {
-    val progress = remember { Animatable(0f) }
-    LaunchedEffect(Unit) {
-        delay(order * 45L)
-        progress.animateTo(1f, DshMotion.smooth())
-    }
-    val offset = with(LocalDensity.current) { 14.dp.toPx() }
-    return graphicsLayer {
-        alpha = progress.value
-        translationY = (1f - progress.value) * offset
+private fun TopBar(step: Int, language: String, onLanguage: (String) -> Unit, onBack: () -> Unit) {
+    val c = Dsh.colors
+    val backAlpha by animateFloatAsState(if (step > 0) 1f else 0f, tween(250), label = "ob-back")
+    val dotsAlpha by animateFloatAsState(if (step > 0) 1f else 0f, tween(300), label = "ob-dots")
+    Row(
+        Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        val backInteraction = remember { MutableInteractionSource() }
+        val backLabel = stringResource(R.string.ob_back)
+        Box(
+            Modifier
+                .size(44.dp)
+                .graphicsLayer { alpha = backAlpha }
+                .pressScale(backInteraction, 0.9f)
+                .clip(CircleShape)
+                .clickable(backInteraction, ripple(), enabled = step > 0, role = Role.Button, onClick = onBack)
+                .semantics { contentDescription = backLabel },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(DshGlyphs.Left, contentDescription = null, tint = c.t1, modifier = Modifier.size(22.dp))
+        }
+        Row(
+            Modifier.weight(1f).graphicsLayer { alpha = dotsAlpha },
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+        ) {
+            for (i in 0 until 3) {
+                val on = i == step - 1
+                val width by animateDpAsState(if (on) 34.dp else 22.dp, DshMotion.snappy(), label = "ob-dot")
+                val color by animateColorAsState(
+                    when {
+                        on -> c.accent
+                        i < step - 1 -> lerp(c.s3, c.accent, 0.45f)
+                        else -> c.s3
+                    },
+                    tween(350),
+                    label = "ob-dot-c",
+                )
+                Box(Modifier.size(width = width, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(color))
+            }
+        }
+        LanguagePill(language, onLanguage)
     }
 }
 
-/** «Шаг N из 3», заголовок и вводный текст страницы-шага. */
+/** `.ob-lang`: текущий язык, по нажатию — список. */
 @Composable
-private fun StepHeader(step: Int, title: String, lead: String) {
+private fun LanguagePill(language: String, onLanguage: (String) -> Unit) {
     val c = Dsh.colors
+    var open by remember { mutableStateOf(false) }
+    val name = Languages.firstOrNull { it.first == language }?.second ?: Languages.first().second
+    Box(Modifier.padding(end = 6.dp)) {
+        Row(
+            Modifier
+                .height(40.dp)
+                .clip(CircleShape)
+                .background(c.s2)
+                .clickable(role = Role.Button) { open = true }
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(name, style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.5.sp), color = c.t2)
+            Icon(DshGlyphs.xs("chev"), contentDescription = null, tint = c.t2, modifier = Modifier.size(15.dp))
+        }
+        DropdownMenu(
+            expanded = open,
+            onDismissRequest = { open = false },
+            containerColor = c.s1,
+            shape = RoundedCornerShape(16.dp),
+        ) {
+            Languages.forEach { (tag, label) ->
+                DropdownMenuItem(
+                    text = { Text(label, style = Dsh.type.body, color = c.t1) },
+                    trailingIcon = if (tag == language) {
+                        { Icon(DshGlyphs.Check, contentDescription = null, tint = c.accent, modifier = Modifier.size(18.dp)) }
+                    } else null,
+                    onClick = { open = false; if (tag != language) onLanguage(tag) },
+                )
+            }
+        }
+    }
+}
+
+/** `.ob-bottom`: главная кнопка и вторая строкой под ней (место держится всегда). */
+@Composable
+private fun Bottom(primaryText: String, primaryEnabled: Boolean, onPrimary: () -> Unit, altText: String?, onAlt: () -> Unit) {
+    val c = Dsh.colors
+    // Текст второй кнопки запоминаем, чтобы он не пропадал раньше, чем погаснет.
+    var lastAlt by remember { mutableStateOf(altText.orEmpty()) }
+    if (altText != null) lastAlt = altText
+    val altAlpha by animateFloatAsState(if (altText != null) 1f else 0f, tween(250), label = "ob-alt")
+    val pulse = remember { Animatable(1f) }
+    LaunchedEffect(primaryEnabled) {
+        if (primaryEnabled) {
+            pulse.snapTo(0.97f)
+            pulse.animateTo(1f, DshMotion.lively())
+        }
+    }
+    Column(Modifier.fillMaxWidth().padding(start = 22.dp, end = 22.dp, top = 10.dp).navigationBarsPadding().padding(bottom = 16.dp)) {
+        DshButton(
+            primaryText,
+            onPrimary,
+            Modifier.fillMaxWidth().graphicsLayer { scaleX = pulse.value; scaleY = pulse.value },
+            enabled = primaryEnabled,
+            big = true,
+        )
+        Box(
+            Modifier
+                .padding(top = 4.dp)
+                .fillMaxWidth()
+                .height(44.dp)
+                .graphicsLayer { alpha = altAlpha }
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(enabled = altText != null, role = Role.Button, onClick = onAlt),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(lastAlt, style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Medium, fontSize = 14.5.sp), color = c.t2)
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Шаги
+// ---------------------------------------------------------------------------
+
+/** `.ob-step`: прокрутка, поля 18/22/20. */
+@Composable
+private fun StepPage(step: Int, content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(start = 22.dp, end = 22.dp, top = 18.dp, bottom = 20.dp),
+        content = content,
+    )
+}
+
+/** Появление элемента шага: сдвиг на 24 dp по направлению и проявление, по очереди (60 + 35·k мс). */
+@Composable
+private fun Modifier.enter(order: Int, dir: Int): Modifier {
+    val p = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        delay(60L + order * 35L)
+        p.animateTo(1f, DshMotion.smooth())
+    }
+    val shift = with(LocalDensity.current) { 24.dp.toPx() } * dir
+    return graphicsLayer { alpha = p.value; translationX = (1f - p.value) * shift }
+}
+
+private val H1 = TextStyle(fontFamily = DshFonts.display, fontWeight = FontWeight.SemiBold, fontSize = 38.sp, lineHeight = 44.sp, letterSpacing = (-0.03).em)
+private val H2 = TextStyle(fontFamily = DshFonts.display, fontWeight = FontWeight.SemiBold, fontSize = 27.sp, lineHeight = 31.sp, letterSpacing = (-0.02).em)
+private val Lead = TextStyle(fontFamily = DshFonts.body, fontSize = 15.sp, lineHeight = 22.5.sp)
+private val Small = TextStyle(fontFamily = DshFonts.body, fontSize = 13.5.sp, lineHeight = 19.6.sp)
+
+/** Шаг 0: знак, название, назначение и три возможности. */
+@Composable
+private fun ColumnScope.Hero() {
+    val c = Dsh.colors
+    val density = LocalDensity.current
+    // Знак: из 0,6 с поворотом −12° в обычный вид пружиной с отскоком (задержка 120 мс).
+    val mark = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { delay(120); mark.animateTo(1f, DshMotion.lively()) }
+    @Composable
+    fun Modifier.rise(k: Int): Modifier {
+        val p = remember { Animatable(0f) }
+        LaunchedEffect(Unit) { delay(260L + k * 70L); p.animateTo(1f, DshMotion.smooth()) }
+        val dy = with(density) { 14.dp.toPx() }
+        return graphicsLayer { alpha = p.value; translationY = (1f - p.value) * dy }
+    }
+    Spacer(Modifier.height(34.dp))
+    Box(
+        Modifier
+            .align(Alignment.CenterHorizontally)
+            .graphicsLayer {
+                val v = mark.value
+                alpha = v.coerceIn(0f, 1f)
+                scaleX = 0.6f + 0.4f * v
+                scaleY = 0.6f + 0.4f * v
+                rotationZ = -12f * (1f - v)
+            }
+            .shadow(28.dp, RoundedCornerShape(26.dp), ambientColor = c.accent.copy(alpha = 0.4f), spotColor = c.accent.copy(alpha = 0.4f))
+            .size(84.dp)
+            .clip(RoundedCornerShape(26.dp))
+            .background(Brush.linearGradient(listOf(c.accent2, c.accent), start = Offset(0f, 0f), end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)))
+            .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.35f), Color.Transparent), endY = 6f), RoundedCornerShape(26.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(DshGlyphs.Dsh, contentDescription = null, tint = Color.White, modifier = Modifier.size(40.dp))
+    }
+    Spacer(Modifier.height(22.dp))
     Text(
-        stringResource(R.string.onb_step_of, step, STEP_COUNT),
-        style = Dsh.type.footnote.copy(fontWeight = FontWeight.Medium),
-        color = c.accent,
-        modifier = Modifier.padding(top = 6.dp).rise(0),
+        "DSH",
+        style = H1,
+        color = c.t1,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().semantics { heading() }.rise(0),
     )
     Spacer(Modifier.height(6.dp))
     Text(
-        title,
-        style = StepTitle,
-        color = c.t1,
-        modifier = Modifier.semantics { heading() }.rise(1),
+        stringResource(R.string.ob_tagline),
+        style = TextStyle(fontFamily = DshFonts.body, fontSize = 16.sp, lineHeight = 24.sp),
+        color = c.t2,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.align(Alignment.CenterHorizontally).widthIn(max = 280.dp).rise(1),
     )
+    Spacer(Modifier.height(38.dp))
+    Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        Feature(DshGlyphs.Term, R.string.ob_feat_linux, R.string.ob_feat_linux_sub, Modifier.rise(2))
+        Feature(DshGlyphs.Spark, R.string.ob_feat_agent, R.string.ob_feat_agent_sub, Modifier.rise(3))
+        Feature(DshGlyphs.Shield, R.string.ob_feat_control, R.string.ob_feat_control_sub, Modifier.rise(4))
+    }
+}
+
+/** `.ob-feat`: плитка 38 и две строки. */
+@Composable
+private fun Feature(icon: ImageVector, title: Int, sub: Int, modifier: Modifier) {
+    val c = Dsh.colors
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Box(Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(c.accentSoft), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = c.accent, modifier = Modifier.size(18.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(title), style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Medium, fontSize = 15.5.sp, lineHeight = 20.sp), color = c.t1)
+            Spacer(Modifier.height(2.dp))
+            Text(stringResource(sub), style = Small, color = c.t2)
+        }
+    }
+}
+
+/** «Шаг N из 3», заголовок и вводный абзац. */
+@Composable
+private fun StepHead(n: Int, title: String, lead: String, dir: Int) {
+    val c = Dsh.colors
+    Text(
+        stringResource(R.string.ob_step, n, 3),
+        style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Medium, fontSize = 12.5.sp, lineHeight = 16.sp),
+        color = c.accent,
+        modifier = Modifier.padding(top = 6.dp).enter(0, dir),
+    )
+    Spacer(Modifier.height(6.dp))
+    Text(title, style = H2, color = c.t1, modifier = Modifier.semantics { heading() }.enter(1, dir))
     Spacer(Modifier.height(8.dp))
-    Text(lead, style = Dsh.type.body.copy(lineHeight = 22.sp), color = c.t2, modifier = Modifier.rise(2))
+    Text(lead, style = Lead, color = c.t2, modifier = Modifier.enter(2, dir))
     Spacer(Modifier.height(22.dp))
 }
 
-private val StepTitle = TextStyle(
-    fontFamily = DshFonts.display,
-    fontWeight = FontWeight.SemiBold,
-    fontSize = 27.sp,
-    lineHeight = 31.sp,
-    letterSpacing = (-0.02).em,
-)
-
-/** Пояснение под кнопками: иконка и короткий текст по центру. */
+/** Шаг 1: провайдер, ключ скрыт точками, «Показать» и «Вставить», проверка ключа. */
 @Composable
-private fun FootNote(icon: ImageVector, text: String) {
+private fun ModelStep(
+    provider: OnboardingProvider,
+    onProvider: (OnboardingProvider) -> Unit,
+    baseUrl: String,
+    onBaseUrl: (String) -> Unit,
+    key: String,
+    onKey: (String) -> Unit,
+    urlOk: Boolean,
+    checking: Boolean,
+    check: KeyCheck?,
+    onWhereKey: () -> Unit,
+    dir: Int,
+) {
+    val c = Dsh.colors
+    val clipboard = LocalClipboardManager.current
+    StepHead(1, stringResource(R.string.ob_model_title), stringResource(R.string.ob_model_lead), dir)
+    // `.ob-prov`: два варианта на подложке s2.
     Row(
-        Modifier.fillMaxWidth().padding(top = 12.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
+        Modifier
+            .enter(3, dir)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(c.s2)
+            .padding(3.dp)
+            .selectableGroup(),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Icon(icon, contentDescription = null, tint = Dsh.colors.t3, modifier = Modifier.size(14.dp))
-        Spacer(Modifier.width(6.dp))
-        Text(text, style = Dsh.type.footnote, color = Dsh.colors.t3, textAlign = TextAlign.Center)
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Страницы
-// ---------------------------------------------------------------------------
-
-/** Приветствие: знак DSH, назначение приложения и три главных возможности. */
-@Composable
-private fun HeroPage(bottom: @Composable ColumnScope.() -> Unit) {
-    val c = Dsh.colors
-    // На низком экране знак и отступы меньше, чтобы все три возможности были видны.
-    val compact = LocalConfiguration.current.screenHeightDp < 720
-    val markSize = if (compact) 64.dp else 84.dp
-    OnboardingPage(bottom = bottom) {
-        Spacer(Modifier.height(if (compact) 4.dp else 28.dp))
-        Box(
-            Modifier
-                .align(Alignment.CenterHorizontally)
-                .rise(0)
-                .size(markSize)
-                .clip(RoundedCornerShape(markSize * 0.31f))
-                .background(Brush.linearGradient(listOf(c.accent2, c.accent))),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Rounded.Terminal, contentDescription = null, tint = Color.White, modifier = Modifier.size(markSize * 0.48f))
+        listOf(OnboardingProvider.DEEPSEEK to "DeepSeek", OnboardingProvider.CUSTOM to stringResource(R.string.ob_prov_custom)).forEach { (p, label) ->
+            val on = p == provider
+            val bg by animateColorAsState(if (on) c.s1 else Color.Transparent, tween(250), label = "ob-prov")
+            val ink by animateColorAsState(if (on) c.t1 else c.t2, tween(250), label = "ob-prov-t")
+            Box(
+                Modifier
+                    .weight(1f)
+                    .height(40.dp)
+                    .then(if (on) Modifier.shadow(2.dp, RoundedCornerShape(11.dp), ambientColor = Color.Black.copy(alpha = 0.1f), spotColor = Color.Black.copy(alpha = 0.1f)) else Modifier)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(bg)
+                    .selectable(on, role = Role.RadioButton) { onProvider(p) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(label, style = TextStyle(fontFamily = DshFonts.body, fontSize = 14.sp, fontWeight = if (on) FontWeight.Medium else FontWeight.Normal), color = ink)
+            }
         }
-        Spacer(Modifier.height(if (compact) 14.dp else 22.dp))
+    }
+    Spacer(Modifier.height(14.dp))
+    val custom = provider == OnboardingProvider.CUSTOM
+    Column(Modifier.enter(4, dir)) {
         Text(
-            stringResource(R.string.onb_brand),
-            style = TextStyle(fontFamily = DshFonts.display, fontWeight = FontWeight.SemiBold, fontSize = if (compact) 32.sp else 38.sp, lineHeight = if (compact) 36.sp else 42.sp, letterSpacing = (-0.03).em),
-            color = c.t1,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().semantics { heading() }.rise(1),
-        )
-        Spacer(Modifier.height(6.dp))
-        Text(
-            stringResource(R.string.onb_tagline),
-            style = Dsh.type.body.copy(fontSize = 16.sp, lineHeight = 24.sp),
+            stringResource(if (custom) R.string.ob_key_label_custom else R.string.ob_key_label),
+            style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.sp, lineHeight = 17.sp),
             color = c.t2,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.align(Alignment.CenterHorizontally).widthIn(max = 320.dp).rise(2),
+            modifier = Modifier.padding(start = 2.dp, end = 2.dp, bottom = 6.dp),
         )
-        Spacer(Modifier.height(if (compact) 22.dp else 36.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(if (compact) 14.dp else 18.dp)) {
-            Feature(Icons.Rounded.Terminal, R.string.onb_feat_linux, R.string.onb_feat_linux_sub, 3)
-            Feature(Icons.Rounded.AutoAwesome, R.string.onb_feat_agent, R.string.onb_feat_agent_sub, 4)
-            Feature(Icons.Rounded.Shield, R.string.onb_feat_control, R.string.onb_feat_control_sub, 5)
+        if (custom) {
+            Field(
+                value = baseUrl,
+                onValue = onBaseUrl,
+                placeholder = stringResource(R.string.ob_url_ph),
+                icon = DshGlyphs.Globe,
+                secret = false,
+                ok = false,
+                keyboard = KeyboardType.Uri,
+            )
+            Spacer(Modifier.height(8.dp))
         }
+        Field(
+            value = key,
+            onValue = onKey,
+            placeholder = if (custom) stringResource(R.string.ob_key_ph_custom) else "sk-…",
+            icon = DshGlyphs.Key,
+            secret = true,
+            ok = check is KeyCheck.Ok,
+            keyboard = KeyboardType.Password,
+            onPaste = { clipboard.getText()?.text?.trim()?.takeIf { it.isNotEmpty() }?.let(onKey) },
+        )
     }
-}
-
-@Composable
-private fun Feature(icon: ImageVector, title: Int, subtitle: Int, order: Int) {
-    val c = Dsh.colors
-    Row(Modifier.fillMaxWidth().rise(order), verticalAlignment = Alignment.Top) {
-        Box(
-            Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(c.accentSoft),
-            contentAlignment = Alignment.Center,
+    // `.ob-state`: где хранится ключ, проверка, итог.
+    val bad = check == KeyCheck.Bad || (custom && baseUrl.isNotBlank() && !urlOk)
+    val stateColor = when {
+        bad -> c.danger
+        check is KeyCheck.Ok -> c.ok
+        checking -> c.t2
+        else -> c.t3
+    }
+    Row(
+        Modifier.padding(start = 2.dp, end = 2.dp, top = 10.dp).heightIn(min = 20.dp).enter(5, dir),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        when {
+            checking -> Spinner(13.dp, 1.75.dp, stateColor)
+            bad -> Icon(DshGlyphs.xs("alert"), null, tint = stateColor, modifier = Modifier.size(15.dp))
+            check is KeyCheck.Ok -> Icon(DshGlyphs.xs("check"), null, tint = stateColor, modifier = Modifier.size(15.dp))
+            else -> Icon(DshGlyphs.xs("lock"), null, tint = stateColor, modifier = Modifier.size(15.dp))
+        }
+        val text = when {
+            custom && baseUrl.isNotBlank() && !urlOk -> stringResource(R.string.ob_url_bad)
+            checking -> stringResource(R.string.ob_key_busy)
+            check == KeyCheck.Bad -> stringResource(R.string.ob_key_bad)
+            check == KeyCheck.Offline -> stringResource(R.string.ob_key_offline)
+            check is KeyCheck.Ok && check.balance != null -> stringResource(R.string.ob_key_ok_balance, check.balance)
+            check is KeyCheck.Ok && check.models.isNotEmpty() -> stringResource(R.string.ob_key_ok_models, check.models.size)
+            check is KeyCheck.Ok -> stringResource(R.string.ob_key_ok)
+            else -> stringResource(R.string.ob_key_idle)
+        }
+        Text(text, style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.sp, lineHeight = 17.sp), color = stateColor)
+    }
+    if (!custom) {
+        // `.ob-link`: где взять ключ.
+        Row(
+            Modifier
+                .padding(top = 12.dp)
+                .enter(6, dir)
+                .heightIn(min = 40.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .clickable(role = Role.Button, onClick = onWhereKey)
+                .padding(horizontal = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Icon(icon, contentDescription = null, tint = c.accent, modifier = Modifier.size(20.dp))
-        }
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(stringResource(title), style = Dsh.type.bodyMedium, color = c.t1)
-            Spacer(Modifier.height(2.dp))
-            Text(stringResource(subtitle), style = Dsh.type.callout, color = c.t2)
+            Text(stringResource(R.string.ob_where), style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Medium, fontSize = 14.5.sp), color = c.accent)
+            Icon(DshGlyphs.xs("right"), null, tint = c.accent, modifier = Modifier.size(15.dp))
         }
     }
 }
 
+/** `.ob-in`: поле 54 dp; секрет скрыт точками, есть «Показать» и «Вставить». */
 @Composable
-private fun CreditPage(
-    funded: Boolean,
-    canRecharge: Boolean,
-    onPrimary: () -> Unit,
-    onSecondary: () -> Unit,
+private fun Field(
+    value: String,
+    onValue: (String) -> Unit,
+    placeholder: String,
+    icon: ImageVector,
+    secret: Boolean,
+    ok: Boolean,
+    keyboard: KeyboardType,
+    onPaste: (() -> Unit)? = null,
 ) {
-    OnboardingPage(bottom = {
-        DshButton(
-            stringResource(if (funded) R.string.onb_continue else R.string.onb_top_up),
-            onPrimary,
-            Modifier.fillMaxWidth(),
-            enabled = funded || canRecharge,
-        )
-        Spacer(Modifier.height(8.dp))
-        DshButton(
-            stringResource(if (funded) R.string.onb_funded_top_up else R.string.onb_later),
-            onSecondary,
-            Modifier.fillMaxWidth(),
-            kind = DshButtonKind.Ghost,
-            enabled = !(funded && !canRecharge),
-        )
-    }) {
-        StepHeader(1, stringResource(R.string.onb_credit), stringResource(R.string.onb_credit_description))
-        DshGroup(Modifier.rise(3)) {
-            DshRow(
-                stringResource(R.string.onb_credit_fact_tokens),
-                subtitle = stringResource(R.string.onb_credit_fact_tokens_sub),
-                leading = { DshIconTile(Icons.Rounded.Bolt, DshTileColors.indigo) },
-            )
-            DshDivider(inset = 56.dp)
-            DshRow(
-                stringResource(R.string.onb_credit_fact_idle),
-                subtitle = stringResource(R.string.onb_credit_fact_idle_sub),
-                leading = { DshIconTile(Icons.Rounded.Timer, DshTileColors.green) },
-            )
-            DshDivider(inset = 56.dp)
-            DshRow(
-                stringResource(R.string.onb_credit_fact_later),
-                subtitle = stringResource(R.string.onb_credit_fact_later_sub),
-                leading = { DshIconTile(Icons.Rounded.Settings, DshTileColors.gray) },
-            )
-        }
-    }
-}
-
-@Composable
-private fun PurposePage(
-    purpose: OnboardingPurpose?,
-    onPurposeChange: (OnboardingPurpose?) -> Unit,
-    onContinue: () -> Unit,
-) {
-    val officeSelected = purpose == OnboardingPurpose.OFFICE || purpose == OnboardingPurpose.BOTH
-    val developmentSelected = purpose == OnboardingPurpose.DEVELOPMENT || purpose == OnboardingPurpose.BOTH
-
-    fun toggle(target: OnboardingPurpose) {
-        val office = if (target == OnboardingPurpose.OFFICE) !officeSelected else officeSelected
-        val development = if (target == OnboardingPurpose.DEVELOPMENT) !developmentSelected else developmentSelected
-        onPurposeChange(
-            when {
-                office && development -> OnboardingPurpose.BOTH
-                office -> OnboardingPurpose.OFFICE
-                development -> OnboardingPurpose.DEVELOPMENT
-                else -> null
-            },
-        )
-    }
-
-    OnboardingPage(bottom = { ContinueButton(R.string.onb_continue, purpose != null, onContinue) }) {
-        StepHeader(2, stringResource(R.string.onb_purpose_title), stringResource(R.string.onb_purpose_description))
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            ChoiceCard(
-                title = stringResource(R.string.onb_development),
-                subtitle = stringResource(R.string.onb_development_description),
-                icon = Icons.Rounded.Code,
-                selected = developmentSelected,
-                multiple = true,
-                order = 3,
-                onClick = { toggle(OnboardingPurpose.DEVELOPMENT) },
-            )
-            ChoiceCard(
-                title = stringResource(R.string.onb_office),
-                subtitle = stringResource(R.string.onb_office_description),
-                icon = Icons.Rounded.Description,
-                selected = officeSelected,
-                multiple = true,
-                order = 4,
-                onClick = { toggle(OnboardingPurpose.OFFICE) },
-            )
-        }
-    }
-}
-
-@Composable
-private fun ProcessPage(
-    process: OnboardingProcess?,
-    onProcessChange: (OnboardingProcess) -> Unit,
-    onEnter: () -> Unit,
-) {
-    OnboardingPage(bottom = { ContinueButton(R.string.onb_enter, process != null, onEnter) }) {
-        StepHeader(3, stringResource(R.string.onb_process), stringResource(R.string.onb_process_description))
-        Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            OnboardingProcess.entries.forEachIndexed { index, value ->
-                ChoiceCard(
-                    title = stringResource(
-                        when (value) {
-                            OnboardingProcess.COMPACT -> R.string.onb_compact
-                            OnboardingProcess.STANDARD -> R.string.onb_standard
-                            OnboardingProcess.DETAILED -> R.string.onb_detailed
-                        },
-                    ),
-                    subtitle = stringResource(
-                        when (value) {
-                            OnboardingProcess.COMPACT -> R.string.onb_compact_description
-                            OnboardingProcess.STANDARD -> R.string.onb_standard_description
-                            OnboardingProcess.DETAILED -> R.string.onb_detailed_description
-                        },
-                    ),
-                    icon = when (value) {
-                        OnboardingProcess.COMPACT -> Icons.Rounded.TaskAlt
-                        OnboardingProcess.STANDARD -> Icons.Rounded.Checklist
-                        OnboardingProcess.DETAILED -> Icons.Rounded.BugReport
-                    },
-                    badge = if (value == OnboardingProcess.STANDARD) stringResource(R.string.onb_recommended) else null,
-                    selected = process == value,
-                    multiple = false,
-                    order = 3 + index,
-                    onClick = { onProcessChange(value) },
+    val c = Dsh.colors
+    var focused by remember { mutableStateOf(false) }
+    var shown by remember { mutableStateOf(false) }
+    val edge by animateColorAsState(
+        when {
+            focused -> c.accent
+            ok -> lerp(c.line, c.ok, 0.6f)
+            else -> c.line
+        },
+        tween(250),
+        label = "ob-in-edge",
+    )
+    val ring by animateColorAsState(if (focused) c.accentSoft else Color.Transparent, tween(250), label = "ob-in-ring")
+    val shape = RoundedCornerShape(16.dp)
+    Box(Modifier.fillMaxWidth().outerRing(ring, 16.dp)) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .height(54.dp)
+                .clip(shape)
+                .background(c.s1)
+                .border(1.5.dp, edge, shape)
+                .padding(start = 14.dp, end = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Icon(icon, null, tint = c.t3, modifier = Modifier.size(18.dp))
+            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                val style = TextStyle(fontFamily = DshFonts.mono, fontSize = 15.sp, color = c.t1)
+                if (value.isEmpty()) Text(placeholder, style = style.copy(color = c.t3), maxLines = 1)
+                BasicTextField(
+                    value = value,
+                    onValueChange = { onValue(it.replace("\n", "").replace(" ", "")) },
+                    singleLine = true,
+                    textStyle = style,
+                    cursorBrush = SolidColor(c.accent),
+                    visualTransformation = if (secret && !shown) PasswordVisualTransformation('•') else VisualTransformation.None,
+                    keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = false, imeAction = ImeAction.Done),
+                    modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
                 )
+            }
+            if (secret) {
+                val label = stringResource(if (shown) R.string.ob_hide_key else R.string.ob_show_key)
+                Box(
+                    Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(role = Role.Button) { shown = !shown }
+                        .semantics { contentDescription = label },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(DshGlyphs.Eye, null, tint = if (shown) c.accent else c.t3, modifier = Modifier.size(18.dp))
+                }
+            }
+            if (onPaste != null) {
+                val interaction = remember { MutableInteractionSource() }
+                Box(
+                    Modifier
+                        .height(40.dp)
+                        .pressScale(interaction)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(c.accentSoft)
+                        .clickable(interaction, ripple(), role = Role.Button, onClick = onPaste)
+                        .padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(stringResource(R.string.ob_paste), style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Medium, fontSize = 14.sp), color = c.accent)
+                }
             }
         }
     }
 }
 
-/** Главная кнопка шага; пока ничего не выбрано — неактивна и с подсказкой. */
+/** Шаг 2: приватная папка или общая память телефона. */
 @Composable
-private fun ColumnScope.ContinueButton(text: Int, enabled: Boolean, onClick: () -> Unit) {
-    DshButton(stringResource(text), onClick, Modifier.fillMaxWidth(), enabled = enabled)
-    val hintAlpha by animateFloatAsState(if (enabled) 0f else 1f, DshMotion.smooth(), label = "onb-hint")
-    Text(
-        stringResource(R.string.onb_choose_one),
-        style = Dsh.type.footnote,
-        color = Dsh.colors.t3,
-        textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth().padding(top = 10.dp).graphicsLayer { alpha = hintAlpha },
-    )
+private fun WorkspaceStep(shared: Boolean, onShared: (Boolean) -> Unit, granted: Boolean, dir: Int) {
+    val c = Dsh.colors
+    StepHead(2, stringResource(R.string.ob_ws_title), stringResource(R.string.ob_ws_lead), dir)
+    Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Option(
+            title = stringResource(R.string.ob_ws_private),
+            badge = stringResource(R.string.ob_recommended),
+            sub = stringResource(R.string.ob_ws_private_sub),
+            icon = DshGlyphs.Lock,
+            selected = !shared,
+            onClick = { onShared(false) },
+            modifier = Modifier.enter(3, dir),
+        )
+        Option(
+            title = stringResource(R.string.ob_ws_shared),
+            badge = null,
+            sub = stringResource(R.string.ob_ws_shared_sub),
+            icon = DshGlyphs.Folder,
+            selected = shared,
+            onClick = { onShared(true) },
+            modifier = Modifier.enter(4, dir),
+        )
+    }
+    // `.ob-note`: место под предупреждение держится, видно только при общей папке без доступа.
+    val noteAlpha by animateFloatAsState(if (shared && !granted) 1f else 0f, tween(250), label = "ob-note")
+    Row(
+        Modifier
+            .padding(top = 14.dp)
+            .fillMaxWidth()
+            .graphicsLayer { alpha = noteAlpha }
+            .clip(RoundedCornerShape(14.dp))
+            .background(c.warnSoft)
+            .padding(horizontal = 13.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(DshGlyphs.xs("shield"), null, tint = c.warn, modifier = Modifier.size(15.dp))
+        Text(stringResource(R.string.ob_ws_note), style = Small, color = c.warn)
+    }
 }
 
-// ---------------------------------------------------------------------------
-// Карточка выбора
-// ---------------------------------------------------------------------------
-
-/**
- * Вариант выбора: отметка слева, заголовок с описанием и плитка справа.
- * Выбранная карточка получает акцентную рамку и мягкое кольцо вокруг.
- *
- * @param multiple квадратная отметка (можно выбрать несколько) или круглая (один из).
- */
+/** `.ob-opt`: радиокнопка, заголовок с плашкой, описание и плитка. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ChoiceCard(
+private fun Option(
     title: String,
-    subtitle: String,
+    badge: String?,
+    sub: String,
     icon: ImageVector,
     selected: Boolean,
-    multiple: Boolean,
-    order: Int,
     onClick: () -> Unit,
-    badge: String? = null,
+    modifier: Modifier = Modifier,
 ) {
     val c = Dsh.colors
-    val ring by animateColorAsState(if (selected) c.accentSoft else Color.Transparent, DshMotion.smooth(), label = "onb-ring")
-    val edge by animateColorAsState(if (selected) c.accent else c.line, DshMotion.smooth(), label = "onb-edge")
+    val edge by animateColorAsState(if (selected) c.accent else c.line, tween(250), label = "ob-opt-edge")
+    val ring by animateColorAsState(if (selected) c.accentSoft else Color.Transparent, tween(250), label = "ob-opt-ring")
     val interaction = remember { MutableInteractionSource() }
-    val outer = RoundedCornerShape(24.dp)
-    val inner = RoundedCornerShape(20.dp)
-    val selection = if (multiple) {
-        Modifier.toggleable(selected, interaction, ripple(), role = Role.Checkbox) { onClick() }
-    } else {
-        Modifier.selectable(selected, interaction, ripple(), role = Role.RadioButton, onClick = onClick)
-    }
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .rise(order)
-            .pressScale(interaction, 0.98f)
-            .border(4.dp, ring, outer)
-            .padding(4.dp),
-    ) {
+    Box(modifier.fillMaxWidth().pressScale(interaction, 0.98f).outerRing(ring, 20.dp)) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .clip(inner)
+                .clip(RoundedCornerShape(20.dp))
                 .background(c.s1)
-                .border(1.5.dp, edge, inner)
-                .then(selection)
+                .border(1.5.dp, edge, RoundedCornerShape(20.dp))
+                .selectable(selected, interaction, ripple(), role = Role.RadioButton, onClick = onClick)
                 .padding(16.dp),
-            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            SelectionMark(selected, multiple)
-            Spacer(Modifier.width(14.dp))
+            Radio(selected)
             Column(Modifier.weight(1f)) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text(title, style = Dsh.type.bodyMedium.copy(fontSize = 16.sp), color = c.t1)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(title, style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Medium, fontSize = 16.sp, lineHeight = 22.sp), color = c.t1)
                     if (badge != null) {
                         Text(
                             badge,
-                            style = Dsh.type.caption.copy(fontWeight = FontWeight.SemiBold),
+                            style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 11.5.sp, lineHeight = 15.sp),
                             color = c.accent,
-                            maxLines = 1,
                             modifier = Modifier.align(Alignment.CenterVertically).clip(CircleShape).background(c.accentSoft).padding(horizontal = 8.dp, vertical = 2.dp),
                         )
                     }
                 }
                 Spacer(Modifier.height(4.dp))
-                Text(subtitle, style = Dsh.type.callout, color = c.t2)
+                Text(sub, style = Small, color = c.t2)
             }
-            Spacer(Modifier.width(12.dp))
-            Box(
-                Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(if (selected) c.accentSoft else c.s2),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(icon, contentDescription = null, tint = if (selected) c.accent else c.t2, modifier = Modifier.size(20.dp))
+            Box(Modifier.size(30.dp).clip(RoundedCornerShape(9.dp)).background(c.s2), contentAlignment = Alignment.Center) {
+                Icon(icon, null, tint = c.t2, modifier = Modifier.size(18.dp))
             }
         }
     }
 }
 
-/** Отметка выбора с пружинным появлением галочки или точки. */
 @Composable
-private fun SelectionMark(selected: Boolean, multiple: Boolean) {
+private fun Radio(selected: Boolean) {
     val c = Dsh.colors
-    val shape = if (multiple) RoundedCornerShape(7.dp) else CircleShape
-    val fill by animateColorAsState(if (selected && multiple) c.accent else Color.Transparent, DshMotion.smooth(), label = "onb-mark-fill")
-    val edge by animateColorAsState(if (selected) c.accent else c.t3, DshMotion.smooth(), label = "onb-mark-edge")
-    val scale by animateFloatAsState(if (selected) 1f else 0f, DshMotion.lively(), label = "onb-mark-scale")
+    val edge by animateColorAsState(if (selected) c.accent else c.t3, tween(200), label = "ob-radio")
+    val dot by animateFloatAsState(if (selected) 1f else 0f, DshMotion.lively(), label = "ob-radio-dot")
     Box(
-        Modifier.padding(top = 1.dp).size(22.dp).clip(shape).background(fill).border(1.75.dp, edge, shape),
+        Modifier.padding(top = 1.dp).size(22.dp).clip(CircleShape).border(1.75.dp, edge, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        val inner = Modifier.graphicsLayer { scaleX = scale; scaleY = scale; alpha = scale.coerceIn(0f, 1f) }
-        if (multiple) {
-            Icon(Icons.Rounded.Check, contentDescription = null, tint = c.onAccent, modifier = inner.size(16.dp))
-        } else {
-            Box(inner.size(11.dp).clip(CircleShape).background(c.accent))
+        Box(Modifier.size(11.dp).graphicsLayer { scaleX = dot; scaleY = dot; alpha = dot.coerceIn(0f, 1f) }.clip(CircleShape).background(c.accent))
+    }
+}
+
+/** Шаг 3: ход установки Linux, этапы и уведомление о готовности. */
+@Composable
+private fun LinuxStep(install: LinuxInstall, notify: Boolean, onNotifyChange: (Boolean) -> Unit, dir: Int) {
+    val c = Dsh.colors
+    val title = when {
+        install.error != null -> R.string.ob_env_failed
+        install.done -> R.string.ob_env_done
+        else -> R.string.ob_env_title
+    }
+    StepHead(3, stringResource(title), stringResource(R.string.ob_env_lead), dir)
+    val pct = (install.progress.coerceIn(0f, 1f) * 100).toInt()
+    // `.ob-inst`
+    Column(
+        Modifier
+            .enter(3, dir)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(22.dp))
+            .background(c.s1)
+            .border(1.dp, c.line, RoundedCornerShape(22.dp))
+            .padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 8.dp),
+    ) {
+        val pop = remember { Animatable(1f) }
+        LaunchedEffect(install.done) {
+            if (install.done) {
+                pop.animateTo(1.08f, tween(140))
+                pop.animateTo(1f, DshMotion.lively())
+            }
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+            Text(
+                "$pct%",
+                style = TextStyle(fontFamily = DshFonts.display, fontWeight = FontWeight.SemiBold, fontSize = 40.sp, lineHeight = 44.sp, letterSpacing = (-0.03).em, fontFeatureSettings = "tnum"),
+                color = c.t1,
+                modifier = Modifier.weight(1f).graphicsLayer { scaleX = pop.value; scaleY = pop.value; transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f) },
+            )
+            val eta = when {
+                install.done -> stringResource(R.string.ob_ready)
+                install.error != null -> ""
+                install.etaSeconds == null -> ""
+                install.etaSeconds >= 90 -> stringResource(R.string.ob_eta_min, (install.etaSeconds + 30) / 60)
+                else -> stringResource(R.string.ob_eta_s, maxOf(5, install.etaSeconds))
+            }
+            Text(eta, style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.5.sp, fontFeatureSettings = "tnum"), color = c.t3, modifier = Modifier.padding(bottom = 8.dp))
+        }
+        // `.ob-bar`
+        val width by animateFloatAsState(install.progress.coerceIn(0f, 1f), DshMotion.smooth(), label = "ob-bar")
+        Box(Modifier.padding(top = 10.dp, bottom = 8.dp).fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)).background(c.s3)) {
+            val fill = when {
+                install.error != null -> Brush.horizontalGradient(listOf(c.danger, c.danger))
+                install.done -> Brush.horizontalGradient(listOf(c.ok, c.ok))
+                else -> Brush.horizontalGradient(listOf(c.accent, c.accent2))
+            }
+            Box(Modifier.fillMaxWidth(width).height(8.dp).clip(RoundedCornerShape(4.dp)).background(fill))
+        }
+        Stage(
+            label = stringResource(R.string.ob_stage_download),
+            state = stageState(0, install),
+            note = sizeNote(install),
+            first = true,
+        )
+        Stage(
+            label = stringResource(R.string.ob_stage_unpack),
+            state = stageState(1, install),
+            note = if (install.stage == 1 && !install.done && install.error == null) "${install.unpackPercent}%" else "",
+        )
+        Stage(
+            label = stringResource(R.string.ob_stage_check),
+            state = stageState(2, install),
+            note = "SHA-256",
+        )
+        if (install.error != null) {
+            Text(
+                install.error,
+                style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.sp, lineHeight = 18.sp),
+                color = c.danger,
+                modifier = Modifier.padding(top = 2.dp, bottom = 10.dp),
+            )
+        }
+    }
+    // `.ob-notif`: строка группы с переключателем.
+    Row(
+        Modifier
+            .enter(4, dir)
+            .padding(top = 12.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(c.s1)
+            .border(1.dp, c.line, RoundedCornerShape(18.dp))
+            .clickable(role = Role.Switch) { onNotifyChange(!notify) }
+            .heightIn(min = 52.dp)
+            .padding(start = 14.dp, end = 6.dp, top = 7.dp, bottom = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(Modifier.size(30.dp).clip(RoundedCornerShape(9.dp)).background(c.s2), contentAlignment = Alignment.Center) {
+            Icon(DshGlyphs.Bell, null, tint = c.t2, modifier = Modifier.size(18.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.ob_notify), style = TextStyle(fontFamily = DshFonts.body, fontSize = 15.sp, lineHeight = 19.5.sp), color = c.t1)
+            Text(stringResource(R.string.ob_notify_sub), style = TextStyle(fontFamily = DshFonts.body, fontSize = 12.5.sp, lineHeight = 16.sp), color = c.t3)
+        }
+        DshSwitch(notify, onNotifyChange)
+    }
+}
+
+private enum class StageState { WAIT, ACTIVE, DONE, FAILED }
+
+private fun stageState(i: Int, s: LinuxInstall): StageState = when {
+    s.done || i < s.stage -> StageState.DONE
+    i == s.stage && s.error != null -> StageState.FAILED
+    i == s.stage -> StageState.ACTIVE
+    else -> StageState.WAIT
+}
+
+@Composable
+private fun sizeNote(s: LinuxInstall): String {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    if (s.totalBytes <= 0) return if (s.stage == 0 && !s.done && s.error == null) "${s.downloadPercent.coerceIn(0, 100)}%" else ""
+    val total = android.text.format.Formatter.formatShortFileSize(context, s.totalBytes)
+    return if (s.stage == 0 && !s.done) {
+        stringResource(R.string.ob_of, android.text.format.Formatter.formatShortFileSize(context, s.downloadedBytes), total)
+    } else total
+}
+
+/** `.ob-st`: кружок этапа, название, мелкая подпись справа. */
+@Composable
+private fun Stage(label: String, state: StageState, note: String, first: Boolean = false) {
+    val c = Dsh.colors
+    Column {
+        if (!first) Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(Modifier.size(18.dp), contentAlignment = Alignment.Center) {
+                when (state) {
+                    StageState.WAIT -> Box(Modifier.size(18.dp).border(1.75.dp, c.s3, CircleShape))
+                    StageState.ACTIVE -> Spinner(18.dp, 1.75.dp, c.accent)
+                    StageState.FAILED -> Box(Modifier.size(18.dp).clip(CircleShape).background(c.danger), contentAlignment = Alignment.Center) {
+                        Icon(DshGlyphs.get("x", 3f), null, tint = Color.White, modifier = Modifier.size(11.dp))
+                    }
+                    StageState.DONE -> Box(Modifier.size(18.dp).clip(CircleShape).background(c.ok), contentAlignment = Alignment.Center) {
+                        Icon(DshGlyphs.get("check", 3f), null, tint = Color.White, modifier = Modifier.size(12.dp))
+                    }
+                }
+            }
+            Text(
+                label,
+                style = TextStyle(fontFamily = DshFonts.body, fontSize = 14.5.sp, lineHeight = 19.sp),
+                color = if (state == StageState.WAIT) c.t3 else c.t1,
+                modifier = Modifier.weight(1f),
+            )
+            Text(note, style = TextStyle(fontFamily = DshFonts.body, fontSize = 12.5.sp, fontFeatureSettings = "tnum"), color = c.t3)
         }
     }
 }
 
-// ---------------------------------------------------------------------------
-// Диалоги подтверждения
-// ---------------------------------------------------------------------------
+/** Кольцо 4 dp снаружи элемента, как `box-shadow: 0 0 0 4px` — места не занимает. */
+private fun Modifier.outerRing(color: Color, radius: Dp, width: Dp = 4.dp): Modifier = drawBehind {
+    if (color.alpha == 0f) return@drawBehind
+    val w = width.toPx()
+    val r = radius.toPx() + w / 2
+    drawRoundRect(
+        color = color,
+        topLeft = Offset(-w / 2, -w / 2),
+        size = androidx.compose.ui.geometry.Size(size.width + w, size.height + w),
+        cornerRadius = androidx.compose.ui.geometry.CornerRadius(r, r),
+        style = Stroke(width = w),
+    )
+}
 
+/** `.spin-w`: кольцо с прорезью, оборот за 0,8 с. */
 @Composable
-private fun OnboardingConfirmationDialog(
-    kind: OnboardingConfirmation,
-    canRecharge: Boolean,
-    onClose: () -> Unit,
-    onContinueSetup: () -> Unit,
-    onUnderstood: () -> Unit,
-    onEnterApp: () -> Unit,
-    onRecharge: () -> Unit,
-) {
-    val credit = kind != OnboardingConfirmation.SKIP
-    val title = stringResource(if (credit) R.string.onb_no_credit_title else R.string.onb_skip_title)
-    val description = stringResource(
-        if (credit) R.string.onb_no_credit_description else R.string.onb_skip_description,
-    )
-    val secondaryText = stringResource(if (credit) R.string.onb_understood else R.string.onb_keep_setting)
-    val primaryText = stringResource(if (credit) R.string.onb_go_top_up else R.string.onb_enter)
-    val secondaryAction = if (credit) onUnderstood else onContinueSetup
-    val primaryAction = if (credit) onRecharge else onEnterApp
-    DshDialog(
-        onDismiss = onClose,
-        title = title,
-        closeLabel = stringResource(R.string.onb_close),
-        width = DshPanelDefaults.DialogWidth,
-        content = {
-            Text(
-                text = description,
-                color = LocalDshPanelColors.current.labelPrimary,
-                fontSize = 14.sp,
-                lineHeight = 22.sp,
-                fontWeight = FontWeight.Normal,
-            )
-        },
-        footer = {
-            DshDialogButton(
-                text = secondaryText,
-                primary = false,
-                enabled = true,
-                onClick = secondaryAction,
-                modifier = Modifier.widthIn(min = 72.dp),
-            )
-            DshDialogButton(
-                text = primaryText,
-                primary = true,
-                enabled = !credit || canRecharge,
-                onClick = primaryAction,
-                modifier = Modifier.widthIn(min = 136.dp),
-            )
-        },
-    )
+private fun Spinner(size: Dp, stroke: Dp, color: Color) {
+    val t = rememberInfiniteTransition(label = "spin")
+    val angle by t.animateFloat(0f, 360f, infiniteRepeatable(tween(800, easing = LinearEasing), RepeatMode.Restart), label = "spin-a")
+    Canvas(Modifier.size(size).graphicsLayer { rotationZ = angle }) {
+        val w = stroke.toPx()
+        drawArc(
+            color = color,
+            startAngle = 0f,
+            sweepAngle = 270f,
+            useCenter = false,
+            topLeft = Offset(w / 2, w / 2),
+            size = androidx.compose.ui.geometry.Size(this.size.width - w, this.size.height - w),
+            style = Stroke(width = w, cap = StrokeCap.Butt),
+        )
+    }
 }

@@ -98,48 +98,18 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 
+/** Шапка вложенной страницы: та же, что у экранов дизайн-системы. */
 @Composable
 fun PageBackBar(
     title: String,
     onBack: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
-            .height(72.dp)
-            .padding(horizontal = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center,
-        ) {
-            IconButton(onClick = onBack, modifier = Modifier.size(40.dp)) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(R.string.action_back),
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-        }
-        Text(
-            text = title,
-            modifier = Modifier.weight(1f),
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        // 与左侧按钮等宽，标题才会真正居中。
-        Spacer(modifier = Modifier.size(40.dp))
-    }
+    com.deepseek.dsh.core.designsystem.DshTopBar(
+        title = title,
+        onBack = onBack,
+        backDescription = stringResource(R.string.action_back),
+        modifier = Modifier.background(com.deepseek.dsh.core.designsystem.Dsh.colors.bg),
+    )
 }
 
 /** 子页面顶栏标题；与抽屉里的条目文案保持一致。 */

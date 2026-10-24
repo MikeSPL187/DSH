@@ -129,4 +129,17 @@
 <string name="files_up">Up</string>
 <string name="files_imported">%1$d file(s) imported into the workspace</string>
 <string name="files_send">Send</string>
+    <string name="files_page_title">Files</string>
+    <string name="files_search_hint">Find in this folder</string>
+    <string name="files_search_close">Close search</string>
+    <string name="files_section_folders">Folders</string>
+    <string name="files_section_files">Files</string>
+    <string name="files_empty_title">Nothing here yet</string>
+    <string name="files_empty_desc">Files the agent creates will appear here. You can also import a file from your phone.</string>
+    <string name="files_import_action">Import file</string>
+    <string name="files_attach">Attach to message</string>
+    <string name="files_not_found">Nothing found for “%1$s”</string>
+    <string name="files_back">Back</string>
+    <string name="files_root">Workspace</string>
+    <string name="files_folder_items">Folder</string>
 </resources>

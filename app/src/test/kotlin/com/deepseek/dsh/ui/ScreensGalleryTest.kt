@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.test.performTextInput
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -85,26 +86,52 @@ class ScreensGalleryTest {
         )
     }
 
+    private val ws = "/storage/emulated/0/Documents/DSH-Workspace"
+    private val wsFiles = listOf(
+        FileItem("attachments", "$ws/attachments", isDirectory = true),
+        FileItem("app", "$ws/app", isDirectory = true),
+        FileItem("README.md", "$ws/README.md", isDirectory = false, sizeBytes = 2_048, lastModified = 1_760_000_000_000),
+        FileItem("libs.versions.toml", "$ws/libs.versions.toml", isDirectory = false, sizeBytes = 3_400, lastModified = 1_760_100_000_000),
+        FileItem("MainActivity.kt", "$ws/MainActivity.kt", isDirectory = false, sizeBytes = 12_800, lastModified = 1_760_200_000_000),
+        FileItem("отчёт-аудита-безопасности-приложения-за-октябрь.pdf", "$ws/a.pdf", isDirectory = false, sizeBytes = 704_000, lastModified = 1_760_300_000_000),
+        FileItem("backup.sh", "$ws/backup.sh", isDirectory = false, sizeBytes = 900),
+        FileItem("LICENSE", "$ws/LICENSE", isDirectory = false, sizeBytes = 11_000),
+    )
+
+    @Composable
+    private fun filesRoot() = FilesScreen(
+        currentPath = ws, files = wsFiles, onFileClick = {}, onNavigateUp = {}, onImportClick = {}, onSendFile = {},
+        rootPath = ws, onNavigateTo = {}, onClose = {},
+    )
+
     @Test
-    fun files() = render("30_files") {
+    fun files() = render("30_files") { filesRoot() }
+
+    @Test
+    fun filesDark() = render("30b_files_dark", dark = true) { filesRoot() }
+
+    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    @Test
+    fun filesNarrow() = render("30c_files_narrow") { filesRoot() }
+
+    @Test
+    fun filesSubfolder() = render("32_files_sub") {
         FilesScreen(
-            currentPath = "/storage/emulated/0/Documents/DSH-Workspace",
-            files = listOf(
-                FileItem("attachments", "/w/attachments", isDirectory = true),
-                FileItem("README.md", "/w/README.md", isDirectory = false, sizeBytes = 2_048),
-                FileItem("отчёт-аудита.pdf", "/w/отчёт-аудита.pdf", isDirectory = false, sizeBytes = 704_000),
-            ),
-            onFileClick = {},
-            onNavigateUp = {},
-            onImportClick = {},
-            onSendFile = {},
+            currentPath = "$ws/app/src/main", files = wsFiles.drop(2).take(3), onFileClick = {}, onNavigateUp = {}, onImportClick = {}, onSendFile = {},
+            rootPath = ws, onNavigateTo = {}, onClose = {},
         )
     }
 
     @Test
     fun filesEmpty() = render("31_files_empty") {
-        FilesScreen(currentPath = "/w", files = emptyList(), onFileClick = {})
+        FilesScreen(currentPath = ws, files = emptyList(), onFileClick = {}, onImportClick = {}, rootPath = ws, onClose = {})
     }
+
+    @Test
+    fun filesEmptyDark() = render("31b_files_empty_dark", dark = true) {
+        FilesScreen(currentPath = ws, files = emptyList(), onFileClick = {}, onImportClick = {}, rootPath = ws, onClose = {})
+    }
+
 
     @Test
     fun hosts() = render("40_hosts") {
@@ -129,60 +156,67 @@ class ScreensGalleryTest {
         )
     }
 
-    @Test
-    fun onboardingSignIn() = render("50_onboarding_signin") {
-        OnboardingScreen(onComplete = {}, authenticated = false)
-    }
-
-    @Test
-    fun onboardingAuthenticated() = render("51_onboarding_auth") {
-        OnboardingScreen(onComplete = {}, authenticated = true, funded = false)
-    }
-
-    /** Первый запуск: проходит шаги нажатиями и снимает экран, на котором остановился. */
-    private fun renderOnboarding(name: String, dark: Boolean, vararg taps: String) {
+    private fun renderOb(
+        name: String,
+        dark: Boolean = false,
+        install: com.deepseek.dsh.feature.runtime.LinuxInstall = com.deepseek.dsh.feature.runtime.LinuxInstall(),
+        granted: Boolean = false,
+        steps: androidx.compose.ui.test.junit4.AndroidComposeTestRule<*, *>.() -> Unit = {},
+    ) {
         compose.mainClock.autoAdvance = false
-        compose.setContent { DshTheme(darkTheme = dark) { OnboardingScreen(onComplete = {}, authenticated = true, funded = true) } }
-        compose.mainClock.advanceTimeBy(1_000)
-        for (tap in taps) {
-            compose.onAllNodes(androidx.compose.ui.test.hasText(tap, substring = true))[0].performClick()
-            compose.mainClock.advanceTimeBy(1_200)
+        compose.setContent {
+            DshTheme(darkTheme = dark) {
+                OnboardingScreen(
+                    install = install,
+                    sharedAccessGranted = granted,
+                    checkKey = { _, _, _ -> com.deepseek.dsh.feature.runtime.KeyCheck.Ok(balance = "12,40 $") },
+                    onWhereKey = {}, onChoosePrivate = {}, onRequestShared = {}, onRetryInstall = {},
+                    notify = true, onNotifyChange = {}, language = "ru", onLanguage = {},
+                    onFinish = {}, onRestoreBackup = {},
+                )
+            }
         }
+        compose.mainClock.advanceTimeBy(1_600)
+        compose.steps()
+        compose.mainClock.advanceTimeBy(1_600)
         ScreenShots.capture(compose, name, compose.activity)
     }
 
-    @Test
-    fun onboardingSignInDark() = render("50b_onboarding_signin_dark", dark = true) {
-        OnboardingScreen(onComplete = {}, authenticated = false)
+    private fun androidx.compose.ui.test.junit4.AndroidComposeTestRule<*, *>.tap(text: String) {
+        onAllNodes(androidx.compose.ui.test.hasText(text))[0].performClick()
+        mainClock.advanceTimeBy(1_200)
     }
 
-    @Test
-    fun onboardingCredit() = renderOnboarding("52_onboarding_credit", false, "Начало работы")
-
-    @Test
-    fun onboardingCreditDark() = renderOnboarding("52b_onboarding_credit_dark", true, "Начало работы")
-
-    @Test
-    fun onboardingPurposeEmpty() = renderOnboarding("53_onboarding_purpose", false, "Начало работы", "Продолжить")
-
-    @Test
-    fun onboardingPurposeDark() = renderOnboarding("53b_onboarding_purpose_dark", true, "Начало работы", "Продолжить", "Программирование")
-
-    @Test
-    fun onboardingProcess() = renderOnboarding("54_onboarding_process", false, "Начало работы", "Продолжить", "Программирование", "Продолжить", "Ключевые детали")
-
-    @Test
-    fun onboardingProcessDark() = renderOnboarding("54b_onboarding_process_dark", true, "Начало работы", "Продолжить", "Программирование", "Продолжить")
-
-    @Config(qualifiers = "ru-w360dp-h640dp-xxhdpi")
-    @Test
-    fun onboardingNarrow() = render("55_onboarding_narrow") {
-        OnboardingScreen(onComplete = {}, authenticated = false)
+    private val keyOk: androidx.compose.ui.test.junit4.AndroidComposeTestRule<*, *>.() -> Unit = {
+        tap("Начать")
+        onAllNodes(androidx.compose.ui.test.hasSetTextAction())[0].performTextInput("sk-7f3a9c2e41b84d0e9a65")
+        mainClock.advanceTimeBy(1_500)
     }
 
-    @Config(qualifiers = "ru-w360dp-h640dp-xxhdpi")
-    @Test
-    fun onboardingProcessNarrow() = renderOnboarding("56_onboarding_process_narrow", false, "Начало работы", "Продолжить", "Программирование", "Продолжить", "Все подробности")
+    private val installing = com.deepseek.dsh.feature.runtime.LinuxInstall(progress = 0.37f, stage = 0, downloadPercent = 67, etaSeconds = 76)
+    private val installed = com.deepseek.dsh.feature.runtime.LinuxInstall(progress = 1f, stage = 2, done = true)
+
+    @Test fun ob0() = renderOb("50_ob_welcome")
+    @Test fun ob0Dark() = renderOb("50b_ob_welcome_dark", dark = true)
+    @Test fun ob1() = renderOb("51_ob_model") { tap("Начать") }
+    @Test fun ob1Dark() = renderOb("51b_ob_model_dark", dark = true) { tap("Начать") }
+    @Test fun ob1Ok() = renderOb("52_ob_model_ok", steps = keyOk)
+    @Test fun ob1Custom() = renderOb("52c_ob_model_custom") { tap("Начать"); tap("Свой API") }
+    @Test fun ob2() = renderOb("53_ob_folder") { keyOk(); tap("Продолжить") }
+    @Test fun ob2Shared() = renderOb("53b_ob_folder_shared_dark", dark = true) { keyOk(); tap("Продолжить"); tap("В памяти телефона") }
+    @Test fun ob3() = renderOb("54_ob_linux", install = installing) { keyOk(); tap("Продолжить"); tap("Продолжить") }
+    @Test fun ob3Dark() = renderOb("54b_ob_linux_dark", dark = true, install = installing) { keyOk(); tap("Продолжить"); tap("Продолжить") }
+    @Test fun ob3Done() = renderOb("55_ob_linux_done", install = installed) { keyOk(); tap("Продолжить"); tap("Продолжить") }
+    @Test fun ob3Error() = renderOb("55b_ob_linux_error", install = installing.copy(error = "Не удалось скачать rootfs: нет соединения")) { keyOk(); tap("Продолжить"); tap("Продолжить") }
+
+    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    @Test fun ob0Narrow() = renderOb("56_ob_welcome_360")
+    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    @Test fun ob2Narrow() = renderOb("56b_ob_folder_360") { keyOk(); tap("Продолжить"); tap("В памяти телефона") }
+    @Config(qualifiers = "ru-w390dp-h844dp-xxhdpi")
+    @Test fun ob1Mid() = renderOb("57_ob_model_390", steps = keyOk)
+    @Config(qualifiers = "ru-w390dp-h844dp-xxhdpi")
+    @Test fun ob3Mid() = renderOb("57b_ob_linux_390", install = installing) { keyOk(); tap("Продолжить"); tap("Продолжить") }
 
     private fun msg(id: String, role: com.deepseek.dsh.core.model.MessageRole, text: String) =
         com.deepseek.dsh.core.model.ChatMessage("local-host", "s1", id, role, text)

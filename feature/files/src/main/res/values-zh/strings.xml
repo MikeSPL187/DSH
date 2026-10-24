@@ -129,4 +129,17 @@
 <string name="files_up">上级</string>
 <string name="files_imported">已导入 %1$d 个文件到工作区</string>
 <string name="files_send">发送</string>
+    <string name="files_page_title">文件</string>
+    <string name="files_search_hint">在此文件夹中查找</string>
+    <string name="files_search_close">关闭搜索</string>
+    <string name="files_section_folders">文件夹</string>
+    <string name="files_section_files">文件</string>
+    <string name="files_empty_title">这里还没有内容</string>
+    <string name="files_empty_desc">智能体创建的文件会显示在这里，也可以从手机导入文件。</string>
+    <string name="files_import_action">导入文件</string>
+    <string name="files_attach">附加到消息</string>
+    <string name="files_not_found">没有找到“%1$s”</string>
+    <string name="files_back">返回</string>
+    <string name="files_root">工作区</string>
+    <string name="files_folder_items">文件夹</string>
 </resources>

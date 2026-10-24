@@ -137,8 +137,11 @@ fun MainAppHost(
 
     val persistedSettings by settingsRepository.settingsFlow.collectAsState()
 
-    val externalWorkspaceDir = remember { StorageAccess.workspaceRoot(context) }
-    val visibleWorkspaceDir = remember { StorageAccess.workspaceRoot(context) }
+    // Папка выбирается на первом запуске («Внутри DSH» или память телефона):
+    // после выбора пути пересчитываются.
+    var workspaceChoiceKey by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val externalWorkspaceDir = remember(workspaceChoiceKey) { StorageAccess.workspaceRoot(context) }
+    val visibleWorkspaceDir = remember(workspaceChoiceKey) { StorageAccess.workspaceRoot(context) }
 
     // Android 8–10: обычный runtime-запрос; Android 11+: системный экран «Доступ ко всем файлам».
     var storageAccessTick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
@@ -160,7 +163,7 @@ fun MainAppHost(
         }
     }
     // 首次启动已强制授予所有文件访问权限，工作区固定为公有 Documents，无需再迁移/回退。
-    val activeWorkspace = remember {
+    val activeWorkspace = remember(workspaceChoiceKey) {
         externalWorkspaceDir.mkdirs()
         java.io.File(externalWorkspaceDir, DEFAULT_WORKSPACE_DIR_NAME).mkdirs()
         externalWorkspaceDir
@@ -171,6 +174,7 @@ fun MainAppHost(
         initialWorkspace = activeWorkspace,
         initialAllFilesAccess = StorageAccess.hasAccess(context),
     )
+    LaunchedEffect(workspaceChoiceKey) { if (workspaceChoiceKey > 0) ui.filesDir = activeWorkspace }
     LaunchedEffect(ui.hasAllFilesAccess, storageAccessTick) {
         ui.hasAllFilesAccess = StorageAccess.hasAccess(context)
         while (!ui.hasAllFilesAccess) {
@@ -1478,8 +1482,9 @@ fun MainAppHost(
     }
 
     // rootfs 就绪后再拉起本地 Host，避免在未安装时产生启动错误。
-    LaunchedEffect(runtimeUi.rootfsReady) {
-        if (runtimeUi.rootfsReady == true &&
+    LaunchedEffect(runtimeUi.rootfsReady, ui.hasAllFilesAccess) {
+        // На первом запуске Host ждёт выбора папки: он монтирует её в контейнер.
+        if (runtimeUi.rootfsReady == true && ui.hasAllFilesAccess &&
             (status.phase == RuntimePhase.STOPPED ||
                 status.phase == RuntimePhase.UNINSTALLED ||
                 status.phase == RuntimePhase.ERROR)
@@ -1490,7 +1495,7 @@ fun MainAppHost(
         }
     }
 
-    if (runtimeUi.rootfsReady == null) {
+    if (!runtimeUi.showOnboarding && runtimeUi.rootfsReady == null) {
         HostStartupSplash(
             phase = RuntimePhase.STARTING,
             title = stringResource(R.string.runtime_checking),
@@ -1499,7 +1504,7 @@ fun MainAppHost(
         return
     }
 
-    if (runtimeUi.rootfsReady != true) {
+    if (!runtimeUi.showOnboarding && runtimeUi.rootfsReady != true) {
         RootfsSetupScreen(
             progress = runtimeUi.rootfsSetupProgress.first,
             message = runtimeUi.rootfsSetupProgress.second,
@@ -1510,7 +1515,7 @@ fun MainAppHost(
     }
 
     // 首次进入必须先授予「所有文件访问权限」，否则不能进入引导/主界面。
-    if (!ui.hasAllFilesAccess) {
+    if (!runtimeUi.showOnboarding && !ui.hasAllFilesAccess) {
         StoragePermissionGate(
             onRequest = openAllFilesSettings,
             onUsePrivateWorkspace = {
@@ -1524,8 +1529,8 @@ fun MainAppHost(
     // 已安装后的每次重新打开：等 Host 真正就绪（markReady / RUNNING）再进 UI。
     // 不能只看 endpoint/port：DSH 打印 Web URL 前端口可能已经监听，此时模型、
     // 插件与会话接口还没准备好，提前进主界面会看到空状态或“未就绪”报错。
-    LaunchedEffect(runtimeUi.rootfsReady, runtimeUi.hostRetryKey) {
-        if (runtimeUi.rootfsReady != true) return@LaunchedEffect
+    LaunchedEffect(runtimeUi.rootfsReady, runtimeUi.hostRetryKey, ui.hasAllFilesAccess) {
+        if (runtimeUi.rootfsReady != true || !ui.hasAllFilesAccess) return@LaunchedEffect
         val startedAt = System.currentTimeMillis()
         while (!runtimeUi.hostProgressReady) {
             if (System.currentTimeMillis() - startedAt > 90_000L) {
@@ -1554,7 +1559,7 @@ fun MainAppHost(
             }
         }
     }
-    if (runtimeUi.rootfsReady == true && !runtimeUi.hostProgressReady) {
+    if (!runtimeUi.showOnboarding && runtimeUi.rootfsReady == true && !runtimeUi.hostProgressReady) {
         HostStartupSplash(
             phase = if (runtimeUi.hostStartupError) RuntimePhase.ERROR else RuntimePhase.STARTING,
             // 失败原因和最近输出必须显示在这里：启动页是唯一入口，只给一个
@@ -1598,7 +1603,7 @@ fun MainAppHost(
         }
         startupHydrated = true
     }
-    if (runtimeUi.hostProgressReady && !startupHydrated) {
+    if (!runtimeUi.showOnboarding && runtimeUi.hostProgressReady && !startupHydrated) {
         HostStartupSplash(
             phase = RuntimePhase.STARTING,
             title = stringResource(R.string.host_loading_data),
@@ -1608,101 +1613,20 @@ fun MainAppHost(
     }
 
     if (runtimeUi.showOnboarding) {
-        val funded = accountState.wallets.any { (it.balance.toDoubleOrNull() ?: 0.0) > 0.0 } ||
-            accountState.bonusWallets.any { (it.balance.toDoubleOrNull() ?: 0.0) > 0.0 }
-        androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
-        com.deepseek.dsh.feature.runtime.OnboardingScreen(
-            funded = funded,
-            authenticated = accountState.isSignedIn || accountState.hasApiKey,
-            // 授权页的「登录」直接走 Host 官方 OAuth（打开授权链接），
-            // 不再先弹一个二次选择对话框。
-            onSignIn = { beginHostSignIn() },
-            onAddApiKey = { ui.showApiKeyDialog = true },
-            onRecharge = {
-                val rechargeIntent = android.content.Intent(
-                    android.content.Intent.ACTION_VIEW,
-                    android.net.Uri.parse("https://platform.deepseek.com/top_up")
-                ).apply {
-                    flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-                runCatching { context.startActivity(rechargeIntent) }
-            },
-            onComplete = { result ->
-                onboardingPreferences.save(result)
-                val updated = ui.currentAppSettings.copy(
-                    showCodingView = result.developerTools,
-                    transcriptView = result.process.storageValue,
-                )
-                ui.currentAppSettings = updated
-                scope.launch { settingsRepository.updateSettings { updated } }
-                runtimeUi.showOnboarding = false
-            }
+        FirstRunOnboarding(
+            runtimeUi = runtimeUi,
+            ui = ui,
+            scope = scope,
+            dshRepository = dshRepository,
+            runtimeManager = runtimeManager,
+            activeWorkspace = activeWorkspace,
+            officialModelNamespaces = officialModelNamespaces,
+            onboardingPreferences = onboardingPreferences,
+            settingsRepository = settingsRepository,
+            oauthManager = oauthManager,
+            openAllFilesSettings = openAllFilesSettings,
+            onWorkspaceChosen = { workspaceChoiceKey++ },
         )
-        // 授权页的两个弹窗必须挂在 onboarding 分支里：MainAppHost 在 onboarding
-        // 结束后才组合根界面的 SignInDialogs，否则这里点了登录没有弹窗。
-        SignInDialogs(
-            showSignIn = ui.showSignInDialog,
-            onDismissSignIn = { ui.showSignInDialog = false },
-            onAddKey = {
-                ui.showSignInDialog = false
-                ui.showApiKeyDialog = true
-            },
-            onSignIn = {
-                ui.showSignInDialog = false
-                beginHostSignIn()
-            },
-            showApiKey = ui.showApiKeyDialog,
-            apiKeyInput = ui.apiKeyInput,
-            onApiKeyChange = { ui.apiKeyInput = it },
-            onDismissApiKey = { ui.showApiKeyDialog = false },
-            onSubmitApiKey = {
-                val key = ui.apiKeyInput.trim()
-                if (key.isNotBlank()) {
-                    scope.launch {
-                        // 真正写入 Host：把 Key 写到官方 DeepSeek provider 的
-                        // credentials + settings（与设置→模型里保存 Key 同一路径），
-                        // 然后刷新模型目录，首轮对话就能用这个 Key。
-                        val settingsRaw = dshRepository.rpcRaw(ui.activeHostId, "settings/describe", "{}").getOrNull()
-                        val providersRaw = dshRepository.rpcRaw(ui.activeHostId, "llm/listConfigurableProviders", "{}").getOrNull()
-                        val providers = com.deepseek.dsh.feature.settings.parseModelProviders(
-                            providersRaw, settingsRaw, null, officialModelNamespaces,
-                        )
-                        val official = providers.firstOrNull {
-                            it.id == "deepseek-official" || it.id.contains("deepseek") ||
-                                it.keyRef.contains("deepseek")
-                        }
-                        if (official == null) {
-                            android.widget.Toast.makeText(
-                                context,
-                                context.getString(R.string.onboarding_key_failed),
-                                android.widget.Toast.LENGTH_LONG,
-                            ).show()
-                            return@launch
-                        }
-                        saveModelProvider(
-                            scope = scope,
-                            repository = dshRepository,
-                            hostId = ui.activeHostId,
-                            provider = official,
-                            key = key,
-                            baseUrl = "",
-                            models = emptyList(),
-                            onSettingsRaw = { runtimeUi.modelSettingsRaw = it },
-                            onCredentialsRaw = { runtimeUi.modelCredentialsRaw = it },
-                        )
-                        // 等 Host 写完再刷新目录；官方 provider 已拿到 key。
-                        kotlinx.coroutines.delay(600)
-                        runtimeUi.modelProvidersRaw = providersRaw
-                        runtimeUi.modelSettingsRaw = dshRepository.rpcRaw(ui.activeHostId, "settings/describe", "{}").getOrNull()
-                        dshRepository.refreshModelCatalog(ui.activeHostId)
-                        oauthManager.signInWithApiKey(key)
-                        ui.apiKeyInput = ""
-                        ui.showApiKeyDialog = false
-                    }
-                }
-            },
-        )
-        }
         return
     }
 
@@ -2163,6 +2087,13 @@ fun MainAppHost(
             onImportClick = {
                 filesImportLauncher.launch(arrayOf("*/*"))
             },
+            rootPath = activeWorkspace.absolutePath,
+            onNavigateTo = { path ->
+                // Крошки ведут только внутрь рабочей папки: Host видит только её.
+                val target = java.io.File(path)
+                if (target.toPath().normalize().startsWith(activeWorkspace.toPath().normalize())) ui.filesDir = target
+            },
+            onClose = { ui.activePage = ActivePage.CHAT },
             onSendFile = { item ->
                 // 中转完成后的文件直接加入待发附件：发送时以 @工作区相对路径 引用。
                 val rel = item.absolutePath
@@ -2504,7 +2435,7 @@ fun MainAppHost(
                 ui.rightDrawerOpen = false
             }
             val chatPage = ui.activePage == ActivePage.CHAT
-            val pageHasOwnHeader = ui.activePage == ActivePage.SETTINGS
+            val pageHasOwnHeader = ui.activePage == ActivePage.SETTINGS || ui.activePage == ActivePage.FILES
             Scaffold(
                 // 内容区不再让 Scaffold 自动消费系统栏/IME：聊天页自己按
                 // WindowInsets.ime 动态留白，其它页在下面补 navigationBars，
