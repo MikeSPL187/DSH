@@ -15,6 +15,10 @@ internal object UserActivity {
     fun touch(now: Long = System.currentTimeMillis()) {
         _lastInteraction.value = now
     }
+
+    /** Видна ли сейчас Activity (между onResume и onPause). */
+    @Volatile
+    var isForeground: Boolean = false
 }
 
 /**

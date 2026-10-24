@@ -3248,11 +3248,15 @@ private fun localizedJsonText(element: kotlinx.serialization.json.JsonElement?):
 
 
 
-/** waterfall 等待 App 回答的上限；超时回 next 交回 Host。 */
-private const val ANSWER_TIMEOUT_MS = 120_000L
+/**
+ * Сколько ждать ответа пользователя на approval/request; затем ответ `next`, и Host
+ * завершает запрос как `unavailable` (fail closed — действие не выполняется).
+ * Было 2 минуты: на телефоне этого мало, чтобы увидеть уведомление и разблокировать экран.
+ */
+const val ANSWER_TIMEOUT_MS = 600_000L
 
 /** 提问类 waterfall 等用户操作的时间上限。 */
-private const val QUESTION_TIMEOUT_MS = 600_000L
+const val QUESTION_TIMEOUT_MS = 600_000L
 
 
 /** Сколько раз подряд переподключать оборванный session/follow. */

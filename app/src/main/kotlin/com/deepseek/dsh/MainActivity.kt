@@ -120,8 +120,14 @@ class MainActivity : ComponentActivity() {
         UserActivity.touch()
     }
 
+    override fun onPause() {
+        UserActivity.isForeground = false
+        super.onPause()
+    }
+
     override fun onResume() {
         super.onResume()
+        UserActivity.isForeground = true
         UserActivity.touch()
         nativePluginRescanFlow.value += 1
     }

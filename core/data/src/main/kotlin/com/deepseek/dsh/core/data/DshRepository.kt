@@ -2322,10 +2322,22 @@ class DshRepository(
                         val existing = _pendingWaterfallApprovalsFlow.value
                         val kept = existing.filter { item -> item.eventId != waterfall.eventId }
                         _pendingWaterfallApprovalsFlow.value = kept + waterfall
+                        // После таймаута клиент уже ответил Host `next` (запрос отклонён):
+                        // убираем диалог, иначе «Разрешить» на просроченном запросе ничего не делает.
+                        scope.launch {
+                            kotlinx.coroutines.delay(com.deepseek.dsh.core.protocol.ANSWER_TIMEOUT_MS)
+                            _pendingWaterfallApprovalsFlow.value =
+                                _pendingWaterfallApprovalsFlow.value.filter { it.eventId != waterfall.eventId }
+                        }
                     } else if (waterfall.event == "user-questions/request") {
                         val existing = _pendingQuestionsFlow.value
                         val kept = existing.filter { item -> item.eventId != waterfall.eventId }
                         _pendingQuestionsFlow.value = kept + waterfall
+                        scope.launch {
+                            kotlinx.coroutines.delay(com.deepseek.dsh.core.protocol.QUESTION_TIMEOUT_MS)
+                            _pendingQuestionsFlow.value =
+                                _pendingQuestionsFlow.value.filter { it.eventId != waterfall.eventId }
+                        }
                     } else {
                         client.answerWaterfall(hostId, waterfall.eventId, null)
                     }

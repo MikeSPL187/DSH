@@ -982,6 +982,24 @@ fun MainAppHost(
     val accountState by oauthManager.accountFlow.collectAsState()
     val pendingApprovalWaterfalls by dshRepository.pendingWaterfallApprovalsFlow.collectAsState()
     val pendingQuestions by dshRepository.pendingQuestionsFlow.collectAsState()
+    // Агент ждёт решения, а приложение свёрнуто: без уведомления запрос молча истекал,
+    // и задача завершалась отказом.
+    val notifiedWaitingIds = remember { mutableSetOf<String>() }
+    LaunchedEffect(pendingApprovalWaterfalls, pendingQuestions) {
+        val waiting = pendingApprovalWaterfalls.map { it.eventId to true } +
+            pendingQuestions.map { it.eventId to false }
+        waiting.forEach { (eventId, isApproval) ->
+            if (notifiedWaitingIds.add(eventId) && !UserActivity.isForeground &&
+                ui.currentAppSettings.notificationsEnabled
+            ) {
+                DshNotifications.notify(
+                    context,
+                    context.getString(if (isApproval) R.string.approval_request_title else R.string.question_request_title),
+                    context.getString(R.string.notify_agent_waiting_body),
+                )
+            }
+        }
+    }
     val hostJobs by dshRepository.jobsFlow.collectAsState()
     val hostCommands by dshRepository.hostCommandsFlow.collectAsState()
     val hostSkills by dshRepository.hostSkillsFlow.collectAsState()

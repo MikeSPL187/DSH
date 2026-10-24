@@ -8,4 +8,5 @@
     <string name="a11y_right_sidebar">Right sidebar</string>
     <string name="notify_error_title">DSH: error</string>
     <string name="notify_error_body">%1$s stopped with an error</string>
+    <string name="notify_agent_waiting_body">The agent is waiting for your decision. Open DSH to answer.</string>
 </resources>

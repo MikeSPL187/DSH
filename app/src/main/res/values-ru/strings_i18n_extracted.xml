@@ -8,4 +8,5 @@
     <string name="a11y_right_sidebar">Правая панель</string>
     <string name="notify_error_title">DSH: ошибка</string>
     <string name="notify_error_body">%1$s: ход завершился ошибкой</string>
+    <string name="notify_agent_waiting_body">Агент ждёт вашего решения. Откройте DSH, чтобы ответить.</string>
 </resources>
