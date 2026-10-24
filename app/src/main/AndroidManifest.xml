@@ -55,9 +55,13 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+        <!-- configChanges: интерфейс целиком на Compose и сам перерисовывается при повороте,
+             смене темы и размера окна. Без этого Activity пересоздавалась, и терялись
+             введённый текст, открытые панели и состояние запуска Host. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density|fontScale"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.DSH">
             <intent-filter>
