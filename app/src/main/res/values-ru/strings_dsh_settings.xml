@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_restore_done">Восстановлено файлов: %1$d</string>
+    <string name="settings_restore_failed">Не удалось восстановить — это не резервная копия DSH</string>
+    <string name="settings_key_dots">Ключ ••••%1$s</string>
+    <string name="settings_uptime_hm">%1$d ч %2$d мин</string>
+    <string name="settings_uptime_m">%1$d мин</string>
+</resources>

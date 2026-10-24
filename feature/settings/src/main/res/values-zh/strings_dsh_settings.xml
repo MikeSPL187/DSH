@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 设置，依据 docs/design/dsh-prototype.html（#screen-settings）。 -->
+<resources>
+    <string name="st_back">返回</string>
+    <string name="st_title">设置</string>
+    <string name="st_models">模型与密钥</string>
+    <string name="st_models_sub">服务商与用量</string>
+    <string name="st_look">外观</string>
+    <string name="st_look_sub">主题、语言、字体</string>
+    <string name="st_agent">Agent</string>
+    <string name="st_agent_sub">权限与行为</string>
+    <string name="st_host">Host</string>
+    <string name="st_host_sub">本地 Linux 环境</string>
+    <string name="st_storage">存储</string>
+    <string name="st_storage_sub">手机上的空间</string>
+    <string name="st_security">安全</string>
+    <string name="st_security_sub">数据与信任</string>
+    <string name="st_notif">通知</string>
+    <string name="st_about">关于</string>
+    <string name="st_search">搜索设置</string>
+    <string name="st_nothing">没有找到</string>
+    <string-array name="st_index">
+        <item>api 密钥 deepseek 服务商 余额 用量 默认模型</item>
+        <item>主题 浅色 深色 语言 字体 代码 字号 振动</item>
+        <item>批准 修改 权限 剪贴板 推理</item>
+        <item>host linux debian 休眠 电池 后台 远程 配对 重启 终端</item>
+        <item>空间 缓存 rootfs 日志 备份 导出 清理 工作区 文件夹</item>
+        <item>剪贴板 插件 信任 证书 指纹 锁 加密 keystore 删除数据</item>
+        <item>通知 任务 自动化</item>
+        <item>版本 许可 日志 问题反馈 更新</item>
+    </string-array>
+    <string name="st_prof_key">自有 %1$s 密钥 · API</string>
+    <string name="st_prof_nokey">尚未连接密钥 — 点按添加</string>
+    <string name="st_bal_balance">余额</string>
+    <string name="st_bal_today">今天</string>
+    <string name="st_bal_tokens">本月</string>
+    <string name="st_g_work">工作</string>
+    <string name="st_g_device">设备</string>
+    <string name="st_g_app">应用</string>
+    <string name="st_plugins">插件</string>
+    <string name="st_automation">自动化</string>
+    <plurals name="st_plugins_on"><item quantity="other">已启用 %d 个</item></plurals>
+    <plurals name="st_auto_on"><item quantity="other">%d 个运行中</item></plurals>
+    <string name="st_host_running">运行中</string>
+    <string name="st_host_stopped">已停止</string>
+    <string name="st_theme_light">瓷白</string>
+    <string name="st_theme_dark">石墨</string>
+    <string name="st_theme_system">跟随系统</string>
+    <string name="st_appr_ask_short">每次询问</string>
+    <string name="st_appr_auto_short">文件夹内自动</string>
+
+    <string name="st_bal_title">%1$s 余额</string>
+    <plurals name="st_bal_days"><item quantity="other">按当前用量约 %d 天</item></plurals>
+    <string-array name="st_month_spent">
+        <item>1 月已用</item><item>2 月已用</item><item>3 月已用</item><item>4 月已用</item>
+        <item>5 月已用</item><item>6 月已用</item><item>7 月已用</item><item>8 月已用</item>
+        <item>9 月已用</item><item>10 月已用</item><item>11 月已用</item><item>12 月已用</item>
+    </string-array>
+    <string name="st_providers">服务商</string>
+    <string name="st_key_none">尚未添加密钥</string>
+    <string name="st_key_dots">密钥 ••••%1$s</string>
+    <string name="st_key_dots_added">密钥 ••••%1$s · %2$s 添加</string>
+    <string name="st_key_ok">可用</string>
+    <string name="st_key_bad">无效</string>
+    <string name="st_key_offline">无网络</string>
+    <string name="st_key_unknown">未校验</string>
+    <string name="st_key_add">添加</string>
+    <string name="st_custom">自定义服务商</string>
+    <string name="st_custom_sub">任意 OpenAI 兼容 API</string>
+    <string name="st_defaults">默认</string>
+    <string name="st_model">模型</string>
+    <string name="st_reasoning">推理</string>
+    <string name="st_for_auto">用于自动化</string>
+    <string name="st_key">密钥</string>
+    <string name="st_key_replace">更换密钥</string>
+    <string name="st_key_add_full">添加密钥</string>
+    <string name="st_key_site">在网站上管理密钥</string>
+    <string name="st_key_delete">从设备删除密钥</string>
+    <string name="st_key_delete_arm">再次点按以删除密钥</string>
+    <string name="st_key_deleted">已从设备删除密钥</string>
+    <string name="st_key_note">密钥由 Android Keystore 加密，从不完整显示：在 DSH 中无法查看或复制，只能更换或删除。</string>
+    <string name="st_key_lead">粘贴新密钥 — 旧密钥会立即停用。</string>
+    <string name="st_custom_lead">地址必须以 https:// 开头。DSH 会请求 /models 校验密钥。</string>
+    <string name="st_custom_name">名称，例如 OpenRouter</string>
+    <string name="st_custom_url">API 地址</string>
+    <string name="st_key_field">API 密钥</string>
+    <string name="st_key_show">显示密钥</string>
+    <string name="st_key_hide">隐藏密钥</string>
+    <string name="st_key_paste">粘贴</string>
+    <string name="st_key_checking">正在校验密钥…</string>
+    <string name="st_key_works">密钥可用</string>
+    <string name="st_key_rejected">密钥无效 — 请确认已完整复制</string>
+    <string name="st_key_noconn">无法连接服务商 — 将不经校验保存</string>
+    <string name="st_key_safe">密钥保存在 Android 安全存储中</string>
+    <string name="st_key_saved">密钥已保存</string>
+    <string name="st_key_save_failed">无法保存密钥 — Host 无响应</string>
+    <string name="st_cancel">取消</string>
+    <string name="st_save">保存</string>
+
+    <string name="st_theme">主题</string>
+    <string name="st_language">语言</string>
+    <string name="st_lang_instant">语言立即生效，无需重启</string>
+    <string name="st_code_size">代码字号</string>
+    <string name="st_haptics">操作时振动</string>
+    <string name="st_chat_size_note">聊天文字大小跟随 Android 系统设置。</string>
+
+    <string name="st_edits">文件修改</string>
+    <string name="st_appr_ask">每次询问</string>
+    <string name="st_appr_ask_sub">Agent 展示修改并等待你的确认</string>
+    <string name="st_appr_auto">在工作区内自动</string>
+    <string name="st_appr_auto_sub">项目内的修改无需询问，可在“更改”中查看</string>
+    <string name="st_appr_never">删除与项目外命令 — 始终询问</string>
+    <string name="st_appr_never_sub">无法关闭</string>
+    <string name="st_appr_unavailable">Host 尚未返回权限规则 — 回应后将应用你的选择。</string>
+    <string name="st_phone_access">手机权限</string>
+    <string name="st_clipboard">读取剪贴板</string>
+    <string name="st_clipboard_sub">已关闭：Agent 看不到你复制的内容</string>
+    <string name="st_clipboard_on_sub">已开启：Agent 可以读取复制的文字</string>
+    <string name="st_clip_on">Agent 现在可以读取剪贴板</string>
+    <string name="st_clip_off">剪贴板已对 Agent 关闭</string>
+    <string name="st_sessions">会话</string>
+    <string name="st_compress">压缩长上下文</string>
+    <string name="st_compress_auto">自动</string>
+    <string name="st_workspace">工作区文件夹</string>
+    <string name="st_ws_private">在 DSH 内</string>
+    <string name="st_ws_private_sub">私密，无需权限</string>
+    <string name="st_ws_shared">在手机存储中</string>
+    <string name="st_ws_shared_sub">其他应用可见，需要“所有文件访问权限”</string>
+    <string name="st_ws_shared_toast">Android 将请求“所有文件访问权限”</string>
+
+    <string name="st_host_local">本地 Host</string>
+    <string name="st_host_works">运行中</string>
+    <string name="st_host_off">已停止</string>
+    <string name="st_host_mem">内存</string>
+    <string name="st_host_cpu">处理器</string>
+    <string name="st_host_restart">重启</string>
+    <string name="st_host_restarting">正在重启…</string>
+    <string name="st_host_stop">停止</string>
+    <string name="st_host_start">启动</string>
+    <string name="st_host_restarted">Host 已重启</string>
+    <string name="st_host_started">Host 已启动</string>
+    <string name="st_host_stopped_toast">Host 已停止 · Agent 不可用</string>
+    <string name="st_host_failed">Host 无响应 — 请重试</string>
+    <string name="st_battery">电池</string>
+    <string name="st_sleep">空闲时休眠</string>
+    <string name="st_sleep_sub">Agent 不工作时 Host 会停止</string>
+    <string name="st_min">%d 分钟</string>
+    <string name="st_never">从不</string>
+    <string name="st_keep_bg">任务进行时在后台运行</string>
+    <string name="st_keep_bg_sub">即使切到后台，Agent 也会完成任务</string>
+    <string name="st_remotes">远程 Host</string>
+    <string name="st_online">在线</string>
+    <string name="st_offline">离线</string>
+    <string name="st_pair">扫码连接</string>
+    <string name="st_pair_sub">仅 HTTPS，并校验指纹</string>
+    <string name="st_env">环境</string>
+    <string name="st_updated">%1$s 更新</string>
+    <string name="st_open_term">打开终端</string>
+    <string name="st_host_log">Host 日志</string>
+
+    <string name="st_of_device">共 %1$s</string>
+    <string name="st_part_linux">Linux</string>
+    <string name="st_part_projects">项目</string>
+    <string name="st_part_cache">缓存</string>
+    <string name="st_part_other">其他</string>
+    <string name="st_free">释放空间</string>
+    <string name="st_cache">构建与包缓存</string>
+    <string name="st_cache_sub">需要时会重新生成</string>
+    <string name="st_logs">日志</string>
+    <string name="st_logs_sub">7 天前的</string>
+    <string name="st_done">完成</string>
+    <string name="st_freed">已释放 %1$s</string>
+    <string name="st_backup">备份</string>
+    <string name="st_export">导出会话</string>
+    <string name="st_export_sub">不含 API 密钥</string>
+    <string name="st_restore">从备份恢复</string>
+    <string-array name="st_units"><item>B</item><item>KB</item><item>MB</item><item>GB</item><item>TB</item></string-array>
+
+    <string name="st_bio">指纹解锁</string>
+    <string name="st_bio_sub">打开 DSH 时验证</string>
+    <string name="st_trusted">受信任的原生插件</string>
+    <string name="st_sig_changed">签名已变更</string>
+    <string name="st_trusted_ok">已信任</string>
+    <string name="st_open">打开</string>
+    <string name="st_protection">数据保护</string>
+    <string name="st_api_keys">API 密钥</string>
+    <string name="st_in_keystore">存于 Android Keystore</string>
+    <string name="st_remotes_short">远程 Host</string>
+    <string name="st_https_only">仅 HTTPS</string>
+    <string name="st_clip_short">剪贴板</string>
+    <string name="st_clip_open">Agent 可读取</string>
+    <string name="st_clip_closed">已关闭</string>
+    <string name="st_wipe">删除 DSH 全部数据</string>
+    <string name="st_wipe_arm">再次点按 — 将删除会话、密钥和 Linux</string>
+
+    <string name="st_n_done">Agent 完成任务</string>
+    <string name="st_n_done_sub">应用在后台时</string>
+    <string name="st_n_ask">Agent 等待你的决定</string>
+    <string name="st_n_ask_sub">批准修改与删除</string>
+    <string name="st_n_auto">自动化</string>
+    <string name="st_always">始终</string>
+    <string name="st_on_error">出错时</string>
+    <string name="st_n_auto_note">每个自动化都可以在其设置中单独设定规则。</string>
+    <string name="st_n_system">系统设置</string>
+
+    <string name="st_check_updates">检查更新</string>
+    <string name="st_up_to_date">已是最新</string>
+    <string name="st_update_to">%1$s 可用</string>
+    <string name="st_latest_toast">已是最新版本</string>
+    <string name="st_report">反馈问题</string>
+    <string name="st_report_sub">附带日志，不含密钥和文件</string>
+    <string name="st_whats_new">新功能</string>
+    <string name="st_licenses">许可</string>
+    <string name="st_about_note">基于 deepseek-harness-mobile 1.0.6，配合 DeepSeek Harness 使用。</string>
+    <string name="st_model_default">默认模型</string>
+    <string name="st_models_empty">Host 尚未返回模型列表</string>
+</resources>

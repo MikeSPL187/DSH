@@ -122,12 +122,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         UserActivity.isForeground = false
+        BiometricLock.onPause()
         super.onPause()
     }
 
     override fun onResume() {
         super.onResume()
         UserActivity.isForeground = true
+        BiometricLock.onResume()
         UserActivity.touch()
         nativePluginRescanFlow.value += 1
     }
@@ -193,6 +195,10 @@ class MainActivity : ComponentActivity() {
                     com.deepseek.dsh.plugin.nativehost.NativeHost.LocalTheme provides nativeTheme,
                     com.deepseek.dsh.core.designsystem.LocalConversationFontSize provides
                         (com.deepseek.dsh.feature.settings.ThemeBridge.fontSize ?: 14),
+                    // «Настройки → Оформление»: размер шрифта кода и вибрация при действиях.
+                    com.deepseek.dsh.core.designsystem.LocalCodeFontSize provides com.deepseek.dsh.feature.settings.logic.DshUserPrefs.codeSize,
+                    androidx.compose.ui.platform.LocalHapticFeedback provides
+                        (if (com.deepseek.dsh.feature.settings.logic.DshUserPrefs.haptics) androidx.compose.ui.platform.LocalHapticFeedback.current else SilentHaptics),
                 ) {
                     // 系统栏图标跟随应用深浅色：深色引导页需要浅色状态栏图标。
                     androidx.compose.runtime.SideEffect {
@@ -215,6 +221,7 @@ class MainActivity : ComponentActivity() {
                     )
                     // bridge 插件落后时在启动后弹窗提醒；rootfs 可选更新只在设置页出现。
                     BridgeUpdatePrompt()
+                    BiometricGate()
                 }
             }
         }
@@ -251,4 +258,9 @@ internal fun wireProtocolFor(providerId: String): String = when {
     providerId.contains("google", ignoreCase = true) -> "google-generative-ai"
     providerId.contains("openai-responses", ignoreCase = true) -> "openai-responses"
     else -> "openai-completions"
+}
+
+/** Вибрация выключена в настройках: отклики касания ничего не делают. */
+private object SilentHaptics : androidx.compose.ui.hapticfeedback.HapticFeedback {
+    override fun performHapticFeedback(hapticFeedbackType: androidx.compose.ui.hapticfeedback.HapticFeedbackType) = Unit
 }

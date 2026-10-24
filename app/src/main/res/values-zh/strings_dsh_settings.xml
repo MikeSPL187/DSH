@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_restore_done">已恢复 %1$d 个文件</string>
+    <string name="settings_restore_failed">无法恢复 — 这不是 DSH 备份</string>
+    <string name="settings_key_dots">密钥 ••••%1$s</string>
+    <string name="settings_uptime_hm">%1$d 小时 %2$d 分钟</string>
+    <string name="settings_uptime_m">%1$d 分钟</string>
+</resources>

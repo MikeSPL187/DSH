@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- «Настройки» по прототипу docs/design/dsh-prototype.html (#screen-settings). -->
+<resources>
+    <string name="st_back">Назад</string>
+    <string name="st_title">Настройки</string>
+    <string name="st_models">Модели и ключи</string>
+    <string name="st_models_sub">Провайдеры и расходы</string>
+    <string name="st_look">Оформление</string>
+    <string name="st_look_sub">Тема, язык, шрифт</string>
+    <string name="st_agent">Агент</string>
+    <string name="st_agent_sub">Разрешения и поведение</string>
+    <string name="st_host">Host</string>
+    <string name="st_host_sub">Локальная среда Linux</string>
+    <string name="st_storage">Хранилище</string>
+    <string name="st_storage_sub">Место на телефоне</string>
+    <string name="st_security">Безопасность</string>
+    <string name="st_security_sub">Данные и доверие</string>
+    <string name="st_notif">Уведомления</string>
+    <string name="st_about">О приложении</string>
+    <string name="st_search">Поиск в настройках</string>
+    <string name="st_nothing">Ничего не нашлось</string>
+    <string-array name="st_index">
+        <item>API-ключ DeepSeek провайдер баланс расход модель по умолчанию</item>
+        <item>тема светлая тёмная язык русский english шрифт кода размер вибрация</item>
+        <item>одобрение правки разрешения буфер обмена clipboard глубина рассуждения</item>
+        <item>host linux debian сон засыпать батарея фон удалённый сопряжение перезапуск терминал</item>
+        <item>место кэш rootfs логи журналы резервная копия экспорт очистить рабочая папка</item>
+        <item>буфер обмена плагины доверие сертификат биометрия отпечаток блокировка шифрование keystore удалить данные</item>
+        <item>уведомления задачи автоматизация</item>
+        <item>версия лицензии журнал отчёт об ошибке обновления</item>
+    </string-array>
+    <string name="st_prof_key">Свой ключ %1$s · по API</string>
+    <string name="st_prof_nokey">Ключ не подключён — нажмите, чтобы добавить</string>
+    <string name="st_bal_balance">баланс</string>
+    <string name="st_bal_today">сегодня</string>
+    <string name="st_bal_tokens">за месяц</string>
+    <string name="st_g_work">Работа</string>
+    <string name="st_g_device">Устройство</string>
+    <string name="st_g_app">Приложение</string>
+    <string name="st_plugins">Плагины</string>
+    <string name="st_automation">Автоматизация</string>
+    <plurals name="st_plugins_on">
+        <item quantity="one">%d включён</item>
+        <item quantity="few">%d включено</item>
+        <item quantity="many">%d включено</item>
+        <item quantity="other">%d включено</item>
+    </plurals>
+    <plurals name="st_auto_on">
+        <item quantity="one">%d активна</item>
+        <item quantity="few">%d активны</item>
+        <item quantity="many">%d активны</item>
+        <item quantity="other">%d активны</item>
+    </plurals>
+    <string name="st_host_running">работает</string>
+    <string name="st_host_stopped">остановлен</string>
+    <string name="st_theme_light">Фарфор</string>
+    <string name="st_theme_dark">Графит</string>
+    <string name="st_theme_system">Как в системе</string>
+    <string name="st_appr_ask_short">Спрашивать</string>
+    <string name="st_appr_auto_short">Сам в папке</string>
+
+    <string name="st_bal_title">Баланс %1$s</string>
+    <plurals name="st_bal_days">
+        <item quantity="one">≈ %d день при текущем расходе</item>
+        <item quantity="few">≈ %d дня при текущем расходе</item>
+        <item quantity="many">≈ %d дней при текущем расходе</item>
+        <item quantity="other">≈ %d дня при текущем расходе</item>
+    </plurals>
+    <string-array name="st_month_spent">
+        <item>Потрачено в январе</item><item>Потрачено в феврале</item><item>Потрачено в марте</item>
+        <item>Потрачено в апреле</item><item>Потрачено в мае</item><item>Потрачено в июне</item>
+        <item>Потрачено в июле</item><item>Потрачено в августе</item><item>Потрачено в сентябре</item>
+        <item>Потрачено в октябре</item><item>Потрачено в ноябре</item><item>Потрачено в декабре</item>
+    </string-array>
+    <string name="st_providers">Провайдеры</string>
+    <string name="st_key_none">Ключ не добавлен</string>
+    <string name="st_key_dots">Ключ ••••%1$s</string>
+    <string name="st_key_dots_added">Ключ ••••%1$s · добавлен %2$s</string>
+    <string name="st_key_ok">работает</string>
+    <string name="st_key_bad">не подходит</string>
+    <string name="st_key_offline">нет сети</string>
+    <string name="st_key_unknown">не проверен</string>
+    <string name="st_key_add">добавить</string>
+    <string name="st_custom">Свой провайдер</string>
+    <string name="st_custom_sub">Любой OpenAI-совместимый API</string>
+    <string name="st_defaults">По умолчанию</string>
+    <string name="st_model">Модель</string>
+    <string name="st_reasoning">Рассуждение</string>
+    <string name="st_for_auto">Для автоматизаций</string>
+    <string name="st_key">Ключ</string>
+    <string name="st_key_replace">Заменить ключ</string>
+    <string name="st_key_add_full">Добавить ключ</string>
+    <string name="st_key_site">Управлять ключами на сайте</string>
+    <string name="st_key_delete">Удалить ключ с устройства</string>
+    <string name="st_key_delete_arm">Нажмите ещё раз, чтобы удалить ключ</string>
+    <string name="st_key_deleted">Ключ удалён с устройства</string>
+    <string name="st_key_note">Ключ зашифрован Android Keystore и никогда не показывается целиком: его нельзя посмотреть или скопировать из DSH — только заменить или удалить.</string>
+    <string name="st_key_lead">Вставьте новый ключ — старый сразу перестанет использоваться.</string>
+    <string name="st_custom_lead">Адрес должен начинаться с https://. DSH проверит ключ запросом /models.</string>
+    <string name="st_custom_name">Название, например OpenRouter</string>
+    <string name="st_custom_url">Адрес API</string>
+    <string name="st_key_field">API-ключ</string>
+    <string name="st_key_show">Показать ключ</string>
+    <string name="st_key_hide">Скрыть ключ</string>
+    <string name="st_key_paste">Вставить</string>
+    <string name="st_key_checking">Проверяю ключ…</string>
+    <string name="st_key_works">Ключ работает</string>
+    <string name="st_key_rejected">Ключ не подошёл — проверьте, что скопировали его целиком</string>
+    <string name="st_key_noconn">Нет связи с провайдером — ключ сохранится без проверки</string>
+    <string name="st_key_safe">Ключ хранится в защищённом хранилище Android</string>
+    <string name="st_key_saved">Ключ сохранён</string>
+    <string name="st_key_save_failed">Не удалось сохранить ключ — Host не отвечает</string>
+    <string name="st_cancel">Отмена</string>
+    <string name="st_save">Сохранить</string>
+
+    <string name="st_theme">Тема</string>
+    <string name="st_language">Язык</string>
+    <string name="st_lang_instant">Язык применится сразу, без перезапуска</string>
+    <string name="st_code_size">Размер шрифта кода</string>
+    <string name="st_haptics">Вибрация при действиях</string>
+    <string name="st_chat_size_note">Размер текста в чате следует системной настройке Android.</string>
+
+    <string name="st_edits">Правки файлов</string>
+    <string name="st_appr_ask">Спрашивать каждый раз</string>
+    <string name="st_appr_ask_sub">Агент покажет изменения и подождёт вашего «да»</string>
+    <string name="st_appr_auto">Сам в рабочей папке</string>
+    <string name="st_appr_auto_sub">Правки внутри проекта — без вопросов, видны во «Изменениях»</string>
+    <string name="st_appr_never">Удаление и команды вне проекта — всегда с вопросом</string>
+    <string name="st_appr_never_sub">Это нельзя отключить</string>
+    <string name="st_appr_unavailable">Host ещё не прислал правила разрешений — выбор сохранится, когда он ответит.</string>
+    <string name="st_phone_access">Доступ к телефону</string>
+    <string name="st_clipboard">Читать буфер обмена</string>
+    <string name="st_clipboard_sub">Выключено: агент не видит, что вы копировали</string>
+    <string name="st_clipboard_on_sub">Включено: агент может прочитать скопированный текст</string>
+    <string name="st_clip_on">Агент сможет читать буфер обмена</string>
+    <string name="st_clip_off">Буфер обмена закрыт для агента</string>
+    <string name="st_sessions">Сессии</string>
+    <string name="st_compress">Сжимать длинный контекст</string>
+    <string name="st_compress_auto">автоматически</string>
+    <string name="st_workspace">Рабочая папка</string>
+    <string name="st_ws_private">Внутри DSH</string>
+    <string name="st_ws_private_sub">Приватно, разрешения не нужны</string>
+    <string name="st_ws_shared">В памяти телефона</string>
+    <string name="st_ws_shared_sub">Видна другим приложениям, нужен доступ ко всем файлам</string>
+    <string name="st_ws_shared_toast">Android спросит «Доступ ко всем файлам»</string>
+
+    <string name="st_host_local">Локальный Host</string>
+    <string name="st_host_works">Работает</string>
+    <string name="st_host_off">Остановлен</string>
+    <string name="st_host_mem">Память</string>
+    <string name="st_host_cpu">Процессор</string>
+    <string name="st_host_restart">Перезапустить</string>
+    <string name="st_host_restarting">Перезапуск…</string>
+    <string name="st_host_stop">Остановить</string>
+    <string name="st_host_start">Запустить</string>
+    <string name="st_host_restarted">Host перезапущен</string>
+    <string name="st_host_started">Host запущен</string>
+    <string name="st_host_stopped_toast">Host остановлен · агент недоступен</string>
+    <string name="st_host_failed">Host не ответил — попробуйте ещё раз</string>
+    <string name="st_battery">Батарея</string>
+    <string name="st_sleep">Засыпать без дела</string>
+    <string name="st_sleep_sub">Host остановится, если агент не работает</string>
+    <string name="st_min">%d мин</string>
+    <string name="st_never">Никогда</string>
+    <string name="st_keep_bg">Работать в фоне, пока идёт задача</string>
+    <string name="st_keep_bg_sub">Агент закончит, даже если свернуть приложение</string>
+    <string name="st_remotes">Удалённые Host</string>
+    <string name="st_online">в сети</string>
+    <string name="st_offline">не в сети</string>
+    <string name="st_pair">Подключить по QR-коду</string>
+    <string name="st_pair_sub">Только HTTPS с проверкой отпечатка</string>
+    <string name="st_env">Окружение</string>
+    <string name="st_updated">обновлено %1$s</string>
+    <string name="st_open_term">Открыть терминал</string>
+    <string name="st_host_log">Журнал Host</string>
+
+    <string name="st_of_device">из %1$s на телефоне</string>
+    <string name="st_part_linux">Linux</string>
+    <string name="st_part_projects">Проекты</string>
+    <string name="st_part_cache">Кэш</string>
+    <string name="st_part_other">Прочее</string>
+    <string name="st_free">Освободить место</string>
+    <string name="st_cache">Кэш сборок и пакетов</string>
+    <string name="st_cache_sub">Пересоздастся при необходимости</string>
+    <string name="st_logs">Журналы</string>
+    <string name="st_logs_sub">Старше 7 дней</string>
+    <string name="st_done">Готово</string>
+    <string name="st_freed">Освобождено %1$s</string>
+    <string name="st_backup">Резервная копия</string>
+    <string name="st_export">Экспортировать сессии</string>
+    <string name="st_export_sub">Без API-ключей</string>
+    <string name="st_restore">Восстановить из копии</string>
+    <string-array name="st_units"><item>Б</item><item>КБ</item><item>МБ</item><item>ГБ</item><item>ТБ</item></string-array>
+
+    <string name="st_bio">Вход по отпечатку</string>
+    <string name="st_bio_sub">Спрашивать при открытии DSH</string>
+    <string name="st_trusted">Доверенные нативные плагины</string>
+    <string name="st_sig_changed">подпись изменилась</string>
+    <string name="st_trusted_ok">доверен</string>
+    <string name="st_open">Открыть</string>
+    <string name="st_protection">Защита данных</string>
+    <string name="st_api_keys">API-ключи</string>
+    <string name="st_in_keystore">в Android Keystore</string>
+    <string name="st_remotes_short">Удалённые Host</string>
+    <string name="st_https_only">только HTTPS</string>
+    <string name="st_clip_short">Буфер обмена</string>
+    <string name="st_clip_open">доступен агенту</string>
+    <string name="st_clip_closed">закрыт</string>
+    <string name="st_wipe">Удалить все данные DSH</string>
+    <string name="st_wipe_arm">Нажмите ещё раз — удалятся сессии, ключи и Linux</string>
+
+    <string name="st_n_done">Агент закончил задачу</string>
+    <string name="st_n_done_sub">Если приложение свёрнуто</string>
+    <string name="st_n_ask">Агент ждёт решения</string>
+    <string name="st_n_ask_sub">Одобрение правок и удаления</string>
+    <string name="st_n_auto">Автоматизации</string>
+    <string name="st_always">Всегда</string>
+    <string name="st_on_error">При ошибке</string>
+    <string name="st_n_auto_note">У каждой автоматизации можно задать своё правило в её настройках.</string>
+    <string name="st_n_system">Системные настройки</string>
+
+    <string name="st_check_updates">Проверить обновления</string>
+    <string name="st_up_to_date">актуальная</string>
+    <string name="st_update_to">доступна %1$s</string>
+    <string name="st_latest_toast">У вас последняя версия</string>
+    <string name="st_report">Сообщить о проблеме</string>
+    <string name="st_report_sub">С журналом, без ключей и файлов</string>
+    <string name="st_whats_new">Что нового</string>
+    <string name="st_licenses">Лицензии</string>
+    <string name="st_about_note">Основано на deepseek-harness-mobile 1.0.6. Работает с DeepSeek Harness.</string>
+    <string name="st_model_default">Модель по умолчанию</string>
+    <string name="st_models_empty">Host ещё не прислал список моделей</string>
+</resources>

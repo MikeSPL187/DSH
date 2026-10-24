@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Плагины: тексты логики приложения. ru / en / zh. -->
+<resources>
+    <string name="plr_error_code">Host error: %1$s</string>
+    <string name="plr_ask_prefill">"Use %1$s to "</string>
+    <string name="plr_fix_prefill">Why did %1$s fail with “%2$s”? Look into it and suggest a fix.</string>
+    <string name="plr_perm_internet">Internet</string>
+    <string name="plr_perm_notifications">Notifications</string>
+    <string name="plr_perm_camera">Camera</string>
+    <string name="plr_perm_mic">Microphone</string>
+    <string name="plr_perm_location">Location</string>
+    <string name="plr_perm_contacts">Contacts</string>
+    <string name="plr_perm_files">Phone files</string>
+    <string name="plr_perm_granted">allowed</string>
+    <string name="plr_perm_denied">closed</string>
+    <string name="plr_file_done">Plugin installed from the file</string>
+    <string name="plr_file_failed">Couldn\'t install from the file — it needs a .zip with package.json</string>
+    <string name="plr_today">today</string>
+    <string name="plr_yesterday">yesterday</string>
+    <string name="plr_dur_s">%1$s s</string>
+    <string name="plr_dur_m">%1$d min %2$d s</string>
+    <string name="plr_call_allowed">You allowed it</string>
+    <string name="plr_call_denied">You declined it</string>
+    <string name="plr_call_auto_allowed">Allowed without asking</string>
+    <string name="plr_call_auto_denied">Declined: the tool is off</string>
+    <string name="plr_call_ok">Done</string>
+    <string name="plr_create_prefill">"Create a plugin that "</string>
+    <string name="plr_call_err">Error</string>
+</resources>

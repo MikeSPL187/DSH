@@ -37,6 +37,8 @@ class AppRuntimeUiState(
     // 主界面插件页与安装
     var managedPluginPackages by mutableStateOf(emptySet<String>())
     var nativePluginItems by mutableStateOf<List<NativePluginItem>>(emptyList())
+    /** Нативные плагины, найденные при последнем сканировании, со статусом доверия. */
+    var nativeDiscovered by mutableStateOf<List<com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin>>(emptyList())
 
     // Claude Code mods 状态条
     var bandSnapshot by mutableStateOf<ClaudeCodeBandSnapshot?>(null)

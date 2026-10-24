@@ -744,9 +744,28 @@ class DshRepository(
         return ok
     }
 
+    /**
+     * Готовые сообщения всех сессий (в том числе вызовы инструментов `TOOL`):
+     * по ним приложение ведёт журнал вызовов плагинов.
+     */
+    private val _doneMessages = kotlinx.coroutines.flow.MutableSharedFlow<ChatMessage>(extraBufferCapacity = 256)
+    val doneMessages: kotlinx.coroutines.flow.SharedFlow<ChatMessage> = _doneMessages
+
+    /**
+     * Ответ на запрос одобрения без участия пользователя: true — разрешить, false — отклонить,
+     * null — спросить, как обычно. Так работают режимы инструментов «Сразу» и «Выкл.».
+     */
+    @Volatile
+    var approvalPolicy: ((com.deepseek.dsh.core.protocol.ForwardedWaterfall) -> Boolean?)? = null
+
+    /** Чем закончился каждый запрос одобрения: (запрос, разрешён, ответил ли пользователь сам). */
+    private val _approvalOutcomes = kotlinx.coroutines.flow.MutableSharedFlow<Triple<com.deepseek.dsh.core.protocol.ForwardedWaterfall, Boolean, Boolean>>(extraBufferCapacity = 64)
+    val approvalOutcomes: kotlinx.coroutines.flow.SharedFlow<Triple<com.deepseek.dsh.core.protocol.ForwardedWaterfall, Boolean, Boolean>> = _approvalOutcomes
+
     /** 回答一条待审批的 waterfall：`allowed-once` / `rejected`。 */
     suspend fun respondApprovalWaterfall(hostId: String, eventId: String, approved: Boolean) {
         val kept = _pendingWaterfallApprovalsFlow.value.filter { item -> item.eventId != eventId }
+        _pendingWaterfallApprovalsFlow.value.firstOrNull { it.eventId == eventId }?.let { _approvalOutcomes.tryEmit(Triple(it, approved, true)) }
         _pendingWaterfallApprovalsFlow.value = kept
         client.answerWaterfall(
             hostId,
@@ -2144,7 +2163,11 @@ class DshRepository(
         return userMsg
     }
 
+    private val subscribedEventHosts = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+
+    /** Подписка на события Host; повторный вызов для того же Host ничего не делает (иначе события дублируются). */
     fun subscribeRemoteEvents(hostId: String) {
+        if (!subscribedEventHosts.add(hostId)) return
         scope.launch(Dispatchers.IO) {
             client.subscribeEvents(hostId).collect { event ->
                 when (event) {
@@ -2221,6 +2244,7 @@ class DshRepository(
                             _streamingTextFlow.value = ""
                             _streamingReasoningFlow.value = ""
                         }
+                        _doneMessages.tryEmit(event.message)
                         dao.touchSession(event.message.hostId, event.message.sessionId, System.currentTimeMillis())
                         dao.insertMessages(
                             listOf(
@@ -2318,7 +2342,11 @@ class DshRepository(
         if (synchronized(watchedWaterfallHosts) { watchedWaterfallHosts.add(hostId) }) {
             scope.launch(Dispatchers.IO) {
                 client.forwardedWaterfalls(hostId).collect { waterfall ->
-                    if (waterfall.event == "approval/request") {
+                    val auto = if (waterfall.event == "approval/request") runCatching { approvalPolicy?.invoke(waterfall) }.getOrNull() else null
+                    if (auto != null) {
+                        _approvalOutcomes.tryEmit(Triple(waterfall, auto, false))
+                        client.answerWaterfall(hostId, waterfall.eventId, if (auto) "\"allowed-once\"" else "\"rejected\"")
+                    } else if (waterfall.event == "approval/request") {
                         val existing = _pendingWaterfallApprovalsFlow.value
                         val kept = existing.filter { item -> item.eventId != waterfall.eventId }
                         _pendingWaterfallApprovalsFlow.value = kept + waterfall

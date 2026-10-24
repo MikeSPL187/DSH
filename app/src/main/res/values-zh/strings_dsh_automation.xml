@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Автоматизация: тексты фонового запуска. ru / en / zh. -->
+<resources>
+    <string name="au_run_working">Agent 正在后台工作</string>
+    <string name="au_run_failed">无法启动</string>
+    <string name="au_run_postponed">已推迟：%1$s</string>
+    <string name="au_run_no_charge">手机未充电</string>
+    <string name="au_run_no_wifi">没有 Wi‑Fi</string>
+    <string name="au_run_phone_busy">Android 推迟了运行</string>
+    <string name="au_run_no_host">Host 未启动</string>
+    <string name="au_run_no_session">无法创建会话：%1$s</string>
+    <string name="au_run_read_only">不要修改任何文件 — 只读取并发送总结。</string>
+    <string name="au_run_timeout">30 分钟内未完成 — 已停止</string>
+    <string name="au_run_empty">Agent 没有回复</string>
+    <string name="au_run_notif_ok">“%1$s”已完成</string>
+    <string name="au_run_notif_err">“%1$s”：出错</string>
+    <string name="au_run_started">“%1$s”已开始 · 完成后会通知你</string>
+    <string name="au_sched_at">一次：%1$s</string>
+    <string name="au_sched_every">每 %1$s</string>
+    <string name="au_sched_daily">每天 %1$s</string>
+    <string name="au_sched_weekly">每周固定日 %1$s</string>
+    <string name="au_sched_cron">按计划 %1$s</string>
+</resources>

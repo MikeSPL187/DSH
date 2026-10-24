@@ -15,8 +15,6 @@ import com.deepseek.dsh.feature.runtime.OnboardingScreen
 import com.deepseek.dsh.feature.sessions.ModernNavigationDrawerContent
 import com.deepseek.dsh.feature.sessions.SessionDisplayItem
 import com.deepseek.dsh.feature.sessions.WorkspaceFolder
-import com.deepseek.dsh.feature.settings.SettingsRootScreen
-import com.deepseek.dsh.feature.settings.SettingsSectionTab
 import androidx.compose.ui.test.performClick
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
@@ -371,42 +369,7 @@ class ScreensGalleryTest {
         )
     }
 
-    @Test
-    fun plugins() = render("70_plugins") {
-        com.deepseek.dsh.PluginsScreen(
-            surfaces = emptyList(),
-            onOpenSurface = {},
-            onOpenSdui = {},
-            onInstallPlugin = { _, _ -> Result.success("") },
-        )
-    }
-
-    @Test
-    fun settingsRoot() = render("60_settings_root") {
-        SettingsRootScreen(settings = AppSettings(), onUpdateSettings = {})
-    }
-
-    @Test
-    fun settingsSections() {
-        // Каждый раздел — отдельный экран; все должны отрисоваться без исключений.
-        var current by androidx.compose.runtime.mutableStateOf(SettingsSectionTab.ACCOUNT)
-        compose.mainClock.autoAdvance = false
-        compose.setContent {
-            DshTheme(darkTheme = false) {
-                androidx.compose.runtime.key(current) {
-                    SettingsRootScreen(settings = AppSettings(), onUpdateSettings = {}, initialSection = current)
-                }
-            }
-        }
-        SettingsSectionTab.entries.forEachIndexed { index, tab ->
-            compose.runOnUiThread { current = tab }
-            repeat(3) {
-                compose.mainClock.advanceTimeBy(600)
-                org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
-            }
-            ScreenShots.capture(compose, "6${index + 1}_settings_${tab.id}", compose.activity)
-        }
-    }
+    // «Плагины», «Автоматизация» и «Настройки» снимает DshScreensSweepTest (все ширины и темы).
 
     /** Лист поверх затемнённого экрана — как его видит пользователь. */
     @Composable

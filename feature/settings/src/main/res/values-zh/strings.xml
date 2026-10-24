@@ -1,43 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">DSH</string>
-    <string name="channel_runtime_name">DSH Host 运行时</string>
-    <string name="channel_runtime_desc">保持本地 Linux 用户空间容器与 DSH Agent 后台执行</string>
-    <string name="channel_notify_name">DSH 设备通知</string>
 
     <!-- 导航栏标题 -->
-    <string name="nav_chat">对话</string>
-    <string name="nav_sessions">会话</string>
-    <string name="nav_files">工作区文件</string>
-    <string name="nav_plugins">插件</string>
-    <string name="nav_hosts">主机与连接中心</string>
-    <string name="nav_approval">系统审批中心</string>
-    <string name="nav_settings">设置与偏好</string>
-    <string name="nav_runtime">本地 Linux 运行时</string>
-    <string name="nav_new_session">新建会话</string>
     <string name="session_new">新会话</string>
 
     <!-- 主对话欢迎屏与交互 (对齐 dsh-upstream 文本) -->
-    <string name="chat_welcome_title">探索未至之境</string>
-    <string name="chat_welcome_desc">描述你想要构建的内容, / 调用指令, @ 文件或对话</string>
-    <string name="chip_init_workspace">新建本地工作区</string>
-    <string name="chip_organize_docs">整理手机文档</string>
-    <string name="chip_automation">定时自动化任务</string>
-    <string name="chip_run_cli">运行终端命令</string>
-    <string name="chat_input_placeholder">发消息或创建任务, / 调用指令, @ 文件或对话</string>
     <string name="chat_input_placeholder_plan">描述你的任务以生成计划</string>
     <string name="chat_thinking">深度求索中</string>
-    <string name="chat_thinking_for">深度求索中，用时 %1$s ···</string>
-    <string name="tool_executed_summary">已在本地执行系统工具与环境准备</string>
-    <string name="action_copy">复制</string>
     <string name="action_retry">重新生成</string>
-    <string name="action_like">好评</string>
-    <string name="action_dislike">差评</string>
-    <string name="action_share">分享</string>
     <string name="action_stop">停止生成</string>
     <string name="action_send">发送消息</string>
     <string name="action_input_commands">添加文件或调用指令</string>
-    <string name="tag_local_processing">本地处理</string>
 
     <!-- 模式与权限选择器 (对齐 ui-permission-presets 文案) -->
     <string name="perm_read_only">仅可查看</string>
@@ -57,21 +31,10 @@
     <string name="perm_auto_confirm_desc">自动审查不使用沙箱。每次原生工具调用和 PTC 内层调用前，都会由与当前 agent 相同的模型进行审查；审查拒绝的调用由你批准或拒绝。此功能仍属实验性，可能误放行或误拒绝，并会消耗额外 token。</string>
     <string name="perm_auto_confirm_acknowledge">我已了解这些风险，并愿意继续</string>
     <string name="perm_auto_confirm_enable">启用自动审查</string>
-    <string name="mode_plan">计划模式</string>
-    <string name="mode_plan_desc">进入或退出计划模式</string>
 
     <!-- 模型与推理等级菜单 (对齐 ui-model-selection 文案) -->
-    <string name="model_v3_title">DeepSeek-V3</string>
-    <string name="model_v3_desc">快速高效、智能推理与日常编码</string>
-    <string name="model_r1_title">DeepSeek-R1</string>
-    <string name="model_r1_desc">深度思考模式，擅长复杂推理与数学算法</string>
-    <string name="model_menu_aria">模型与推理等级</string>
     <string name="model_menu_model">模型</string>
     <string name="model_menu_effort">推理等级</string>
-    <string name="effort_provider_default">Default</string>
-    <string name="model_search_placeholder">搜索模型…</string>
-    <string name="model_empty">暂无可用模型</string>
-    <string name="effort_empty">当前模型未提供推理等级。</string>
     <string name="reasoning_fast">快速</string>
     <string name="reasoning_deep_think">深度思考</string>
     <string name="reasoning_max">超强推理</string>
@@ -104,50 +67,21 @@
 
     <!-- 底部 Pills -->
     <string name="stat_tok_per_sec">%1$.1f tok/s</string>
-    <string name="stat_context_cache">上下文 %1$d%% · 缓存命中 %2$d%%</string>
     <string name="stat_cache_hit">缓存命中 %1$d%%</string>
     <string name="stat_context_aria">上下文已用 %1$d%%</string>
 
     <!-- 侧栏抽屉与账户菜单 (对齐 ui-settings-account / AccountMenu.tsx) -->
-    <string name="drawer_user_name">DeepSeek 用户</string>
-    <string name="drawer_account_tag">官方 OAuth</string>
-    <string name="drawer_balance">余额: %1$s</string>
     <string name="drawer_account_menu_more">更多</string>
     <string name="drawer_account_settings">设置</string>
-    <string name="drawer_account_contact">联系我们</string>
     <string name="drawer_account_signout">退出登录</string>
-    <string name="drawer_account_signin">登录官方账号</string>
     <string name="drawer_nav_plugins">插件</string>
     <string name="drawer_nav_schedule">定时自动化任务</string>
-    <string name="drawer_nav_hosts">远程主机控制</string>
-    <string name="drawer_nav_surface">内置 Surface 适配</string>
-    <string name="drawer_nav_approvals">系统审批中心</string>
-    <string name="drawer_nav_settings">偏好与系统设置</string>
-    <string name="drawer_section_project">项目与真实工作区</string>
-    <string name="drawer_section_history">历史会话</string>
     <string name="action_search">搜索会话</string>
 
     <!-- 插件管理 -->
-    <string name="plugins_title">插件</string>
-    <string name="plugins_subtitle">安装、启用和配置插件</string>
-    <string name="action_add_plugin">添加插件</string>
-    <string name="plugin_dialog_title">添加插件</string>
-    <string name="plugin_dialog_desc">输入插件 npm 包名（如 dsh-subscription-oauth），即 README 安装命令中 dsh plugin add 之后的部分。</string>
-    <string name="plugin_dialog_hint">例如 dsh-subscription-oauth</string>
-    <string name="plugin_dialog_source">来源: 官方 npm / 国内镜像</string>
-    <string name="action_fill_example">填入示例</string>
-    <string name="action_install">安装</string>
     <string name="action_close">关闭</string>
-    <string name="action_open">打开</string>
-    <string name="action_open_overlay">浮层打开</string>
-    <string name="action_try">体验</string>
-    <string name="plugin_install_submitted">已向本地 DSH Host 提交安装任务: %1$s</string>
 
     <!-- 文件屏幕 -->
-    <string name="files_title">工作区文件 (手机真实目录)</string>
-    <string name="files_subtitle">挂载至容器: /workspace | %1$s</string>
-    <string name="files_empty">工作区为空，本地 Agent 生成的产物将直接在此展示</string>
-    <string name="files_folder">文件夹</string>
 
     <!-- 主机屏幕 -->
     <string name="hosts_title">主机与连接中心</string>
@@ -157,39 +91,9 @@
     <string name="host_desc_local">127.0.0.1 (本机用户空间)</string>
 
     <!-- 审批中心 -->
-    <string name="approval_title">系统与高危操作审批中心</string>
-    <string name="approval_subtitle">严格限制 Agent 行为，手机端操作由你掌控 (v4.0 §6.5)</string>
-    <string name="approval_empty">暂无待审批的高危工具调用或外部写操作</string>
-    <string name="approval_status_pending">待确认</string>
-    <string name="approval_status_submitting">提交中</string>
-    <string name="approval_status_confirmed">已通过</string>
-    <string name="approval_status_rejected">已拒绝</string>
-    <string name="action_deny">拒绝执行</string>
-    <string name="action_approve">批准运行</string>
 
     <!-- 设置屏幕 -->
-    <string name="settings_title">设置与偏好</string>
-    <string name="settings_subtitle">模型、本地 Linux 容器策略、文件工作区与安全防护</string>
-    <string name="settings_group_account">账号与授权 (官方 OAuth)</string>
-    <string name="settings_group_model">模型与推理</string>
-    <string name="settings_group_lifecycle">本地容器与生命周期</string>
-    <string name="settings_group_storage">文件与存储</string>
-    <string name="settings_group_security">系统安全与防护</string>
-    <string name="settings_group_maintenance">维护与诊断</string>
 
-    <string name="setting_default_model">默认模型</string>
-    <string name="setting_default_reasoning">默认推理等级</string>
-    <string name="setting_idle_sleep">空闲自动休眠</string>
-    <string name="setting_idle_sleep_desc">空闲 %1$d 分钟后停止容器，节省手机电量</string>
-    <string name="setting_keep_alive">后台长任务守护</string>
-    <string name="setting_keep_alive_desc">任务执行期间启用前台服务与唤醒锁，防止系统杀后台</string>
-    <string name="setting_workspace_path">工作区真实目录</string>
-    <string name="setting_high_risk_confirm">高危工具二次确认</string>
-    <string name="setting_high_risk_confirm_desc">执行覆盖文件、Shell、系统硬件等高危动作前必须弹窗审批</string>
-    <string name="setting_create_backup">创建用户数据快照</string>
-    <string name="setting_create_backup_desc">备份 $DSH_HOME (会话、配置、凭据与插件)</string>
-    <string name="setting_export_diag">导出脱敏诊断日志包</string>
-    <string name="setting_export_diag_desc">自动对 token 和密钥脱敏，导出 ZIP 便于排障</string>
 
     <!-- 运行时控制面板 -->
     <string name="runtime_title">本地 Linux 运行时控制</string>
@@ -198,37 +102,5 @@
     <string name="runtime_token">Token: %1$s</string>
     <string name="action_start_container">启动 DSH 容器</string>
     <string name="action_stop_container">停止 DSH 容器</string>
-    <!-- 设置分区导航 -->
-    <string name="settings_section_account">账号与余额</string>
-    <string name="settings_section_account_desc">DeepSeek 官方 OAuth 授权与余额</string>
-    <string name="settings_section_general">通用设置</string>
-    <string name="settings_section_general_desc">界面、语言与启动行为</string>
-    <string name="settings_section_models">模型</string>
-    <string name="settings_section_models_desc">提供商、模型与 API Key 配置</string>
-    <string name="settings_section_plugins">内置插件</string>
-    <string name="settings_section_plugins_desc">已安装插件与配置</string>
-    <string name="settings_section_agent_presets">Agent 预设</string>
-    <string name="settings_section_agent_presets_desc">工作过程模式：紧凑 / 标准 / 详细</string>
-    <string name="settings_section_mobile_runtime">移动运行时</string>
-    <string name="settings_section_mobile_runtime_desc">Linux 容器休眠、长任务守护与高危拦截</string>
-    <string name="settings_section_notifications">通知</string>
-    <string name="settings_section_notifications_desc">任务完成通知与系统权限</string>
-    <string name="settings_section_remote">远程连接</string>
-    <string name="settings_section_remote_desc">连接另一台机器上的 DSH Host</string>
-    <string name="settings_section_update">更新</string>
-    <string name="settings_section_update_desc">检查 GitHub Release 与新版本</string>
-    <string name="settings_update_title">软件更新</string>
-    <string name="settings_plugins_open_config">打开配置文件</string>
-    <string name="settings_plugins_desc">查看内置部署的插件列表</string>
-    <string name="settings_agent_presets_desc">选择 Agent 的工具和工作方式。日常任务用「标准模式」，扩展 DSH 的能力用「创造模式」。</string>
-    <string name="settings_models_desc">填入各提供商的 API 密钥即可使用其模型。</string>
-    <string name="settings_update_desc">客户端、兼容层插件与底层运行时</string><string name="settings_pane_models_add_tab_catalog">选择提供商</string>
-    <string name="settings_pane_models_add_tab_custom">自定义</string>
-    <string name="settings_pane_models_custom_id">提供商 ID</string>
-    <string name="settings_pane_models_custom_id_placeholder">例如 my-gateway</string>
-    <string name="settings_pane_models_custom_id_invalid">只能包含字母、数字、点或短横线</string>
-<string name="settings_pane_general_upload_title">会话日志上传</string>
-    <string name="settings_pane_general_upload_desc">把会话日志上传到 DeepSeek，用于改进服务。</string>
-    <string name="agent_presets_custom_group">自定义</string>
-    <string name="agent_presets_create">让 Agent 帮我创建预设模式</string>
+    <!-- 设置分区导航 --><string name="settings_pane_models_add_tab_catalog">选择提供商</string>
 </resources>
