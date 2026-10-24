@@ -3509,7 +3509,14 @@ fun MainAppHost(
                             onSignOut = hostSignOut,
                             onManageAccount = { openUrl(accountState.platformUrl) },
                             onCreateBackup = {
-                                scope.launch { backupAndDiag.createUserDataBackup() }
+                                scope.launch {
+                                    shareArchive(
+                                        context,
+                                        backupAndDiag.createUserDataBackup(),
+                                        context.getString(R.string.share_backup_title),
+                                        context.getString(R.string.backup_failed),
+                                    )
+                                }
                             },
                             onCreateAgentPreset = {
                                 // 官方「让 Agent 帮我创建预设模式」：新建创造模式会话。
@@ -3523,7 +3530,14 @@ fun MainAppHost(
                                 ).show()
                             },
                             onExportDiagnostics = {
-                                scope.launch { backupAndDiag.exportDiagnosticsZip() }
+                                scope.launch {
+                                    shareArchive(
+                                        context,
+                                        backupAndDiag.exportDiagnosticsZip(),
+                                        context.getString(R.string.share_diagnostics_title),
+                                        context.getString(R.string.diagnostics_failed),
+                                    )
+                                }
                             },
                             onClose = { ui.activePage = ActivePage.CHAT },
                             pluginComponentRefresh = dshRepository.pluginComponentRefreshFlow,

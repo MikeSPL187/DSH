@@ -9,4 +9,8 @@
     <string name="notify_error_title">DSH 出错</string>
     <string name="notify_error_body">%1$s 运行出错</string>
     <string name="notify_agent_waiting_body">Agent 正在等待你的决定，打开 DSH 进行回答。</string>
+    <string name="share_backup_title">保存或发送备份</string>
+    <string name="backup_failed">无法创建备份</string>
+    <string name="share_diagnostics_title">发送诊断信息</string>
+    <string name="diagnostics_failed">无法导出诊断信息</string>
 </resources>

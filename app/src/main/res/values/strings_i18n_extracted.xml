@@ -9,4 +9,8 @@
     <string name="notify_error_title">DSH: error</string>
     <string name="notify_error_body">%1$s stopped with an error</string>
     <string name="notify_agent_waiting_body">The agent is waiting for your decision. Open DSH to answer.</string>
+    <string name="share_backup_title">Save or send the backup</string>
+    <string name="backup_failed">Could not create the backup</string>
+    <string name="share_diagnostics_title">Send diagnostics</string>
+    <string name="diagnostics_failed">Could not export diagnostics</string>
 </resources>
