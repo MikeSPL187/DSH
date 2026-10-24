@@ -86,52 +86,116 @@ class ScreensGalleryTest {
         )
     }
 
-    private val ws = "/storage/emulated/0/Documents/DSH-Workspace"
-    private val wsFiles = listOf(
-        FileItem("attachments", "$ws/attachments", isDirectory = true),
-        FileItem("app", "$ws/app", isDirectory = true),
-        FileItem("README.md", "$ws/README.md", isDirectory = false, sizeBytes = 2_048, lastModified = 1_760_000_000_000),
-        FileItem("libs.versions.toml", "$ws/libs.versions.toml", isDirectory = false, sizeBytes = 3_400, lastModified = 1_760_100_000_000),
-        FileItem("MainActivity.kt", "$ws/MainActivity.kt", isDirectory = false, sizeBytes = 12_800, lastModified = 1_760_200_000_000),
-        FileItem("отчёт-аудита-безопасности-приложения-за-октябрь.pdf", "$ws/a.pdf", isDirectory = false, sizeBytes = 704_000, lastModified = 1_760_300_000_000),
-        FileItem("backup.sh", "$ws/backup.sh", isDirectory = false, sizeBytes = 900),
-        FileItem("LICENSE", "$ws/LICENSE", isDirectory = false, sizeBytes = 11_000),
-    )
+    /** Проект как в прототипе: папки, файлы и два незакоммиченных изменения. */
+    private fun demoProject(): java.io.File {
+        val root = java.io.File(compose.activity.cacheDir, "DSH-Workspace").apply { deleteRecursively(); mkdirs() }
+        fun put(path: String, text: String, ageMin: Long) {
+            val f = java.io.File(root, path); f.parentFile?.mkdirs(); f.writeText(text)
+            f.setLastModified(System.currentTimeMillis() - ageMin * 60_000)
+        }
+        put("app/src/main/MainActivity.kt", "package dev.dsh.app\n\nclass MainActivity\n", 60 * 26)
+        put("app/src/main/AndroidManifest.xml", "<manifest/>\n", 60 * 50)
+        put("app/src/test/MainViewModelTest.kt", "class MainViewModelTest\n", 60 * 27)
+        put("app/build.gradle.kts", "plugins { }\n", 60 * 25)
+        put("app/proguard-rules.pro", "-keep class dev.dsh.**\n", 60 * 5)
+        put("gradle/wrapper/gradle-wrapper.properties", "distributionUrl=https\\://services.gradle.org\n", 60 * 24 * 31)
+        put("gradle/libs.versions.toml", "[versions]\nagp = \"8.7.2\"\ncompose-bom = \"2024.10.01\"\nkotlin = \"2.0.21\"\nroom = \"2.6.1\"\nokhttp = \"4.12.0\"\n\n[libraries]\nandroidx-core = { module = \"androidx.core:core-ktx\", version = \"1.13.1\" }\ncompose-bom = { module = \"androidx.compose:compose-bom\", version.ref = \"compose-bom\" }\nokhttp = { module = \"com.squareup.okhttp3:okhttp\", version.ref = \"okhttp\" }\n\n[plugins]\nkotlin-android = { id = \"org.jetbrains.kotlin.android\", version.ref = \"kotlin\" }\n", 2)
+        put("scripts/backup.sh", "#!/usr/bin/env bash\n# Ночной архив проекта: запускается в 03:00\nset -euo pipefail\n", 40)
+        put("build.gradle.kts", "plugins { }\n".repeat(200), 60 * 24)
+        put("settings.gradle.kts", "include(\":app\")\n", 60 * 24 * 3)
+        put("README.md", "# DSH-Workspace\n\nРабочая папка агента на телефоне.\n\n## Сборка\n./gradlew :app:assembleDebug\n", 60 * 3)
+        put(".gitignore", "build/\n", 60 * 24 * 8)
+        return root
+    }
 
-    @Composable
-    private fun filesRoot() = FilesScreen(
-        currentPath = ws, files = wsFiles, onFileClick = {}, onNavigateUp = {}, onImportClick = {}, onSendFile = {},
-        rootPath = ws, onNavigateTo = {}, onClose = {},
-    )
-
-    @Test
-    fun files() = render("30_files") { filesRoot() }
-
-    @Test
-    fun filesDark() = render("30b_files_dark", dark = true) { filesRoot() }
-
-    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
-    @Test
-    fun filesNarrow() = render("30c_files_narrow") { filesRoot() }
-
-    @Test
-    fun filesSubfolder() = render("32_files_sub") {
-        FilesScreen(
-            currentPath = "$ws/app/src/main", files = wsFiles.drop(2).take(3), onFileClick = {}, onNavigateUp = {}, onImportClick = {}, onSendFile = {},
-            rootPath = ws, onNavigateTo = {}, onClose = {},
+    private val fakeGit = object : com.deepseek.dsh.feature.files.FilesGit {
+        override suspend fun status() = com.deepseek.dsh.feature.files.GitInfo(
+            "main",
+            listOf(
+                com.deepseek.dsh.feature.files.GitChange("gradle/libs.versions.toml", com.deepseek.dsh.feature.files.ChangeKind.MODIFIED, 1, 1),
+                com.deepseek.dsh.feature.files.GitChange("scripts/backup.sh", com.deepseek.dsh.feature.files.ChangeKind.ADDED, 18, 0),
+            ),
         )
+        override suspend fun diff(path: String) = listOf(
+            com.deepseek.dsh.feature.files.DiffRow.Hunk("@@ -1,6 +1,6 @@ [versions]"),
+            com.deepseek.dsh.feature.files.DiffRow.Line(' ', 1, "[versions]"),
+            com.deepseek.dsh.feature.files.DiffRow.Line(' ', 2, "agp = \"8.7.2\""),
+            com.deepseek.dsh.feature.files.DiffRow.Line(' ', 3, "compose-bom = \"2024.10.01\""),
+            com.deepseek.dsh.feature.files.DiffRow.Line('-', 4, "kotlin = \"2.0.0\""),
+            com.deepseek.dsh.feature.files.DiffRow.Line('+', 4, "kotlin = \"2.0.21\""),
+            com.deepseek.dsh.feature.files.DiffRow.Line(' ', 5, "room = \"2.6.1\""),
+            com.deepseek.dsh.feature.files.DiffRow.Line(' ', 6, "okhttp = \"4.12.0\""),
+        )
+        override suspend fun revert(change: com.deepseek.dsh.feature.files.GitChange) = true
+        override suspend fun clone(url: String, intoDir: String) = Result.success(Unit)
     }
 
-    @Test
-    fun filesEmpty() = render("31_files_empty") {
-        FilesScreen(currentPath = ws, files = emptyList(), onFileClick = {}, onImportClick = {}, rootPath = ws, onClose = {})
+    private fun renderFiles(
+        name: String,
+        dark: Boolean = false,
+        tab: Int = 0,
+        prepare: (java.io.File) -> Unit = {},
+        steps: androidx.compose.ui.test.junit4.AndroidComposeTestRule<*, *>.() -> Unit = {},
+    ) {
+        compose.mainClock.autoAdvance = false
+        val root = demoProject().also(prepare)
+        compose.setContent {
+            DshTheme(darkTheme = dark) {
+                FilesScreen(
+                    root = root, rootLabel = "DSH-Workspace", refreshKey = 0, git = fakeGit,
+                    onClose = {}, onAttach = {}, onAsk = {}, onPrompt = {}, onShare = {}, onImport = {}, onToast = {},
+                    initialTab = tab,
+                )
+            }
+        }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        compose.mainClock.autoAdvance = false
+        compose.mainClock.advanceTimeBy(1_200)
+        compose.steps()
+        compose.mainClock.advanceTimeBy(1_500)
+        ScreenShots.capture(compose, name, compose.activity)
     }
 
-    @Test
-    fun filesEmptyDark() = render("31b_files_empty_dark", dark = true) {
-        FilesScreen(currentPath = ws, files = emptyList(), onFileClick = {}, onImportClick = {}, rootPath = ws, onClose = {})
+    private fun androidx.compose.ui.test.junit4.AndroidComposeTestRule<*, *>.open(text: String) {
+        onAllNodes(androidx.compose.ui.test.hasText(text))[0].performClick()
+        mainClock.autoAdvance = true; waitForIdle(); mainClock.autoAdvance = false
+        mainClock.advanceTimeBy(1_200)
     }
 
+    @Test fun files() = renderFiles("30_files")
+    @Test fun filesDark() = renderFiles("30b_files_dark", dark = true)
+    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    @Test fun filesNarrow() = renderFiles("30c_files_360")
+    @Config(qualifiers = "ru-w390dp-h844dp-xxhdpi")
+    @Test fun filesMid() = renderFiles("30d_files_390")
+    @Test fun filesNested() = renderFiles("31_files_nested") { open("app"); open("src") }
+    @Test fun filesDoc() = renderFiles("32_files_doc") { open("libs.versions.toml") }
+    @Test fun filesDocDark() = renderFiles("32b_files_doc_dark", dark = true) { open("libs.versions.toml") }
+    @Test fun filesDiff() = renderFiles("33_files_diff") { open("libs.versions.toml"); open("Изменения") }
+    @Test fun filesChanges() = renderFiles("34_files_changes", tab = 1)
+    @Test fun filesChangesDark() = renderFiles("34b_files_changes_dark", dark = true, tab = 1)
+    @Test fun filesSearch() = renderFiles("35_files_search") {
+        onAllNodes(androidx.compose.ui.test.hasContentDescription("Поиск"))[0].performClick()
+        mainClock.advanceTimeBy(800)
+        onAllNodes(androidx.compose.ui.test.hasSetTextAction())[0].performTextInput("gradle")
+        mainClock.autoAdvance = true; waitForIdle(); mainClock.autoAdvance = false
+    }
+    @Test fun filesSearchNone() = renderFiles("35b_files_search_none") {
+        onAllNodes(androidx.compose.ui.test.hasContentDescription("Поиск"))[0].performClick()
+        mainClock.advanceTimeBy(800)
+        onAllNodes(androidx.compose.ui.test.hasSetTextAction())[0].performTextInput("zzz")
+        mainClock.autoAdvance = true; waitForIdle(); mainClock.autoAdvance = false
+    }
+    @Test fun filesMore() = renderFiles("36_files_more") {
+        onAllNodes(androidx.compose.ui.test.hasContentDescription("Действия"))[3].performClick()
+        mainClock.advanceTimeBy(1_200)
+    }
+    @Test fun filesAdd() = renderFiles("37_files_add") {
+        onAllNodes(androidx.compose.ui.test.hasContentDescription("Добавить"))[0].performClick()
+        mainClock.advanceTimeBy(1_200)
+    }
+    @Test fun filesEmpty() = renderFiles("38_files_empty_dark", dark = true, prepare = { java.io.File(it, "docs").mkdirs() }) { open("docs") }
 
     @Test
     fun hosts() = render("40_hosts") {
@@ -208,6 +272,10 @@ class ScreensGalleryTest {
     @Test fun ob3Dark() = renderOb("54b_ob_linux_dark", dark = true, install = installing) { keyOk(); tap("Продолжить"); tap("Продолжить") }
     @Test fun ob3Done() = renderOb("55_ob_linux_done", install = installed) { keyOk(); tap("Продолжить"); tap("Продолжить") }
     @Test fun ob3Error() = renderOb("55b_ob_linux_error", install = installing.copy(error = "Не удалось установить защищённое соединение. Проверьте дату и время на телефоне или другую сеть.", errorDetail = "java.security.cert.CertPathValidatorException: Trust anchor for certification path not found.")) { keyOk(); tap("Продолжить"); tap("Продолжить") }
+
+    @Test fun linuxSetup() = render("58_linux_setup", dark = true) {
+        com.deepseek.dsh.feature.runtime.LinuxSetupScreen(install = installing, onRetry = {})
+    }
 
     @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
     @Test fun ob0Narrow() = renderOb("56_ob_welcome_360")

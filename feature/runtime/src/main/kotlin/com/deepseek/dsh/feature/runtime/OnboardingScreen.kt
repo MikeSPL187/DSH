@@ -899,11 +899,49 @@ private fun LinuxStep(install: LinuxInstall, notify: Boolean, onNotifyChange: (B
         else -> R.string.ob_env_title
     }
     StepHead(3, stringResource(title), stringResource(R.string.ob_env_lead), dir)
+    InstallCard(install, Modifier.enter(3, dir))
+    NotifyRow(notify, onNotifyChange, Modifier.enter(4, dir))
+}
+
+/**
+ * Отдельный экран установки Linux вне первого запуска (переустановка при обновлении):
+ * тот же заголовок и блок хода установки, кнопка «Повторить» при ошибке.
+ */
+@Composable
+fun LinuxSetupScreen(install: LinuxInstall, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+    val c = Dsh.colors
+    Column(modifier.fillMaxSize().background(c.bg).statusBarsPadding()) {
+        Column(
+            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 22.dp, end = 22.dp, top = 66.dp, bottom = 20.dp),
+        ) {
+            val title = when {
+                install.error != null -> R.string.ob_env_failed
+                install.done -> R.string.ob_env_done
+                else -> R.string.ob_env_title
+            }
+            Text(stringResource(title), style = H2, color = c.t1, modifier = Modifier.semantics { heading() })
+            Spacer(Modifier.height(8.dp))
+            Text(stringResource(R.string.ob_env_lead), style = Lead, color = c.t2)
+            Spacer(Modifier.height(22.dp))
+            InstallCard(install, Modifier)
+        }
+        Bottom(
+            primaryText = stringResource(if (install.error != null) R.string.ob_retry else R.string.ob_installing),
+            primaryEnabled = install.error != null,
+            onPrimary = onRetry,
+            altText = null,
+            onAlt = {},
+        )
+    }
+}
+
+/** `.ob-inst`: процент, полоса и три этапа. */
+@Composable
+private fun InstallCard(install: LinuxInstall, modifier: Modifier) {
+    val c = Dsh.colors
     val pct = (install.progress.coerceIn(0f, 1f) * 100).toInt()
-    // `.ob-inst`
     Column(
-        Modifier
-            .enter(3, dir)
+        modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(22.dp))
             .background(c.s1)
@@ -978,10 +1016,14 @@ private fun LinuxStep(install: LinuxInstall, notify: Boolean, onNotifyChange: (B
             }
         }
     }
-    // `.ob-notif`: строка группы с переключателем.
+}
+
+/** `.ob-notif`: строка группы с переключателем. */
+@Composable
+private fun NotifyRow(notify: Boolean, onNotifyChange: (Boolean) -> Unit, modifier: Modifier) {
+    val c = Dsh.colors
     Row(
-        Modifier
-            .enter(4, dir)
+        modifier
             .padding(top = 12.dp)
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))

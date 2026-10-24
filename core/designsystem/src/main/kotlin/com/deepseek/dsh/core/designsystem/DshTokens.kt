@@ -63,6 +63,14 @@ data class DshColors(
     val glassLine: Color,
     val codeBg: Color,
     val scrim: Color,
+    /** Код и терминал (`--term-*` прототипа): фон, текст, приглушённый, приглашение, ок, ошибка, предупреждение. */
+    val termBg: Color = Color(0xFFFCFCFE),
+    val termText: Color = Color(0xFF23242E),
+    val termDim: Color = Color(0xFF646674),
+    val termPrompt: Color = Color(0xFF5A4CF0),
+    val termOk: Color = Color(0xFF0E7A50),
+    val termErr: Color = Color(0xFFC4323A),
+    val termWarn: Color = Color(0xFF8F5200),
 )
 
 val DshPorcelain = DshColors(
@@ -117,6 +125,13 @@ val DshGraphite = DshColors(
     glassLine = Color(0x14FFFFFF),
     codeBg = Color(0xFF121317),
     scrim = Color(0x8C000000),
+    termBg = Color(0xFF0B0C0F),
+    termText = Color(0xFFDCDEE6),
+    termDim = Color(0xFF8A8D98),
+    termPrompt = Color(0xFFA49CFF),
+    termOk = Color(0xFF41C48B),
+    termErr = Color(0xFFFF8085),
+    termWarn = Color(0xFFE9A447),
 )
 
 val LocalDshColors = staticCompositionLocalOf { DshPorcelain }

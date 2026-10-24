@@ -1119,6 +1119,8 @@ class DefaultHostRuntimeManager(
                 val exec = ProotCommandBuilder.buildExec(
                     layout,
                     listOf("/usr/bin/git", "-C", hostPath, "init", "-q"),
+                    // Без привязки /workspace git не видит папку проекта.
+                    workspacePath = userWorkspacePath,
                 )
                 val builder = ProcessBuilder(exec.command)
                 builder.environment().putAll(exec.environment)

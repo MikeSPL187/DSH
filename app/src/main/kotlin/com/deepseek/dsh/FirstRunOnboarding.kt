@@ -56,10 +56,7 @@ internal fun FirstRunOnboarding(
     var notify by rememberSaveable { mutableStateOf(true) }
     var finishing by remember { mutableStateOf(false) }
 
-    val install = rememberLinuxInstall(runtimeUi).let { s ->
-        val raw = s.error
-        if (raw == null) s else s.copy(error = context.getString(installErrorText(raw)), errorDetail = raw)
-    }
+    val install = rememberFriendlyLinuxInstall(runtimeUi)
 
     // «Сообщить о готовности»: одно уведомление, если в этот момент приложение свёрнуто.
     LaunchedEffect(install.done) {
@@ -133,6 +130,15 @@ internal fun FirstRunOnboarding(
             }
         },
     )
+}
+
+/** Ход установки с понятной причиной ошибки и технической подробностью. */
+@Composable
+internal fun rememberFriendlyLinuxInstall(runtimeUi: AppRuntimeUiState): LinuxInstall {
+    val context = LocalContext.current
+    val s = rememberLinuxInstall(runtimeUi)
+    val raw = s.error ?: return s
+    return s.copy(error = context.getString(installErrorText(raw)), errorDetail = raw)
 }
 
 /** Понятная причина сбоя установки по тексту исключения. */

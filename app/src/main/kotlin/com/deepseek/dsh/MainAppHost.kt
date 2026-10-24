@@ -1506,10 +1506,9 @@ fun MainAppHost(
     }
 
     if (!runtimeUi.showOnboarding && runtimeUi.rootfsReady != true) {
-        RootfsSetupScreen(
-            progress = runtimeUi.rootfsSetupProgress.first,
-            message = runtimeUi.rootfsSetupProgress.second,
-            error = runtimeUi.rootfsSetupError,
+        // Переустановка Linux (обязательное обновление): тот же блок, что на шаге 3 первого запуска.
+        com.deepseek.dsh.feature.runtime.LinuxSetupScreen(
+            install = rememberFriendlyLinuxInstall(runtimeUi),
             onRetry = { runtimeUi.rootfsInstallAttempt++ },
         )
         return
@@ -1996,10 +1995,11 @@ fun MainAppHost(
     // снятый при запуске: новые файлы (в т.ч. созданные агентом) там не появлялись.
     val filesVisible = ui.activePage == ActivePage.FILES ||
         (ui.activePage == ActivePage.CHAT && ui.rightDrawerOpen && ui.rightDrawerTab == "files")
-    DisposableEffect(filesVisible, ui.filesDir) {
+    DisposableEffect(filesVisible, ui.filesDir, runtimeUi.activeWorkspaceName) {
+        val watched = if (ui.activePage == ActivePage.FILES) activeWorkspaceFolderPath else ui.filesDir.absolutePath
         val observer = if (filesVisible) {
             object : android.os.FileObserver(
-                ui.filesDir.absolutePath,
+                watched,
                 android.os.FileObserver.CREATE or
                     android.os.FileObserver.DELETE or
                     android.os.FileObserver.MOVED_FROM or
@@ -2068,50 +2068,43 @@ fun MainAppHost(
 
 
     // 文件面板内容：FILES 页与聊天右侧栏复用同一份列表与回调。
+    val projectDir = java.io.File(activeWorkspaceFolderPath)
+    val filesGit = remember(activeWorkspace, runtimeUi.activeWorkspaceName) {
+        WorkspaceFilesGit(com.deepseek.dsh.runtime.host.WorkspaceGit(layout, activeWorkspace), runtimeUi.activeWorkspaceName)
+    }
+    // Прикрепить файл проекта к следующему сообщению: путь от корня рабочих папок (@путь).
+    fun attachToChat(file: java.io.File) {
+        val rel = file.absolutePath.removePrefix(activeWorkspace.absolutePath).trimStart('/').replace('\\', '/')
+        if (rel.isNotBlank() && chatAttachments.none { it.workspaceRelativePath == rel }) {
+            chatAttachments.add(
+                com.deepseek.dsh.feature.chat.ChatAttachment(displayName = file.name, workspaceRelativePath = rel, sizeBytes = file.length()),
+            )
+        }
+    }
     val workspaceFilesContent: @Composable () -> Unit = {
+        val askTemplate = stringResource(com.deepseek.dsh.feature.files.R.string.fs_ask_prompt)
         FilesScreen(
-            currentPath = ui.filesDir.absolutePath,
-            files = files,
-            onFileClick = { item ->
-                if (item.isDirectory) {
-                    ui.filesDir = java.io.File(item.absolutePath)
-                }
-            },
-            onNavigateUp = ui.filesDir.parentFile?.let { parent ->
-                {
-                    // 不越过工作区根：Host 只能访问这里。
-                    if (ui.filesDir.absolutePath != activeWorkspace.absolutePath) {
-                        ui.filesDir = parent
-                    }
-                }
-            },
-            onImportClick = {
-                filesImportLauncher.launch(arrayOf("*/*"))
-            },
-            rootPath = activeWorkspace.absolutePath,
-            onNavigateTo = { path ->
-                // Крошки ведут только внутрь рабочей папки: Host видит только её.
-                val target = java.io.File(path)
-                if (target.toPath().normalize().startsWith(activeWorkspace.toPath().normalize())) ui.filesDir = target
-            },
+            root = projectDir,
+            rootLabel = if (runtimeUi.activeWorkspaceName == DEFAULT_WORKSPACE_DIR_NAME) defaultWorkspaceLabel else runtimeUi.activeWorkspaceName,
+            refreshKey = runtimeUi.filesRevision,
+            git = filesGit,
             onClose = { ui.activePage = ActivePage.CHAT },
-            onSendFile = { item ->
-                // 中转完成后的文件直接加入待发附件：发送时以 @工作区相对路径 引用。
-                val rel = item.absolutePath
-                    .removePrefix(activeWorkspace.absolutePath)
-                    .trimStart('/')
-                    .replace('\\', '/')
-                if (rel.isNotBlank() && chatAttachments.none { it.workspaceRelativePath == rel }) {
-                    chatAttachments.add(
-                        com.deepseek.dsh.feature.chat.ChatAttachment(
-                            displayName = item.name,
-                            workspaceRelativePath = rel,
-                            sizeBytes = item.sizeBytes,
-                        ),
-                    )
-                }
+            onAttach = { f -> attachToChat(f); ui.activePage = ActivePage.CHAT },
+            onAsk = { f ->
+                attachToChat(f)
+                runtimeUi.voiceTranscript = askTemplate.format(f.name)
                 ui.activePage = ActivePage.CHAT
             },
+            onPrompt = { text ->
+                runtimeUi.voiceTranscript = text
+                ui.activePage = ActivePage.CHAT
+            },
+            onShare = { f -> shareWorkspaceFile(context, f) },
+            onImport = { dir ->
+                ui.filesDir = dir
+                filesImportLauncher.launch(arrayOf("*/*"))
+            },
+            onToast = { text -> android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_SHORT).show() },
         )
     }
 

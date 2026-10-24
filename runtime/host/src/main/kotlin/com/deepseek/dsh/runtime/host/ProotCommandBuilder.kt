@@ -44,7 +44,7 @@ object ProotCommandBuilder {
      * @param argv rootfs 内的命令，例如 `["/usr/local/bin/node", "…/bin.js", "plugin", …]`。
      * @return 可执行的 argv 与所需环境变量。
      */
-    fun buildExec(layout: RuntimeLayout, argv: List<String>): ExecCommand {
+    fun buildExec(layout: RuntimeLayout, argv: List<String>, workspacePath: String? = null): ExecCommand {
         val cmd = mutableListOf<String>()
         cmd.add(layout.prootBinary.absolutePath)
         cmd.add("-r")
@@ -66,6 +66,11 @@ object ProotCommandBuilder {
         cmd.add("${layout.passwdOverlay.absolutePath}:/etc/passwd")
         cmd.add("-b")
         cmd.add("${layout.groupOverlay.absolutePath}:/etc/group")
+        // Рабочая папка пользователя — как у Host: /workspace.
+        if (workspacePath != null && java.io.File(workspacePath).isDirectory) {
+            cmd.add("-b")
+            cmd.add("$workspacePath:/workspace")
+        }
         cmd.add("/usr/bin/env")
         cmd.add("-i")
         cmd.add("HOME=/root")
