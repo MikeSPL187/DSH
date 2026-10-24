@@ -879,6 +879,74 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .pd-dev + .pl-del { margin-top: 8px; }
 @keyframes plNew { 0% { background: var(--accent-soft); } 100% { background: transparent; } }
 
+/* ---------- Автоматизация ---------- */
+.tsw { width: 52px; height: 44px; display: grid; place-items: center; flex: none; }
+.au-done { display: none; height: 40px; padding: 0 14px; margin-right: 6px; border-radius: 12px; background: var(--accent); color: var(--on-accent); font-weight: 600; font-size: 14.5px; }
+.au-done.on { display: inline-flex; align-items: center; }
+.au-done[disabled] { background: var(--s3); color: var(--t3); }
+.au-next { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 22px; background: linear-gradient(135deg, var(--accent-soft), color-mix(in srgb, var(--accent-soft) 35%, var(--s1))); border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); }
+.au-next .clock { width: 48px; height: 48px; border-radius: 16px; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; flex: none; }
+.au-next .tx { flex: 1; min-width: 0; line-height: 1.3; }
+.au-next small { display: block; font-size: 12.5px; color: var(--t2); }
+.au-next b { display: block; font-family: var(--font-display); font-size: 18px; font-weight: 600; margin: 1px 0; }
+.au-next .cd { font-variant-numeric: tabular-nums; font-size: 13px; color: color-mix(in srgb, var(--accent) 80%, var(--t1)); font-weight: 500; }
+.au-host { display: flex; gap: 8px; align-items: flex-start; margin: 10px 4px 0; font-size: 12.5px; color: var(--t3); line-height: 1.45; }
+.au-host .i { flex: none; margin-top: 1px; }
+.ar { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 72px; padding: 12px; text-align: left; }
+.ar + .ar { border-top: 1px solid var(--line); }
+.ar .tx { flex: 1; min-width: 0; line-height: 1.3; }
+.ar .tx b { display: block; font-weight: 500; font-size: 15px; }
+.ar .tx small { display: block; font-size: 12.5px; color: var(--t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ar .tx .st { display: inline-flex; align-items: center; gap: 4px; }
+.ar .tx .st.ok { color: var(--ok); } .ar .tx .st.err { color: var(--danger); } .ar .tx .st.skip { color: var(--warn); }
+.ar.off .au-ic { filter: grayscale(1); opacity: .55; }
+.au-ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; flex: none; background: var(--accent-soft); color: var(--accent); }
+.au-ic.g { background: var(--ok-soft); color: var(--ok); } .au-ic.o { background: var(--warn-soft); color: var(--warn); } .au-ic.b { background: color-mix(in srgb, #2f7de1 14%, var(--s1)); color: color-mix(in srgb, #2f7de1 65%, var(--t1)); }
+.tpls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tpl { text-align: left; padding: 13px; border-radius: 18px; background: var(--s1); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; min-height: 104px; transition: transform .3s cubic-bezier(.3, 1.4, .5, 1); }
+.tpl:active { transform: scale(.97); }
+.tpl b { font-weight: 500; font-size: 14.5px; line-height: 1.3; }
+.tpl small { font-size: 12px; color: var(--t3); line-height: 1.35; }
+.au-name { width: 100%; height: 52px; padding: 0 14px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--s1); font: inherit; font-family: var(--font-display); font-size: 19px; font-weight: 600; color: var(--t1); outline: none; }
+.au-name:focus, .au-prompt:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.au-prompt { display: block; width: 100%; min-height: 104px; padding: 12px 14px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--s1); font: inherit; font-size: 15px; line-height: 1.5; color: var(--t1); resize: none; outline: none; }
+.au-prompt::placeholder, .au-name::placeholder { color: var(--t3); }
+.au-hint { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.au-hint button { height: 40px; padding: 0 11px; border-radius: 10px; background: var(--s2); font-size: 13px; color: var(--t2); }
+.segm.au4 { grid-template-columns: repeat(4, 1fr); margin: 0; }
+.segm.au4 .thumb { width: calc((100% - 6px) / 4); }
+.segm.au4 button { font-size: 13px; }
+.au-when { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.au-days { display: flex; gap: 4px; margin-top: 8px; }
+.au-days button { flex: 1; height: 40px; border-radius: 11px; background: var(--s2); font-size: 12.5px; color: var(--t2); font-weight: 500; }
+.au-days button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.au-tp { display: inline-flex; align-items: center; gap: 2px; height: 44px; padding: 0 6px; border-radius: 12px; background: var(--s2); flex: none; }
+.au-tp select { appearance: none; -webkit-appearance: none; border: 0; background: transparent; font: inherit; font-size: 17px; font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; height: 40px; min-width: 40px; padding: 0 6px; text-align: center; border-radius: 9px; cursor: pointer; }
+.au-tp select:focus-visible { outline: 2px solid var(--accent); }
+.au-tp b { color: var(--t3); }
+.au-sum { margin: 10px 4px 0; font-size: 13px; color: var(--t2); }
+.au-sum b { color: var(--t1); font-weight: 500; }
+.rad { display: flex; gap: 12px; align-items: flex-start; width: 100%; text-align: left; padding: 13px 14px; }
+.rad + .rad { border-top: 1px solid var(--line); }
+.rad .tx { flex: 1; min-width: 0; line-height: 1.35; font-size: 15px; }
+.rad small { display: block; font-size: 12.5px; color: var(--t3); margin-top: 2px; }
+.rad .ob-radio { margin-top: 1px; }
+.rad[aria-checked="true"] .ob-radio { border-color: var(--accent); }
+.rad[aria-checked="true"] .ob-radio::after { content: ""; width: 11px; height: 11px; border-radius: 50%; background: var(--accent); }
+.rad.never { color: var(--t3); }
+.rad.never .tx { color: var(--t2); }
+.gr .chev-r { color: var(--t3); }
+.gr.golink { width: 100%; text-align: left; color: var(--t1); }
+.hr { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 14px; text-align: left; min-height: 56px; }
+.hr + .hr { border-top: 1px solid var(--line); }
+.hr .tx { flex: 1; min-width: 0; line-height: 1.3; font-size: 14.5px; }
+.hr .tx small { display: block; font-size: 12.5px; color: var(--t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hr .val { font-size: 12.5px; color: var(--t3); flex: none; text-align: right; font-variant-numeric: tabular-nums; }
+.au-run { width: 100%; margin-top: 20px; flex: none; height: 50px; border-radius: 16px; }
+.au-act2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.au-act2 button { height: 46px; border-radius: 14px; background: var(--s1); border: 1px solid var(--line); font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.au-act2 .del { color: var(--danger); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
@@ -939,6 +1007,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
     <symbol id="i-msg" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4Z"/></symbol>
     <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></symbol>
     <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16Z"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7Z"/></symbol>
     <symbol id="i-dsh" viewBox="0 0 24 24"><path d="m7 8 4 4-4 4" stroke-width="2.2"/><path d="M13 16h4.5" stroke-width="2.2"/></symbol>
   </defs>
 </svg>
@@ -962,6 +1031,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
         <button aria-pressed="false" data-go="files">Файлы</button>
         <button aria-pressed="false" data-go="terminal">Терминал</button>
         <button aria-pressed="false" data-go="plugins">Плагины</button>
+        <button aria-pressed="false" data-go="automation">Автоматизация</button>
       </div>
     </div>
     <div>
@@ -1307,6 +1377,17 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
         </div>
         <p class="tr-note"><svg class="i xs"><use href="#i-shield"/></svg>DSH запомнит подпись. Если в обновлении она изменится, плагин будет заблокирован.</p>
         <div class="row-btns"><button class="btn ghost" data-act="close">Отмена</button><button class="btn primary" id="trustYes">Доверять</button></div>
+      </section>
+
+<!-- Экран: автоматизация -->
+      <section class="screen" id="screen-automation" aria-label="Автоматизация">
+        <header class="sbar">
+          <button class="iconbtn" id="auBack" aria-label="Назад"><svg class="i"><use href="#i-left"/></svg></button>
+          <div class="title"><b id="auTitle">Автоматизация</b><span id="auSub"></span></div>
+          <button class="iconbtn" id="auAdd" aria-label="Новая автоматизация"><svg class="i"><use href="#i-plus"/></svg></button>
+          <button class="au-done" id="auSave">Готово</button>
+        </header>
+        <div class="fs-body" id="auBody"></div>
       </section>
 
       <!-- Экран: терминал -->
@@ -1689,7 +1770,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
     else if (a === "danger") { if (drawerOpen) closeDrawer(); if (curScreen) screenClose(true); renderDanger(); }
     else if (a === "close") sheetClose();
     else if (a === "back") screenClose();
-    else if (a === "terminal" || a === "files" || a === "plugins") screenOpen(a);
+    else if (["terminal", "files", "plugins", "automation"].includes(a)) screenOpen(a);
     else if ($("#sheet-" + a)) sheetOpen(a);
     else toast("Этот экран появится в следующей версии прототипа");
   });
@@ -1786,6 +1867,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
     if (id === "terminal") termShown();
     if (id === "files") filesShown();
     if (id === "plugins") pluginsShown();
+    if (id === "automation") automationShown();
     if (id === "danger") resetDz();
   }
   function screenClose(instant, fromX = 0) {
@@ -1803,7 +1885,8 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
     s.addEventListener("pointermove", (e) => { if (x0 === null) return; dx = Math.max(0, e.clientX - x0); s.getAnimations().forEach((a) => a.cancel()); s.style.transform = `translateX(${dx}px)`; });
     s.addEventListener("pointerup", () => {
       if (x0 === null) return; x0 = null; s.style.transform = "";
-      if (dx > s.clientWidth * 0.3 && s.id === "screen-plugins" && plStack.length > 1) { anim(s, [{ transform: `translateX(${dx}px)` }, { transform: "translateX(0)" }], SNAPPY); plPop(); }
+      if (dx > s.clientWidth * 0.3 && s.id === "screen-automation" && auStack.length > 1) { anim(s, [{ transform: `translateX(${dx}px)` }, { transform: "translateX(0)" }], SNAPPY); auPop(); }
+      else if (dx > s.clientWidth * 0.3 && s.id === "screen-plugins" && plStack.length > 1) { anim(s, [{ transform: `translateX(${dx}px)` }, { transform: "translateX(0)" }], SNAPPY); plPop(); }
       else if (dx > s.clientWidth * 0.3 && s.id === "screen-files" && fsStack.length > 1) { anim(s, [{ transform: `translateX(${dx}px)` }, { transform: "translateX(0)" }], SNAPPY); fsPop(); }
       else if (dx > s.clientWidth * 0.3) screenClose(false, dx);
       else anim(s, [{ transform: `translateX(${dx}px)` }, { transform: "translateX(0)" }], LIVELY);
@@ -2483,6 +2566,164 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
     const r = e.target.closest("[data-pl]"); if (r) plPush({ t: "detail", id: r.dataset.pl });
   });
 
+  // ---------- Автоматизация ----------
+  const DAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+  const FREQ = [["daily", "Каждый день"], ["work", "По будням"], ["week", "Раз в неделю"], ["hour", "Каждый час"]];
+  const AU = [
+    { id: "arch", name: "Ночной архив", ic: "i-box", c: "", on: true, freq: "daily", time: "03:00", days: [0, 1, 2, 3, 4, 5, 6], charge: true, wifi: false, perm: "edit", notify: "err", model: "DeepSeek V4 · Низкий",
+      prompt: "Запусти scripts/backup.sh и проверь, что архив создан. Удали копии старше 7 дней.", next: "завтра в 03:00", nextIn: 14 * 3600 + 22 * 60,
+      hist: [["Сегодня, 03:00", "ok", "38 с", "Архив 1,9 ГБ, удалена 1 старая копия"], ["Вчера, 03:00", "ok", "41 с", "Архив 1,9 ГБ"], ["22 окт, 03:00", "skip", "—", "Пропущен: телефон не заряжался"]] },
+    { id: "brief", name: "Утренняя сводка", ic: "i-msg", c: "b", on: true, freq: "work", time: "08:45", days: [0, 1, 2, 3, 4], charge: false, wifi: true, perm: "read", notify: "always", model: "DeepSeek V4 · Высокий",
+      prompt: "Посмотри коммиты и изменения за вчера, открытые задачи и упавшие тесты. Пришли короткую сводку: что сделано и что важно сегодня.", next: "пн в 08:45", nextIn: 0,
+      hist: [["Сегодня, 08:45", "ok", "1 мин 12 с", "3 коммита, 1 упавший тест"], ["Вчера, 08:45", "ok", "58 с", "Без замечаний"]] },
+    { id: "deps", name: "Проверка зависимостей", ic: "i-shield", c: "o", on: true, freq: "week", time: "09:00", days: [0], charge: false, wifi: true, perm: "read", notify: "changes", model: "DeepSeek V4 · Высокий",
+      prompt: "Проверь gradle/libs.versions.toml на обновления и известные уязвимости. Если есть важные — опиши, что обновить и чем рискуем.", next: "пн в 09:00", nextIn: 0,
+      hist: [["20 окт, 09:00", "err", "4 с", "Нет сети — повторю при подключении к Wi‑Fi"], ["13 окт, 09:00", "ok", "2 мин", "2 обновления, уязвимостей нет"]] },
+    { id: "tests", name: "Прогон тестов", ic: "i-check", c: "g", on: false, freq: "hour", time: "", days: [], charge: true, wifi: false, perm: "read", notify: "err", model: "DeepSeek V4 · Низкий",
+      prompt: "Запусти ./gradlew test. Если что-то упало — найди причину и опиши, но ничего не меняй.", next: "выключена", nextIn: 0,
+      hist: [["17 окт, 14:00", "ok", "3 мин", "349 тестов, 0 ошибок"]] },
+  ];
+  const TPL = [
+    ["i-msg", "b", "Утренняя сводка", "Что изменилось за день", { freq: "work", time: "09:00", perm: "read", notify: "always", prompt: "Пришли короткую сводку по проекту: коммиты, изменения, упавшие тесты." }],
+    ["i-check", "g", "Тесты по ночам", "Запуск и разбор ошибок", { freq: "daily", time: "02:00", perm: "read", notify: "err", charge: true, prompt: "Запусти тесты. Если упали — найди причину и опиши." }],
+    ["i-shield", "o", "Безопасность", "Уязвимости в зависимостях", { freq: "week", time: "10:00", perm: "read", notify: "changes", prompt: "Проверь зависимости на известные уязвимости и устаревшие версии." }],
+    ["i-flow", "", "Своя задача", "Опишите, что делать", { freq: "daily", time: "09:00", perm: "read", notify: "err", prompt: "" }],
+  ];
+  const PERM = { read: ["Только читать и сообщать", "Ничего не меняет — присылает итог"], edit: ["Править файлы в проекте", "Изменения видны во вкладке «Изменения» в «Файлах»"] };
+  const NOTIFY = [["always", "Всегда"], ["err", "При ошибке"], ["changes", "Если есть что-то новое"]];
+  const auBody = $("#auBody");
+  let auStack = [], auCur = null, auDraft = null, auTimer = 0;
+  const fmtLeft = (sec) => { const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60); return h ? `через ${h} ч ${m} мин` : `через ${m} мин`; };
+  const when = (a) => a.freq === "hour" ? "Каждый час" : a.freq === "week" ? `По ${["понедельникам", "вторникам", "средам", "четвергам", "пятницам", "субботам", "воскресеньям"][a.days[0] || 0]} в ${a.time}` : a.freq === "work" ? `По будням в ${a.time}` : `Каждый день в ${a.time}`;
+  const whenShort = (a) => a.freq === "hour" ? "Каждый час" : a.freq === "week" ? `${DAYS[a.days[0] || 0]} ${a.time}` : a.freq === "work" ? `Будни ${a.time}` : `Ежедневно ${a.time}`;
+  const condsShort = (a) => [a.charge && "зарядка", a.wifi && "Wi‑Fi"].filter(Boolean).join(", ");
+  const conds = (a) => [a.charge && "при зарядке", a.wifi && "по Wi‑Fi"].filter(Boolean).join(", ");
+  function auTitles() {
+    const top = auStack[auStack.length - 1], edit = top.t === "edit" || top.t === "new";
+    $("#auAdd").style.display = top.t === "list" ? "" : "none";
+    $("#auSave").classList.toggle("on", top.t === "new");
+    if (top.t === "list") { const n = AU.filter((a) => a.on).length; $("#auTitle").textContent = "Автоматизация"; $("#auSub").textContent = `${n} ${plural(n, "активна", "активны", "активны")} · запускаются без вас`; }
+    else if (top.t === "new") { $("#auTitle").textContent = "Новая автоматизация"; $("#auSub").textContent = "DSH-Workspace"; }
+    else { const a = AU.find((x) => x.id === top.id); $("#auTitle").textContent = a.name; $("#auSub").textContent = a.on ? `Следующий запуск ${a.next}` : "Выключена"; }
+  }
+  function auRow(a) {
+    const h = a.hist[0], st = h ? `<span class="st ${h[1]}">${h[1] === "ok" ? "✓" : h[1] === "err" ? "✕" : "↷"} ${h[0].split(",")[0].toLowerCase()}</span> · ` : "";
+    return `<div class="ar${a.on ? "" : " off"}" data-au="${a.id}" role="button" tabindex="0"><span class="au-ic ${a.c}"><svg class="i sm"><use href="#${a.ic}"/></svg></span>
+      <span class="tx"><b>${esc2(a.name)}</b><small>${whenShort(a)}${condsShort(a) ? " · " + condsShort(a) : ""}</small><small>${st}${a.on ? "далее " + a.next.replace(" в ", " ") : "выключена"}</small></span>
+      <span class="tsw"><span class="toggle" role="switch" aria-label="Включить ${esc2(a.name)}" aria-checked="${a.on}" data-aut="${a.id}" tabindex="0"></span></span></div>`;
+  }
+  function viewAuList() {
+    const v = document.createElement("div"); v.className = "fs-view";
+    const nx = AU.find((a) => a.on && a.nextIn) || AU.find((a) => a.on);
+    v.dataset.next = nx ? nx.id : "";
+    v.innerHTML = `${nx ? `<button class="au-next" data-au="${nx.id}" style="width:100%;text-align:left"><span class="clock"><svg class="i"><use href="#i-clock"/></svg></span><span class="tx"><small>Следующий запуск</small><b>${esc2(nx.name)}</b><span class="cd" id="auCd">${nx.next}${nx.nextIn ? " · " + fmtLeft(nx.nextIn) : ""}</span></span><svg class="i sm" style="color:var(--t3)"><use href="#i-right"/></svg></button>` : ""}
+      <p class="au-host"><svg class="i xs"><use href="#i-shield"/></svg>Запуск разбудит Host в фоне. Если условие не выполнено — например, нет зарядки, — запуск переносится и отмечается в истории.</p>
+      <div class="fs-sec"><span>Мои автоматизации</span><span>${AU.length}</span></div>
+      ${AU.length ? `<div class="gl">${AU.map(auRow).join("")}</div>` : `<div class="fs-empty">Пока пусто — начните с шаблона</div>`}
+      <div class="fs-sec"><span>Начать с шаблона</span></div>
+      <div class="tpls">${TPL.map(([ic, c, n, d], i) => `<button class="tpl" data-tpl="${i}"><span class="au-ic ${c}"><svg class="i sm"><use href="#${ic}"/></svg></span><b>${n}</b><small>${d}</small></button>`).join("")}</div>`;
+    return v;
+  }
+  function viewAuEdit(a, isNew) {
+    const v = document.createElement("div"); v.className = "fs-view";
+    const fi = FREQ.findIndex((f) => f[0] === a.freq);
+    v.innerHTML = `${isNew ? `<input class="au-name" id="auName" placeholder="Название" value="${esc2(a.name)}" maxlength="40">` : ""}
+      <div class="glabel">Что сделать</div>
+      <textarea class="au-prompt" id="auPrompt" placeholder="Например: запусти тесты и, если что-то упало, найди причину">${esc2(a.prompt)}</textarea>
+      <div class="au-hint">${["@файл", "Итог — коротко", "Только в ветке main"].map((h) => `<button data-auh="${h}">${h}</button>`).join("")}</div>
+      <div class="glabel">Когда</div>
+      <div class="segm au4" role="radiogroup" id="auFreq"><span class="thumb" style="transform:translateX(${fi * 100}%)"></span>${FREQ.map(([k, n]) => `<button role="radio" aria-checked="${k === a.freq}" data-auf="${k}">${({ daily: "Ежедневно", work: "Будни", week: "Неделя", hour: "Час" })[k]}</button>`).join("")}</div>
+      ${a.freq === "week" ? `<div class="au-days">${DAYS.map((d, i) => `<button aria-pressed="${a.days.includes(i)}" data-aud="${i}">${d}</button>`).join("")}</div>` : ""}${a.freq !== "hour" ? `<div class="au-when"><span style="flex:1;font-size:14.5px;color:var(--t2)">Время запуска</span><span class="au-tp"><select id="auH" aria-label="Часы">${Array.from({ length: 24 }, (_, h) => String(h).padStart(2, "0")).map((h) => `<option${(a.time || "09:00").slice(0, 2) === h ? " selected" : ""}>${h}</option>`).join("")}</select><b>:</b><select id="auM" aria-label="Минуты">${["00", "15", "30", "45"].map((m) => `<option${(a.time || "09:00").slice(3) === m ? " selected" : ""}>${m}</option>`).join("")}</select></span></div>` : ""}
+      <p class="au-sum" id="auSum"><b>${when(a)}</b>${conds(a) ? ", " + conds(a) : ""}</p>
+      <div class="gl" style="margin-top:12px">
+        <div class="gr"><span class="gic"><svg class="i sm"><use href="#i-bolt"/></svg></span><span class="tx">Только при зарядке<small>Бережёт батарею</small></span><span class="toggle" role="switch" aria-checked="${a.charge}" data-auc="charge" tabindex="0"></span></div>
+        <div class="gr"><span class="gic"><svg class="i sm"><use href="#i-globe"/></svg></span><span class="tx">Только по Wi‑Fi<small>Не тратит мобильный трафик</small></span><span class="toggle" role="switch" aria-checked="${a.wifi}" data-auc="wifi" tabindex="0"></span></div>
+      </div>
+      <div class="glabel">Без вас агенту можно</div>
+      <div class="gl" role="radiogroup">${Object.entries(PERM).map(([k, [n, d]]) => `<button class="rad" role="radio" aria-checked="${a.perm === k}" data-aup="${k}"><span class="ob-radio"></span><span class="tx">${n}<small>${d}</small></span></button>`).join("")}
+        <div class="rad never"><svg class="i sm" style="color:var(--danger)"><use href="#i-x"/></svg><span class="tx">Удалять и выполнять опасное — никогда<small>Такие шаги агент отложит до вашего решения</small></span></div></div>
+      <div class="glabel">Уведомлять</div>
+      <div class="segm" role="radiogroup" id="auNotify" style="margin:0"><span class="thumb" style="transform:translateX(${NOTIFY.findIndex((n) => n[0] === a.notify) * 100}%)"></span>${NOTIFY.map(([k, n]) => `<button role="radio" aria-checked="${k === a.notify}" data-aun="${k}">${n.replace("Если есть что-то новое", "Если новое")}</button>`).join("")}</div>
+      <div class="glabel">Где и чем</div>
+      <div class="gl"><button class="gr golink" data-aux="proj"><span class="gic"><svg class="i sm"><use href="#i-folder"/></svg></span><span class="tx">Проект</span><span class="val">DSH-Workspace</span><svg class="i sm chev-r"><use href="#i-right"/></svg></button>
+        <button class="gr golink" data-aux="model"><span class="gic"><svg class="i sm"><use href="#i-cpu"/></svg></span><span class="tx">Модель</span><span class="val">${a.model}</span><svg class="i sm chev-r"><use href="#i-right"/></svg></button></div>
+      ${isNew ? "" : `<button class="btn primary au-run" id="auRun"><svg class="i sm"><use href="#i-play"/></svg>Запустить сейчас</button>
+      <div class="fs-sec"><span>История</span><span>${a.hist.length}</span></div>
+      <div class="gl" id="auHist">${a.hist.map(histRow).join("")}</div>
+      <div class="au-act2"><button data-audup="${a.id}"><svg class="i sm"><use href="#i-copy"/></svg>Дублировать</button><button class="del" data-audel="${a.id}"><svg class="i sm"><use href="#i-trash"/></svg>Удалить</button></div>`}`;
+    return v;
+  }
+  const HI = { ok: ["i-check", "ok"], err: ["i-x", "red"], skip: ["i-redo", "warn"], run: ["i-clock", ""] };
+  const histRow = ([when, st, dur, res]) => `<button class="hr" data-auhist="${esc2(res)}"><span class="gic ${HI[st][1]}"><svg class="i sm"><use href="#${HI[st][0]}"/></svg></span><span class="tx">${when}<small${st === "err" ? ' class="errc"' : ""}>${esc2(res)}</small></span><span class="val">${dur}</span></button>`;
+  const auBuild = (e) => e.t === "list" ? viewAuList() : e.t === "new" ? viewAuEdit(auDraft, true) : viewAuEdit(AU.find((x) => x.id === e.id), false);
+  function auPush(e) { const old = auCur, v = auBuild(e); auStack.push(e); auBody.appendChild(v); auCur = v; auTitles();
+    if (old) { anim(v, [{ transform: "translateX(100%)" }, { transform: "translateX(0)" }], SMOOTH); anim(old, [{ transform: "translateX(0)", opacity: 1 }, { transform: "translateX(-28%)", opacity: .6 }], SMOOTH).onfinish = () => old.remove(); } }
+  function auPop() { if (auStack.length <= 1) { screenClose(); return; }
+    const old = auCur; auStack.pop(); const v = auBuild(auStack[auStack.length - 1]); auBody.insertBefore(v, old); auCur = v; auTitles();
+    anim(v, [{ transform: "translateX(-28%)", opacity: .6 }, { transform: "translateX(0)", opacity: 1 }], SMOOTH);
+    anim(old, [{ transform: "translateX(0)" }, { transform: "translateX(100%)" }], SMOOTH).onfinish = () => old.remove(); }
+  function auRefresh() { const cur = auCur, st = cur.scrollTop; const v = auBuild(auStack[auStack.length - 1]); auBody.replaceChild(v, cur); auCur = v; v.scrollTop = st; auTitles(); return v; }
+  function automationShown() {
+    auBody.innerHTML = ""; auStack = []; auCur = null; auPush({ t: "list" });
+    $$(":scope > *", auCur).forEach((el, k) => anim(el, [{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }], SMOOTH, { delay: reduce ? 0 : 40 + k * 40 }));
+    clearInterval(auTimer);
+    auTimer = setInterval(() => {
+      if (curScreen?.id !== "screen-automation") return clearInterval(auTimer);
+      const a = AU.find((x) => x.id === auCur?.dataset.next), cd = $("#auCd", auCur);
+      if (a && cd && a.nextIn) { a.nextIn = Math.max(60, a.nextIn - 60); cd.textContent = `${a.next} · ${fmtLeft(a.nextIn)}`; }
+    }, 1000);
+  }
+  const auItem = () => { const top = auStack[auStack.length - 1]; return top.t === "new" ? auDraft : AU.find((x) => x.id === top.id); };
+  function auSumUpd() { const a = auItem(), el = $("#auSum", auCur); if (el) el.innerHTML = `<b>${when(a)}</b>${conds(a) ? ", " + conds(a) : ""}`; }
+  $("#auBack").addEventListener("click", auPop);
+  $("#auAdd").addEventListener("click", () => { auDraft = { id: "n" + Date.now(), name: "", ic: "i-flow", c: "", on: true, freq: "daily", time: "09:00", days: [0], charge: false, wifi: false, perm: "read", notify: "err", model: "DeepSeek V4 · Высокий", prompt: "", next: "", nextIn: 0, hist: [] }; auPush({ t: "new" }); auValidate(); });
+  function auValidate() { const a = auDraft; $("#auSave").disabled = !(a && a.name.trim() && a.prompt.trim()); }
+  $("#auSave").addEventListener("click", () => {
+    const a = auDraft; if (!a.name.trim() || !a.prompt.trim()) return;
+    a.next = a.freq === "hour" ? "через 1 ч" : a.freq === "week" ? `${DAYS[a.days[0] || 0].toLowerCase()} в ${a.time}` : a.freq === "work" ? `в будний день в ${a.time}` : `завтра в ${a.time}`; AU.unshift(a); auDraft = null;
+    auStack = [{ t: "list" }]; const old = auCur; const v = auBuild(auStack[0]); auBody.appendChild(v); auCur = v; auTitles(); old.remove();
+    const row = $(`[data-au="${a.id}"].ar`, v); if (row) row.classList.add("pl-new");
+    toast(`«${a.name}» сохранена · ${when(a).toLowerCase()}`);
+  });
+  auBody.addEventListener("input", (e) => {
+    const a = auItem(); if (!a) return;
+    if (e.target.id === "auName") { a.name = e.target.value; auValidate(); }
+    if (e.target.id === "auPrompt") { a.prompt = e.target.value; e.target.style.height = "auto"; e.target.style.height = Math.max(104, e.target.scrollHeight + 3) + "px"; if (auStack[auStack.length - 1].t === "new") auValidate(); }
+    if (e.target.id === "auH" || e.target.id === "auM") { a.time = $("#auH", auCur).value + ":" + $("#auM", auCur).value; auSumUpd(); }
+  });
+  function segMove(seg, i) { const th = $(".thumb", seg), from = getComputedStyle(th).transform, to = `translateX(${i * 100}%)`; anim(th, [{ transform: from }, { transform: to }], SNAPPY); th.style.transform = to; }
+  auBody.addEventListener("change", (e) => { if (e.target.matches("#auH, #auM")) e.target.dispatchEvent(new Event("input", { bubbles: true })); });
+  auBody.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-aut]");
+    if (t) { e.stopPropagation(); const a = AU.find((x) => x.id === t.dataset.aut); a.on = !a.on; if (!a.on) a.next = "выключена"; else if (a.next === "выключена") a.next = "через 1 ч"; auRefresh(); toast(`${a.name}: ${a.on ? "включена" : "выключена"}`); return; }
+    const tp = e.target.closest("[data-tpl]");
+    if (tp) { const [ic, c, n, , d] = TPL[+tp.dataset.tpl]; auDraft = { id: "n" + Date.now(), name: tp.dataset.tpl === "3" ? "" : n, ic, c, on: true, days: [0], charge: false, wifi: false, model: "DeepSeek V4 · Высокий", next: "", nextIn: 0, hist: [], ...d }; auPush({ t: "new" }); auValidate(); return; }
+    const f = e.target.closest("[data-auf]");
+    if (f) { const a = auItem(); a.freq = f.dataset.auf; if (a.freq === "work") a.days = [0, 1, 2, 3, 4]; if (a.freq === "week" && a.days.length !== 1) a.days = [0]; segMove(f.parentElement, FREQ.findIndex((x) => x[0] === a.freq)); setTimeout(() => { auRefresh(); }, 220); return; }
+    const d = e.target.closest("[data-aud]");
+    if (d) { const a = auItem(); a.days = [+d.dataset.aud]; $$("[data-aud]", auCur).forEach((b) => b.setAttribute("aria-pressed", String(b === d))); auSumUpd(); return; }
+    const c = e.target.closest("[data-auc]");
+    if (c) { const a = auItem(); a[c.dataset.auc] = !a[c.dataset.auc]; c.setAttribute("aria-checked", String(a[c.dataset.auc])); auSumUpd(); return; }
+    const pm = e.target.closest("[data-aup]");
+    if (pm) { const a = auItem(); a.perm = pm.dataset.aup; $$("[data-aup]", auCur).forEach((b) => b.setAttribute("aria-checked", String(b === pm))); return; }
+    const n = e.target.closest("[data-aun]");
+    if (n) { const a = auItem(); a.notify = n.dataset.aun; $$("[data-aun]", auCur).forEach((b) => b.setAttribute("aria-checked", String(b === n))); segMove(n.parentElement, NOTIFY.findIndex((x) => x[0] === a.notify)); return; }
+    const h = e.target.closest("[data-auh]");
+    if (h) { const ta = $("#auPrompt", auCur); const add = { "@файл": " @gradle/libs.versions.toml", "Итог — коротко": " Итог — в 3–5 пунктах.", "Только в ветке main": " Работай только в ветке main." }[h.dataset.auh]; ta.value = (ta.value + add).trim(); ta.dispatchEvent(new Event("input", { bubbles: true })); return; }
+    const x = e.target.closest("[data-aux]"); if (x) { if (x.dataset.aux === "model") sheetOpen("model"); else toast("Выбор проекта"); return; }
+    if (e.target.closest("#auRun")) {
+      const b = $("#auRun", auCur), a = auItem(); b.disabled = true; b.innerHTML = `<span class="spin-w"></span>Выполняется…`;
+      const hl = $("#auHist", auCur); const tmp = document.createElement("div"); tmp.innerHTML = histRow(["Сейчас", "run", "…", "Агент работает в фоне"]); const row = tmp.firstElementChild; hl.prepend(row); anim(row, [{ opacity: 0, transform: "translateY(-8px)" }, { opacity: 1, transform: "none" }], SMOOTH);
+      setTimeout(() => { a.hist.unshift(["Сейчас", "ok", "36 с", a.perm === "edit" ? "Готово, изменено 2 файла" : "Готово, замечаний нет"]); auRefresh(); toast(`«${a.name}» выполнена · уведомление отправлено`); }, 1800); return;
+    }
+    const hr = e.target.closest("[data-auhist]"); if (hr) { toast("Откроется сессия этого запуска"); return; }
+    const dup = e.target.closest("[data-audup]"); if (dup) { const a = AU.find((x) => x.id === dup.dataset.audup); auDraft = JSON.parse(JSON.stringify({ ...a, id: "n" + Date.now(), name: a.name + " (копия)", hist: [] })); auStack.pop(); auStack.push({ t: "new" }); auRefresh(); auValidate(); return; }
+    const del = e.target.closest("[data-audel]");
+    if (del) { if (!del.classList.contains("arm")) { del.classList.add("arm"); del.innerHTML = `<svg class="i sm"><use href="#i-trash"/></svg>Ещё раз`; setTimeout(() => { if (del.isConnected) { del.classList.remove("arm"); del.innerHTML = `<svg class="i sm"><use href="#i-trash"/></svg>Удалить`; } }, 3000); return; }
+      const i = AU.findIndex((x) => x.id === del.dataset.audel); const nm = AU[i].name; AU.splice(i, 1); auPop(); toast(`«${nm}» удалена`); return; }
+    const r = e.target.closest("[data-au]"); if (r) auPush({ t: "edit", id: r.dataset.au });
+  });
+
   // ---------- Первый запуск ----------
   const ob = $("#onboard"), obSteps = $$(".ob-step", ob), obNext = $("#obNext"), obAlt = $("#obAlt");
   let obi = 0, keyOk = false, instP = 0, instT = 0, instDone = false;
@@ -2585,14 +2826,14 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
     screenBtns.forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
     const g = b.dataset.go;
     if (drawerOpen && g !== "drawer") closeDrawer();
-    if (curScreen && !["terminal", "danger", "files", "plugins"].includes(g)) screenClose(true);
+    if (curScreen && !["terminal", "danger", "files", "plugins", "automation"].includes(g)) screenClose(true);
     if (g !== "onboard" && ob.classList.contains("on")) { clearInterval(instT); instT = 0; ob.classList.remove("on"); }
     if (g === "onboard") obOpen();
     else if (g === "home") { if (openSheet) sheetClose(true); renderHome(); }
     else if (g === "agent") startAgentDemo();
     else if (g === "danger") { if (openSheet) sheetClose(true); renderDanger(); }
     else if (g === "drawer") { if (!drawerOpen) openDrawer(); }
-    else if (["terminal", "files", "plugins"].includes(g)) screenOpen(g);
+    else if (["terminal", "files", "plugins", "automation"].includes(g)) screenOpen(g);
     else { if (!$(".home", thread) && !$(".work", thread)) renderHome(); sheetOpen(g); }
     if (innerWidth <= 760) $("#panel").classList.remove("open");
   }));
