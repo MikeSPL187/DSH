@@ -2930,18 +2930,9 @@ fun MainAppHost(
                                             java.io.File(activeWorkspace, relative),
                                             java.io.File(java.io.File(activeWorkspace, runtimeUi.activeWorkspaceName), relative),
                                         ).firstOrNull { it.isFile }
-                                        if (file == null || !file.isFile || file.length() > 20L * 1024 * 1024) {
-                                            return@mapNotNull null
-                                        }
-                                        val encoded = android.util.Base64.encodeToString(
-                                            file.readBytes(),
-                                            android.util.Base64.NO_WRAP,
-                                        )
-                                        com.deepseek.dsh.core.protocol.PromptImagePart(
-                                            mediaType = mediaType,
-                                            base64 = encoded,
-                                            name = name,
-                                        )
+                                        if (file == null) return@mapNotNull null
+                                        // Кодирование (и уменьшение) — в фоне, перед отправкой.
+                                        Triple(file, mediaType, name)
                                     }
                                     chatAttachments.clear()
                                     pendingMessages.add(
@@ -3000,7 +2991,12 @@ fun MainAppHost(
                                                         ?: if (accountState.hasApiKey) "deepseek-official" else "deepseek-account",
                                                 )
                                             }
-                                            dshRepository.sendMessage(ui.activeHostId, sid, outgoingText, outgoingImages)
+                                            val encodedImages = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                outgoingImages.mapNotNull { (file, mediaType, name) ->
+                                                    runCatching { PromptImageEncoder.encode(file, mediaType, name) }.getOrNull()
+                                                }
+                                            }
+                                            dshRepository.sendMessage(ui.activeHostId, sid, outgoingText, encodedImages)
                                         } else {
                                             android.widget.Toast.makeText(
                                                 context, context.getString(R.string.session_create_failed), android.widget.Toast.LENGTH_LONG
