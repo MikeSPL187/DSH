@@ -714,6 +714,37 @@ fun MainAppHost(
      * 配对依据是 APK manifest 的 `dsh.plugin.jsPackage`，不按包名猜。
      * @param jsPackageName JS 插件在 Host 里的模块名。
      */
+    /**
+     * Включить или выключить bundle Host и дождаться ответа; при необходимости Host перезапускается.
+     * Переключатель потом берёт фактическое состояние из обновлённого каталога.
+     */
+    suspend fun toggleBundleAwait(packageName: String, enabled: Boolean): Boolean {
+        val result = dshRepository.setBundleEnabled(ui.activeHostId, packageName, enabled)
+        result.fold(
+            onSuccess = { outcome ->
+                rememberBundleSelection(packageName, enabled)
+                if (outcome.restartRequired) {
+                    android.widget.Toast.makeText(context, context.getString(R.string.plugin_toggle_restarting), android.widget.Toast.LENGTH_SHORT).show()
+                    ui.pluginChangeNotice = if (restartHostForPluginChange()) null
+                    else listOf(context.getString(R.string.restart_dsh_hint), restartReasonText(outcome.restartReason))
+                } else if (outcome.warnings.isNotEmpty()) {
+                    android.widget.Toast.makeText(context, outcome.warnings.first().take(120), android.widget.Toast.LENGTH_LONG).show()
+                }
+            },
+            onFailure = {
+                android.widget.Toast.makeText(
+                    context,
+                    context.getString(R.string.plugin_toggle_failed, context.getString(if (enabled) R.string.plugin_enable else R.string.plugin_disable)),
+                    android.widget.Toast.LENGTH_SHORT,
+                ).show()
+            },
+        )
+        dshRepository.refreshBridgePluginCatalog()
+        dshRepository.refreshPluginInventory(ui.activeHostId)
+        dshRepository.refreshPluginSettingsPages()
+        return result.isSuccess
+    }
+
     fun queueCompanionApkUninstalls(jsPackageName: String) {
         val normalized = jsPackageName.substringAfterLast('/').substringBefore('@')
         runtimeUi.nativePluginItems
@@ -742,6 +773,28 @@ fun MainAppHost(
             ui.currentAppSettings.keepAliveOnTask,
         )
     }
+    // Журнал вызовов инструментов и режимы «Сразу / Спросит / Выкл.» из «Плагинов».
+    LaunchedEffect(dshRepository) {
+        dshRepository.approvalPolicy = { w ->
+            val tool = (w.request["toolName"] as? kotlinx.serialization.json.JsonPrimitive)?.content
+            val args = w.request["args"]?.toString() ?: w.request["arguments"]?.toString()
+            when {
+                tool == null -> null
+                // Удаление и опасные команды всегда спрашиваются, какой бы ни был режим.
+                com.deepseek.dsh.feature.chat.approvalTier(tool, args) == com.deepseek.dsh.feature.chat.ApprovalTier.DESTRUCTIVE -> null
+                else -> when (com.deepseek.dsh.feature.settings.logic.ToolPolicy.mode(tool)) { "auto" -> true; "off" -> false; else -> null }
+            }
+        }
+        launch {
+            dshRepository.approvalOutcomes.collect { (w, approved, byUser) ->
+                val tool = (w.request["toolName"] as? kotlinx.serialization.json.JsonPrimitive)?.content ?: return@collect
+                com.deepseek.dsh.feature.settings.logic.ToolCallLog.approval(tool, approved, byUser)
+            }
+        }
+        dshRepository.doneMessages.collect { m ->
+            if (m.role == com.deepseek.dsh.core.model.MessageRole.TOOL) com.deepseek.dsh.feature.settings.logic.ToolCallLog.ingest(m.content, m.createdAt)
+        }
+    }
     val nativeTrustStore = remember { com.deepseek.dsh.plugin.nativehost.NativePluginTrustStore(context) }
     var nativeTrustTick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     val pendingNativeApprovals = remember {
@@ -764,8 +817,10 @@ fun MainAppHost(
                 pins = nativeTrustStore.pins(),
             )
             // 装载 READY 插件进 App 进程：它们的 init 块会跑 SlotRegistry.register 等。
+            // Выключенный в «Плагинах» нативный плагин не загружается в процесс DSH.
             val ready = discovered.filter {
-                it.status == com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.READY
+                it.status == com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.READY &&
+                    !com.deepseek.dsh.feature.settings.logic.NativePluginPrefs.isDisabled(context, it.pluginId)
             }
             val awaitingApproval = discovered.filter {
                 it.status == com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.UNTRUSTED ||
@@ -818,6 +873,7 @@ fun MainAppHost(
                     },
                 )
             }
+            runtimeUi.nativeDiscovered = discovered
             runtimeUi.nativePluginItems = discovered.map { installed ->
                 com.deepseek.dsh.plugin.nativehost.NativePluginItem(
                     pluginId = installed.pluginId,
@@ -843,102 +899,31 @@ fun MainAppHost(
             }
         }
     }
-    // 伴侣信任确认：展示包名、证书指纹与将要连带安装的 JS 插件，由用户明确批准。
-    pendingNativeApprovals.firstOrNull()?.let { candidate ->
-        val key = "${candidate.packageName}/${candidate.signatureFingerprint}"
-        val mismatch = candidate.status ==
-            com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.SIGNATURE_MISMATCH
-        val jsPackage = com.deepseek.dsh.plugin.nativehost.NativePluginPairing
-            .resolveJsPackage(candidate, storeLookup = null)
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = {
-                dismissedNativeApprovals.add(key)
-                pendingNativeApprovals.remove(candidate)
-            },
-            title = {
-                Text(
-                    stringResource(
-                        if (mismatch) R.string.native_trust_title_changed else R.string.native_trust_title,
-                    ),
-                )
-            },
-            text = {
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    if (mismatch) {
-                        Text(
-                            text = stringResource(R.string.native_trust_changed_warning),
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 13.sp,
-                            lineHeight = 19.sp,
-                            modifier = Modifier.padding(bottom = 8.dp),
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.native_trust_desc),
-                        fontSize = 13.sp,
-                        lineHeight = 19.sp,
-                        modifier = Modifier.padding(bottom = 8.dp),
-                    )
-                    Text(
-                        text = stringResource(
-                            R.string.native_trust_identity,
-                            candidate.pluginId,
-                            candidate.packageName,
-                            candidate.signatureFingerprint.chunked(2).joinToString(":"),
-                        ),
-                        fontSize = 12.sp,
-                        lineHeight = 17.sp,
-                        fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
-                        modifier = Modifier.padding(bottom = 8.dp),
-                    )
-                    if (jsPackage != null) {
-                        Text(
-                            text = stringResource(R.string.native_trust_js_package, jsPackage),
-                            fontSize = 13.sp,
-                            lineHeight = 19.sp,
-                        )
+    // Доверие к нативному плагину: пакет, издатель, сертификат и разрешения — лист из прототипа
+    // (#sheet-trust). Подпись запоминается; парный JS-плагин ставится только в момент согласия.
+    fun dismissNativePlugin(candidate: com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin) {
+        dismissedNativeApprovals.add("${candidate.packageName}/${candidate.signatureFingerprint}")
+        pendingNativeApprovals.remove(candidate)
+    }
+    fun trustNativePlugin(candidate: com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin) {
+        val jsPackage = com.deepseek.dsh.plugin.nativehost.NativePluginPairing.resolveJsPackage(candidate, storeLookup = null)
+        nativeTrustStore.trust(candidate)
+        com.deepseek.dsh.feature.settings.logic.NativePluginPrefs.markTrusted(context, candidate.pluginId)
+        pendingNativeApprovals.remove(candidate)
+        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            if (jsPackage != null) {
+                runCatching {
+                    val pkgName = jsPackage.substringAfterLast('/').substringBefore('@').ifBlank { jsPackage }
+                    val inProfile = java.io.File(layout.rootfsDir, "root/.dsh/profiles/web/node_modules/$pkgName/package.json").isFile
+                    val managed = runtimeUi.managedPluginPackages.any { it.equals(pkgName, ignoreCase = true) || it.equals(jsPackage, ignoreCase = true) }
+                    if (!inProfile && !managed) {
+                        val installed = appPluginInstaller.install(jsPackage) { _, _ -> }
+                        if (installed.isSuccess) HostRuntimeHolder.restartHost?.invoke()
                     }
                 }
-            },
-            confirmButton = {
-                androidx.compose.material3.TextButton(onClick = {
-                    nativeTrustStore.trust(candidate)
-                    pendingNativeApprovals.remove(candidate)
-                    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                        // 配对 JS 插件只在用户批准的这一刻安装一次（确认框里已展示其来源）。
-                        if (jsPackage != null) {
-                            runCatching {
-                                val pkgName = jsPackage.substringAfterLast('/').substringBefore('@')
-                                    .ifBlank { jsPackage }
-                                val inProfile = java.io.File(
-                                    layout.rootfsDir,
-                                    "root/.dsh/profiles/web/node_modules/$pkgName/package.json",
-                                ).isFile
-                                val managed = runtimeUi.managedPluginPackages.any {
-                                    it.equals(pkgName, ignoreCase = true) ||
-                                        it.equals(jsPackage, ignoreCase = true)
-                                }
-                                if (!inProfile && !managed) {
-                                    val installed = appPluginInstaller.install(jsPackage) { _, _ -> }
-                                    if (installed.isSuccess) {
-                                        HostRuntimeHolder.restartHost?.invoke()
-                                    }
-                                }
-                            }
-                        }
-                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            nativeTrustTick += 1
-                        }
-                    }
-                }) { Text(stringResource(R.string.native_trust_allow)) }
-            },
-            dismissButton = {
-                androidx.compose.material3.TextButton(onClick = {
-                    dismissedNativeApprovals.add(key)
-                    pendingNativeApprovals.remove(candidate)
-                }) { Text(stringResource(R.string.native_trust_deny)) }
-            },
-        )
+            }
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { nativeTrustTick += 1 }
+        }
     }
     // 反向联动：刚装的 JS 插件有原生伴侣时，这里带上它的声明，UI 提示可装。
     // 从“JS 已装、伴生 APK 可装”跳转时，直接打开插件商店的对应仓库详情。
@@ -2419,15 +2404,8 @@ fun MainAppHost(
         ) {
             // 对话页使用完整顶栏；设置页自带标题栏（不再叠加）；其余全屏页只保留返回条，
             // 避免出现双 header。
-            BackHandler(enabled = ui.activePage != ActivePage.CHAT) {
-                // 插件子页面（详情 / 更多插件）打开时，系统返回先关子页面；顶栏返回走同一个
-                // 信号，两条返回路径的行为保持一致。
-                if (ui.activePage == ActivePage.PLUGINS && ui.pluginDetailOpen) {
-                    ui.pluginBackSignal += 1
-                } else {
-                    ui.activePage = ActivePage.CHAT
-                }
-            }
+            // Вложенные страницы «Плагинов», «Автоматизации» и «Настроек» закрывает их собственный стек.
+            BackHandler(enabled = ui.activePage != ActivePage.CHAT) { ui.activePage = ActivePage.CHAT }
             BackHandler(enabled = drawerState.isOpen) {
                 scope.launch { drawerState.close() }
             }
@@ -2435,7 +2413,8 @@ fun MainAppHost(
                 ui.rightDrawerOpen = false
             }
             val chatPage = ui.activePage == ActivePage.CHAT
-            val pageHasOwnHeader = ui.activePage == ActivePage.SETTINGS || ui.activePage == ActivePage.FILES
+            val pageHasOwnHeader = ui.activePage == ActivePage.SETTINGS || ui.activePage == ActivePage.FILES ||
+                ui.activePage == ActivePage.PLUGINS || ui.activePage == ActivePage.AUTOMATION
             Scaffold(
                 // 内容区不再让 Scaffold 自动消费系统栏/IME：聊天页自己按
                 // WindowInsets.ime 动态留白，其它页在下面补 navigationBars，
@@ -2542,14 +2521,7 @@ fun MainAppHost(
 
                             !pageHasOwnHeader -> PageBackBar(
                                 title = pageTitleOf(ui.activePage),
-                                onBack = {
-                                    // 插件详情页打开时，App 的返回先关详情；再按一次才离开插件页。
-                                    if (ui.activePage == ActivePage.PLUGINS && ui.pluginDetailOpen) {
-                                        ui.pluginBackSignal += 1
-                                    } else {
-                                        ui.activePage = ActivePage.CHAT
-                                    }
-                                },
+                                onBack = { ui.activePage = ActivePage.CHAT },
                             )
                         }
                         }
@@ -3121,228 +3093,64 @@ fun MainAppHost(
 
                         ActivePage.FILES -> PageContentSlot { workspaceFilesContent() }
 
-                        ActivePage.PLUGINS -> PageContentSlot {
-                            PluginsScreen(
-                                surfaces = catalog.surfaces,
-                                pluginManagerSnapshot = pluginManagerSnapshot,
-                                pluginRows = pluginRows,
-                                bridgeCatalog = bridgePluginCatalog,
-                                bridgeWarnings = bridgeWarnings,
-                                managedPluginPackages = runtimeUi.managedPluginPackages,
-                                storeSeedUrl = ui.pluginStoreSeedUrl,
-                                initialTab = ui.pluginInitialTab,
-                                hostSettingsPages = pluginSettingsPages,
-                                rowConfigSurfaces = pluginSlotSurfaces,
-                                // 「内置插件配置」的每行背后是一个 Host 设置命名空间：
-                                // 表单和回写都走同一对接口，原生控件照官方设置页渲染。
-                                loadPluginSettings = { ns -> dshRepository.pluginSettingsDocument(ns) },
-                                savePluginSettings = { ns, patch, revision ->
-                                    dshRepository.updatePluginSettings(ns, patch, revision)
-                                },
-                                // 凭据域不是设置文档：官方页面的 API Key 走 Host 的
-                                // credentials 接口，bridge 没有这层，直接调 Host Remote API。
-                                loadCredential = { ref -> dshRepository.credentialStatus(ui.activeHostId, ref) },
-                                saveCredential = { ref, value ->
-                                    dshRepository.setCredential(ui.activeHostId, ref, value)
-                                },
-                                backSignal = ui.pluginBackSignal,
-                                onDetailOpenChange = { ui.pluginDetailOpen = it },
-                                onOpenSurface = { item ->
-                                    if (item.kind == SurfaceKind.OVERLAY) {
-                                        ui.activeOverlaySurface = item
-                                    } else {
-                                        ui.activeSheetSurface = item
-                                    }
-                                },
-                                onOpenSdui = { },
-                                onInstallPlugin = { pkgName, onProgress ->
+                        ActivePage.PLUGINS -> DshPluginsRoute(
+                            PluginDeps(
+                                bundles = bridgePluginCatalog.bundles,
+                                natives = runtimeUi.nativeDiscovered,
+                                slotEntries = pluginSlotEntries,
+                                settingsPages = pluginSettingsPages,
+                                rootfsDir = layout.rootfsDir,
+                                installCacheDir = layout.cacheDir,
+                                pins = { nativeTrustStore.pins() },
+                                loadSettings = { ns -> dshRepository.pluginSettingsDocument(ns) },
+                                saveSettings = { ns, patch, revision -> dshRepository.updatePluginSettings(ns, patch, revision) },
+                                marketIndexes = { dshRepository.marketIndexes(ui.activeHostId) },
+                                marketSearch = { url, query -> dshRepository.marketSearch(ui.activeHostId, url, query) },
+                                toggleBundle = { packageName, enabled -> toggleBundleAwait(packageName, enabled) },
+                                install = { spec ->
                                     installPluginWithProgress(
-                                        context = context,
-                                        repository = dshRepository,
-                                        hostId = ui.activeHostId,
-                                        pkgName = pkgName,
-                                        installer = appPluginInstaller,
-                                        onProgress = onProgress,
+                                        context = context, repository = dshRepository, hostId = ui.activeHostId, pkgName = spec,
+                                        installer = appPluginInstaller, onProgress = { _, _ -> },
                                         onManagedPackages = { runtimeUi.managedPluginPackages = it },
                                         onNativeCompanion = { ui.nativeCompanionAvailable = it },
                                     )
                                 },
-                                onToggleBundle = { packageName, enabled ->
-                                    scope.launch {
-                                        val result = dshRepository.setBundleEnabled(ui.activeHostId, packageName, enabled)
-                                        // profile 的 bundle 清单在 Host 启动时会被重置成模板，
-                                        // 所以把用户明确拨动过的开关记一份，Host 起来后补回去。
-                                        result.fold(
-                                            onSuccess = { outcome ->
-                                                rememberBundleSelection(packageName, enabled)
-                                                if (outcome.restartRequired) {
-                                                    android.widget.Toast.makeText(
-                                                        context,
-                                                        context.getString(R.string.plugin_toggle_restarting),
-                                                        android.widget.Toast.LENGTH_SHORT,
-                                                    ).show()
-                                                    if (restartHostForPluginChange()) {
-                                                        ui.pluginChangeNotice = null
-                                                    } else {
-                                                        ui.pluginChangeNotice = listOf(
-                                                            context.getString(R.string.restart_dsh_hint),
-                                                            restartReasonText(outcome.restartReason),
-                                                        )
-                                                    }
-                                                } else if (outcome.warnings.isNotEmpty()) {
-                                                    // 不阻塞界面：官方把一般提示放在插件页内；原生用短 toast 暴露。
-                                                    android.widget.Toast.makeText(
-                                                        context,
-                                                        outcome.warnings.first().take(120),
-                                                        android.widget.Toast.LENGTH_LONG,
-                                                    ).show()
-                                                }
-                                            },
-                                            onFailure = {
-                                                android.widget.Toast.makeText(
-                                                    context,
-                                                    context.getString(R.string.plugin_toggle_failed, context.getString(if (enabled) R.string.plugin_enable else R.string.plugin_disable)),
-                                                    android.widget.Toast.LENGTH_SHORT,
-                                                ).show()
-                                            },
-                                        )
-                                        // 双向同步：开关值以 Host 的实际状态为准。成功时
-                                        // 这只是确认；失败时它会把开关拨回真实状态，而不是
-                                        // 让界面停在用户按下的那个位置。
-                                        dshRepository.refreshBridgePluginCatalog()
-                                        dshRepository.refreshPluginInventory(ui.activeHostId)
-                                        dshRepository.refreshPluginSettingsPages()
+                                uninstallBundle = { name ->
+                                    // Вместе с плагином удаляются его парные APK (каждое удаление подтверждает Android).
+                                    queueCompanionApkUninstalls(name)
+                                    if (name in runtimeUi.managedPluginPackages) {
+                                        appPluginInstaller.uninstall(name)
+                                        runtimeUi.managedPluginPackages = runCatching { appPluginInstaller.managedPackages() }.getOrDefault(runtimeUi.managedPluginPackages)
+                                        HostRuntimeHolder.restartHost?.invoke()
+                                    } else {
+                                        dshRepository.uninstallPlugin(ui.activeHostId, name)
+                                        appPluginInstaller.stripRowMountName(name)
                                     }
-                                },
-                                onToggleBundleAwait = { packageName, enabled ->
-                                    val result = dshRepository.setBundleEnabled(ui.activeHostId, packageName, enabled)
-                                    result.fold(
-                                        onSuccess = { outcome ->
-                                            rememberBundleSelection(packageName, enabled)
-                                            if (outcome.restartRequired) {
-                                                android.widget.Toast.makeText(
-                                                    context,
-                                                    context.getString(R.string.plugin_toggle_restarting),
-                                                    android.widget.Toast.LENGTH_SHORT,
-                                                ).show()
-                                                if (restartHostForPluginChange()) {
-                                                    ui.pluginChangeNotice = null
-                                                } else {
-                                                    ui.pluginChangeNotice = listOf(
-                                                        context.getString(R.string.restart_dsh_hint),
-                                                        restartReasonText(outcome.restartReason),
-                                                    )
-                                                }
-                                            } else if (outcome.warnings.isNotEmpty()) {
-                                                android.widget.Toast.makeText(
-                                                    context,
-                                                    outcome.warnings.first().take(120),
-                                                    android.widget.Toast.LENGTH_LONG,
-                                                ).show()
-                                            }
-                                        },
-                                        onFailure = {
-                                            android.widget.Toast.makeText(
-                                                context,
-                                                context.getString(R.string.plugin_toggle_failed, context.getString(if (enabled) R.string.plugin_enable else R.string.plugin_disable)),
-                                                android.widget.Toast.LENGTH_SHORT,
-                                            ).show()
-                                        },
-                                    )
-                                    dshRepository.refreshBridgePluginCatalog()
                                     dshRepository.refreshPluginInventory(ui.activeHostId)
+                                    dshRepository.refreshBridgePluginCatalog()
                                     dshRepository.refreshPluginSettingsPages()
-                                    result.isSuccess
                                 },
-                                onTogglePluginRow = { entryId, enabled ->
-                                    scope.launch {
-                                        // 行插件不是 bundle：Host 用 setPluginEnabled 写
-                                        // profile patch 的 disabled 覆盖，立即生效；失败时
-                                        // refreshPluginInventory 会把开关拨回真实状态。
-                                        dshRepository.setPluginEnabled(ui.activeHostId, entryId, enabled)
-                                        // profile patch 每次启动都会被重建，所以再把覆盖
-                                        // 持久化到 web-app patch，重启后开关状态不丢。
-                                        val patchId = entryId.removePrefix("include:")
-                                        appPluginInstaller.setRowEnabled(patchId, enabled)
-                                        dshRepository.refreshBridgePluginCatalog()
-                                        dshRepository.refreshPluginSettingsPages()
-                                    }
-                                },
-                                onToggleComponent = { entryId, enabled ->
-                                    scope.launch {
-                                        // 子组件就是 bundle patch 插进来的一行：Host 把它
-                                        // 记进 profile 的 cordis.patch.yml
-                                        // （`- id: <rowId> / disabled: true`）并只重载这一行，
-                                        // bundle 其余部分照常运行。失败时
-                                        // refreshPluginInventory 会把开关拨回真实状态。
-                                        dshRepository.setPluginEnabled(ui.activeHostId, entryId, enabled)
-                                        dshRepository.refreshBridgePluginCatalog()
-                                        dshRepository.refreshPluginSettingsPages()
-                                    }
-                                },
-                                onUninstall = { item ->
-                                    scope.launch {
-                                        // 主插件卸载时连带卸载它的伴侣 APK（APK 自己装不了也
-                                        // 卸不了，必须用户确认；队列保证一次弹一个）。
-                                        queueCompanionApkUninstalls(item.pluginId)
-                                        if (item.slot == "plugin.row") {
-                                            // 行插件没有 bundle 记录：直接走 App 侧卸载。
-                                            // Host 的 removeBundle 对非 bundle 目标不适用，
-                                            // 而且可能长时间不返回，不能先等它。
-                                            appPluginInstaller.uninstall(item.pluginId).onSuccess {
-                                                runtimeUi.managedPluginPackages = runCatching {
-                                                    appPluginInstaller.managedPackages()
-                                                }.getOrDefault(runtimeUi.managedPluginPackages)
-                                                HostRuntimeHolder.restartHost?.invoke()
-                                                kotlinx.coroutines.delay(1_200)
-                                            }
-                                        } else {
-                                            dshRepository.uninstallPlugin(ui.activeHostId, item.pluginId)
-                                            // 同包名可能曾被 App 兜底以 Loader 行挂上：摘掉
-                                            // 残留的挂载名，避免 Host 重建后它又出现。
-                                            appPluginInstaller.stripRowMountName(item.pluginId)
-                                        }
-                                        surfaceStore.removeSurfaceItem(item.pluginId, item.slot)
-                                        dshRepository.refreshPluginInventory(ui.activeHostId)
-                                        dshRepository.refreshBridgePluginCatalog()
-                                        dshRepository.refreshPluginSettingsPages()
-                                    }
-                                }
-                            ,
-                                onCreatePlugin = {
-                                    ui.pendingAgentPreset = "cordis"
+                                uninstallApk = { pkg -> requestApkUninstall(pkg) },
+                                onNativeChanged = { nativeTrustTick += 1 },
+                                trustCandidate = pendingNativeApprovals.firstOrNull(),
+                                onTrust = { trustNativePlugin(it) },
+                                onDismissTrust = { dismissNativePlugin(it) },
+                                onAsk = { text ->
+                                    ui.pendingComposerText = text
                                     ui.selectedSessionId = null
                                     ui.activePage = ActivePage.CHAT
                                 },
-                                nativePluginItems = runtimeUi.nativePluginItems,
-                                // 「发现」tab 的数据源：Host 的 pluginMarket Remote。
-                                marketBackend = MarketBackend(
-                                    loadIndexes = { dshRepository.marketIndexes(ui.activeHostId) },
-                                    search = { url, query ->
-                                        dshRepository.marketSearch(ui.activeHostId, url, query)
-                                    },
-                                    saveIndexes = { urls ->
-                                        dshRepository.marketSetIndexes(ui.activeHostId, urls)
-                                    },
-                                ),
-                                // 语音输入插件的 Host speech 接口（准备卡片 / 选择服务）。
-                                speechHooks = SpeechHooks(
-                                    catalog = { dshRepository.speechCatalog(ui.activeHostId) },
-                                    configure = { providerId, language ->
-                                        dshRepository.speechConfigure(ui.activeHostId, providerId, language)
-                                    },
-                                    prepare = { providerId, source ->
-                                        dshRepository.speechPrepare(ui.activeHostId, providerId, source)
-                                    },
-                                    cancelPrepare = { providerId ->
-                                        dshRepository.speechCancelPrepare(ui.activeHostId, providerId)
-                                    },
-                                ),
-                                onUninstallCompanion = { companion ->
-                                    requestApkUninstall(companion.packageName)
+                                onCreateWithAgent = {
+                                    ui.pendingAgentPreset = "cordis"
+                                    ui.pendingComposerText = context.getString(R.string.plr_create_prefill)
+                                    ui.selectedSessionId = null
+                                    ui.activePage = ActivePage.CHAT
                                 },
-                            )
-                        }
+                                onOpenSource = { dir -> ui.filesDir = dir; ui.activePage = ActivePage.FILES },
+                                onOpenPluginUi = { id -> ui.pluginUiOpen = id },
+                                onClose = { ui.activePage = ActivePage.CHAT },
+                            ),
+                        )
 
                         ActivePage.AUTOMATION -> PageContentSlot {
                             SchedulesScreen(
@@ -3459,6 +3267,27 @@ fun MainAppHost(
             )
         }
         PluginIslandOverlays()
+        // Нашёлся нативный плагин, пока пользователь не в «Плагинах», — спрашиваем о доверии поверх экрана.
+        if (ui.activePage != ActivePage.PLUGINS) {
+            pendingNativeApprovals.firstOrNull()?.let { c ->
+                com.deepseek.dsh.feature.settings.ui.PluginTrustOverlay(trustOf(context, c), onTrust = { trustNativePlugin(c) }, onDismiss = { dismissNativePlugin(c) })
+            }
+        }
+        ui.pluginUiOpen?.let { id ->
+            PluginUiPage(
+                id = id,
+                title = bridgePluginCatalog.bundles.firstOrNull { it.name == id }?.title
+                    ?: runtimeUi.nativePluginItems.firstOrNull { "apk:" + it.pluginId == id }?.name ?: id,
+                slotEntries = pluginSlotEntries,
+                registry = dshRepository.bridge(),
+                refresh = dshRepository.pluginComponentRefreshFlow,
+                hostPort = status.port ?: dshApplication.localHostPort,
+                hostToken = status.token ?: dshApplication.localHostToken,
+                hostPortProvider = { dshApplication.localHostPort.takeIf { it > 0 } ?: (status.port ?: 0) },
+                pluginRpc = slotPluginRpc,
+                onBack = { ui.pluginUiOpen = null },
+            )
+        }
         SignInDialogs(
             showSignIn = ui.showSignInDialog,
             onDismissSignIn = { ui.showSignInDialog = false },

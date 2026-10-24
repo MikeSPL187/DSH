@@ -55,6 +55,10 @@ class AppUiState(
     var rightDrawerPreviewPath by mutableStateOf<String?>(null)
     var sessionInspectorOpen by mutableStateOf(false)
     var pendingAgentPreset by mutableStateOf<String?>(null)
+    /** Текст, который нужно подставить в поле ввода нового чата («Спросить», «Создать с агентом»). */
+    var pendingComposerText by mutableStateOf<String?>(null)
+    /** Открытый экран плагина («Открыть» в карточке плагина): id плагина. */
+    var pluginUiOpen by mutableStateOf<String?>(null)
 }
 
 /** 构造 UI 状态；初始值来自已持久化的设置、当前工作区与权限状态。 */

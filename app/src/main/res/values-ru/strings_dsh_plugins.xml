@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Плагины: тексты логики приложения. ru / en / zh. -->
+<resources>
+    <string name="plr_error_code">Ошибка Host: %1$s</string>
+    <string name="plr_ask_prefill">Используй %1$s, чтобы </string>
+    <string name="plr_fix_prefill">Почему %1$s завершился ошибкой «%2$s»? Разберись и предложи исправление.</string>
+    <string name="plr_perm_internet">Интернет</string>
+    <string name="plr_perm_notifications">Уведомления</string>
+    <string name="plr_perm_camera">Камера</string>
+    <string name="plr_perm_mic">Микрофон</string>
+    <string name="plr_perm_location">Местоположение</string>
+    <string name="plr_perm_contacts">Контакты</string>
+    <string name="plr_perm_files">Файлы телефона</string>
+    <string name="plr_perm_granted">разрешено</string>
+    <string name="plr_perm_denied">закрыт</string>
+    <string name="plr_file_done">Плагин установлен из файла</string>
+    <string name="plr_file_failed">Не удалось установить из файла — нужен .zip с package.json</string>
+    <string name="plr_today">сегодня</string>
+    <string name="plr_yesterday">вчера</string>
+    <string name="plr_dur_s">%1$s с</string>
+    <string name="plr_dur_m">%1$d мин %2$d с</string>
+    <string name="plr_call_allowed">Вы разрешили</string>
+    <string name="plr_call_denied">Вы отклонили</string>
+    <string name="plr_call_auto_allowed">Разрешено без вопроса</string>
+    <string name="plr_call_auto_denied">Отклонено: инструмент выключен</string>
+    <string name="plr_call_ok">Готово</string>
+    <string name="plr_create_prefill">Создай плагин, который </string>
+    <string name="plr_call_err">Ошибка</string>
+</resources>

@@ -93,6 +93,7 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.text.TextStyle
@@ -163,13 +164,25 @@ fun <T : Any> DshStackScreen(
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
     bar: @Composable (page: T, onBack: () -> Unit) -> Unit,
+    sheetOpen: Boolean = false,
     overlay: @Composable () -> Unit = {},
     page: @Composable (T) -> Unit,
 ) {
     val back: () -> Unit = { if (!stack.pop()) onClose() }
     BackHandler(onBack = back)
-    Box(modifier.fillMaxSize().background(Dsh.colors.bg)) {
-        Column(Modifier.fillMaxSize()) {
+    // Под листом экран отъезжает вглубь: масштаб .94 и скругление 28, как `go(under(), …)` в прототипе.
+    val under by androidx.compose.animation.core.animateFloatAsState(if (sheetOpen) 1f else 0f, DshMotion.smooth(), label = "under")
+    Box(modifier.fillMaxSize().background(if (under > 0f) Color.Black else Dsh.colors.bg)) {
+        Column(
+            Modifier.fillMaxSize()
+                .graphicsLayer {
+                    val sc = 1f - 0.06f * under
+                    scaleX = sc; scaleY = sc
+                    shape = RoundedCornerShape((28 * under).dp)
+                    clip = under > 0f
+                }
+                .background(Dsh.colors.bg),
+        ) {
             bar(stack.top, back)
             AnimatedContent(
                 targetState = stack.entries.size to stack.top,
@@ -305,6 +318,16 @@ fun GLabel(text: String, modifier: Modifier = Modifier, top: Dp = 16.dp) {
         modifier = modifier.fillMaxWidth().padding(start = 6.dp, end = 6.dp, top = top, bottom = 8.dp).semantics { heading() },
     )
 }
+
+/** Касаемая зона [min] по высоте, не раздвигающая строку (как `margin: -12px 0` у `.sec-btn`). */
+fun Modifier.touchOverflow(min: Dp = 40.dp): Modifier = this.then(
+    Modifier.layout { m, c ->
+        val p = m.measure(c.copy(minHeight = 0))
+        val h = maxOf(p.height, min.roundToPx())
+        val inner = m.measure(c.copy(minHeight = h, maxHeight = h))
+        layout(inner.width, p.height) { inner.place(0, (p.height - h) / 2) }
+    },
+)
 
 /** Заголовок раздела `.fs-sec`: слева подпись, справа число или своё действие. */
 @Composable

@@ -257,6 +257,7 @@ fun SettingsHomeScreen(
     DshStackScreen(
         stack = stack,
         onClose = onClose,
+        sheetOpen = sheet != null,
         bar = { p, back -> SBar(pageTitle(p), pageSub(p, ui), back, backDescription = stringResource(R.string.st_back)) },
         overlay = {
             ToastHost(toast)
