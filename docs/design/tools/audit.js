@@ -34,6 +34,31 @@ module.exports = async function audit(p, scopeSel) {
       }
       if ((cs.textOverflow === "ellipsis" || cs.overflow === "hidden") && own && el.scrollWidth > el.clientWidth + 1) out.clipped.push(`«${label(el)}»`);
     });
+    // Выход за край карточки: элемент шире своего блока с фоном или скруглением
+    out.overflow = [];
+    const card = (el) => { for (let e = el.parentElement; e && e !== scope.parentElement; e = e.parentElement) { const c = getComputedStyle(e); if ((parse(c.backgroundColor)[3] ?? 1) > 0 && parseFloat(c.borderRadius) > 0) return e; } return null; };
+    scope.querySelectorAll("*").forEach((el) => {
+      if (!vis(el) || el.closest("svg")) return;
+      const c = card(el); if (!c) return;
+      const r = el.getBoundingClientRect(), cr = c.getBoundingClientRect();
+      if (r.width > cr.width + 1) return; // горизонтальные ленты с прокруткой
+      const cs = getComputedStyle(c);
+      if (cs.overflowX === "auto" || cs.overflowX === "scroll") return;
+      if (r.right > cr.right + 1 || r.left < cr.left - 1) out.overflow.push(`${Math.round(r.right - cr.right)}px · «${label(el)}» в «${label(c).slice(0, 20)}»`);
+    });
+    // Заголовок в шапке по центру кнопки «Назад»
+    out.align = [];
+    scope.querySelectorAll(".sbar, .topbar").forEach((bar) => {
+      if (!vis(bar)) return;
+      const t = bar.querySelector(".title"), btn = bar.querySelector(".iconbtn");
+      if (!t || !btn) return;
+      // Видимый текст заголовка (без пустой подписи) по центру кнопки
+      const parts = [...t.children].filter((c) => c.textContent.trim() && vis(c));
+      if (!parts.length) return;
+      const tr = { top: Math.min(...parts.map((c) => c.getBoundingClientRect().top)), bottom: Math.max(...parts.map((c) => c.getBoundingClientRect().bottom)) }, br = btn.getBoundingClientRect();
+      const d = Math.abs((tr.top + tr.bottom) / 2 - (br.top + br.bottom) / 2);
+      if (d > 3) out.align.push(`заголовок смещён на ${Math.round(d)}px · «${label(t)}»`);
+    });
     return out;
   }, scopeSel);
 };

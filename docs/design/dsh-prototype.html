@@ -42,7 +42,7 @@
     --line: rgba(255, 255, 255, 0.075);
     --accent: #8b80ff; --accent-2: #a69dff; --accent-soft: rgba(139, 128, 255, 0.15); --on-accent: #0e0d1f;
     --ok: #41c48b; --ok-soft: rgba(65, 196, 139, 0.13);
-    --warn: #e9a447; --warn-soft: rgba(233, 164, 71, 0.13);
+    --warn: #eeac55; --warn-soft: rgba(233, 164, 71, 0.13);
     --danger: #ff6b6f; --danger-soft: rgba(255, 107, 111, 0.13);
     --glass: rgba(30, 31, 37, 0.72); --glass-line: rgba(255, 255, 255, 0.08);
     --shadow-float: 0 10px 30px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -56,7 +56,7 @@
   --line: rgba(255, 255, 255, 0.075);
   --accent: #8b80ff; --accent-2: #a69dff; --accent-soft: rgba(139, 128, 255, 0.15); --on-accent: #0e0d1f;
   --ok: #41c48b; --ok-soft: rgba(65, 196, 139, 0.13);
-  --warn: #e9a447; --warn-soft: rgba(233, 164, 71, 0.13);
+  --warn: #eeac55; --warn-soft: rgba(233, 164, 71, 0.13);
   --danger: #ff6b6f; --danger-soft: rgba(255, 107, 111, 0.13);
   --glass: rgba(30, 31, 37, 0.72); --glass-line: rgba(255, 255, 255, 0.08);
   --shadow-float: 0 10px 30px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -103,8 +103,9 @@ svg { display: block; }
   .proto-fab { display: flex !important; }
   .statusbar { display: none !important; }
 }
-.proto-fab { display: none; position: fixed; z-index: 99; right: 0; top: 38%; width: 30px; height: 44px; border-radius: 14px 0 0 14px;
-  align-items: center; justify-content: center; background: var(--t1); color: var(--bg); box-shadow: var(--shadow-float); opacity: .82; }
+.proto-fab { display: none; position: fixed; z-index: 99; right: 0; top: 50%; width: 24px; height: 64px; margin-top: -32px; align-items: center; justify-content: flex-end; background: none; padding: 0 3px 0 0; }
+.proto-fab::before { content: ""; width: 5px; height: 44px; border-radius: 3px; background: var(--t3); opacity: .45; }
+.proto-fab svg { display: none; }
 
 /* ---------- Приложение ---------- */
 .statusbar { height: 50px; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 30px 6px 34px;
@@ -122,7 +123,9 @@ svg { display: block; }
 .iconbtn:active { background: var(--s2); }
 .title { flex: 1; min-width: 0; text-align: center; line-height: 1.2; }
 .title b { display: block; font-family: var(--font-display); font-weight: 600; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.title span { font-size: 12px; color: var(--t3); display: inline-flex; align-items: center; gap: 4px; }
+.title span { font-size: 12px; color: var(--t3); display: inline-flex; align-items: center; gap: 4px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sbar .title span { display: block; }
+.sbar .title span .live { display: inline-block; vertical-align: 1px; margin-right: 4px; }
 .title .live { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
 
 .thread { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 112px 20px 190px; scroll-behavior: smooth; overscroll-behavior: contain; }
@@ -201,7 +204,8 @@ svg { display: block; }
 .approve h4 { margin: 10px 0 4px; font-family: var(--font-display); font-weight: 600; font-size: 16px; }
 .approve p { margin: 0 0 10px; font-size: 13.5px; color: var(--t2); line-height: 1.45; }
 .diff { font-family: var(--font-mono); font-size: 12px; line-height: 1.7; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
-.diff .f { padding: 7px 10px; background: var(--s2); color: var(--t2); display: flex; justify-content: space-between; }
+.diff .f { padding: 7px 10px; background: var(--s2); color: var(--t2); display: flex; justify-content: space-between; gap: 10px; }
+.diff .f span { flex: none; }
 .diff .f span { color: var(--t3); }
 .diff .del { background: var(--danger-soft); color: var(--danger); padding: 0 10px; }
 .diff .add { background: var(--ok-soft); color: var(--ok); padding: 0 10px; }
@@ -422,12 +426,13 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .sbar { padding: 50px 8px 6px; display: flex; align-items: center; gap: 2px; flex: none; }
 @media (max-width: 760px) { .sbar { padding-top: calc(10px + env(safe-area-inset-top, 0px)); } }
 .sbar .title { text-align: left; padding-left: 2px; }
+.title span:empty { display: none; }
 .toast { position: absolute; left: 50%; bottom: 112px; z-index: 60; transform: translateX(-50%); background: var(--t1); color: var(--bg); padding: 11px 16px; border-radius: 999px; font-size: 14px; box-shadow: var(--shadow-float); white-space: nowrap; display: flex; align-items: center; gap: 8px; max-width: calc(100% - 32px); }
 
 /* ---------- Терминал ---------- */
 :root { --term-bg: #fcfcfe; --term-t: #23242e; --term-dim: #646674; --term-pr: #5a4cf0; --term-ok: #0e7a50; --term-err: #c4323a; --term-warn: #8f5200; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --term-bg: #0b0c0f; --term-t: #dcdee6; --term-dim: #7a7d88; --term-pr: #a49cff; --term-ok: #41c48b; --term-err: #ff6b6f; --term-warn: #e9a447; } }
-:root[data-theme="dark"] { --term-bg: #0b0c0f; --term-t: #dcdee6; --term-dim: #7a7d88; --term-pr: #a49cff; --term-ok: #41c48b; --term-err: #ff6b6f; --term-warn: #e9a447; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --term-bg: #0b0c0f; --term-t: #dcdee6; --term-dim: #8a8d98; --term-pr: #a49cff; --term-ok: #41c48b; --term-err: #ff8085; --term-warn: #e9a447; } }
+:root[data-theme="dark"] { --term-bg: #0b0c0f; --term-t: #dcdee6; --term-dim: #8a8d98; --term-pr: #a49cff; --term-ok: #41c48b; --term-err: #ff8085; --term-warn: #e9a447; }
 .ttabs { display: flex; gap: 6px; padding: 2px 12px 10px; overflow-x: auto; flex: none; scrollbar-width: none; }
 .ttab { height: 40px; padding: 0 12px; border-radius: 11px; background: var(--s2); font-family: var(--font-mono); font-size: 12.5px; color: var(--t2); display: inline-flex; align-items: center; gap: 7px; flex: none; transition: background .25s, color .25s; }
 .ttab.on { background: var(--t1); color: var(--bg); }
@@ -669,6 +674,8 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .ob-in { display: flex; align-items: center; gap: 10px; height: 54px; padding: 0 6px 0 14px; border-radius: 16px; background: var(--s1); border: 1.5px solid var(--line); transition: border-color .25s, box-shadow .25s; color: var(--t3); }
 .ob-field:focus-within .ob-in { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
 .ob-field.ok .ob-in { border-color: color-mix(in srgb, var(--ok) 60%, var(--line)); }
+.ob-show { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--t3); flex: none; }
+.ob-show[aria-pressed="true"] { color: var(--accent); }
 .ob-in input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-family: var(--font-mono); font-size: 15px; color: var(--t1); }
 .ob-in input::placeholder { color: var(--t3); }
 .ob-paste { height: 40px; padding: 0 14px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); font-size: 14px; font-weight: 500; flex: none; }
@@ -731,7 +738,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .crumbs button:last-child { color: var(--t1); font-weight: 500; }
 .crumbs .sep { color: var(--t3); flex: none; }
 .recent2 { display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px 4px; padding: 0 16px 4px; scrollbar-width: none; }
-.rc { flex: none; width: 150px; text-align: left; padding: 12px; border-radius: 18px; background: var(--s1); border: 1px solid var(--line); transition: transform var(--t-lively) var(--e-lively); }
+.rc { flex: none; width: 168px; text-align: left; padding: 12px; border-radius: 18px; background: var(--s1); border: 1px solid var(--line); transition: transform var(--t-lively) var(--e-lively); }
 .rc:active { transform: scale(.97); }
 .rc b { display: block; margin-top: 10px; font-family: var(--font-mono); font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rc small { display: block; margin-top: 2px; font-size: 12px; color: var(--t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -900,7 +907,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .ar + .ar { border-top: 1px solid var(--line); }
 .ar .tx { flex: 1; min-width: 0; line-height: 1.3; }
 .ar .tx b { display: block; font-weight: 500; font-size: 15px; }
-.ar .tx small { display: block; font-size: 12.5px; color: var(--t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ar .tx small { display: block; font-size: 12.5px; color: var(--t3); }
 .ar .tx .st { display: inline-flex; align-items: center; gap: 4px; }
 .ar .tx .st.ok { color: var(--ok); } .ar .tx .st.err { color: var(--danger); } .ar .tx .st.skip { color: var(--warn); }
 .ar.off .au-ic { filter: grayscale(1); opacity: .55; }
@@ -944,7 +951,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .hr { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 14px; text-align: left; min-height: 56px; }
 .hr + .hr { border-top: 1px solid var(--line); }
 .hr .tx { flex: 1; min-width: 0; line-height: 1.3; font-size: 14.5px; }
-.hr .tx small { display: block; font-size: 12.5px; color: var(--t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hr .tx small { display: block; font-size: 12.5px; color: var(--t3); }
 .hr .val { font-size: 12.5px; color: var(--t3); flex: none; text-align: right; font-variant-numeric: tabular-nums; }
 .au-run { width: 100%; margin-top: 20px; flex: none; height: 50px; border-radius: 16px; }
 .au-act2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
@@ -1012,14 +1019,15 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .st-card .big small { font-family: var(--font-body); font-size: 14px; font-weight: 400; color: var(--t3); letter-spacing: 0; }
 .st-row .clean { flex: none; height: 40px; padding: 0 12px; border-radius: 10px; background: var(--s2); font-size: 13.5px; font-weight: 500; color: var(--accent); }
 .st-row.st-col { flex-wrap: wrap; }
-.opts.wide { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; margin: 4px 0 4px 42px; width: calc(100% - 42px); }
-.key-dots { font-family: var(--font-mono); letter-spacing: 1px; }
+.opts.wide { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; margin: 6px 0 4px; }
+.opts.wide button { padding: 0 2px; white-space: nowrap; }
+.key-dots { font-variant-numeric: tabular-nums; }
 .st-ver { text-align: center; margin: 22px 0 6px; font-size: 12.5px; color: var(--t3); line-height: 1.6; }
 .st-ver b { display: block; font-family: var(--font-display); font-size: 15px; color: var(--t2); }
 .st-danger { color: var(--danger) !important; }
-.st-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.st-chips button { height: 40px; padding: 0 14px; border-radius: 12px; background: var(--s1); border: 1px solid var(--line); font-size: 14px; color: var(--t2); }
-.st-chips button[aria-checked="true"] { background: var(--t1); color: var(--bg); border-color: transparent; }
+.st-chips { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; padding: 3px; border-radius: 14px; background: var(--s2); }
+.st-chips button { height: 40px; border-radius: 11px; font-size: 14px; color: var(--t2); transition: background-color .25s, color .25s, box-shadow .25s; }
+.st-chips button[aria-checked="true"] { background: var(--s1); color: var(--t1); font-weight: 500; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
 
 /* ---------- Отклик на нажатие и переход темы ---------- */
 button.gr, .st-row, .plr, .ar, .hr, .li, .rad, .fr, .sess, .dlink, .model, .resume, .tool-row { transition: background-color .35s ease-out; }
@@ -1037,6 +1045,8 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
 .netbar .tx small { display: block; font-size: 12px; color: var(--t3); }
 .nb-btn { height: 40px; padding: 0 12px; border-radius: 11px; background: var(--s2); font-size: 13.5px; font-weight: 500; color: var(--accent); flex: none; }
 .netbar.ok .nb-btn { display: none; }
+.main.net-on .thread { padding-top: 172px; }
+.thread { transition: padding-top var(--t-smooth) var(--e-smooth); }
 .msg-user.pending { opacity: .6; }
 .msg-user .pend { display: block; margin-top: 4px; font-size: 12px; color: var(--t3); }
 
@@ -1107,6 +1117,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     <symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></symbol>
     <symbol id="i-hdd2" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></symbol>
     <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
     <symbol id="i-dsh" viewBox="0 0 24 24"><path d="m7 8 4 4-4 4" stroke-width="2.2"/><path d="M13 16h4.5" stroke-width="2.2"/></symbol>
   </defs>
 </svg>
@@ -1262,7 +1273,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
             </div>
             <label class="ob-field" id="obField">
               <span class="ob-fl">API-ключ</span>
-              <span class="ob-in"><svg class="i sm"><use href="#i-key"/></svg><input id="obKey" placeholder="sk-…" autocomplete="off" spellcheck="false"><button class="ob-paste" id="obPaste" type="button">Вставить</button></span>
+              <span class="ob-in"><svg class="i sm"><use href="#i-key"/></svg><input id="obKey" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false"><button class="ob-show" id="obEye" type="button" aria-label="Показать ключ" aria-pressed="false"><svg class="i sm"><use href="#i-eye"/></svg></button><button class="ob-paste" id="obPaste" type="button">Вставить</button></span>
             </label>
             <div class="ob-state" id="obState"><svg class="i xs"><use href="#i-lock"/></svg>Ключ хранится в защищённом хранилище Android</div>
             <button class="ob-link" id="obWhere">Где взять ключ?<svg class="i xs"><use href="#i-right"/></svg></button>
@@ -1811,6 +1822,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   const wait = (ms) => new Promise((r) => setTimeout(r, reduce ? Math.min(ms, 60) : ms));
   function stopRun(silent) {
     runId++;
+    if (typeof netHide === "function" && silent) netHide(true);
     busy = false; syncSend();
     if (!silent) {
       const head = $(".work-head .label", thread);
@@ -2980,13 +2992,13 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     if (page === "models") v.innerHTML = `<div class="st-card"><small style="color:var(--t3);font-size:12.5px">Баланс DeepSeek</small><div class="big">12,40 $ <small>≈ 30 дней при текущем расходе</small></div>
         <div class="st-meters"><div class="st-m"><div class="lb"><span>Потрачено в октябре</span><b>7,60 $</b></div><div class="bar"><i style="width:38%"></i></div></div></div></div>
       <div class="glabel">Провайдеры</div>
-      <div class="gl"><div class="st-row"><span class="si c1"><svg class="i"><use href="#i-key"/></svg></span><span class="tx">DeepSeek<small class="key-dots">sk-7f3a••••••9a65</small></span><span class="val okc">работает</span></div>
+      <div class="gl"><div class="st-row"><span class="si c1"><svg class="i"><use href="#i-key"/></svg></span><span class="tx">DeepSeek<small>Ключ ••••9a65 · добавлен 12 окт</small></span><span class="val okc">работает</span></div>
         <button class="st-row" data-sttoast="Добавить OpenAI-совместимый API"><span class="si c6"><svg class="i"><use href="#i-plus"/></svg></span><span class="tx">Свой провайдер<small>Любой OpenAI-совместимый API</small></span><svg class="i sm chev-r"><use href="#i-right"/></svg></button></div>
       <div class="glabel">По умолчанию</div>
       <div class="gl">${row("i-cpu", "c1", "Модель", "DeepSeek V4", "", ' data-act="model"')}${row("i-sliders", "c2", "Рассуждение", "Высокий", "", ' data-act="model"')}${row("i-clock", "c7", "Для автоматизаций", "V4 · Низкий")}</div>
       <div class="glabel">Ключ</div>
-      <div class="gl"><button class="st-row" data-sttoast="Ключ скопирован — храните его в тайне"><span class="tx">Скопировать ключ</span></button><button class="st-row" data-sttoast="Вставьте новый ключ"><span class="tx">Заменить ключ</span></button><button class="st-row st-danger" data-sttoast="Ключ удалён с устройства"><span class="tx">Удалить ключ с устройства</span></button></div>
-      <p class="sub" style="margin:8px 6px 0">Ключ зашифрован ключом Android Keystore и не покидает телефон, кроме запросов к провайдеру.</p>`;
+      <div class="gl"><button class="st-row" data-sttoast="Вставьте новый ключ — старый сразу перестанет использоваться"><span class="si c1"><svg class="i"><use href="#i-key"/></svg></span><span class="tx">Заменить ключ</span><svg class="i sm chev-r"><use href="#i-right"/></svg></button><button class="st-row" data-sttoast="Откроется platform.deepseek.com — там ключ можно отозвать"><span class="si c2"><svg class="i"><use href="#i-globe"/></svg></span><span class="tx">Управлять ключами на сайте</span><svg class="i sm chev-r"><use href="#i-right"/></svg></button><button class="st-row st-danger" data-sttoast="Ключ удалён с устройства"><span class="si c5"><svg class="i"><use href="#i-trash"/></svg></span><span class="tx">Удалить ключ с устройства</span></button></div>
+      <p class="sub" style="margin:8px 6px 0">Ключ зашифрован Android Keystore и никогда не показывается целиком: его нельзя посмотреть или скопировать из DSH — только заменить или удалить.</p>`;
     if (page === "look") v.innerHTML = `<div class="glabel" style="margin-top:4px">Тема</div>
       <div class="st-themes" role="radiogroup">${[["light", "l", "Фарфор"], ["dark", "d", "Графит"], ["system", "a", "Как в системе"]].map(([k, c, n]) => `<button class="st-th" role="radio" aria-checked="${curTheme() === k}" data-sttheme="${k}"><span class="pv ${c}"><i></i><i></i><i></i></span>${n}</button>`).join("")}</div>
       <div class="glabel">Язык</div>
@@ -3031,14 +3043,14 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       <div class="glabel">Защита данных</div>
       <div class="gl">${row("i-key", "c3", "API-ключи", "в Android Keystore")}${row("i-server", "c2", "Удалённые Host", "только HTTPS")}${row("i-copy", "c4", "Буфер обмена", ST.clipboard ? "доступен агенту" : "закрыт", "agent")}</div>
       <div class="gl" style="margin-top:12px">${tog("i-info", "c6", "Отправлять анонимные отчёты о сбоях", "analytics", "Без текста сессий и файлов")}</div>
-      <div class="gl" style="margin-top:12px"><button class="st-row st-danger" data-stwipe="1"><span class="tx">Удалить все данные DSH</span></button></div>`;
+      <div class="gl" style="margin-top:12px"><button class="st-row st-danger" data-stwipe="1"><span class="si c5"><svg class="i"><use href="#i-trash"/></svg></span><span class="tx">Удалить все данные DSH</span></button></div>`;
     if (page === "notif") v.innerHTML = `<div class="gl">${tog("i-check", "c3", "Агент закончил задачу", "notifDone", "Если приложение свёрнуто")}${tog("i-shield", "c4", "Агент ждёт решения", "notifAsk", "Одобрение правок и удаления")}</div>
       <div class="glabel">Автоматизации</div>
       <div class="st-chips" role="radiogroup">${[["always", "Всегда"], ["err", "При ошибке"], ["never", "Никогда"]].map(([k, n]) => `<button role="radio" aria-checked="${ST.notifAuto === k}" data-stna="${k}">${n}</button>`).join("")}</div>
       <p class="sub" style="margin:8px 6px 0">У каждой автоматизации можно задать своё правило в её настройках.</p>
-      <div class="gl" style="margin-top:12px"><button class="st-row" data-sttoast="Откроются системные настройки уведомлений"><span class="tx">Системные настройки уведомлений</span><svg class="i sm chev-r"><use href="#i-right"/></svg></button></div>`;
+      <div class="gl" style="margin-top:12px"><button class="st-row" data-sttoast="Откроются системные настройки уведомлений"><span class="si c6"><svg class="i"><use href="#i-gear"/></svg></span><span class="tx">Системные настройки</span><svg class="i sm chev-r"><use href="#i-right"/></svg></button></div>`;
     if (page === "about") v.innerHTML = `<div style="text-align:center;padding:10px 0 4px"><div class="mark" style="width:64px;height:64px;border-radius:20px;margin:0 auto"><svg class="i" style="width:30px;height:30px"><use href="#i-dsh"/></svg></div><div class="st-ver" style="margin-top:12px"><b>DSH 1.1.0 (110)</b>Host 0.2.1 · SDK 0.2.1-rc.3</div></div>
-      <div class="gl">${row("i-redo", "c3", "Проверить обновления", "актуальная")}<button class="st-row" data-sttoast="Журнал приложения прикреплён к письму"><span class="si c5"><svg class="i"><use href="#i-bug"/></svg></span><span class="tx">Сообщить о проблеме<small>С журналом, без ключей и файлов</small></span><svg class="i sm chev-r"><use href="#i-right"/></svg></button>${row("i-book", "c2", "Что нового", "", "")}${row("i-file", "c6", "Лицензии", "", "")}</div>
+      <div class="gl">${row("i-redo", "c3", "Проверить обновления", "актуальная", "", ' data-sttoast="У вас последняя версия"')}<button class="st-row" data-sttoast="Журнал приложения прикреплён к письму"><span class="si c5"><svg class="i"><use href="#i-bug"/></svg></span><span class="tx">Сообщить о проблеме<small>С журналом, без ключей и файлов</small></span><svg class="i sm chev-r"><use href="#i-right"/></svg></button>${row("i-book", "c2", "Что нового", "", "", ' data-sttoast="Список изменений версии 1.1.0"').replace("</button>", '<svg class="i sm chev-r"><use href="#i-right"/></svg></button>')}${row("i-file", "c6", "Лицензии", "", "", ' data-sttoast="Лицензии открытых библиотек"').replace("</button>", '<svg class="i sm chev-r"><use href="#i-right"/></svg></button>')}</div>
       <p class="sub" style="margin:12px 6px 0">Основано на deepseek-harness-mobile 1.0.6. Работает с DeepSeek Harness.</p>`;
     return v;
   }
@@ -3134,6 +3146,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   }
   let keyT = 0;
   $("#obKey").addEventListener("input", () => { clearTimeout(keyT); keyT = setTimeout(checkKey, 400); });
+  $("#obEye").addEventListener("click", (e) => { const b = e.currentTarget, on = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", String(on)); b.setAttribute("aria-label", on ? "Скрыть ключ" : "Показать ключ"); $("#obKey").type = on ? "text" : "password"; });
   $("#obPaste").addEventListener("click", () => { $("#obKey").value = "sk-7f3a9c2e41b84d0e9a65"; checkKey(); });
   $("#obWhere").addEventListener("click", () => toast("Откроется platform.deepseek.com → API keys"));
   $("#obLang").addEventListener("click", () => toast("Русский · English · 中文"));
@@ -3170,7 +3183,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   const netbar = $("#netbar"), netText = $("#netText");
   let netT = 0, netTry = 0;
   function netShow() {
-    clearInterval(netT); netTry = 1; netbar.classList.remove("ok"); netbar.style.visibility = "visible";
+    clearInterval(netT); netTry = 1; netbar.classList.remove("ok"); netbar.style.visibility = "visible"; main.classList.add("net-on");
     go(netbar, { opacity: 1, transform: "translateY(0)" }, LIVELY); netbar.animate([{ opacity: 0, transform: "translateY(-16px)" }, { opacity: 1, transform: "none" }], { duration: reduce ? 1 : LIVELY.duration, easing: LIVELY.easing });
     let left = 4;
     const tick = () => { netText.innerHTML = `Нет соединения<small>Повтор через ${left} с · ответ агента сохранится</small>`; };
@@ -3180,7 +3193,13 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   function netBack() {
     clearInterval(netT); netbar.classList.add("ok"); netText.innerHTML = "Снова в сети<small>Ответ агента продолжается</small>";
     anim($(".nb-ic", netbar), [{ transform: "scale(.6)" }, { transform: "scale(1)" }], LIVELY);
-    setTimeout(() => { const a = go(netbar, { opacity: 0, transform: "translateY(-12px)" }, SMOOTH); a.onfinish = () => { netbar.style.visibility = "hidden"; }; }, 1600);
+    setTimeout(netHide, 1600);
+  }
+  function netHide(instant) {
+    clearInterval(netT); main.classList.remove("net-on");
+    if (netbar.style.visibility !== "visible") return;
+    const a = go(netbar, { opacity: 0, transform: "translateY(-12px)" }, instant ? { easing: "linear", duration: 1 } : SMOOTH);
+    a.onfinish = () => { if (!main.classList.contains("net-on")) netbar.style.visibility = "hidden"; };
   }
   $("#netRetry").addEventListener("click", () => { netText.innerHTML = `Подключаюсь…<small>Проверяю связь с Host</small>`; clearInterval(netT); setTimeout(netBack, 900); });
   // Тактильный отклик на любой переключатель
