@@ -168,6 +168,8 @@ class DshApplication : Application() {
         com.deepseek.dsh.feature.settings.logic.DshUserPrefs.init(this)
         com.deepseek.dsh.feature.settings.logic.ToolCallLog.init(this)
         com.deepseek.dsh.feature.settings.logic.ToolPolicy.init(this)
+        com.deepseek.dsh.feature.settings.logic.AutomationStore.init(this)
+        AutomationScheduler.rescheduleAll(this)
         // Тексты из модулей без Context следуют за языком интерфейса, а не только за системным.
         com.deepseek.dsh.core.model.Tr.language = {
             resources.configuration.locales[0]?.language ?: java.util.Locale.getDefault().language

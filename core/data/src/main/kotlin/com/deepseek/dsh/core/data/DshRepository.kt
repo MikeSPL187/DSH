@@ -2163,7 +2163,11 @@ class DshRepository(
         return userMsg
     }
 
+    private val subscribedEventHosts = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+
+    /** Подписка на события Host; повторный вызов для того же Host ничего не делает (иначе события дублируются). */
     fun subscribeRemoteEvents(hostId: String) {
+        if (!subscribedEventHosts.add(hostId)) return
         scope.launch(Dispatchers.IO) {
             client.subscribeEvents(hostId).collect { event ->
                 when (event) {

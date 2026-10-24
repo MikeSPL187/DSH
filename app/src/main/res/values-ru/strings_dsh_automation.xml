@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Автоматизация: тексты фонового запуска. ru / en / zh. -->
+<resources>
+    <string name="au_run_working">Агент работает в фоне</string>
+    <string name="au_run_failed">Не удалось запустить</string>
+    <string name="au_run_postponed">Перенесён: %1$s</string>
+    <string name="au_run_no_charge">телефон не заряжался</string>
+    <string name="au_run_no_wifi">не было Wi‑Fi</string>
+    <string name="au_run_phone_busy">Android отложил запуск</string>
+    <string name="au_run_no_host">Host не запустился</string>
+    <string name="au_run_no_session">Не удалось начать сессию: %1$s</string>
+    <string name="au_run_read_only">Ничего не меняй в файлах — только прочитай и пришли итог.</string>
+    <string name="au_run_timeout">Не уложился в 30 минут — остановлен</string>
+    <string name="au_run_empty">Агент ничего не ответил</string>
+    <string name="au_run_notif_ok">«%1$s» выполнена</string>
+    <string name="au_run_notif_err">«%1$s»: ошибка</string>
+    <string name="au_run_started">«%1$s» запущена · уведомление придёт по итогам</string>
+    <string name="au_sched_at">Один раз: %1$s</string>
+    <string name="au_sched_every">Каждые %1$s</string>
+    <string name="au_sched_daily">Каждый день в %1$s</string>
+    <string name="au_sched_weekly">По дням недели в %1$s</string>
+    <string name="au_sched_cron">По расписанию %1$s</string>
+</resources>

@@ -2,7 +2,7 @@
 <!-- Плагины: тексты логики приложения. ru / en / zh. -->
 <resources>
     <string name="plr_error_code">Host error: %1$s</string>
-    <string name="plr_ask_prefill">Use %1$s to </string>
+    <string name="plr_ask_prefill">"Use %1$s to "</string>
     <string name="plr_fix_prefill">Why did %1$s fail with “%2$s”? Look into it and suggest a fix.</string>
     <string name="plr_perm_internet">Internet</string>
     <string name="plr_perm_notifications">Notifications</string>
@@ -24,6 +24,6 @@
     <string name="plr_call_auto_allowed">Allowed without asking</string>
     <string name="plr_call_auto_denied">Declined: the tool is off</string>
     <string name="plr_call_ok">Done</string>
-    <string name="plr_create_prefill">Create a plugin that </string>
+    <string name="plr_create_prefill">"Create a plugin that "</string>
     <string name="plr_call_err">Error</string>
 </resources>

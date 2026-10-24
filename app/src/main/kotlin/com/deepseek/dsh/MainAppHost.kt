@@ -3152,11 +3152,14 @@ fun MainAppHost(
                             ),
                         )
 
-                        ActivePage.AUTOMATION -> PageContentSlot {
-                            SchedulesScreen(
-                                onCreateTask = { ui.activePage = ActivePage.CHAT },
-                            )
-                        }
+                        ActivePage.AUTOMATION -> DshAutomationRoute(
+                            projects = workspaceFolders.map { com.deepseek.dsh.feature.settings.ui.AutoProject(it.name, it.path) }
+                                .ifEmpty { listOf(com.deepseek.dsh.feature.settings.ui.AutoProject(activeWorkspace.name, activeWorkspace.absolutePath)) },
+                            models = availableModelNames,
+                            hostTasks = ScheduleBridge.flow?.collectAsState()?.value.orEmpty(),
+                            onOpenSession = { sid -> ui.selectedSessionId = sid; ui.activePage = ActivePage.CHAT },
+                            onClose = { ui.activePage = ActivePage.CHAT },
+                        )
 
                         ActivePage.HOSTS -> {
                             com.deepseek.dsh.feature.hosts.HostsScreen(
@@ -3207,9 +3210,9 @@ fun MainAppHost(
                                 onOpenTerminal = { ui.activePage = ActivePage.TERMINAL },
                                 onOpenPlugins = { ui.activePage = ActivePage.PLUGINS },
                                 onOpenAutomation = { ui.activePage = ActivePage.AUTOMATION },
-                                automationsOn = ScheduleBridge.flow?.value?.size ?: 0,
-                                automationModel = "" to 0,
-                                onAutomationModel = { _, _ -> },
+                                automationsOn = com.deepseek.dsh.feature.settings.logic.AutomationStore.items.count { it.on },
+                                automationModel = com.deepseek.dsh.feature.settings.logic.AutomationStore.defaultModel,
+                                onAutomationModel = { m, r -> com.deepseek.dsh.feature.settings.logic.AutomationStore.setDefaultModel(m, r) },
                                 onClose = { ui.activePage = ActivePage.CHAT },
                             ),
                             status = status,

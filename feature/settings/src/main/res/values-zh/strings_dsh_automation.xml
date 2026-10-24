@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Автоматизация по прототипу docs/design/dsh-prototype.html (#screen-automation). ru / en / zh. -->
+<resources>
+    <string name="au_title">自动化</string>
+    <string name="au_without_you">无需你操作</string>
+    <string name="au_new">新建自动化</string>
+    <string name="au_next_at">下次运行：%1$s</string>
+    <string name="au_off">已关闭</string>
+    <string name="au_off_lc">已关闭</string>
+    <string name="au_done">完成</string>
+    <string name="au_saved">已保存“%1$s” · %2$s</string>
+    <string name="au_when_hour">每小时</string>
+    <string name="au_when_daily">每天 %1$s</string>
+    <string name="au_when_work">工作日 %1$s</string>
+    <string name="au_short_daily">每天 %1$s</string>
+    <string name="au_short_work">工作日 %1$s</string>
+    <string name="au_c_charge">充电时</string>
+    <string name="au_c_wifi">连接 Wi‑Fi 时</string>
+    <string name="au_c_charge_s">充电</string>
+    <string name="au_c_wifi_s">Wi‑Fi</string>
+    <string name="au_today">今天</string>
+    <string name="au_tomorrow">明天</string>
+    <string name="au_today_cap">今天</string>
+    <string name="au_yesterday_cap">昨天</string>
+    <string name="au_day_at">%1$s %2$s</string>
+    <string name="au_day_time">%1$s %2$s</string>
+    <string name="au_in_hm">%1$d 小时 %2$d 分钟后</string>
+    <string name="au_in_m">%1$d 分钟后</string>
+    <string name="au_dur_s">%1$d 秒</string>
+    <string name="au_dur_m">%1$d 分钟</string>
+    <string name="au_dur_ms">%1$d 分 %2$d 秒</string>
+    <string name="au_next">下次运行</string>
+    <string name="au_host_note">运行时会在后台唤醒 Host。若条件不满足（例如未充电），运行会推迟并记录在历史中。</string>
+    <string name="au_mine">我的自动化</string>
+    <string name="au_empty">还没有 — 从模板开始</string>
+    <string name="au_from_tpl">从模板开始</string>
+    <string name="au_then">下次 %1$s</string>
+    <string name="au_turned_on">%1$s：已开启</string>
+    <string name="au_turned_off">%1$s：已关闭</string>
+    <string name="au_enable">开启 %1$s</string>
+    <string name="au_deleted">已删除“%1$s”</string>
+    <string name="au_copy_suffix">（副本）</string>
+    <string name="au_name_ph">名称</string>
+    <string name="au_what">要做什么</string>
+    <string name="au_prompt_ph">例如：运行测试，如有失败则找出原因</string>
+    <string name="au_when">何时</string>
+    <string name="au_time">运行时间</string>
+    <string name="au_hours">小时</string>
+    <string name="au_minutes">分钟</string>
+    <string name="au_charge">仅在充电时</string>
+    <string name="au_charge_sub">节省电量</string>
+    <string name="au_wifi">仅在 Wi‑Fi 下</string>
+    <string name="au_wifi_sub">不消耗移动流量</string>
+    <string name="au_may">无人值守时 Agent 可以</string>
+    <string name="au_p_read">只读取并汇报</string>
+    <string name="au_p_read_sub">不做任何修改 — 发送结果</string>
+    <string name="au_p_edit">修改项目中的文件</string>
+    <string name="au_p_edit_sub">修改会显示在“文件”的“更改”页</string>
+    <string name="au_p_never">删除与危险操作 — 绝不</string>
+    <string name="au_p_never_sub">此类步骤会等待你的决定</string>
+    <string name="au_notify">通知</string>
+    <string name="au_where">位置与模型</string>
+    <string name="au_project">项目</string>
+    <string name="au_model">模型</string>
+    <string name="au_run_now">立即运行</string>
+    <string name="au_running">正在运行…</string>
+    <string name="au_history">历史</string>
+    <string name="au_history_empty">尚未运行</string>
+    <string name="au_history_empty_sub">首次运行会显示在这里</string>
+    <string name="au_now">现在</string>
+    <string name="au_duplicate">复制</string>
+    <string name="au_delete">删除</string>
+    <string name="au_agent_tasks">Agent 创建的</string>
+    <string name="au_agent_tasks_note">这些任务是 Agent 按你在聊天中的要求创建的，会在各自的会话中运行。</string>
+    <string name="au_cancel">取消</string>
+    <string name="au_cancelled">任务已取消</string>
+    <string name="au_delete_arm">再点一次</string>
+    <plurals name="au_active">
+        <item quantity="other">%d 个启用</item>
+    </plurals>
+    <string-array name="au_days">
+        <item>周一</item>
+        <item>周二</item>
+        <item>周三</item>
+        <item>周四</item>
+        <item>周五</item>
+        <item>周六</item>
+        <item>周日</item>
+    </string-array>
+    <string-array name="au_when_week">
+        <item>每周一 %1$s</item>
+        <item>每周二 %1$s</item>
+        <item>每周三 %1$s</item>
+        <item>每周四 %1$s</item>
+        <item>每周五 %1$s</item>
+        <item>每周六 %1$s</item>
+        <item>每周日 %1$s</item>
+    </string-array>
+    <string-array name="au_freqs">
+        <item>每天</item>
+        <item>工作日</item>
+        <item>每周</item>
+        <item>每小时</item>
+    </string-array>
+    <string-array name="au_notify">
+        <item>始终</item>
+        <item>出错时</item>
+        <item>有新内容时</item>
+    </string-array>
+    <string-array name="au_hints">
+        <item>@文件</item>
+        <item>简短总结</item>
+        <item>仅限 main 分支</item>
+    </string-array>
+    <string-array name="au_hint_adds">
+        <item>" @"</item>
+        <item>" 用 3–5 条要点总结。"</item>
+        <item>" 只在 main 分支上工作。"</item>
+    </string-array>
+    <string-array name="au_tpl_names">
+        <item>早间摘要</item>
+        <item>夜间测试</item>
+        <item>安全检查</item>
+        <item>自定义任务</item>
+    </string-array>
+    <string-array name="au_tpl_subs">
+        <item>一天内的变化</item>
+        <item>运行并分析失败</item>
+        <item>依赖中的漏洞</item>
+        <item>描述要做什么</item>
+    </string-array>
+    <string-array name="au_tpl_prompts">
+        <item>发送简短的项目摘要：提交、修改、失败的测试。</item>
+        <item>运行测试。如果失败，找出原因并说明。</item>
+        <item>检查依赖中的已知漏洞和过时版本。</item>
+        <item></item>
+    </string-array>
+</resources>

@@ -197,4 +197,53 @@ class DshScreensSweepTest {
             ),
         ),
     )
+
+    // ---------- Автоматизация ----------
+
+    private val zone = java.time.ZoneId.systemDefault()
+    private fun t(day: Int, h: Int, m: Int = 0) = java.time.ZonedDateTime.of(2026, 10, day, h, m, 0, 0, zone).toInstant().toEpochMilli()
+    private val auNow = t(24, 12, 38)
+    private val au = listOf(
+        com.deepseek.dsh.feature.settings.logic.Automation(
+            "arch", "Ночной архив", "box", "", true, com.deepseek.dsh.feature.settings.logic.AutoFreq.Daily, "03:00", listOf(0, 1, 2, 3, 4, 5, 6), charge = true, perm = "edit", notify = "err",
+            project = "/w", model = "DeepSeek V4 · Низкий", prompt = "Запусти scripts/backup.sh и проверь, что архив создан. Удали копии старше 7 дней.",
+            history = listOf(
+                com.deepseek.dsh.feature.settings.logic.AutoRun(t(24, 3), "ok", 38_000, "Архив 1,9 ГБ, удалена 1 старая копия"),
+                com.deepseek.dsh.feature.settings.logic.AutoRun(t(23, 3), "ok", 41_000, "Архив 1,9 ГБ"),
+                com.deepseek.dsh.feature.settings.logic.AutoRun(t(22, 3), "skip", null, "Пропущен: телефон не заряжался"),
+            ),
+        ),
+        com.deepseek.dsh.feature.settings.logic.Automation(
+            "brief", "Утренняя сводка", "msg", "b", true, com.deepseek.dsh.feature.settings.logic.AutoFreq.Work, "08:45", listOf(0, 1, 2, 3, 4), wifi = true, perm = "read", notify = "always",
+            project = "/w", model = "DeepSeek V4 · Высокий", prompt = "Посмотри коммиты и изменения за вчера.",
+            history = listOf(com.deepseek.dsh.feature.settings.logic.AutoRun(t(24, 8, 45), "ok", 72_000, "3 коммита, 1 упавший тест")),
+        ),
+        com.deepseek.dsh.feature.settings.logic.Automation(
+            "deps", "Проверка зависимостей", "shield", "o", true, com.deepseek.dsh.feature.settings.logic.AutoFreq.Week, "09:00", listOf(0), wifi = true, perm = "read", notify = "changes",
+            project = "/w", model = "DeepSeek V4 · Высокий", prompt = "Проверь gradle/libs.versions.toml на обновления и известные уязвимости.",
+            history = listOf(
+                com.deepseek.dsh.feature.settings.logic.AutoRun(t(20, 9), "err", 4_000, "Нет сети — повторю при подключении к Wi‑Fi"),
+                com.deepseek.dsh.feature.settings.logic.AutoRun(t(13, 9), "ok", 120_000, "2 обновления, уязвимостей нет"),
+            ),
+        ),
+        com.deepseek.dsh.feature.settings.logic.Automation(
+            "tests", "Прогон тестов", "check", "g", false, com.deepseek.dsh.feature.settings.logic.AutoFreq.Hour, "", emptyList(), charge = true, perm = "read", notify = "err",
+            project = "/w", model = "DeepSeek V4 · Низкий", prompt = "Запусти ./gradlew test.",
+            history = listOf(com.deepseek.dsh.feature.settings.logic.AutoRun(t(17, 14), "ok", 180_000, "349 тестов, 0 ошибок")),
+        ),
+    )
+    private val projects = listOf(com.deepseek.dsh.feature.settings.ui.AutoProject("DSH-Workspace", "/w"))
+
+    @Test
+    fun automation() = sweep(
+        matrix(
+            listOf(
+                "au-list" to @Composable { com.deepseek.dsh.feature.settings.ui.AutomationHomeScreen(au, onClose = {}, projects = projects, now = auNow) },
+                "au-edit" to @Composable { com.deepseek.dsh.feature.settings.ui.AutomationHomeScreen(au, onClose = {}, projects = projects, now = auNow, initialEdit = "arch") },
+                "au-edit-week" to @Composable { com.deepseek.dsh.feature.settings.ui.AutomationHomeScreen(au, onClose = {}, projects = projects, now = auNow, initialEdit = "deps") },
+                "au-new" to @Composable { com.deepseek.dsh.feature.settings.ui.AutomationHomeScreen(au, onClose = {}, projects = projects, now = auNow, initialTemplate = 3, defaultModel = "DeepSeek V4 · Высокий" to 0) },
+                "au-empty" to @Composable { com.deepseek.dsh.feature.settings.ui.AutomationHomeScreen(emptyList(), onClose = {}, projects = projects, now = auNow) },
+            ),
+        ),
+    )
 }
