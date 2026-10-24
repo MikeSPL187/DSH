@@ -5,6 +5,7 @@
 <style>
 /* Layout: слева панель управления прототипом, справа телефон 393×852; на телефоне прототип занимает весь экран */
 :root {
+  --e-smooth: cubic-bezier(.2, .9, .2, 1); --t-smooth: .45s; --e-snappy: cubic-bezier(.3, 1.15, .5, 1); --t-snappy: .32s; --e-lively: cubic-bezier(.3, 1.4, .5, 1); --t-lively: .5s;
   /* Фарфор — светлая тема */
   --bg: #f6f6f9;
   --s1: #ffffff;
@@ -86,14 +87,14 @@ svg { display: block; }
 .hint { font-size: 12.5px; color: var(--t3); line-height: 1.5; }
 .device { width: 393px; height: 852px; flex: none; border-radius: 56px; padding: 12px; background: #0b0b0d;
   box-shadow: 0 0 0 1.5px #2a2a2e inset, 0 40px 90px rgba(10, 10, 30, 0.28); position: relative; }
-.app { width: 100%; height: 100%; border-radius: 44px; overflow: hidden; overflow: clip; position: relative; background: var(--bg); isolation: isolate; }
+.app { width: 100%; height: 100%; border-radius: 44px; overflow: hidden; overflow: clip; position: relative; background: #000; isolation: isolate; }
 
 /* На телефоне — без рамки, во весь экран */
 @media (max-width: 760px) {
   .stage { padding: 0; display: block; }
   .panel { position: fixed; z-index: 100; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px));
     width: auto; background: var(--s1); border-radius: 22px; padding: 18px; box-shadow: var(--shadow-float);
-    transform: translateY(calc(100% + 40px)); transition: transform .45s cubic-bezier(.2, .9, .2, 1); }
+    transform: translateY(calc(100% + 40px)); transition: transform var(--t-smooth) var(--e-smooth); }
   .panel.open { transform: none; }
   .panel h1 { font-size: 20px; }
   .panel > p { display: none; }
@@ -109,7 +110,10 @@ svg { display: block; }
 .statusbar { height: 50px; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 30px 6px 34px;
   font-weight: 600; font-size: 15px; position: absolute; inset: 0 0 auto; z-index: 30; pointer-events: none; }
 .statusbar .icons { display: flex; gap: 6px; align-items: center; }
-.main { position: absolute; inset: 0; z-index: 6; display: flex; flex-direction: column; background: var(--bg); transform-origin: 0 50%; will-change: transform; }
+.statusbar { transition: color .35s ease; }
+/* Под листом верх экрана чёрный — статус-бар становится светлым, как в iOS */
+.app.sheet-on .statusbar { color: #fff; }
+.main { position: absolute; inset: 0; z-index: 6; overflow: hidden; display: flex; flex-direction: column; background: var(--bg); transform-origin: 0 50%; will-change: transform; }
 .topbar { position: absolute; inset: 0 0 auto; z-index: 20; padding: 50px 10px 8px; display: flex; align-items: center; gap: 4px;
   transition: background .25s, border-color .25s; border-bottom: 1px solid transparent; }
 .topbar.scrolled { background: var(--glass); backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6); border-bottom-color: var(--line); }
@@ -136,7 +140,7 @@ svg { display: block; }
 .greet p { margin: 3px 0 0; font-size: 15px; color: var(--t2); }
 .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .card { text-align: left; background: var(--s1); border: 1px solid var(--line); border-radius: 20px; padding: 14px 14px 15px; display: flex; flex-direction: column; gap: 10px; min-height: 108px;
-  transition: transform .3s cubic-bezier(.3, 1.4, .5, 1); }
+  transition: transform var(--t-lively) var(--e-lively); }
 .card:active { transform: scale(.97); }
 .card .ic { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
 .card b { font-weight: 500; font-size: 14.5px; line-height: 1.3; color: var(--t1); }
@@ -155,13 +159,13 @@ svg { display: block; }
 .msg-ai { font-size: 16px; line-height: 1.6; color: var(--t1); margin: 4px 0 18px; }
 .msg-ai p { margin: 0 0 12px; }
 .msg-ai code { font-family: var(--font-mono); font-size: 13.5px; background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 1px 5px; }
-.w { display: inline; animation: wordIn .42s cubic-bezier(.2, .8, .2, 1) both; }
+.w { display: inline; animation: wordIn var(--t-smooth) var(--e-smooth) both; }
 @keyframes wordIn { from { opacity: 0; filter: blur(3px); } to { opacity: 1; filter: none; } }
 
 /* Ход работы агента */
 .work { margin: 2px 0 18px; }
 .work-head { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; text-align: left; padding: 4px 0 8px; color: var(--t2); font-size: 14px; }
-.work-head .chev { margin-left: auto; color: var(--t3); transition: transform .35s cubic-bezier(.3, 1.3, .5, 1); }
+.work-head .chev { margin-left: auto; color: var(--t3); transition: transform var(--t-snappy) var(--e-snappy); }
 .work.collapsed .work-head .chev { transform: rotate(-90deg); }
 .orb { width: 22px; height: 22px; border-radius: 7px; background: conic-gradient(from 0deg, var(--accent), var(--accent-2), #c2bbff, var(--accent)); animation: spin 2.4s linear infinite; flex: none; position: relative; }
 .orb::after { content: ""; position: absolute; inset: 3px; border-radius: 5px; background: var(--bg); }
@@ -202,14 +206,14 @@ svg { display: block; }
 .diff .del { background: var(--danger-soft); color: var(--danger); padding: 0 10px; }
 .diff .add { background: var(--ok-soft); color: var(--ok); padding: 0 10px; }
 .row-btns { display: flex; gap: 8px; margin-top: 12px; }
-.btn { flex: 1; height: 44px; border-radius: 14px; font-weight: 500; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: transform .28s cubic-bezier(.3, 1.4, .5, 1); }
+.btn { flex: 1; height: 44px; border-radius: 14px; font-weight: 500; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: transform var(--t-lively) var(--e-lively); }
 .btn:active { transform: scale(.96); }
 .btn.ghost { background: var(--s2); color: var(--t1); }
 .btn.primary { background: var(--accent); color: var(--on-accent); }
 .btn.danger { background: var(--danger); color: #fff; }
 .check { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; color: var(--t2); }
 .toggle { width: 38px; height: 23px; border-radius: 12px; background: var(--s3); position: relative; flex: none; transition: background .25s; }
-.toggle::after { content: ""; position: absolute; top: 2.5px; left: 2.5px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .4s cubic-bezier(.3, 1.4, .5, 1); }
+.toggle::after { content: ""; position: absolute; top: 2.5px; left: 2.5px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform var(--t-lively) var(--e-lively); }
 .toggle[aria-checked="true"] { background: var(--accent); }
 .toggle[aria-checked="true"]::after { transform: translateX(15px); }
 .approved { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ok); padding: 4px 0; }
@@ -233,11 +237,11 @@ svg { display: block; }
   border: 1px solid var(--glass-line); border-radius: 999px; box-shadow: var(--shadow-float); }
 .dock button { display: flex; align-items: center; gap: 7px; height: 44px; padding: 0 13px 0 11px; border-radius: 999px; font-size: 13.5px; font-weight: 500; color: var(--t2); position: relative; }
 .dock button:active { background: var(--s2); }
-.dock .lbl { display: inline-block; overflow: hidden; white-space: nowrap; max-width: 90px; transition: max-width .45s cubic-bezier(.3, 1.15, .5, 1), opacity .25s; }
+.dock .lbl { display: inline-block; overflow: hidden; white-space: nowrap; max-width: 90px; transition: max-width var(--t-snappy) var(--e-snappy), opacity .25s; }
 .dock.compact button { padding: 0 11px; }
 .dock.compact .lbl { max-width: 0; opacity: 0; }
 .badge { min-width: 17px; height: 17px; border-radius: 9px; background: var(--accent); color: var(--on-accent); font-size: 10.5px; font-weight: 600; display: grid; place-items: center; padding: 0 4px; }
-.dock { transition: opacity .25s, transform .45s cubic-bezier(.3, 1.15, .5, 1); }
+.dock { transition: opacity .25s, transform var(--t-snappy) var(--e-snappy); }
 .dock.away { opacity: 0; transform: translateX(-50%) translateY(16px) scale(.94); pointer-events: none; }
 .chips { overflow-x: auto; scrollbar-width: none; }
 .dock.compact .badge { position: absolute; top: 2px; right: 2px; transform: scale(.85); }
@@ -259,7 +263,7 @@ svg { display: block; }
 .field:empty::before { content: attr(data-placeholder); color: var(--t3); }
 .send { background: var(--t1); color: var(--bg); position: relative; overflow: hidden; }
 .send.ready { background: var(--accent); color: var(--on-accent); }
-.send svg { position: absolute; inset: 0; margin: auto; transition: transform .45s cubic-bezier(.3, 1.4, .5, 1), opacity .2s; }
+.send svg { position: absolute; inset: 0; margin: auto; transition: transform var(--t-lively) var(--e-lively), opacity .2s; }
 .send .s-mic { transform: none; opacity: 1; }
 .send .s-up, .send .s-stop { transform: scale(.4) rotate(-40deg); opacity: 0; }
 .send.ready .s-mic, .send.busy .s-mic { transform: scale(.4); opacity: 0; }
@@ -398,7 +402,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .effort-desc span { font-size: 13px; color: var(--t2); line-height: 1.45; }
 .meters { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: center; margin-top: 10px; font-size: 12.5px; color: var(--t3); }
 .meter { height: 5px; border-radius: 3px; background: var(--s3); overflow: hidden; }
-.meter i { display: block; height: 100%; border-radius: 3px; background: var(--accent); transition: width .5s cubic-bezier(.3, 1.2, .5, 1); }
+.meter i { display: block; height: 100%; border-radius: 3px; background: var(--accent); transition: width var(--t-snappy) var(--e-snappy); }
 
 /* ---------- Опасное действие v4 ---------- */
 .btn.big { flex: none; width: 100%; height: 52px; border-radius: 16px; font-size: 16px; }
@@ -414,7 +418,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .spin-w { width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .8s linear infinite; }
 
 /* ---------- Экраны (push) ---------- */
-.screen { position: absolute; inset: 0; z-index: 25; background: var(--bg); display: flex; flex-direction: column; transform: translateX(100%); visibility: hidden; box-shadow: -12px 0 40px rgba(0,0,0,.12); }
+.screen { position: absolute; inset: 0; overflow: hidden; z-index: 25; background: var(--bg); display: flex; flex-direction: column; transform: translateX(100%); visibility: hidden; box-shadow: -12px 0 40px rgba(0,0,0,.12); }
 .sbar { padding: 50px 8px 6px; display: flex; align-items: center; gap: 2px; flex: none; }
 @media (max-width: 760px) { .sbar { padding-top: calc(10px + env(safe-area-inset-top, 0px)); } }
 .sbar .title { text-align: left; padding-left: 2px; }
@@ -463,7 +467,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .tin input::placeholder { color: var(--t3); }
 .tin .round { width: 40px; height: 40px; }
 .run { background: var(--accent); color: var(--on-accent); position: relative; }
-.run svg { position: absolute; inset: 0; margin: auto; transition: transform .45s cubic-bezier(.3, 1.4, .5, 1), opacity .2s; }
+.run svg { position: absolute; inset: 0; margin: auto; transition: transform var(--t-lively) var(--e-lively), opacity .2s; }
 .run .r-stop { opacity: 0; transform: scale(.4); }
 .run.busy { background: var(--t1); color: var(--bg); }
 .run.busy .r-go { opacity: 0; transform: scale(.4); }
@@ -478,21 +482,21 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .recent { display: flex; gap: 8px; overflow-x: auto; margin: 2px -16px 14px; padding: 0 16px; scrollbar-width: none; }
 .ph.all { background: var(--s2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 12.5px; color: var(--t2); }
 .srcs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-.src { height: 64px; border-radius: 16px; background: var(--s2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; font-size: 12.5px; color: var(--t2); transition: transform .3s cubic-bezier(.3, 1.4, .5, 1); }
+.src { height: 64px; border-radius: 16px; background: var(--s2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; font-size: 12.5px; color: var(--t2); transition: transform var(--t-lively) var(--e-lively); }
 .src .i { color: var(--t1); }
 .src:active, .crow2:active, .mchip:active { transform: scale(.96); }
 .ctx { margin-top: 10px; border-radius: 16px; background: var(--s2); overflow: hidden; }
-.crow2 { display: flex; align-items: center; gap: 12px; width: 100%; height: 48px; padding: 0 14px; text-align: left; font-size: 14.5px; transition: transform .3s cubic-bezier(.3, 1.4, .5, 1); }
+.crow2 { display: flex; align-items: center; gap: 12px; width: 100%; height: 48px; padding: 0 14px; text-align: left; font-size: 14.5px; transition: transform var(--t-lively) var(--e-lively); }
 .crow2 + .crow2 { border-top: 1px solid var(--line); }
 .crow2 .i { color: var(--t2); }
 .crow2 .tx { flex: 1; min-width: 0; }
 .crow2 .pill { font-size: 11px; }
 .modes { display: flex; gap: 6px; margin-top: 10px; }
-.mchip { flex: 1; height: 40px; border-radius: 13px; border: 1px solid var(--line); display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 13.5px; color: var(--t2); transition: background .25s, color .25s, border-color .25s, transform .3s cubic-bezier(.3, 1.4, .5, 1); }
+.mchip { flex: 1; height: 40px; border-radius: 13px; border: 1px solid var(--line); display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 13.5px; color: var(--t2); transition: background .25s, color .25s, border-color .25s, transform var(--t-lively) var(--e-lively); }
 .mchip[aria-pressed="true"] { background: var(--accent-soft); border-color: transparent; color: var(--accent); font-weight: 500; }
 .mhint { margin: 10px 4px 2px; min-height: 18px; font-size: 12.5px; color: var(--t3); text-align: center; }
 .mhint .kbd { font-size: 11px; padding: 0 5px; }
-.ph { position: relative; width: 76px; height: 96px; border-radius: 16px; flex: none; overflow: hidden; background: var(--pbg, var(--s2)); border: 1px solid var(--line); transition: transform .35s cubic-bezier(.3, 1.4, .5, 1); }
+.ph { position: relative; width: 76px; height: 96px; border-radius: 16px; flex: none; overflow: hidden; background: var(--pbg, var(--s2)); border: 1px solid var(--line); transition: transform var(--t-lively) var(--e-lively); }
 .ph.cam { background: var(--s2); display: grid; place-items: center; color: var(--t1); }
 .ph.photo { background: var(--pbg); }
 .ph.photo::after { content: ""; position: absolute; left: -10%; right: -10%; bottom: -14px; height: 46px; border-radius: 50% 50% 0 0; background: rgba(20, 16, 50, .55); }
@@ -536,7 +540,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .chip.mode { background: var(--accent-soft); color: color-mix(in srgb, var(--accent) 82%, var(--t1)); }
 
 /* ---------- Опасное действие: запрос в сессии и экран ---------- */
-.ask { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 12px 14px; border-radius: 18px; background: var(--s1); border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--line)); transition: transform .3s cubic-bezier(.3, 1.4, .5, 1); }
+.ask { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 12px 14px; border-radius: 18px; background: var(--s1); border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--line)); transition: transform var(--t-lively) var(--e-lively); }
 .ask:active { transform: scale(.98); }
 .ask-ic { width: 36px; height: 36px; border-radius: 12px; background: var(--danger-soft); color: var(--danger); display: grid; place-items: center; flex: none; }
 .ask .tx { flex: 1; min-width: 0; line-height: 1.3; }
@@ -580,7 +584,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .gr.pick { width: 100%; text-align: left; transition: background .2s; }
 .gr.pick:active { background: var(--s2); }
 .cb { width: 24px; height: 24px; border-radius: 8px; border: 1.75px solid var(--t3); display: grid; place-items: center; flex: none; color: #fff; transition: background .2s, border-color .2s; }
-.cb .i { opacity: 0; transform: scale(.4); transition: opacity .15s, transform .4s cubic-bezier(.3, 1.6, .5, 1); stroke-width: 2.6; }
+.cb .i { opacity: 0; transform: scale(.4); transition: opacity .15s, transform var(--t-lively) var(--e-lively); stroke-width: 2.6; }
 .gr.pick[aria-checked="true"] .cb { background: var(--accent); border-color: var(--accent); }
 .gr.pick[aria-checked="true"] .cb .i { opacity: 1; transform: none; }
 .gr.pick[aria-checked="false"] code, .gr.pick[aria-checked="false"] > b { color: var(--t3); }
@@ -605,7 +609,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .approve .cmd-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 12px 0 0; font-size: 13px; color: var(--t3); }
 .cons span.w8 { background: var(--warn-soft); color: var(--warn); }
 .cons span.w8 .i { color: var(--warn); }
-.approve .cmd-toggle .chev { transition: transform .35s cubic-bezier(.3, 1.3, .5, 1); }
+.approve .cmd-toggle .chev { transition: transform var(--t-snappy) var(--e-snappy); }
 .approve .cmd-toggle[aria-expanded="true"] .chev { transform: rotate(180deg); }
 .approve .cmd { display: none; margin-top: 8px; font-family: var(--font-mono); font-size: 12.5px; background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; }
 .approve .cmd.open { display: block; }
@@ -635,7 +639,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .ob-top .iconbtn { transition: opacity .25s; }
 .ob-top .iconbtn[hidden] { display: grid; opacity: 0; pointer-events: none; }
 .ob-dots { flex: 1; display: flex; justify-content: center; gap: 6px; transition: opacity .3s; }
-.ob-dots i { width: 22px; height: 4px; border-radius: 2px; background: var(--s3); transition: background .35s, width .45s cubic-bezier(.3, 1.2, .5, 1); }
+.ob-dots i { width: 22px; height: 4px; border-radius: 2px; background: var(--s3); transition: background .35s, width var(--t-snappy) var(--e-snappy); }
 .ob-dots i.on { background: var(--accent); width: 34px; }
 .ob-dots i.done { background: color-mix(in srgb, var(--accent) 45%, var(--s3)); }
 .ob-dots.hide { opacity: 0; }
@@ -673,7 +677,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .ob-state .spin-w { width: 13px; height: 13px; border-width: 1.75px; }
 .ob-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 12px; min-height: 40px; font-size: 14.5px; font-weight: 500; color: var(--accent); padding: 0 2px; }
 .ob-opts { display: grid; gap: 10px; }
-.ob-opt { display: flex; gap: 14px; align-items: flex-start; width: 100%; text-align: left; padding: 16px; border-radius: 20px; background: var(--s1); border: 1.5px solid var(--line); transition: border-color .25s, box-shadow .25s, transform .3s cubic-bezier(.3, 1.4, .5, 1); }
+.ob-opt { display: flex; gap: 14px; align-items: flex-start; width: 100%; text-align: left; padding: 16px; border-radius: 20px; background: var(--s1); border: 1.5px solid var(--line); transition: border-color .25s, box-shadow .25s, transform var(--t-lively) var(--e-lively); }
 .ob-opt:active { transform: scale(.98); }
 .ob-opt[aria-checked="true"] { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
 .ob-opt .tx { flex: 1; min-width: 0; }
@@ -690,7 +694,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .ob-pct b { font-family: var(--font-display); font-weight: 600; font-size: 40px; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 .ob-pct span { font-size: 13.5px; color: var(--t3); }
 .ob-bar { height: 8px; border-radius: 4px; background: var(--s3); overflow: hidden; margin: 10px 0 8px; }
-.ob-bar i { display: block; height: 100%; width: 0; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .45s cubic-bezier(.3, 1, .5, 1); }
+.ob-bar i { display: block; height: 100%; width: 0; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width var(--t-smooth) var(--e-smooth); }
 .ob-bar.done i { background: var(--ok); }
 .ob-st { display: flex; align-items: center; gap: 12px; padding: 10px 0; font-size: 14.5px; color: var(--t3); }
 .ob-st + .ob-st { border-top: 1px solid var(--line); }
@@ -727,7 +731,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .crumbs button:last-child { color: var(--t1); font-weight: 500; }
 .crumbs .sep { color: var(--t3); flex: none; }
 .recent2 { display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px 4px; padding: 0 16px 4px; scrollbar-width: none; }
-.rc { flex: none; width: 150px; text-align: left; padding: 12px; border-radius: 18px; background: var(--s1); border: 1px solid var(--line); transition: transform .3s cubic-bezier(.3, 1.4, .5, 1); }
+.rc { flex: none; width: 150px; text-align: left; padding: 12px; border-radius: 18px; background: var(--s1); border: 1px solid var(--line); transition: transform var(--t-lively) var(--e-lively); }
 .rc:active { transform: scale(.97); }
 .rc b { display: block; margin-top: 10px; font-family: var(--font-mono); font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rc small { display: block; margin-top: 2px; font-size: 12px; color: var(--t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -795,7 +799,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .pl-ic.big { width: 56px; height: 56px; border-radius: 17px; font-size: 24px; }
 .pl-ic.off { filter: grayscale(1); opacity: .6; }
 .pl-create { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; padding: 16px; border-radius: 22px; margin-top: 4px;
-  background: linear-gradient(135deg, var(--accent-soft), color-mix(in srgb, var(--accent-soft) 40%, var(--s1))); border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line)); transition: transform .3s cubic-bezier(.3, 1.4, .5, 1); }
+  background: linear-gradient(135deg, var(--accent-soft), color-mix(in srgb, var(--accent-soft) 40%, var(--s1))); border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--line)); transition: transform var(--t-lively) var(--e-lively); }
 .pl-create:active { transform: scale(.98); }
 .pl-create .ic { width: 44px; height: 44px; border-radius: 14px; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; flex: none; box-shadow: 0 8px 18px color-mix(in srgb, var(--accent) 30%, transparent); }
 .pl-create b { display: block; font-weight: 600; font-size: 15.5px; }
@@ -903,7 +907,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .au-ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; flex: none; background: var(--accent-soft); color: var(--accent); }
 .au-ic.g { background: var(--ok-soft); color: var(--ok); } .au-ic.o { background: var(--warn-soft); color: var(--warn); } .au-ic.b { background: color-mix(in srgb, #2f7de1 14%, var(--s1)); color: color-mix(in srgb, #2f7de1 65%, var(--t1)); }
 .tpls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.tpl { text-align: left; padding: 13px; border-radius: 18px; background: var(--s1); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; min-height: 104px; transition: transform .3s cubic-bezier(.3, 1.4, .5, 1); }
+.tpl { text-align: left; padding: 13px; border-radius: 18px; background: var(--s1); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; min-height: 104px; transition: transform var(--t-lively) var(--e-lively); }
 .tpl:active { transform: scale(.97); }
 .tpl b { font-weight: 500; font-size: 14.5px; line-height: 1.3; }
 .tpl small { font-size: 12px; color: var(--t3); line-height: 1.35; }
@@ -1017,6 +1021,25 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .st-chips button { height: 40px; padding: 0 14px; border-radius: 12px; background: var(--s1); border: 1px solid var(--line); font-size: 14px; color: var(--t2); }
 .st-chips button[aria-checked="true"] { background: var(--t1); color: var(--bg); border-color: transparent; }
 
+/* ---------- Отклик на нажатие и переход темы ---------- */
+button.gr, .st-row, .plr, .ar, .hr, .li, .rad, .fr, .sess, .dlink, .model, .resume, .tool-row { transition: background-color .35s ease-out; }
+button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:active, .li:active, .rad:active, .fr:active, .sess:active, .dlink:active, .model:active, .resume:active { background-color: var(--s2); transition-duration: 0s; }
+.list .li:active { background-color: var(--s3); }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .4s; animation-timing-function: ease-in-out; }
+
+/* ---------- Нет сети ---------- */
+.netbar { position: absolute; left: 12px; right: 12px; top: 104px; z-index: 19; display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 12px; border-radius: 16px;
+  background: var(--glass); backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6); border: 1px solid var(--glass-line); box-shadow: var(--shadow-float); visibility: hidden; font-size: 14px; }
+@media (max-width: 760px) { .netbar { top: calc(64px + env(safe-area-inset-top, 0px)); } }
+.netbar .nb-ic { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; background: var(--warn-soft); color: var(--warn); flex: none; }
+.netbar.ok .nb-ic { background: var(--ok-soft); color: var(--ok); }
+.netbar .tx { flex: 1; min-width: 0; line-height: 1.3; }
+.netbar .tx small { display: block; font-size: 12px; color: var(--t3); }
+.nb-btn { height: 40px; padding: 0 12px; border-radius: 11px; background: var(--s2); font-size: 13.5px; font-weight: 500; color: var(--accent); flex: none; }
+.netbar.ok .nb-btn { display: none; }
+.msg-user.pending { opacity: .6; }
+.msg-user .pend { display: block; margin-top: 4px; font-size: 12px; color: var(--t3); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
@@ -1109,6 +1132,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
         <button aria-pressed="false" data-go="plugins">Плагины</button>
         <button aria-pressed="false" data-go="automation">Автоматизация</button>
         <button aria-pressed="false" data-go="settings">Настройки</button>
+        <button aria-pressed="false" data-go="offline">Нет сети</button>
       </div>
     </div>
     <div>
@@ -1168,6 +1192,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
           <button class="iconbtn" data-act="new" aria-label="Новая сессия"><svg class="i"><use href="#i-new"/></svg></button>
         </header>
 
+        <div class="netbar" id="netbar" role="status"><span class="nb-ic"><svg class="i sm"><use href="#i-globe"/></svg></span><span class="tx" id="netText">Нет соединения</span><button class="nb-btn" id="netRetry">Повторить</button></div>
         <div class="thread" id="thread"></div>
 
         <div class="fade"></div>
@@ -1545,13 +1570,25 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
     const a = el.animate(frames, { duration: reduce ? 1 : s.duration, easing: s.easing, fill: "forwards", ...extra });
     return a;
   }
+  // Из текущего положения: прерванная анимация продолжается без скачка
+  function go(el, to, s = SMOOTH, extra = {}) {
+    if (!el) return null;
+    const cs = getComputedStyle(el), from = {};
+    for (const k in to) from[k] = cs[k];
+    el.getAnimations().forEach((a) => a.cancel());
+    return anim(el, [from, to], s, extra);
+  }
+  // Те же пружины для CSS-переходов (нажатия, переключатели, бегунки)
+  const rootStyle = document.documentElement.style;
+  [["smooth", SMOOTH], ["snappy", SNAPPY], ["lively", LIVELY]].forEach(([n, sp]) => { rootStyle.setProperty(`--e-${n}`, sp.easing); rootStyle.setProperty(`--t-${n}`, (reduce ? 1 : sp.duration) + "ms"); });
 
   // ---------- Тема ----------
   const themeBtns = $$("#themes button");
   themeBtns.forEach((b) => b.addEventListener("click", () => {
     const v = b.dataset.themeSet;
-    if (v === "system") document.documentElement.removeAttribute("data-theme");
-    else document.documentElement.setAttribute("data-theme", v);
+    const apply = () => { if (v === "system") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", v); };
+    // Плавная смена темы целиком, без мигания отдельных элементов
+    if (document.startViewTransition && !reduce && document.documentElement.dataset.ready) document.startViewTransition(apply); else apply();
     themeBtns.forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
     try { localStorage.setItem("dsh-proto-theme", v); } catch (e) {}
   }));
@@ -1559,6 +1596,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
     const saved = localStorage.getItem("dsh-proto-theme");
     if (saved) $(`#themes [data-theme-set="${saved}"]`)?.click();
   } catch (e) {}
+  document.documentElement.dataset.ready = "1";
 
   // ---------- Элементы ----------
   const app = $("#app"), main = $("#main"), thread = $("#thread"), dock = $("#dock"), composer = $("#composer");
@@ -1567,65 +1605,127 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 
   // ---------- Шторка и листы ----------
   let openSheet = null, drawerOpen = false;
-  function showScrim(on) {
-    scrim.classList.toggle("on", on);
-    anim(scrim, [{ opacity: on ? 0 : 1 }, { opacity: on ? 1 : 0 }], SMOOTH);
-  }
+  // Что уходит вглубь под листом: открытый экран или чат
+  const under = () => curScreen || main;
+  function showScrim(on) { scrim.classList.toggle("on", on); go(scrim, { opacity: on ? 1 : 0 }, on ? SMOOTH : SNAPPY); }
   function sheetOpen(id) {
     if (drawerOpen) closeDrawer();
     if (openSheet) sheetClose(true);
     const s = $("#sheet-" + id);
     if (!s) return;
-    s.style.visibility = "visible";
-    openSheet = s;
+    s.style.visibility = "visible"; s.scrollTop = 0;
+    openSheet = s; app.classList.add("sheet-on");
     showScrim(true);
-    anim(s, [{ transform: "translateY(110%)" }, { transform: "translateY(0)" }], SMOOTH);
-    anim(main, [{ transform: "scale(1)", borderRadius: "0px" }, { transform: "scale(.94)", borderRadius: "28px" }], SMOOTH);
+    anim(s, [{ transform: "translateY(105%)" }, { transform: "translateY(0)" }], SMOOTH);
+    go(under(), { transform: (curScreen ? "translateX(0) " : "") + "scale(.94)", borderRadius: "28px" }, SMOOTH);
+    if (curScreen) [main, ...scrStack].forEach((x) => { x.style.visibility = "hidden"; });
+    if (navigator.vibrate) try { navigator.vibrate(4); } catch (e) {}
     if (id === "model") placeThumb(false);
     if (id === "plus") { picked = []; updAttachBar(); }
   }
-  function sheetClose(instant) {
+  function sheetClose(instant, velocity = 0) {
     const s = openSheet; if (!s) return;
-    openSheet = null;
+    openSheet = null; app.classList.remove("sheet-on");
     showScrim(false);
-    const a = anim(s, [{ transform: getComputedStyle(s).transform }, { transform: "translateY(110%)" }], instant ? { easing: "linear", duration: 1 } : SNAPPY);
-    a && (a.onfinish = () => { s.style.visibility = "hidden"; });
-    anim(main, [{ transform: "scale(.94)", borderRadius: "28px" }, { transform: "scale(1)", borderRadius: "0px" }], SMOOTH);
+    const sp = instant ? { easing: "linear", duration: 1 } : velocity > 0.6 ? SNAPPY : SMOOTH;
+    const a = go(s, { transform: "translateY(105%)" }, sp);
+    a && (a.onfinish = () => { if (openSheet !== s) s.style.visibility = "hidden"; if (!openSheet) [main, ...scrStack].forEach((x) => { x.style.visibility = ""; }); });
+    if (instant) [main, ...scrStack].forEach((x) => { x.style.visibility = ""; });
+    go(under(), { transform: (curScreen ? "translateX(0) " : "") + "scale(1)", borderRadius: "0px" }, instant ? sp : SMOOTH);
   }
-  scrim.addEventListener("click", () => { if (openSheet) sheetClose(); else if (drawerOpen) closeDrawer(); });
+  scrim.addEventListener("click", () => { if (openSheet) sheetClose(); });
 
-  // Свайп листа вниз
+  // Свайп листа вниз: лист идёт за пальцем, фон «всплывает», бросок закрывает
   $$(".sheet").forEach((s) => {
-    let y0 = null, dy = 0;
-    s.addEventListener("pointerdown", (e) => { if (e.target.closest(".slider, button, .term, .tout, input")) return; y0 = e.clientY; dy = 0; s.setPointerCapture(e.pointerId); });
-    s.addEventListener("pointermove", (e) => { if (y0 === null) return; dy = Math.max(0, e.clientY - y0); s.getAnimations().forEach((a) => a.cancel()); s.style.transform = `translateY(${dy}px)`; });
-    s.addEventListener("pointerup", () => {
-      if (y0 === null) return; y0 = null;
-      if (dy > 90) { sheetClose(); s.style.transform = ""; }
-      else { anim(s, [{ transform: `translateY(${dy}px)` }, { transform: "translateY(0)" }], LIVELY); s.style.transform = ""; }
+    let y0 = null, dy = 0, lastY = 0, lastT = 0, vel = 0;
+    s.addEventListener("pointerdown", (e) => {
+      if (e.target.closest("button, input, textarea, select, .term, .tout, [contenteditable]") || s.scrollTop > 0) return;
+      y0 = e.clientY; dy = 0; lastY = e.clientY; lastT = performance.now(); vel = 0;
     });
+    s.addEventListener("pointermove", (e) => {
+      if (y0 === null) return;
+      const d = e.clientY - y0;
+      if (dy === 0 && d < 6) return;
+      if (!s.hasPointerCapture(e.pointerId)) s.setPointerCapture(e.pointerId);
+      // Вверх — с сопротивлением, вниз — один к одному
+      dy = d > 0 ? d : -Math.sqrt(-d) * 2;
+      const now = performance.now(); vel = (e.clientY - lastY) / Math.max(1, now - lastT); lastY = e.clientY; lastT = now;
+      s.getAnimations().forEach((a) => a.cancel()); s.style.transform = `translateY(${dy}px)`;
+      const k = Math.min(1, Math.max(0, dy) / s.offsetHeight);
+      scrim.getAnimations().forEach((a) => a.cancel()); scrim.style.opacity = String(1 - k);
+      const u = under(); u.getAnimations().forEach((a) => a.cancel()); u.style.transform = (curScreen ? "translateX(0) " : "") + `scale(${.94 + .06 * k})`; u.style.borderRadius = 28 * (1 - k) + "px";
+    });
+    const end = () => {
+      if (y0 === null) return; y0 = null;
+      if (dy === 0) return;
+      const close = dy > s.offsetHeight * 0.3 || vel > 0.5;
+      const freeze = (el) => { const t = el.style.transform, r = el.style.borderRadius, o = el.style.opacity; el.style.transform = el.style.borderRadius = el.style.opacity = ""; anim(el, [{ transform: t || "none", borderRadius: r || "0px", ...(o ? { opacity: o } : {}) }, { transform: t || "none", borderRadius: r || "0px", ...(o ? { opacity: o } : {}) }], { easing: "linear", duration: 1 }); };
+      [s, scrim, under()].forEach(freeze);
+      if (close) sheetClose(false, vel);
+      else { go(s, { transform: "translateY(0)" }, LIVELY); go(scrim, { opacity: 1 }, SMOOTH); go(under(), { transform: (curScreen ? "translateX(0) " : "") + "scale(.94)", borderRadius: "28px" }, SMOOTH); }
+      dy = 0;
+    };
+    s.addEventListener("pointerup", end); s.addEventListener("pointercancel", end);
   });
 
   // ---------- Боковое меню ----------
+  const drawerW = () => app.clientWidth * 0.86;
   function openDrawer() {
     if (openSheet) sheetClose(true);
     drawerOpen = true;
     main.classList.add("pushed");
-    const w = app.clientWidth * 0.86;
-    anim(main, [{ transform: "translateX(0) scale(1)" }, { transform: `translateX(${w}px) scale(.92)` }], SMOOTH);
-    anim(drawer, [{ transform: "translateX(-30%)", opacity: 0 }, { transform: "translateX(0)", opacity: 1 }], SMOOTH);
-    scrim.style.zIndex = 4;
-    $$(".dhead, .drow, .proj, .dlink, .dgroup, .sess", drawer).forEach((el, i) =>
-      anim(el, [{ opacity: 0, transform: "translateX(-14px)" }, { opacity: 1, transform: "none" }], SMOOTH, { delay: reduce ? 0 : 30 + i * 22 }));
-    main.addEventListener("click", closeOnMain, { once: true, capture: true });
+    go(main, { transform: `translateX(${drawerW()}px) scale(.92)` }, SMOOTH);
+    go(drawer, { transform: "translateX(0)", opacity: 1 }, SMOOTH);
+    $$(".dhead, .drow, .proj, .dlink, .dgroup, .sess, .dfoot", drawer).forEach((el, i) =>
+      anim(el, [{ opacity: 0, transform: "translateX(-14px)" }, { opacity: 1, transform: "none" }], SMOOTH, { delay: reduce ? 0 : 30 + i * 18 }));
   }
-  function closeOnMain(e) { if (drawerOpen) { e.stopPropagation(); e.preventDefault(); closeDrawer(); } }
-  function closeDrawer() {
+  function closeDrawer(sp = SMOOTH) {
     drawerOpen = false;
-    const w = app.clientWidth * 0.86;
-    const a = anim(main, [{ transform: `translateX(${w}px) scale(.92)` }, { transform: "translateX(0) scale(1)" }], SMOOTH);
-    a && (a.onfinish = () => main.classList.remove("pushed"));
-    anim(drawer, [{ transform: "translateX(0)", opacity: 1 }, { transform: "translateX(-30%)", opacity: 0 }], SNAPPY);
+    const a = go(main, { transform: "translateX(0px) scale(1)" }, sp);
+    a && (a.onfinish = () => { if (!drawerOpen) main.classList.remove("pushed"); });
+    go(drawer, { transform: "translateX(-30%)", opacity: 0 }, sp);
+  }
+  // Касание по сдвинутому чату закрывает меню и не нажимает ничего внутри
+  let gestureEnd = 0;
+  main.addEventListener("click", (e) => {
+    // Щелчок, которым закончился жест, не считается нажатием
+    if (performance.now() - gestureEnd < 250) { e.stopPropagation(); e.preventDefault(); return; }
+    if (drawerOpen) { e.stopPropagation(); e.preventDefault(); closeDrawer(); }
+  }, true);
+  // Жест: свайп от левого края чата открывает меню, свайп по сдвинутому чату — закрывает
+  {
+    let x0 = null, y0 = 0, dx = 0, startOpen = false, lastX = 0, lastT = 0, vel = 0, active = false;
+    main.addEventListener("pointerdown", (e) => {
+      if (curScreen || openSheet) return;
+      const r = app.getBoundingClientRect();
+      if (!drawerOpen && e.clientX - r.left > 24) return;
+      x0 = e.clientX; y0 = e.clientY; dx = 0; startOpen = drawerOpen; lastX = e.clientX; lastT = performance.now(); vel = 0; active = false;
+      // Палец сразу уходит с сдвинутого чата на меню — держим его за чатом
+      if (drawerOpen) main.setPointerCapture(e.pointerId);
+    });
+    main.addEventListener("pointermove", (e) => {
+      if (x0 === null) return;
+      const d = e.clientX - x0;
+      if (!active) { if (Math.abs(d) < 8 || Math.abs(e.clientY - y0) > Math.abs(d)) { if (Math.abs(e.clientY - y0) > 10) x0 = null; return; } active = true; main.setPointerCapture(e.pointerId); main.classList.add("pushed"); }
+      const w = drawerW(); dx = d;
+      const pos = Math.min(w, Math.max(0, (startOpen ? w : 0) + d)), k = pos / w;
+      const now = performance.now(); vel = (e.clientX - lastX) / Math.max(1, now - lastT); lastX = e.clientX; lastT = now;
+      [main, drawer].forEach((el) => el.getAnimations().forEach((a) => a.cancel()));
+      main.style.transform = `translateX(${pos}px) scale(${1 - .08 * k})`;
+      drawer.style.transform = `translateX(${-30 * (1 - k)}%)`; drawer.style.opacity = String(k);
+    });
+    const end = () => {
+      if (x0 === null) return; x0 = null;
+      if (!active) return;
+      const w = drawerW(), pos = Math.min(w, Math.max(0, (startOpen ? w : 0) + dx));
+      const t = main.style.transform, dt = drawer.style.transform, dop = drawer.style.opacity;
+      main.style.transform = drawer.style.transform = drawer.style.opacity = "";
+      anim(main, [{ transform: t }, { transform: t }], { easing: "linear", duration: 1 }); anim(drawer, [{ transform: dt, opacity: dop }, { transform: dt, opacity: dop }], { easing: "linear", duration: 1 });
+      const open = vel > 0.4 ? true : vel < -0.4 ? false : pos > w / 2;
+      gestureEnd = performance.now();
+      if (open) { drawerOpen = false; openDrawer(); } else closeDrawer(Math.abs(vel) > 0.4 ? SNAPPY : SMOOTH);
+    };
+    main.addEventListener("pointerup", end); main.addEventListener("pointercancel", end);
   }
 
   // ---------- Поле ввода ----------
@@ -1853,7 +1953,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
     if (a === "drawer") openDrawer();
     else if (a === "new") { if (drawerOpen) closeDrawer(); renderHome(); }
     else if (a === "agent") { if (drawerOpen) closeDrawer(); startAgentDemo(); }
-    else if (a === "danger") { if (drawerOpen) closeDrawer(); if (curScreen) screenClose(true); renderDanger(); }
+    else if (a === "danger") { if (drawerOpen) closeDrawer(); toChat(true); renderDanger(); }
     else if (a === "close") sheetClose();
     else if (a === "back") screenClose();
     else if (["terminal", "files", "plugins", "automation", "settings"].includes(a)) screenOpen(a);
@@ -1941,44 +2041,70 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 
   // ---------- Экраны: переход вперёд и назад ----------
   let curScreen = null;
+  const scrStack = []; // экраны под текущим: Настройки → Плагины → назад вернёт в Настройки
+  const SHOWN = { terminal: () => termShown(), files: () => filesShown(), plugins: () => pluginsShown(), automation: () => automationShown(), settings: () => settingsShown(), danger: () => resetDz() };
+  const beneath = () => scrStack[scrStack.length - 1] || main;
   function screenOpen(id) {
     if (openSheet) sheetClose(true);
-    if (drawerOpen) closeDrawer();
+    if (drawerOpen) closeDrawer(SNAPPY);
     const s = $("#screen-" + id);
     if (curScreen === s) return;
-    if (curScreen) screenClose(true);
-    s.style.visibility = "visible"; curScreen = s;
+    if (scrStack.includes(s)) { while (curScreen && curScreen !== s) screenClose(true); return; }
+    if (curScreen) scrStack.push(curScreen);
+    s.style.visibility = "visible"; s.style.zIndex = 25 + scrStack.length; curScreen = s;
     anim(s, [{ transform: "translateX(100%)" }, { transform: "translateX(0)" }], SMOOTH);
-    anim(main, [{ transform: "translateX(0)", filter: "brightness(1)" }, { transform: "translateX(-28%)", filter: "brightness(.92)" }], SMOOTH);
-    if (id === "terminal") termShown();
-    if (id === "files") filesShown();
-    if (id === "plugins") pluginsShown();
-    if (id === "automation") automationShown();
-    if (id === "settings") settingsShown();
-    if (id === "danger") resetDz();
+    go(scrStack.length ? scrStack[scrStack.length - 1] : main, { transform: "translateX(-28%)", filter: "brightness(.92)" }, SMOOTH);
+    SHOWN[id]?.();
   }
-  function screenClose(instant, fromX = 0) {
+  // Назад на один уровень
+  function screenClose(instant, fromX = null, velocity = 0) {
     const s = curScreen; if (!s) return;
-    curScreen = null;
-    const t = instant ? { easing: "linear", duration: 1 } : SMOOTH;
-    const a = anim(s, [{ transform: `translateX(${fromX}px)` }, { transform: "translateX(100%)" }], t);
-    a && (a.onfinish = () => { s.style.visibility = "hidden"; });
-    anim(main, [{ transform: "translateX(-28%)", filter: "brightness(.92)" }, { transform: "translateX(0)", filter: "brightness(1)" }], t);
+    const prev = scrStack.pop() || null; curScreen = prev;
+    const sp = instant ? { easing: "linear", duration: 1 } : velocity > 0.6 ? SNAPPY : SMOOTH;
+    const a = fromX === null ? go(s, { transform: "translateX(100%)" }, sp) : anim(s, [{ transform: `translateX(${fromX}px)` }, { transform: "translateX(100%)" }], sp);
+    a && (a.onfinish = () => { if (curScreen !== s && !scrStack.includes(s)) { s.style.visibility = "hidden"; s.style.zIndex = ""; } });
+    go(prev || main, { transform: "translateX(0%)", filter: "brightness(1)" }, sp);
   }
-  // Свайп от левого края — назад
+  // Сразу в чат, сколько бы экранов ни было открыто
+  function toChat(instant) {
+    if (!curScreen) return;
+    const top = curScreen, sp = instant ? { easing: "linear", duration: 1 } : SMOOTH;
+    scrStack.forEach((x) => { x.getAnimations().forEach((a) => a.cancel()); x.style.visibility = "hidden"; x.style.zIndex = ""; });
+    scrStack.length = 0; curScreen = null;
+    const a = go(top, { transform: "translateX(100%)" }, sp); a && (a.onfinish = () => { if (curScreen !== top) { top.style.visibility = "hidden"; top.style.zIndex = ""; } });
+    go(main, { transform: "translateX(0%)", filter: "brightness(1)" }, sp);
+  }
+  // Свайп от левого края — назад: экран идёт за пальцем, нижний слой выезжает навстречу
+  const STACKS = { "screen-settings": () => [stStack, stPop], "screen-automation": () => [auStack, auPop], "screen-plugins": () => [plStack, plPop], "screen-files": () => [fsStack, fsPop] };
   $$(".screen").forEach((s) => {
-    let x0 = null, dx = 0;
-    s.addEventListener("pointerdown", (e) => { const r = s.getBoundingClientRect(); if (e.clientX - r.left > 28) return; x0 = e.clientX; dx = 0; s.setPointerCapture(e.pointerId); });
-    s.addEventListener("pointermove", (e) => { if (x0 === null) return; dx = Math.max(0, e.clientX - x0); s.getAnimations().forEach((a) => a.cancel()); s.style.transform = `translateX(${dx}px)`; });
-    s.addEventListener("pointerup", () => {
-      if (x0 === null) return; x0 = null; s.style.transform = "";
-      if (dx > s.clientWidth * 0.3 && s.id === "screen-settings" && stStack.length > 1) { anim(s, [{ transform: `translateX(${dx}px)` }, { transform: "translateX(0)" }], SNAPPY); stPop(); }
-      else if (dx > s.clientWidth * 0.3 && s.id === "screen-automation" && auStack.length > 1) { anim(s, [{ transform: `translateX(${dx}px)` }, { transform: "translateX(0)" }], SNAPPY); auPop(); }
-      else if (dx > s.clientWidth * 0.3 && s.id === "screen-plugins" && plStack.length > 1) { anim(s, [{ transform: `translateX(${dx}px)` }, { transform: "translateX(0)" }], SNAPPY); plPop(); }
-      else if (dx > s.clientWidth * 0.3 && s.id === "screen-files" && fsStack.length > 1) { anim(s, [{ transform: `translateX(${dx}px)` }, { transform: "translateX(0)" }], SNAPPY); fsPop(); }
-      else if (dx > s.clientWidth * 0.3) screenClose(false, dx);
-      else anim(s, [{ transform: `translateX(${dx}px)` }, { transform: "translateX(0)" }], LIVELY);
+    let x0 = null, dx = 0, lastX = 0, lastT = 0, vel = 0, inner = false;
+    s.addEventListener("pointerdown", (e) => {
+      const r = s.getBoundingClientRect(); if (e.clientX - r.left > 24) return;
+      const st = STACKS[s.id]?.(); inner = !!(st && st[0].length > 1);
+      x0 = e.clientX; dx = 0; lastX = e.clientX; lastT = performance.now(); vel = 0; s.setPointerCapture(e.pointerId);
     });
+    s.addEventListener("pointermove", (e) => {
+      if (x0 === null) return;
+      dx = Math.max(0, e.clientX - x0); const k = dx / s.clientWidth;
+      const now = performance.now(); vel = (e.clientX - lastX) / Math.max(1, now - lastT); lastX = e.clientX; lastT = now;
+      if (inner) { const body = $(".fs-body", s), top = body?.lastElementChild; if (top) { top.getAnimations().forEach((a) => a.cancel()); top.style.transform = `translateX(${dx}px)`; } return; }
+      s.getAnimations().forEach((a) => a.cancel()); s.style.transform = `translateX(${dx}px)`;
+      const bn = beneath(); bn.getAnimations().forEach((a) => a.cancel()); bn.style.transform = `translateX(${-28 * (1 - k)}%)`; bn.style.filter = `brightness(${.92 + .08 * k})`;
+    });
+    const end = () => {
+      if (x0 === null) return; x0 = null;
+      const done = dx > s.clientWidth * 0.35 || vel > 0.45;
+      if (inner) {
+        const top = $(".fs-body", s)?.lastElementChild; const t = top?.style.transform || "none"; if (top) top.style.transform = "";
+        if (done) { const [, pop] = STACKS[s.id](); pop(); } else if (top) anim(top, [{ transform: t }, { transform: "translateX(0)" }], LIVELY);
+        return;
+      }
+      const bn = beneath(), mt = bn.style.transform, mf = bn.style.filter; s.style.transform = bn.style.transform = bn.style.filter = "";
+      if (mt) anim(bn, [{ transform: mt, filter: mf }, { transform: mt, filter: mf }], { easing: "linear", duration: 1 });
+      if (done) screenClose(false, dx, vel);
+      else { anim(s, [{ transform: `translateX(${dx}px)` }, { transform: "translateX(0)" }], LIVELY); go(bn, { transform: "translateX(-28%)", filter: "brightness(.92)" }, SMOOTH); }
+    };
+    s.addEventListener("pointerup", end); s.addEventListener("pointercancel", end);
   });
 
   // ---------- Терминал ----------
@@ -2431,15 +2557,15 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
   });
   function fileAction(a, path) {
     const name = path.split("/").pop();
-    if (a === "attach") { screenClose(); addAtt(`${ftHtml(path).replace('class="ft', 'class="ic ft')}<span><b>${name}</b>${path}</span>`); setTimeout(() => { setComposerOpen(true); syncSend(); }, 300); }
-    else if (a === "ask") { screenClose(); field.textContent = `Объясни, что делает ${name}`; addAtt(`${ftHtml(path).replace('class="ft', 'class="ic ft')}<span><b>${name}</b>${path}</span>`); setTimeout(() => { setComposerOpen(true); syncSend(); field.focus(); }, 300); }
+    if (a === "attach") { toChat(); addAtt(`${ftHtml(path).replace('class="ft', 'class="ic ft')}<span><b>${name}</b>${path}</span>`); setTimeout(() => { setComposerOpen(true); syncSend(); }, 300); }
+    else if (a === "ask") { toChat(); field.textContent = `Объясни, что делает ${name}`; addAtt(`${ftHtml(path).replace('class="ft', 'class="ic ft')}<span><b>${name}</b>${path}</span>`); setTimeout(() => { setComposerOpen(true); syncSend(); field.focus(); }, 300); }
     else if (a === "share") toast("Откроется системное меню «Поделиться»");
     else if (a === "rename") toast("Переименование — в версии приложения");
     else if (a === "delete") toast(`${name} — удаление спросит подтверждение`);
   }
   $$("[data-fa]").forEach((b) => b.addEventListener("click", () => { sheetClose(); setTimeout(() => fileAction(b.dataset.fa, faPath), 200); }));
   async function reviewChanges() {
-    screenClose(); await wait(350);
+    toChat(); await wait(350);
     stopRun(true); hideDecision(true);
     const my = runId;
     title.textContent = "Проверка изменений"; thread.innerHTML = "";
@@ -2583,7 +2709,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
   $("#plAdd").addEventListener("click", () => sheetOpen("pladd"));
   function askAgent(text) {
     if (openSheet) sheetClose(true);
-    screenClose(); renderHome();
+    toChat(); renderHome();
     setTimeout(() => { field.textContent = text; setComposerOpen(true); syncSend(); field.focus(); const r = document.createRange(); r.selectNodeContents(field); r.collapse(false); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); }, 380);
   }
   function createWithAgent() {
@@ -2976,7 +3102,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
   function obWsLabel() { const shared = $('#obWs [aria-checked="true"]').dataset.ws === "shared"; obNext.textContent = shared ? "Разрешить доступ" : "Продолжить"; $("#obWsNote").classList.toggle("on", shared); }
   function obEnvLabel() { obNext.textContent = instDone ? "Начать работу" : "Продолжить, пока ставится"; }
   function obOpen() {
-    if (openSheet) sheetClose(true); if (drawerOpen) closeDrawer(); if (curScreen) screenClose(true);
+    if (openSheet) sheetClose(true); if (drawerOpen) closeDrawer(); toChat(true);
     keyOk = false; instP = 0; instDone = false; clearInterval(instT);
     $("#obKey").value = ""; $("#obField").classList.remove("ok"); setKeyState("idle");
     $$(".ob-st", ob).forEach((st) => st.className = "ob-st"); $("#obBar").style.width = "0"; $("#obPct").textContent = "0%"; $(".ob-bar", ob).classList.remove("done"); $("#obEnvTitle").textContent = "Устанавливаю Linux";
@@ -3042,6 +3168,26 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
   obAlt.addEventListener("click", () => { if (obi === 0) toast("Выберите файл резервной копии DSH"); else obSet(2, 1); });
   $("#obBack").addEventListener("click", () => { if (obi > 0) obSet(obi - 1, -1); });
 
+  // ---------- Нет сети: переподключение с отсчётом ----------
+  const netbar = $("#netbar"), netText = $("#netText");
+  let netT = 0, netTry = 0;
+  function netShow() {
+    clearInterval(netT); netTry = 1; netbar.classList.remove("ok"); netbar.style.visibility = "visible";
+    go(netbar, { opacity: 1, transform: "translateY(0)" }, LIVELY); netbar.animate([{ opacity: 0, transform: "translateY(-16px)" }, { opacity: 1, transform: "none" }], { duration: reduce ? 1 : LIVELY.duration, easing: LIVELY.easing });
+    let left = 4;
+    const tick = () => { netText.innerHTML = `Нет соединения<small>Повтор через ${left} с · ответ агента сохранится</small>`; };
+    tick();
+    netT = setInterval(() => { left--; if (left <= 0) { netTry++; left = Math.min(16, 2 ** netTry); if (netTry >= 3) return netBack(); } tick(); }, 1000);
+  }
+  function netBack() {
+    clearInterval(netT); netbar.classList.add("ok"); netText.innerHTML = "Снова в сети<small>Ответ агента продолжается</small>";
+    anim($(".nb-ic", netbar), [{ transform: "scale(.6)" }, { transform: "scale(1)" }], LIVELY);
+    setTimeout(() => { const a = go(netbar, { opacity: 0, transform: "translateY(-12px)" }, SMOOTH); a.onfinish = () => { netbar.style.visibility = "hidden"; }; }, 1600);
+  }
+  $("#netRetry").addEventListener("click", () => { netText.innerHTML = `Подключаюсь…<small>Проверяю связь с Host</small>`; clearInterval(netT); setTimeout(netBack, 900); });
+  // Тактильный отклик на любой переключатель
+  document.addEventListener("click", (e) => { if (e.target.closest('.toggle, [role="switch"]') && navigator.vibrate) try { navigator.vibrate(6); } catch (x) {} }, true);
+
   // ---------- Переключатель экранов ----------
   function startAgentDemo() {
     if (openSheet) sheetClose(true);
@@ -3053,9 +3199,11 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
     screenBtns.forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
     const g = b.dataset.go;
     if (drawerOpen && g !== "drawer") closeDrawer();
-    if (curScreen && !["terminal", "danger", "files", "plugins", "automation", "settings"].includes(g)) screenClose(true);
+    // Панель прототипа: каждый экран открывается с чата
+    if (curScreen) toChat(true);
     if (g !== "onboard" && ob.classList.contains("on")) { clearInterval(instT); instT = 0; ob.classList.remove("on"); }
-    if (g === "onboard") obOpen();
+    if (g === "offline") { if (openSheet) sheetClose(true); if (!$(".msg-user", thread)) startAgentDemo(); setTimeout(netShow, 600); }
+    else if (g === "onboard") obOpen();
     else if (g === "home") { if (openSheet) sheetClose(true); renderHome(); }
     else if (g === "agent") startAgentDemo();
     else if (g === "danger") { if (openSheet) sheetClose(true); renderDanger(); }
