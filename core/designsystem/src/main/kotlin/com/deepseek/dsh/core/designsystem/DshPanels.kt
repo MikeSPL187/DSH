@@ -343,6 +343,8 @@ fun DshDialogButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     height: Dp = DshPanelDefaults.DialogButtonHeight,
+    /** Необратимое действие (удаление): красная кнопка. */
+    danger: Boolean = false,
 ) {
     val c = Dsh.colors
     val interaction = remember { MutableInteractionSource() }
@@ -350,6 +352,7 @@ fun DshDialogButton(
     val share = if (row != null) with(row) { Modifier.weight(1f) } else Modifier
     val (fill, ink) = when {
         !enabled -> c.s3 to c.t3
+        danger -> c.dangerFill to Color.White
         primary -> c.accent to c.onAccent
         else -> c.s2 to c.t1
     }

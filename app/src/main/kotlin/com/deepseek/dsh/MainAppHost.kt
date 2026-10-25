@@ -1613,128 +1613,20 @@ fun MainAppHost(
             }
         }
     }
-    if (runtimeUi.showAddWorkspaceDialog) {
-        com.deepseek.dsh.core.designsystem.DshDialog(
-            onDismiss = { runtimeUi.showAddWorkspaceDialog = false },
-            title = stringResource(R.string.workspace_new_title),
-            closeLabel = stringResource(R.string.action_close),
-            footer = {
-                com.deepseek.dsh.core.designsystem.DshDialogButton(
-                    text = stringResource(R.string.action_cancel),
-                    primary = false,
-                    enabled = true,
-                    onClick = { runtimeUi.showAddWorkspaceDialog = false },
-                )
-                com.deepseek.dsh.core.designsystem.DshDialogButton(
-                    text = stringResource(R.string.action_create),
-                    primary = true,
-                    enabled = runtimeUi.newWorkspaceName.isNotBlank(),
-                    onClick = {
-                        val name = runtimeUi.newWorkspaceName.trim()
-                        if (name.isNotEmpty()) {
-                            val dir = java.io.File(activeWorkspace, name)
-                            dir.mkdirs()
-                            runtimeUi.activeWorkspaceName = name
-                            runtimeUi.workspaceRevision += 1
-                            scope.launch {
-                                dshRepository.createWorkspace(ui.activeHostId, dir.absolutePath)
-                            }
-                        }
-                        runtimeUi.showAddWorkspaceDialog = false
-                    },
-                )
+    val workspaceOps = remember(activeWorkspace, ui.activeHostId) {
+        WorkspaceOps(
+            root = activeWorkspace,
+            host = object : WorkspaceHost {
+                override suspend fun create(path: String) { dshRepository.createWorkspace(ui.activeHostId, path) }
+                override suspend fun rename(workspaceId: String, title: String) { dshRepository.workspaceRename(ui.activeHostId, workspaceId, title) }
+                override suspend fun delete(workspaceId: String) { dshRepository.deleteWorkspace(ui.activeHostId, workspaceId) }
+                override suspend fun renameSession(sessionId: String, title: String) { dshRepository.renameSession(ui.activeHostId, sessionId, title) }
             },
-            content = {
-                com.deepseek.dsh.core.designsystem.DshTextInput(
-                    value = runtimeUi.newWorkspaceName,
-                    onValueChange = { runtimeUi.newWorkspaceName = it },
-                    placeholder = stringResource(R.string.workspace_name_placeholder),
-                )
-            },
+            hostIdOf = { path -> dshRepository.hostWorkspacesFlow.value.firstOrNull { it.path == path }?.id },
         )
     }
-    runtimeUi.renameWorkspaceFolder?.let { folder ->
-        com.deepseek.dsh.core.designsystem.DshDialog(
-            onDismiss = { runtimeUi.renameWorkspaceFolder = null },
-            title = stringResource(R.string.workspace_rename_title),
-            closeLabel = stringResource(R.string.action_close),
-            footer = {
-                com.deepseek.dsh.core.designsystem.DshDialogButton(
-                    text = stringResource(R.string.action_cancel), primary = false, enabled = true,
-                    onClick = { runtimeUi.renameWorkspaceFolder = null },
-                )
-                com.deepseek.dsh.core.designsystem.DshDialogButton(
-                    text = stringResource(R.string.action_save), primary = true,
-                    enabled = runtimeUi.renameWorkspaceName.isNotBlank(),
-                    onClick = {
-                        val target = java.io.File(
-                            folder.path.ifBlank { java.io.File(activeWorkspace, folder.name).absolutePath }
-                        )
-                        val renamed = java.io.File(target.parentFile, runtimeUi.renameWorkspaceName.trim())
-                        if (target.exists() && renamed.absolutePath != target.absolutePath) {
-                            runCatching { target.renameTo(renamed) }
-                            if (folder.name == runtimeUi.activeWorkspaceName) runtimeUi.activeWorkspaceName = runtimeUi.renameWorkspaceName.trim()
-                            runtimeUi.workspaceRevision += 1
-                            // Host 工作区跟着改名（先按原路径找 workspaceId）。
-                            val hostWorkspace = hostWorkspaces.firstOrNull { it.path == folder.path }
-                            if (hostWorkspace != null) {
-                                scope.launch {
-                                    dshRepository.workspaceRename(
-                                        ui.activeHostId,
-                                        hostWorkspace.id,
-                                        runtimeUi.renameWorkspaceName.trim(),
-                                    )
-                                }
-                            }
-                        }
-                        runtimeUi.renameWorkspaceFolder = null
-                    },
-                )
-            },
-            content = {
-                com.deepseek.dsh.core.designsystem.DshTextInput(
-                    value = runtimeUi.renameWorkspaceName,
-                    onValueChange = { runtimeUi.renameWorkspaceName = it },
-                    placeholder = stringResource(R.string.workspace_name_placeholder),
-                )
-            },
-        )
-    }
+    WorkspaceDialogs(runtimeUi, workspaceOps, scope)
 
-    // 会话重命名：官方 `session/rename`。
-    runtimeUi.renameSessionTarget?.let { target ->
-        com.deepseek.dsh.core.designsystem.DshDialog(
-            onDismiss = { runtimeUi.renameSessionTarget = null },
-            title = stringResource(R.string.row_rename),
-            closeLabel = stringResource(R.string.action_close),
-            footer = {
-                com.deepseek.dsh.core.designsystem.DshDialogButton(
-                    text = stringResource(R.string.action_cancel), primary = false, enabled = true,
-                    onClick = { runtimeUi.renameSessionTarget = null },
-                )
-                com.deepseek.dsh.core.designsystem.DshDialogButton(
-                    text = stringResource(R.string.action_save), primary = true,
-                    enabled = runtimeUi.renameSessionTitle.isNotBlank(),
-                    onClick = {
-                        val title = runtimeUi.renameSessionTitle.trim()
-                        runtimeUi.renameSessionTarget = null
-                        if (title.isNotEmpty() && title != target.title) {
-                            scope.launch {
-                                dshRepository.renameSession(ui.activeHostId, target.sessionId, title)
-                            }
-                        }
-                    },
-                )
-            },
-            content = {
-                com.deepseek.dsh.core.designsystem.DshTextInput(
-                    value = runtimeUi.renameSessionTitle,
-                    onValueChange = { runtimeUi.renameSessionTitle = it },
-                    placeholder = stringResource(R.string.row_rename),
-                )
-            },
-        )
-    }
 
     // Запрос агента на действие (approval/request): в чате — карточкой в ходе работы или экраном удаления.
     val chatApproval: com.deepseek.dsh.feature.chat.ChatApproval? = pendingApprovalWaterfalls.firstOrNull()?.let { waterfall ->
@@ -1823,50 +1715,6 @@ fun MainAppHost(
         )
     }
 
-    runtimeUi.deleteWorkspaceFolder?.let { folder ->
-        com.deepseek.dsh.core.designsystem.DshDialog(
-            onDismiss = { runtimeUi.deleteWorkspaceFolder = null },
-            title = stringResource(R.string.workspace_delete_title),
-            closeLabel = stringResource(R.string.action_close),
-            description = stringResource(R.string.workspace_delete_desc, folder.name),
-            footer = {
-                com.deepseek.dsh.core.designsystem.DshDialogButton(
-                    text = stringResource(R.string.action_cancel), primary = false, enabled = true,
-                    onClick = { runtimeUi.deleteWorkspaceFolder = null },
-                )
-                com.deepseek.dsh.core.designsystem.DshDialogButton(
-                    text = stringResource(R.string.action_delete), primary = true, enabled = true,
-                    onClick = {
-                        val target = java.io.File(
-                            folder.path.ifBlank { java.io.File(activeWorkspace, folder.name).absolutePath }
-                        )
-                        // 先取消 Host 注册，再删本地目录。
-                        val hostWorkspace = hostWorkspaces.firstOrNull { it.path == folder.path }
-                        if (hostWorkspace != null) {
-                            scope.launch { dshRepository.deleteWorkspace(ui.activeHostId, hostWorkspace.id) }
-                        }
-                        // 只允许删除当前工作区根目录之内的文件夹（路径可能来自 Host），
-                        // 不跟随符号链接，并且不在主线程做大目录删除（避免 ANR）。
-                        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                            runCatching {
-                                val root = activeWorkspace.canonicalFile.toPath()
-                                val resolved = target.canonicalFile.toPath()
-                                if (resolved != root && resolved.startsWith(root)) {
-                                    com.deepseek.dsh.runtime.host.SafeFiles.deleteTree(target)
-                                }
-                            }
-                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                runtimeUi.workspaceRevision += 1
-                            }
-                        }
-                        if (folder.name == runtimeUi.activeWorkspaceName) runtimeUi.activeWorkspaceName = DEFAULT_WORKSPACE_DIR_NAME
-                        runtimeUi.workspaceRevision += 1
-                        runtimeUi.deleteWorkspaceFolder = null
-                    },
-                )
-            },
-        )
-    }
     // 文件页：展示工作区（Host 只能看到 Documents/DSH-Workpace），
     // 手机其它位置的文件用系统 picker 选后复制进工作区做「中转」。
     // Список файлов виден и на странице «Файлы», и во вкладке файлов правой панели чата.
