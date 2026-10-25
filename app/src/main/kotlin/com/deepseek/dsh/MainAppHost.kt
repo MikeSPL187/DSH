@@ -274,9 +274,6 @@ fun MainAppHost(
         initial = com.deepseek.dsh.core.model.ComposerStats()
     )
 
-    // 录音输入：权限、录音与转写由 App 负责；草稿在 ChatScreen 里，转写结果
-    // 作为一次性事件传下去（官方 composer activity 的同样职责划分）。
-    val voiceRecorder = remember { com.deepseek.dsh.voice.VoiceRecorder() }
     // Подписка на каталог: чтение StateFlow.value в composition не перерисовывает UI при изменениях.
     val bridgeCatalogState by dshRepository.bridgePluginCatalogFlow.collectAsState()
     val voiceEnabled = remember(bridgeCatalogState) {
@@ -285,85 +282,7 @@ fun MainAppHost(
         }
     }
     NotificationPermissionEffect(ui.currentAppSettings.notificationsEnabled)
-    val voicePermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        if (granted) {
-            runtimeUi.voiceError = null
-            runtimeUi.voiceSeconds = 0
-            runtimeUi.voiceRecording = voiceRecorder.start()
-            if (!runtimeUi.voiceRecording) runtimeUi.voiceError = context.getString(R.string.voice_device_unsupported)
-        } else {
-            runtimeUi.voiceError = context.getString(R.string.voice_permission_denied)
-        }
-    }
-    fun startVoice() {
-        val granted = context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) ==
-            android.content.pm.PackageManager.PERMISSION_GRANTED
-        if (granted) {
-            runtimeUi.voiceError = null
-            runtimeUi.voiceSeconds = 0
-            runtimeUi.voiceRecording = voiceRecorder.start()
-            if (!runtimeUi.voiceRecording) runtimeUi.voiceError = context.getString(R.string.voice_device_unsupported)
-        } else {
-            voicePermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
-        }
-    }
-    fun stopVoice() {
-        if (!runtimeUi.voiceRecording || runtimeUi.voiceBusy) return
-        val wav = voiceRecorder.stop()
-        runtimeUi.voiceRecording = false
-        runtimeUi.voiceLevel = 0f
-        if (wav == null) {
-            runtimeUi.voiceError = context.getString(R.string.voice_no_speech)
-            return
-        }
-        runtimeUi.voiceBusy = true
-        scope.launch {
-            val catalog = dshRepository.speechCatalog(ui.activeHostId).getOrNull()
-            val provider = catalog?.selected
-            if (catalog == null || provider == null) {
-                runtimeUi.voiceBusy = false
-                runtimeUi.voiceError = context.getString(R.string.voice_service_unavailable)
-                return@launch
-            }
-            // 本地识别器未就绪时先准备；准备失败要如实告诉用户，
-            // 而不是在转写阶段抛出一个笼统的 transcription-failed。
-            val phase = provider.preparation?.phase
-            if (phase != "ready" && phase != "standby") {
-                runtimeUi.voiceError = context.getString(R.string.voice_prepare_required)
-                runtimeUi.voiceBusy = false
-                return@launch
-            }
-            val encoded = android.util.Base64.encodeToString(wav, android.util.Base64.NO_WRAP)
-            dshRepository.speechTranscribe(ui.activeHostId, provider.id, catalog.language, encoded).fold(
-                onSuccess = { text ->
-                    if (text.isBlank()) {
-                        runtimeUi.voiceError = context.getString(R.string.voice_no_speech)
-                    } else {
-                        runtimeUi.voiceTranscript = text
-                        runtimeUi.voiceError = null
-                    }
-                },
-                onFailure = { error ->
-                    runtimeUi.voiceError = context.getString(R.string.voice_failed, error.message ?: error.toString())
-                },
-            )
-            runtimeUi.voiceBusy = false
-        }
-    }
-    fun cancelVoice() {
-        voiceRecorder.cancel()
-        runtimeUi.voiceRecording = false
-        runtimeUi.voiceLevel = 0f
-    }
-    DisposableEffect(voiceRecorder) {
-        voiceRecorder.onLevel = { level -> runtimeUi.voiceLevel = level }
-        onDispose {
-            voiceRecorder.onLevel = null
-            voiceRecorder.cancel()
-        }
-    }
+    val voice = rememberVoiceInput(runtimeUi, dshRepository, { ui.activeHostId }, scope)
     // 思考内容翻译（官方 cot-translation 的 reasoning body）：插件启用时给
     // ReasoningCard 提供「查看译文/查看原文」能力。
     val cotTranslationEnabled = remember(bridgeCatalogState) {
@@ -494,17 +413,6 @@ fun MainAppHost(
         }
     }
 
-    LaunchedEffect(runtimeUi.voiceRecording) {
-        while (runtimeUi.voiceRecording) {
-            kotlinx.coroutines.delay(1_000)
-            runtimeUi.voiceSeconds += 1
-            // Host 的录音上限是 120 秒（catalog.maxDurationSeconds），到点自动停止。
-            if (runtimeUi.voiceSeconds >= 120) {
-                stopVoice()
-                break
-            }
-        }
-    }
 
     val builtInPluginsList by dshRepository.builtInPluginsFlow.collectAsState()
     val pluginSnapshot by dshRepository.pluginSnapshotFlow.collectAsState()
@@ -599,34 +507,6 @@ fun MainAppHost(
             .getOrDefault(emptySet())
     }
 
-    // 待卸载的伴侣 APK。
-    //
-    // 主 JS 插件卸载时要连带卸载配对的 APK，但 Android 的卸载确认框一次只能显示
-    // 一个：这里排队，每次回到前台（onResume 递增重扫信号）再发起下一个。
-    val pendingApkUninstalls = remember { mutableStateListOf<String>() }
-    val apkUninstallTick by nativePluginRescanFlow.collectAsState()
-    LaunchedEffect(apkUninstallTick, pendingApkUninstalls.size) {
-        if (pendingApkUninstalls.isEmpty()) return@LaunchedEffect
-        val next = pendingApkUninstalls.removeAt(0)
-        runCatching {
-            context.startActivity(
-                android.content.Intent(
-                    android.content.Intent.ACTION_DELETE,
-                    android.net.Uri.parse("package:$next"),
-                ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
-            )
-        }
-    }
-
-    /**
-     * 把一个伴侣 APK 排进卸载队列。
-     * @param packageName Android 包名。
-     */
-    fun requestApkUninstall(packageName: String?) {
-        val target = packageName?.takeIf { it.isNotBlank() } ?: return
-        if (target !in pendingApkUninstalls) pendingApkUninstalls.add(target)
-    }
-
     /**
      * 记住用户通过 App 打开/关闭过的实验性 bundle。
      *
@@ -648,12 +528,6 @@ fun MainAppHost(
         context.getSharedPreferences(PLUGIN_SELECTION_PREFS, android.content.Context.MODE_PRIVATE)
             .getStringSet(PLUGIN_SELECTION_KEY, emptySet())?.toSet() ?: emptySet()
 
-    /**
-     * 把某个 JS 插件配对的伴侣 APK 全部排进卸载队列。
-     *
-     * 配对依据是 APK manifest 的 `dsh.plugin.jsPackage`，不按包名猜。
-     * @param jsPackageName JS 插件在 Host 里的模块名。
-     */
     /**
      * Включить или выключить bundle Host и дождаться ответа; при необходимости Host перезапускается.
      * Переключатель потом берёт фактическое состояние из обновлённого каталога.
@@ -685,26 +559,7 @@ fun MainAppHost(
         return result.isSuccess
     }
 
-    fun queueCompanionApkUninstalls(jsPackageName: String) {
-        val normalized = jsPackageName.substringAfterLast('/').substringBefore('@')
-        runtimeUi.nativePluginItems
-            .filter { it.installed && it.packageName != null && it.jsPackage != null }
-            .filter { item ->
-                val declared = item.jsPackage!!
-                declared == jsPackageName ||
-                    declared.substringAfterLast('/').substringBefore('@') == normalized
-            }
-            .forEach { item -> requestApkUninstall(item.packageName) }
-    }
 
-    // 扫描系统里已装的原生伴侣 APK，填充「原生插件」tab，并把 READY 的插件
-    // 装载进 App 进程（触发它们的落点/工具/页面注册）。卸载/安装后回前台时
-    // 重扫（onResume 递增信号），保证「卸载即从列表摘除」。
-    //
-    // 安全：伴侣代码在 App 进程内以 App 的全部权限运行，所以只有用户在确认框里
-    // 批准过（包名 + 证书指纹钉死）的伴侣才会是 READY；首次发现或签名变化的伴侣
-    // 进入 [pendingNativeApprovals]，由用户决定。配对 JS 插件也只在批准时安装，
-    // 重扫绝不自动下载/安装任何代码。
     // 「有任务时保持后台运行」交给前台服务在划掉最近任务时判断。
     LaunchedEffect(ui.currentAppSettings.keepAliveOnTask) {
         com.deepseek.dsh.runtime.host.HostService.setKeepAliveOnTaskRemoved(
@@ -712,160 +567,8 @@ fun MainAppHost(
             ui.currentAppSettings.keepAliveOnTask,
         )
     }
-    // Журнал вызовов инструментов и режимы «Сразу / Спросит / Выкл.» из «Плагинов».
-    LaunchedEffect(dshRepository) {
-        dshRepository.approvalPolicy = { w ->
-            val tool = (w.request["toolName"] as? kotlinx.serialization.json.JsonPrimitive)?.content
-            val args = w.request["args"]?.toString() ?: w.request["arguments"]?.toString()
-            when {
-                tool == null -> null
-                // Удаление и опасные команды всегда спрашиваются, какой бы ни был режим.
-                com.deepseek.dsh.feature.chat.approvalTier(tool, args) == com.deepseek.dsh.feature.chat.ApprovalTier.DESTRUCTIVE -> null
-                else -> when (com.deepseek.dsh.feature.settings.logic.ToolPolicy.mode(tool)) { "auto" -> true; "off" -> false; else -> null }
-            }
-        }
-        launch {
-            dshRepository.approvalOutcomes.collect { (w, approved, byUser) ->
-                val tool = (w.request["toolName"] as? kotlinx.serialization.json.JsonPrimitive)?.content ?: return@collect
-                com.deepseek.dsh.feature.settings.logic.ToolCallLog.approval(tool, approved, byUser)
-            }
-        }
-        dshRepository.doneMessages.collect { m ->
-            if (m.role == com.deepseek.dsh.core.model.MessageRole.TOOL) com.deepseek.dsh.feature.settings.logic.ToolCallLog.ingest(m.content, m.createdAt)
-        }
-    }
-    val nativeTrustStore = remember { com.deepseek.dsh.plugin.nativehost.NativePluginTrustStore(context) }
-    var nativeTrustTick by remember { androidx.compose.runtime.mutableIntStateOf(0) }
-    val pendingNativeApprovals = remember {
-        mutableStateListOf<com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin>()
-    }
-    // 本次进程内用户点过「暂不」的 (包名/指纹)，避免每次回前台都弹框；重启 App 后再询问。
-    val dismissedNativeApprovals = remember { mutableStateListOf<String>() }
-    val nativePluginRescanSignal by nativePluginRescanFlow.collectAsState()
-    LaunchedEffect(nativePluginRescanSignal, nativeTrustTick) {
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            runCatching {
-            val discovery = com.deepseek.dsh.plugin.nativehost.NativePluginDiscovery(context)
-            val loader = com.deepseek.dsh.plugin.nativehost.NativePluginLoader(context)
-            val appVersionCode = context.packageManager
-                .getPackageInfo(context.packageName, 0)
-                .let { androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(it).toInt() }
-            val discovered = discovery.scan(
-                appVersionCode = appVersionCode,
-                supportedApiVersion = com.deepseek.dsh.plugin.nativehost.NativeAbi.CURRENT,
-                pins = nativeTrustStore.pins(),
-            )
-            // 装载 READY 插件进 App 进程：它们的 init 块会跑 SlotRegistry.register 等。
-            // Выключенный в «Плагинах» нативный плагин не загружается в процесс DSH.
-            val ready = discovered.filter {
-                it.status == com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.READY &&
-                    !com.deepseek.dsh.feature.settings.logic.NativePluginPrefs.isDisabled(context, it.pluginId)
-            }
-            val awaitingApproval = discovered.filter {
-                it.status == com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.UNTRUSTED ||
-                    it.status == com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.SIGNATURE_MISMATCH
-            }
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                pendingNativeApprovals.clear()
-                pendingNativeApprovals.addAll(
-                    awaitingApproval.filter {
-                        "${it.packageName}/${it.signatureFingerprint}" !in dismissedNativeApprovals
-                    },
-                )
-            }
-            // Drop pages whose package disappeared before loading the next snapshot.
-            // Otherwise an already open page could keep executing an uninstalled ClassLoader.
-            val readyIds = ready.map { it.pluginId }.toSet()
-            com.deepseek.dsh.plugin.nativesdk.pages.PageRegistry.snapshot()
-                .map { it.first }.filter { it.isNotBlank() && it !in readyIds }
-                .forEach { com.deepseek.dsh.plugin.nativesdk.pages.PageRegistry.removeOwner(it) }
-            // Only successfully loaded companions may replace a Web settings section.
-            // Replacing the whole snapshot also drops routes for uninstalled/incompatible APKs.
-            val loaded = ready.mapNotNull { installed ->
-                com.deepseek.dsh.plugin.nativesdk.pages.PageRegistry.removeOwner(installed.pluginId)
-                com.deepseek.dsh.plugin.nativesdk.pages.PageRegistry.withOwner(installed.pluginId) {
-                    loader.load(installed)
-                }?.let { plugin -> installed to plugin }
-            }
-            // 注册的是「这个伴侣最后加载出来的全部页面」，不按 placement 预过滤：
-            // 匹配设置分区时按 id/标题/一一对应兜底，页面自己带 placement 即可。
-            val nativePageRegistrations = loaded.map { (installed, plugin) ->
-                com.deepseek.dsh.plugin.nativehost.NativePageRegistration(
-                    pluginId = plugin.descriptor.id,
-                    jsPackage = installed.jsPackage,
-                    pages = com.deepseek.dsh.plugin.nativesdk.pages.PageRegistry.snapshot()
-                        .filter { (owner, _) -> owner == installed.pluginId }
-                        .map { (_, page) -> page },
-                )
-            }
-            com.deepseek.dsh.plugin.nativehost.NativePageRegistry.replaceAll(nativePageRegistrations)
-            if (BuildConfig.DEBUG) {
-                // 伴侣「装了但设置页还是 Web UI」时，先看这条日志：哪个伴侣加载成功、
-                // jsPackage 是什么、注册了哪些页面（placement:id）。
-                android.util.Log.i(
-                    "NativePluginHost",
-                    "loaded companions=" + nativePageRegistrations.joinToString { registration ->
-                        "${registration.pluginId}/${registration.jsPackage}=" +
-                            registration.pages.joinToString { page ->
-                                "${page.entry.placement}:${page.entry.id}"
-                            }
-                    },
-                )
-            }
-            runtimeUi.nativeDiscovered = discovered
-            runtimeUi.nativePluginItems = discovered.map { installed ->
-                com.deepseek.dsh.plugin.nativehost.NativePluginItem(
-                    pluginId = installed.pluginId,
-                    name = installed.pluginId.substringAfterLast('.'),
-                    description = context.getString(R.string.plugin_native_description, installed.packageName),
-                    version = installed.version.toString(),
-                    capabilities = emptyList(),
-                    installed = true,
-                    statusLabel = when (installed.status) {
-                        com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.READY -> context.getString(R.string.plugin_status_installed)
-                        com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.UNTRUSTED -> context.getString(R.string.plugin_status_needs_approval)
-                        com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.ABI_TOO_NEW -> context.getString(R.string.plugin_status_update_plugin)
-                        com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.APP_TOO_OLD -> context.getString(R.string.plugin_status_update_app)
-                        com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.SIGNATURE_MISMATCH -> context.getString(R.string.plugin_status_identity_mismatch)
-                        com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin.Status.DISABLED -> context.getString(R.string.plugin_status_disabled)
-                    },
-                    signatureFingerprint = installed.signatureFingerprint,
-                    jsPackage = installed.jsPackage,
-                    packageName = installed.packageName,
-                    lastUpdateTime = installed.lastUpdateTime,
-                )
-            }
-            }
-        }
-    }
-    // Доверие к нативному плагину: пакет, издатель, сертификат и разрешения — лист из прототипа
-    // (#sheet-trust). Подпись запоминается; парный JS-плагин ставится только в момент согласия.
-    fun dismissNativePlugin(candidate: com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin) {
-        dismissedNativeApprovals.add("${candidate.packageName}/${candidate.signatureFingerprint}")
-        pendingNativeApprovals.remove(candidate)
-    }
-    fun trustNativePlugin(candidate: com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin) {
-        val jsPackage = com.deepseek.dsh.plugin.nativehost.NativePluginPairing.resolveJsPackage(candidate, storeLookup = null)
-        nativeTrustStore.trust(candidate)
-        com.deepseek.dsh.feature.settings.logic.NativePluginPrefs.markTrusted(context, candidate.pluginId)
-        pendingNativeApprovals.remove(candidate)
-        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            if (jsPackage != null) {
-                runCatching {
-                    val pkgName = jsPackage.substringAfterLast('/').substringBefore('@').ifBlank { jsPackage }
-                    val inProfile = java.io.File(layout.rootfsDir, "root/.dsh/profiles/web/node_modules/$pkgName/package.json").isFile
-                    val managed = runtimeUi.managedPluginPackages.any { it.equals(pkgName, ignoreCase = true) || it.equals(jsPackage, ignoreCase = true) }
-                    if (!inProfile && !managed) {
-                        val installed = appPluginInstaller.install(jsPackage) { _, _ -> }
-                        if (installed.isSuccess) HostRuntimeHolder.restartHost?.invoke()
-                    }
-                }
-            }
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { nativeTrustTick += 1 }
-        }
-    }
-    // 反向联动：刚装的 JS 插件有原生伴侣时，这里带上它的声明，UI 提示可装。
-    // 从“JS 已装、伴生 APK 可装”跳转时，直接打开插件商店的对应仓库详情。
+    ToolPolicyEffect(dshRepository)
+    val nativePlugins = rememberNativePlugins(runtimeUi, layout, appPluginInstaller, nativePluginRescanFlow, scope)
 
     val status by runner.statusFlow.collectAsState()
 
@@ -2769,9 +2472,9 @@ fun MainAppHost(
                                 voiceBusy = runtimeUi.voiceBusy,
                                 voiceError = runtimeUi.voiceError,
                                 voiceTranscript = runtimeUi.voiceTranscript,
-                                onVoiceStart = { startVoice() },
-                                onVoiceStop = { stopVoice() },
-                                onVoiceCancel = { cancelVoice() },
+                                onVoiceStart = voice::start,
+                                onVoiceStop = voice::stop,
+                                onVoiceCancel = voice::cancel,
                                 onVoiceTranscriptConsumed = { runtimeUi.voiceTranscript = null },
                                 translateReasoning = if (cotTranslationEnabled) {
                                     { text ->
@@ -2823,7 +2526,7 @@ fun MainAppHost(
                                 settingsPages = pluginSettingsPages,
                                 rootfsDir = layout.rootfsDir,
                                 installCacheDir = layout.cacheDir,
-                                pins = { nativeTrustStore.pins() },
+                                pins = { nativePlugins.trustStore.pins() },
                                 loadSettings = { ns -> dshRepository.pluginSettingsDocument(ns) },
                                 saveSettings = { ns, patch, revision -> dshRepository.updatePluginSettings(ns, patch, revision) },
                                 marketIndexes = { dshRepository.marketIndexes(ui.activeHostId) },
@@ -2839,7 +2542,7 @@ fun MainAppHost(
                                 },
                                 uninstallBundle = { name ->
                                     // Вместе с плагином удаляются его парные APK (каждое удаление подтверждает Android).
-                                    queueCompanionApkUninstalls(name)
+                                    nativePlugins.uninstallCompanionsOf(name)
                                     if (name in runtimeUi.managedPluginPackages) {
                                         appPluginInstaller.uninstall(name)
                                         runtimeUi.managedPluginPackages = runCatching { appPluginInstaller.managedPackages() }.getOrDefault(runtimeUi.managedPluginPackages)
@@ -2852,11 +2555,11 @@ fun MainAppHost(
                                     dshRepository.refreshBridgePluginCatalog()
                                     dshRepository.refreshPluginSettingsPages()
                                 },
-                                uninstallApk = { pkg -> requestApkUninstall(pkg) },
-                                onNativeChanged = { nativeTrustTick += 1 },
-                                trustCandidate = pendingNativeApprovals.firstOrNull(),
-                                onTrust = { trustNativePlugin(it) },
-                                onDismissTrust = { dismissNativePlugin(it) },
+                                uninstallApk = { pkg -> nativePlugins.requestApkUninstall(pkg) },
+                                onNativeChanged = { nativePlugins.rescan() },
+                                trustCandidate = nativePlugins.pendingApprovals.firstOrNull(),
+                                onTrust = { nativePlugins.trust(it) },
+                                onDismissTrust = { nativePlugins.dismiss(it) },
                                 onAsk = { text ->
                                     ui.pendingComposerText = text
                                     ui.selectedSessionId = null
@@ -2971,8 +2674,8 @@ fun MainAppHost(
         // Нашёлся нативный плагин, пока пользователь не в «Плагинах», — спрашиваем о доверии поверх экрана.
         // На первом запуске не перебиваем онбординг: спросим, когда он закончится.
         if (ui.activePage != ActivePage.PLUGINS && !runtimeUi.showOnboarding) {
-            pendingNativeApprovals.firstOrNull()?.let { c ->
-                com.deepseek.dsh.feature.settings.ui.PluginTrustOverlay(trustOf(context, c), onTrust = { trustNativePlugin(c) }, onDismiss = { dismissNativePlugin(c) })
+            nativePlugins.pendingApprovals.firstOrNull()?.let { c ->
+                com.deepseek.dsh.feature.settings.ui.PluginTrustOverlay(trustOf(context, c), onTrust = { nativePlugins.trust(c) }, onDismiss = { nativePlugins.dismiss(c) })
             }
         }
         ui.pluginUiOpen?.let { id ->
