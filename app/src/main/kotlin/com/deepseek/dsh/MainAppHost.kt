@@ -475,43 +475,33 @@ fun MainAppHost(
     }
     // 启停插件后 Host 若要求重启或带提示，按官方做法明确告诉用户。
     ui.pluginChangeNotice?.let { lines ->
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = {
-                if (!ui.pluginRestartRunning) {
-                    ui.pluginChangeNotice = null
-                    ui.pluginRestartError = null
+        val c = com.deepseek.dsh.core.designsystem.Dsh.colors
+        val closeNotice = {
+            if (!ui.pluginRestartRunning) {
+                ui.pluginChangeNotice = null
+                ui.pluginRestartError = null
+            }
+        }
+        com.deepseek.dsh.core.designsystem.DshDialog(
+            onDismiss = closeNotice,
+            title = stringResource(R.string.restart_needed_title),
+            closeLabel = stringResource(R.string.action_close),
+            description = stringResource(R.string.restart_needed_desc),
+            content = {
+                lines.forEach { line ->
+                    Text(line, style = com.deepseek.dsh.feature.chat.ckBody(14.sp, 20.sp), color = c.t2, modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 6.dp))
+                }
+                ui.pluginRestartError?.let { message ->
+                    Text(message, style = com.deepseek.dsh.feature.chat.ckBody(13.5.sp, 19.sp), color = c.danger, modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 4.dp))
                 }
             },
-            title = { Text(stringResource(R.string.restart_needed_title)) },
-            text = {
-                Column {
-                    Text(
-                        text = stringResource(R.string.restart_needed_desc),
-                        fontSize = 13.sp,
-                        lineHeight = 19.sp,
-                        modifier = Modifier.padding(bottom = 6.dp),
-                    )
-                    lines.forEach { line ->
-                        Text(
-                            text = line,
-                            fontSize = 13.sp,
-                            lineHeight = 19.sp,
-                            modifier = Modifier.padding(bottom = 6.dp),
-                        )
-                    }
-                    ui.pluginRestartError?.let { message ->
-                        Text(
-                            text = message,
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 13.sp,
-                            lineHeight = 19.sp,
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                androidx.compose.material3.TextButton(
-                    enabled = !ui.pluginRestartRunning,
+            footer = {
+                com.deepseek.dsh.core.designsystem.DshDialogButton(
+                    text = stringResource(R.string.restart_later), primary = false, enabled = !ui.pluginRestartRunning, onClick = closeNotice,
+                )
+                com.deepseek.dsh.core.designsystem.DshDialogButton(
+                    text = if (ui.pluginRestartRunning) stringResource(R.string.restarting) else stringResource(R.string.restart_now),
+                    primary = true, enabled = !ui.pluginRestartRunning,
                     onClick = {
                         scope.launch {
                             ui.pluginRestartRunning = true
@@ -526,18 +516,7 @@ fun MainAppHost(
                             }
                         }
                     },
-                ) {
-                    Text(if (ui.pluginRestartRunning) stringResource(R.string.restarting) else stringResource(R.string.restart_now))
-                }
-            },
-            dismissButton = {
-                androidx.compose.material3.TextButton(
-                    enabled = !ui.pluginRestartRunning,
-                    onClick = {
-                        ui.pluginChangeNotice = null
-                        ui.pluginRestartError = null
-                    },
-                ) { Text(stringResource(R.string.restart_later)) }
+                )
             },
         )
     }
@@ -770,7 +749,6 @@ fun MainAppHost(
     // 批准过（包名 + 证书指纹钉死）的伴侣才会是 READY；首次发现或签名变化的伴侣
     // 进入 [pendingNativeApprovals]，由用户决定。配对 JS 插件也只在批准时安装，
     // 重扫绝不自动下载/安装任何代码。
-    var pairingDialogOpen by remember { mutableStateOf(false) }
     // 「有任务时保持后台运行」交给前台服务在划掉最近任务时判断。
     LaunchedEffect(ui.currentAppSettings.keepAliveOnTask) {
         com.deepseek.dsh.runtime.host.HostService.setKeepAliveOnTaskRemoved(
@@ -1334,7 +1312,6 @@ fun MainAppHost(
                     enabled = true,
                     onClick = { runtimeUi.showRootfsUpdatePrompt = false },
                 )
-                Spacer(modifier = Modifier.width(8.dp))
                 com.deepseek.dsh.core.designsystem.DshDialogButton(
                     text = stringResource(R.string.runtime_update_now),
                     primary = true,
@@ -1692,7 +1669,6 @@ fun MainAppHost(
                     enabled = true,
                     onClick = { runtimeUi.showAddWorkspaceDialog = false },
                 )
-                Spacer(modifier = Modifier.width(8.dp))
                 com.deepseek.dsh.core.designsystem.DshDialogButton(
                     text = stringResource(R.string.action_create),
                     primary = true,
@@ -1731,7 +1707,6 @@ fun MainAppHost(
                     text = stringResource(R.string.action_cancel), primary = false, enabled = true,
                     onClick = { runtimeUi.renameWorkspaceFolder = null },
                 )
-                Spacer(modifier = Modifier.width(8.dp))
                 com.deepseek.dsh.core.designsystem.DshDialogButton(
                     text = stringResource(R.string.action_save), primary = true,
                     enabled = runtimeUi.renameWorkspaceName.isNotBlank(),
@@ -1781,7 +1756,6 @@ fun MainAppHost(
                     text = stringResource(R.string.action_cancel), primary = false, enabled = true,
                     onClick = { runtimeUi.renameSessionTarget = null },
                 )
-                Spacer(modifier = Modifier.width(8.dp))
                 com.deepseek.dsh.core.designsystem.DshDialogButton(
                     text = stringResource(R.string.action_save), primary = true,
                     enabled = runtimeUi.renameSessionTitle.isNotBlank(),
@@ -1904,7 +1878,6 @@ fun MainAppHost(
                     text = stringResource(R.string.action_cancel), primary = false, enabled = true,
                     onClick = { runtimeUi.deleteWorkspaceFolder = null },
                 )
-                Spacer(modifier = Modifier.width(8.dp))
                 com.deepseek.dsh.core.designsystem.DshDialogButton(
                     text = stringResource(R.string.action_delete), primary = true, enabled = true,
                     onClick = {
@@ -1943,8 +1916,7 @@ fun MainAppHost(
     // Список файлов виден и на странице «Файлы», и во вкладке файлов правой панели чата.
     // Раньше наблюдатель работал только для страницы, и панель показывала список,
     // снятый при запуске: новые файлы (в т.ч. созданные агентом) там не появлялись.
-    val filesVisible = ui.activePage == ActivePage.FILES ||
-        (ui.activePage == ActivePage.CHAT && ui.rightDrawerOpen && ui.rightDrawerTab == "files")
+    val filesVisible = ui.activePage == ActivePage.FILES
     DisposableEffect(filesVisible, ui.filesDir, runtimeUi.activeWorkspaceName) {
         val watched = if (ui.activePage == ActivePage.FILES) activeWorkspaceFolderPath else ui.filesDir.absolutePath
         val observer = if (filesVisible) {
@@ -2080,11 +2052,11 @@ fun MainAppHost(
             onBack = if (page) ({ ui.activePage = ActivePage.CHAT }) else null,
         )
     }
-    val terminalContent: @Composable () -> Unit = { terminalRoute(false) }
 
     // 插件注册到右侧栏的标签：App 只放容器，标签与内容都由插件贡献。
     val rightPanePluginTabs = com.deepseek.dsh.plugin.nativehost.nativeRightPaneTabs()
     val rightPaneGuideEntries = com.deepseek.dsh.plugin.nativehost.nativeGuideEntries()
+    var pluginPanesOpen by remember { mutableStateOf(false) }
 
     val workspaceFolders = remember(
         sessions, ui.selectedSessionId, activeWorkspace, runtimeUi.workspaceRevision, hostWorkspaces,
@@ -2317,9 +2289,6 @@ fun MainAppHost(
             // 避免出现双 header。
             // Вложенные страницы «Плагинов», «Автоматизации» и «Настроек» закрывает их собственный стек.
             BackHandler(enabled = ui.activePage != ActivePage.CHAT) { ui.activePage = ActivePage.CHAT }
-            BackHandler(enabled = ui.rightDrawerOpen) {
-                ui.rightDrawerOpen = false
-            }
             // Шапка чата живёт внутри экрана чата: под листами она уменьшается вместе с ним.
             val chatTopBar: @Composable (Boolean) -> Unit = { scrolled ->
                 androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxWidth()) {
@@ -2338,13 +2307,7 @@ fun MainAppHost(
                                     sessions.find { it.sessionId == ui.selectedSessionId }?.title
                                         ?: stringResource(R.string.app_name)
                                 },
-                                onToggleRightPane = {
-                                    // 每次打开都从 guide 开始；终端是 guide 里的一枚胶囊，
-                                    // 不是抽屉的默认页面。
-                                    if (!ui.rightDrawerOpen) ui.rightDrawerTab = "guide"
-                                    ui.rightDrawerOpen = !ui.rightDrawerOpen
-                                },
-                                rightPaneOpen = ui.rightDrawerOpen,
+                                onToggleRightPane = if (rightPanePluginTabs.isNotEmpty() || rightPaneGuideEntries.isNotEmpty()) ({ pluginPanesOpen = true }) else null,
                                 teamTasks = teamTasks,
                                 hostJobs = hostJobs,
                                 onKillJob = { job ->
@@ -3124,31 +3087,6 @@ fun MainAppHost(
                             onClose = { ui.activePage = ActivePage.CHAT },
                         )
 
-                        ActivePage.HOSTS -> {
-                            com.deepseek.dsh.feature.hosts.HostsScreen(
-                                hosts = availableHosts,
-                                activeHostId = ui.activeHostId,
-                                onSelectHost = { host ->
-                                    ui.activeHostId = host.id
-                                },
-                                onScanPairClick = {
-                                    // 之前这里直接塞进一个写死地址与令牌的「假」远程主机；
-                                    // 现在走真实配对：粘贴网关二维码内容，校验指纹并换取令牌。
-                                    pairingDialogOpen = true
-                                }
-                            )
-                            if (pairingDialogOpen) {
-                                RemotePairingDialog(
-                                    onDismiss = { pairingDialogOpen = false },
-                                    onPaired = { remote ->
-                                        availableHosts.removeAll { it.id == remote.id }
-                                        availableHosts.add(remote)
-                                        pairingDialogOpen = false
-                                    },
-                                )
-                            }
-                        }
-
                         ActivePage.TERMINAL -> terminalRoute(true)
 
                         ActivePage.SETTINGS -> DshSettingsRoute(
@@ -3169,7 +3107,6 @@ fun MainAppHost(
                                 },
                                 openAllFilesSettings = openAllFilesSettings,
                                 onWorkspaceChanged = { workspaceChoiceKey++ },
-                                onPairRemote = { ui.activePage = ActivePage.HOSTS; pairingDialogOpen = true },
                                 onOpenTerminal = { ui.activePage = ActivePage.TERMINAL },
                                 onOpenPlugins = { ui.activePage = ActivePage.PLUGINS },
                                 onOpenAutomation = { ui.activePage = ActivePage.AUTOMATION },
@@ -3182,12 +3119,6 @@ fun MainAppHost(
                             initialPage = ui.settingsInitialSection,
                         )
 
-                        ActivePage.RUNTIME -> {
-                            RuntimeControlScreen(
-                                runtimeManager = runtimeManager,
-                                runner = runner
-                            )
-                        }
                     }
                         }
                     }
@@ -3277,73 +3208,7 @@ fun MainAppHost(
             },
         )
     
-        // 聊天右侧栏：文件面板。覆盖在内容之上，点遮罩/× 关闭。
-        RightSideDrawer(
-            open = ui.activePage == ActivePage.CHAT && ui.rightDrawerOpen,
-            onClose = { ui.rightDrawerOpen = false },
-        ) {
-            RightSidebarPanel(
-                tab = ui.rightDrawerTab,
-                onTabChange = { ui.rightDrawerTab = it },
-                previewPath = ui.rightDrawerPreviewPath,
-                onPreviewPathChange = { ui.rightDrawerPreviewPath = it },
-                files = files,
-                currentPath = ui.filesDir.absolutePath,
-                onOpenDirectory = { item ->
-                    ui.filesDir = java.io.File(item.absolutePath)
-                },
-                onNavigateUp = ui.filesDir.parentFile?.let { parent ->
-                    {
-                        if (ui.filesDir.absolutePath != activeWorkspace.absolutePath) {
-                            ui.filesDir = parent
-                        }
-                    }
-                },
-                onImport = { filesImportLauncher.launch(arrayOf("*/*")) },
-                onAttachFile = { item ->
-                    // 与文件页一致：加入待发附件，发送时以 @ 相对路径引用。
-                    val rel = item.absolutePath
-                        .removePrefix(activeWorkspace.absolutePath)
-                        .trimStart('/')
-                        .replace('\\', '/')
-                    if (rel.isNotBlank() && chatAttachments.none { it.workspaceRelativePath == rel }) {
-                        chatAttachments.add(
-                            com.deepseek.dsh.feature.chat.ChatAttachment(
-                                displayName = item.name,
-                                workspaceRelativePath = rel,
-                                sizeBytes = item.sizeBytes,
-                                localPath = item.absolutePath,
-                            ),
-                        )
-                    }
-                    ui.rightDrawerOpen = false
-                },
-                todos = sessionTodos,
-                deliverables = sessionDeliverables,
-                terminalContent = terminalContent,
-                scheduleContent = {
-                    AutomationSidePanel(onOpen = { ui.rightDrawerOpen = false; ui.activePage = ActivePage.AUTOMATION })
-                },
-                pluginTabs = rightPanePluginTabs,
-                guideEntries = rightPaneGuideEntries,
-                showTerminal = terminalSupported,
-                onClose = { ui.rightDrawerOpen = false },
-                onOpenDeliverable = { file ->
-                    // Host 的 /workspace/<x> 对应本机工作区 <activeWorkspace>/<x>。
-                    val hostPrefix = "/workspace/"
-                    val localPath = when {
-                        file.path.startsWith(hostPrefix) ->
-                            java.io.File(activeWorkspace, file.path.removePrefix(hostPrefix)).absolutePath
-                        file.path.startsWith(activeWorkspace.absolutePath) -> file.path
-                        else -> null
-                    }
-                    if (localPath != null) {
-                        ui.rightDrawerPreviewPath = localPath
-                        ui.rightDrawerTab = "document"
-                    }
-                },
-            )
-        }
+        if (pluginPanesOpen) PluginPanesSheet(rightPanePluginTabs, rightPaneGuideEntries, onDismiss = { pluginPanesOpen = false })
 }
 
 }

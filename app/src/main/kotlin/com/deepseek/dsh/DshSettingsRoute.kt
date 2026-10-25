@@ -72,7 +72,6 @@ internal class SettingsDeps(
     val trustedNative: List<TrustedPluginRow>,
     val openAllFilesSettings: () -> Unit,
     val onWorkspaceChanged: () -> Unit,
-    val onPairRemote: () -> Unit,
     val onOpenTerminal: () -> Unit,
     val onOpenPlugins: (String?) -> Unit,
     val onOpenAutomation: () -> Unit,
@@ -366,7 +365,6 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
 
         override fun setSleep(minutes: Int) { saveSettings { it.copy(idleStopMinutes = minutes) } }
         override fun setKeepBg(on: Boolean) { saveSettings { it.copy(keepAliveOnTask = on) } }
-        override fun pairRemote() { d.onPairRemote() }
         override fun openTerminal() { d.onOpenTerminal() }
 
         override fun shareHostLog() {

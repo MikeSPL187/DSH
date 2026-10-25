@@ -101,9 +101,7 @@ enum class ActivePage {
     PLUGINS,
     AUTOMATION,
     TERMINAL,
-    HOSTS,
     SETTINGS,
-    RUNTIME
 }
 
 /**

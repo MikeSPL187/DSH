@@ -1,10 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="preview_missing">Файл не существует</string>
-    <string name="preview_too_large">Файл слишком большой для предпросмотра (%1$s)</string>
-    <string name="preview_read_failed">Не удалось прочитать файл</string>
-    <string name="preview_binary">Двоичный файл, предпросмотр недоступен (%1$s)</string>
-    <string name="a11y_right_sidebar">Правая панель</string>
     <string name="notify_error_title">DSH: ошибка</string>
     <string name="notify_error_body">%1$s: ход завершился ошибкой</string>
     <string name="notify_agent_waiting_body">Агент ждёт вашего решения. Откройте DSH, чтобы ответить.</string>

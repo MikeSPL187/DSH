@@ -10,7 +10,6 @@ import com.deepseek.dsh.core.model.AppSettings
 import com.deepseek.dsh.core.model.HostDescriptor
 import com.deepseek.dsh.feature.files.FileItem
 import com.deepseek.dsh.feature.files.FilesScreen
-import com.deepseek.dsh.feature.hosts.HostsScreen
 import com.deepseek.dsh.feature.runtime.OnboardingScreen
 import androidx.compose.ui.test.performClick
 import androidx.compose.foundation.background
@@ -157,29 +156,6 @@ class ScreensGalleryTest {
         mainClock.advanceTimeBy(1_200)
     }
     @Test fun filesEmpty() = renderFiles("38_files_empty_dark", dark = true, prepare = { java.io.File(it, "docs").mkdirs() }) { open("docs") }
-
-    @Test
-    fun hosts() = render("40_hosts") {
-        HostsScreen(
-            hosts = listOf(
-                HostDescriptor.Local(),
-                HostDescriptor.Remote("r1", "Рабочий ПК", "https://192.168.1.20:8443", "tok_0123456789abcdef"),
-            ),
-            activeHostId = "local-host",
-            onSelectHost = {},
-            onScanPairClick = {},
-        )
-    }
-
-    @Test
-    fun hostsDark() = render("41_hosts_dark", dark = true) {
-        HostsScreen(
-            hosts = listOf(HostDescriptor.Local()),
-            activeHostId = "local-host",
-            onSelectHost = {},
-            onScanPairClick = {},
-        )
-    }
 
     private fun renderOb(
         name: String,

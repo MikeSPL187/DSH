@@ -117,114 +117,13 @@ internal fun pageTitleOf(page: ActivePage): String = when (page) {
     ActivePage.PLUGINS -> stringResource(R.string.page_plugins)
     ActivePage.AUTOMATION -> stringResource(R.string.page_automation)
     ActivePage.FILES -> stringResource(R.string.page_files)
-    ActivePage.HOSTS -> stringResource(R.string.page_hosts)
-    ActivePage.RUNTIME -> stringResource(R.string.page_runtime)
     ActivePage.TERMINAL -> stringResource(R.string.tm_title)
     ActivePage.SETTINGS -> stringResource(R.string.page_settings)
     ActivePage.CHAT -> "deepseek"
 }
-@Composable
-internal fun HeaderChip(
-    label: String,
-    iconResId: Int,
-    trailingChevron: Boolean = false,
-    onClick: () -> Unit,
-) {
-    val colors = com.deepseek.dsh.core.designsystem.dshPanelColors()
-    Row(
-        modifier = Modifier
-            .height(24.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            painter = androidx.compose.ui.res.painterResource(id = iconResId),
-            contentDescription = null,
-            tint = colors.labelSecondary,
-            modifier = Modifier.size(13.dp)
-        )
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(
-            text = label,
-            fontSize = 12.sp,
-            lineHeight = 18.sp,
-            color = colors.labelSecondary,
-            maxLines = 1
-        )
-        if (trailingChevron) {
-            Icon(
-                painter = androidx.compose.ui.res.painterResource(
-                    id = com.deepseek.dsh.core.designsystem.R.drawable.ic_chevron_down
-                ),
-                contentDescription = null,
-                tint = colors.labelCaption,
-                modifier = Modifier.size(12.dp)
-            )
-        }
-    }
-}
 
-@Composable
-internal fun HeaderTeamPanel(
-    members: List<Pair<String, Boolean>>,
-    tasks: List<com.deepseek.dsh.core.model.TeamTaskItem>,
-) {
-    com.deepseek.dsh.core.designsystem.DshMenuSectionLabel(stringResource(R.string.agent_team_members) + " " + members.size)
-    members.take(8).forEach { (name, running) ->
-        com.deepseek.dsh.core.designsystem.DshMenuRow(onClick = {}) {
-            com.deepseek.dsh.core.designsystem.DshMenuLabel(name, Modifier.weight(1f))
-            Text(
-                text = if (running) stringResource(R.string.agent_team_phase_active) else stringResource(R.string.agent_team_phase_idle),
-                fontSize = 11.sp,
-                color = if (running) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-            )
-        }
-    }
-    com.deepseek.dsh.core.designsystem.DshMenuSectionLabel(stringResource(R.string.agent_team_tasks) + " " + tasks.size)
-    tasks.take(8).forEach { task ->
-        com.deepseek.dsh.core.designsystem.DshMenuRow(onClick = {}) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(task.subject, fontSize = 13.sp, lineHeight = 18.sp, maxLines = 1)
-                Text(
-                    text = "${task.ownerName ?: stringResource(R.string.agent_team_owner_unassigned)} · ${when (task.status) {
-                        "in_progress" -> stringResource(R.string.agent_team_task_in_progress)
-                        "completed" -> stringResource(R.string.agent_team_task_completed)
-                        else -> stringResource(R.string.agent_team_task_pending)
-                    }}",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.outline
-                )
-            }
-        }
-    }
-}
 
-@Composable
-internal fun HeaderJobsPanel(tasks: List<com.deepseek.dsh.core.model.TeamTaskItem>) {
-    val running = tasks.filter { it.status == "in_progress" }
-    val settled = tasks.filter { it.status != "in_progress" }
-    if (running.isNotEmpty()) {
-        com.deepseek.dsh.core.designsystem.DshMenuSectionLabel(stringResource(R.string.agent_team_task_in_progress))
-        running.forEach { task ->
-            com.deepseek.dsh.core.designsystem.DshMenuRow(onClick = {}) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(task.subject, fontSize = 13.sp, lineHeight = 18.sp, maxLines = 1)
-                    Text(task.ownerName ?: "lead", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline)
-                }
-            }
-        }
-    }
-    if (settled.isNotEmpty()) {
-        com.deepseek.dsh.core.designsystem.DshMenuSectionLabel(stringResource(R.string.finished_section, settled.size))
-        settled.take(8).forEach { task ->
-            com.deepseek.dsh.core.designsystem.DshMenuRow(onClick = {}) {
-                Text(task.subject, fontSize = 13.sp, lineHeight = 18.sp, maxLines = 1)
-            }
-        }
-    }
-}
+/** Плашка «Доступно обновление Linux» над чатом: версия «было → станет», «Обновить» и «Скрыть». */
 @Composable
 internal fun RootfsUpdateBanner(
     installed: String,
@@ -232,52 +131,28 @@ internal fun RootfsUpdateBanner(
     onUpdate: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val colors = com.deepseek.dsh.core.designsystem.dshPanelColors()
+    val c = com.deepseek.dsh.core.designsystem.Dsh.colors
     Row(
         modifier = Modifier
+            .padding(horizontal = 12.dp, vertical = 4.dp)
             .fillMaxWidth()
-            .background(colors.bgModulePlatform)
-            .clickable(onClick = onUpdate)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clip(RoundedCornerShape(16.dp))
+            .background(c.accentSoft)
+            .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onUpdate)
+            .padding(start = 12.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Icon(
-            painter = androidx.compose.ui.res.painterResource(
-                id = com.deepseek.dsh.core.designsystem.R.drawable.ic_stat_gauge
-            ),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(14.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
+        Icon(com.deepseek.dsh.core.designsystem.DshGlyphs.Down, null, tint = c.accent, modifier = Modifier.size(18.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = stringResource(R.string.runtime_update_available),
-                fontSize = 13.sp,
-                color = colors.labelPrimary
-            )
-            Text(
-                text = "$installed → $available",
-                fontSize = 11.sp,
-                color = colors.labelTertiary
-            )
+            Text(stringResource(R.string.runtime_update_available), style = com.deepseek.dsh.feature.chat.ckBody(14.sp, 18.sp, androidx.compose.ui.text.font.FontWeight.Medium), color = c.t1)
+            Text("$installed → $available", style = com.deepseek.dsh.feature.chat.ckBody(12.5.sp, 16.sp), color = c.t2)
         }
-        Text(
-            text = stringResource(R.string.action_update),
-            fontSize = 13.sp,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(horizontal = 8.dp)
-        )
-        Icon(
-            painter = androidx.compose.ui.res.painterResource(
-                id = com.deepseek.dsh.core.designsystem.R.drawable.ic_close
-            ),
-            contentDescription = stringResource(R.string.dismiss_reminder),
-            tint = colors.labelTertiary,
-            modifier = Modifier
-                .size(18.dp)
-                .clickable(onClick = onDismiss)
-        )
+        Text(stringResource(R.string.action_update), style = com.deepseek.dsh.feature.chat.ckBody(14.sp, 18.sp, androidx.compose.ui.text.font.FontWeight.SemiBold), color = c.accent)
+        Box(
+            Modifier.size(40.dp).clip(CircleShape).clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onDismiss),
+            contentAlignment = Alignment.Center,
+        ) { Icon(com.deepseek.dsh.core.designsystem.DshGlyphs.X, stringResource(R.string.dismiss_reminder), tint = c.t2, modifier = Modifier.size(18.dp)) }
     }
 }
 @Composable
@@ -306,9 +181,8 @@ fun ModernTopAppBar(
     /** 「开发者工具」插件是否启用；启用才显示会话数据诊断入口。 */
     inspectorEnabled: Boolean = false,
     onOpenInspector: () -> Unit = {},
-    /** 右侧栏开关；null 表示当前页面没有右侧栏。 */
+    /** Панели нативных плагинов; null — ни один плагин их не добавил. */
     onToggleRightPane: (() -> Unit)? = null,
-    rightPaneOpen: Boolean = false,
     onMenuClick: () -> Unit
 ) {
     val c = com.deepseek.dsh.core.designsystem.Dsh.colors
@@ -328,8 +202,8 @@ fun ModernTopAppBar(
             // Дополнительные действия сессии — те же круглые кнопки шапки.
             if (onToggleRightPane != null) {
                 com.deepseek.dsh.feature.chat.ChatIconBtn(
-                    com.deepseek.dsh.core.designsystem.DshGlyphs.Book, stringResource(R.string.a11y_right_sidebar),
-                    tint = if (rightPaneOpen) c.accent else c.t1, onClick = onToggleRightPane,
+                    com.deepseek.dsh.core.designsystem.DshGlyphs.Puzzle, stringResource(R.string.plugin_panes_title),
+                    onClick = onToggleRightPane,
                 )
             }
             if (inspectorEnabled) {
@@ -361,19 +235,9 @@ fun ModernTopAppBar(
                 }
             }
         }
-        // 团队面板：官方是锚定在标题动作下方的浮层；用 Popup 实现「点外部关闭」。
+        // Команда агента — системный лист.
         if (teamPanelOpen) {
-            androidx.compose.ui.window.Popup(
-                alignment = Alignment.TopEnd,
-                offset = androidx.compose.ui.unit.IntOffset(
-                    x = 0,
-                    y = with(androidx.compose.ui.platform.LocalDensity.current) { 56.dp.roundToPx() },
-                ),
-                onDismissRequest = { teamPanelOpen = false },
-                properties = androidx.compose.ui.window.PopupProperties(focusable = true),
-            ) {
-                Box(modifier = Modifier.padding(end = 12.dp)) {
-                    com.deepseek.dsh.core.designsystem.DshMenuCard {
+            com.deepseek.dsh.core.designsystem.DshHeadlessModal(onDismiss = { teamPanelOpen = false }) {
                         AgentTeamMenuPanel(
                             summary = agentTeam,
                             fallbackTasks = teamTasks,
@@ -386,22 +250,10 @@ fun ModernTopAppBar(
                             },
                         )
                     }
-                }
-            }
         }
-        // 后台任务面板：与团队面板同样的锚定浮层。
+        // Фоновые задачи — системный лист.
         if (jobsPanelOpen) {
-            androidx.compose.ui.window.Popup(
-                alignment = Alignment.TopEnd,
-                offset = androidx.compose.ui.unit.IntOffset(
-                    x = 0,
-                    y = with(androidx.compose.ui.platform.LocalDensity.current) { 56.dp.roundToPx() },
-                ),
-                onDismissRequest = { jobsPanelOpen = false },
-                properties = androidx.compose.ui.window.PopupProperties(focusable = true),
-            ) {
-                Box(modifier = Modifier.padding(end = 12.dp)) {
-                    com.deepseek.dsh.core.designsystem.DshMenuCard {
+            com.deepseek.dsh.core.designsystem.DshHeadlessModal(onDismiss = { jobsPanelOpen = false }) {
                         JobsPanel(
                             jobs = hostJobs,
                             onKill = { job -> onKillJob(job) },
@@ -411,8 +263,6 @@ fun ModernTopAppBar(
                             },
                         )
                     }
-                }
-            }
         }
     }
 }

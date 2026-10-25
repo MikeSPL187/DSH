@@ -35,7 +35,6 @@
     <string name="dw_fork_sub">Копия переписки, исходная не меняется</string>
     <string name="dw_to_archive">В архив</string>
     <string name="dw_unarchive">Вернуть из архива</string>
-    <string name="dw_menu">Меню</string>
     <plurals name="dw_sessions">
         <item quantity="one">%1$d сессия</item>
         <item quantity="few">%1$d сессии</item>

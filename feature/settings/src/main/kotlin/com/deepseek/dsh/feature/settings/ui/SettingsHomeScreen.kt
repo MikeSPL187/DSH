@@ -146,6 +146,11 @@ data class SettingsUi(
     val sleepMinutes: Int = 15,
     val keepBg: Boolean = true,
     val remotes: List<RemoteHostRow> = emptyList(),
+    /**
+     * Работа с Host на компьютере. Пока клиент не умеет переключать адрес и токен
+     * на удалённый Host, раздел скрыт (решение владельца: не показывать неработающее).
+     */
+    val remoteHostsSupported: Boolean = false,
     val rootfsUpdated: String? = null,
     // Хранилище
     val storage: StorageUsage? = null,
@@ -760,8 +765,8 @@ private fun HostPage(ui: SettingsUi, a: SettingsActions, toast: ToastState) {
             }
             row { StToggle(stringResource(R.string.st_keep_bg), ui.keepBg, a::setKeepBg, DshGlyphs.Bolt, Si.c3, sub = stringResource(R.string.st_keep_bg_sub)) }
         }
-        GLabel(stringResource(R.string.st_remotes))
-        Gl {
+        if (ui.remoteHostsSupported) GLabel(stringResource(R.string.st_remotes))
+        if (ui.remoteHostsSupported) Gl {
             ui.remotes.forEach { r ->
                 row { StRow(r.name, icon = DshGlyphs.Server, tile = Si.c2, sub = "HTTPS · ${r.fingerprint}", value = stringResource(if (r.online) R.string.st_online else R.string.st_offline), valueColor = if (r.online) Dsh.colors.ok else Dsh.colors.t3) }
             }
@@ -878,7 +883,7 @@ private fun SecurityPage(ui: SettingsUi, a: SettingsActions, toast: ToastState, 
         GLabel(stringResource(R.string.st_protection))
         Gl {
             row { StRow(stringResource(R.string.st_api_keys), icon = DshGlyphs.Key, tile = Si.c3, value = stringResource(R.string.st_in_keystore)) }
-            row { StRow(stringResource(R.string.st_remotes_short), icon = DshGlyphs.Server, tile = Si.c2, value = stringResource(R.string.st_https_only)) }
+            if (ui.remoteHostsSupported) row { StRow(stringResource(R.string.st_remotes_short), icon = DshGlyphs.Server, tile = Si.c2, value = stringResource(R.string.st_https_only)) }
             row { StRow(stringResource(R.string.st_clip_short), icon = DshGlyphs.Copy, tile = Si.c4, value = stringResource(if (ui.clipboard) R.string.st_clip_open else R.string.st_clip_closed), chevron = true, onClick = { go(StPage.Agent) }) }
         }
         Gl(Modifier.padding(top = 12.dp)) {

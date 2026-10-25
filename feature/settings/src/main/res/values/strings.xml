@@ -3,15 +3,11 @@
     <string name="app_name">DSH</string>
 
     <!-- Navigation Titles -->
-    <string name="session_new">New Session</string>
 
     <!-- Welcome & Chat Screen (Aligned with dsh-upstream copy) -->
     <string name="chat_input_placeholder_plan">describe your task to generate plan</string>
     <string name="chat_thinking">Deep-diving…</string>
     <string name="action_retry">Retry</string>
-    <string name="action_stop">Stop generating</string>
-    <string name="action_send">Send message</string>
-    <string name="action_input_commands">Add files or run commands</string>
 
     <!-- Permission Presets & Modes (aligned with ui-permission-presets) -->
     <string name="perm_read_only">Read Only</string>
@@ -34,24 +30,15 @@
 
     <!-- Model & Effort menu (aligned with ui-model-selection) -->
     <string name="model_menu_model">Model</string>
-    <string name="model_menu_effort">Effort</string>
     <string name="reasoning_fast">Fast</string>
     <string name="reasoning_deep_think">DeepThink</string>
     <string name="reasoning_max">Max Reasoning</string>
 
     <!-- Composer plus menu (aligned with ui-commands / ui-input-trigger) -->
-    <string name="cmd_section_add">Add</string>
-    <string name="cmd_section_commands">Commands</string>
-    <string name="cmd_file">File</string>
-    <string name="cmd_file_desc">Add files or images to this message</string>
     <string name="cmd_goal">Goal</string>
-    <string name="cmd_goal_desc">Set or view the goal for a long-running task</string>
-    <string name="cmd_plan">Plan</string>
-    <string name="cmd_plan_desc">Enter or leave plan mode</string>
     <string name="cmd_feedback">Feedback</string>
     <string name="cmd_feedback_desc">Record feedback about this session</string>
     <string name="cmd_compact">Compact</string>
-    <string name="cmd_compact_desc">Compact older conversation history</string>
     <string name="cmd_permission">Permission</string>
     <string name="cmd_permission_desc">Switch the permission preset (sandbox mode + approval policy)</string>
     <string name="cmd_model">Model</string>
@@ -60,23 +47,10 @@
     <string name="cmd_export_desc">Download this Session log as a ZIP archive</string>
     <string name="action_cancel">Cancel</string>
     <string name="row_rename">Rename</string>
-    <string name="row_fork">Fork session</string>
-    <string name="row_pin">Pin session</string>
-    <string name="row_unpin">Unpin session</string>
-    <string name="row_session_id">Copy Session ID</string>
 
     <!-- Composer Dock -->
-    <string name="stat_tok_per_sec">%1$.1f tok/s</string>
-    <string name="stat_cache_hit">Cache hit %1$d%%</string>
-    <string name="stat_context_aria">%1$d%% of context used</string>
 
     <!-- Drawer & Account Menu (Aligned with ui-settings-account / AccountMenu.tsx) -->
-    <string name="drawer_account_menu_more">More</string>
-    <string name="drawer_account_settings">Settings</string>
-    <string name="drawer_account_signout">Sign Out</string>
-    <string name="drawer_nav_plugins">Plugins</string>
-    <string name="drawer_nav_schedule">Scheduled Automation</string>
-    <string name="action_search">Search sessions</string>
 
     <!-- Plugins Screen -->
     <string name="action_close">Close</string>
@@ -84,11 +58,6 @@
     <!-- Files Screen -->
 
     <!-- Hosts Screen -->
-    <string name="hosts_title">Hosts &amp; Connections</string>
-    <string name="hosts_subtitle">Local first; remote connection is optional (v4.0 §11)</string>
-    <string name="action_scan_pair">Scan QR Code</string>
-    <string name="host_tag_local">Local Environment</string>
-    <string name="host_desc_local">127.0.0.1 (Phone User Space)</string>
 
     <!-- Approval Screen -->
 
@@ -96,11 +65,5 @@
 
 
     <!-- Runtime Control Screen -->
-    <string name="runtime_title">Local Linux Runtime Control</string>
-    <string name="runtime_phase">Phase: %1$s</string>
-    <string name="runtime_port">Port: %1$s</string>
-    <string name="runtime_token">Token: %1$s</string>
-    <string name="action_start_container">Start DSH Container</string>
-    <string name="action_stop_container">Stop DSH Container</string>
     <!-- Settings section navigation --><string name="settings_pane_models_add_tab_catalog">Choose provider</string>
 </resources>

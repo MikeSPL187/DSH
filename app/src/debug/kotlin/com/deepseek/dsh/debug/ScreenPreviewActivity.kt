@@ -33,6 +33,7 @@ class ScreenPreviewActivity : ComponentActivity() {
         setContent {
             DshTheme(darkTheme = dark) {
                 if (state.startsWith("chat")) { DrawerPreview(state); return@DshTheme }
+                if (state == "dialog") { DialogPreview(); return@DshTheme }
                 val model = remember { sample(state) }
                 val history = remember { androidx.compose.runtime.mutableStateListOf("git status", "./gradlew :app:assembleDebug", "adb devices") }
                 var font = remember { androidx.compose.runtime.mutableFloatStateOf(12.5f) }
@@ -78,6 +79,23 @@ class ScreenPreviewActivity : ComponentActivity() {
     }
 
     /** Чат на данных прототипа: главный, ход работы, правка, удаление. */
+    @androidx.compose.runtime.Composable
+    private fun DialogPreview() {
+        var name by remember { androidx.compose.runtime.mutableStateOf("android-app") }
+        DrawerPreview("chat-home")
+        com.deepseek.dsh.core.designsystem.DshDialog(
+            onDismiss = { finish() },
+            title = "Переименовать проект",
+            closeLabel = "Закрыть",
+            description = "Папка на диске получит то же имя.",
+            content = { com.deepseek.dsh.core.designsystem.DshTextInput(name, { name = it }, "Имя проекта") },
+            footer = {
+                com.deepseek.dsh.core.designsystem.DshDialogButton("Отмена", primary = false, enabled = true, onClick = { finish() })
+                com.deepseek.dsh.core.designsystem.DshDialogButton("Сохранить", primary = true, enabled = name.isNotBlank(), onClick = { finish() })
+            },
+        )
+    }
+
     @androidx.compose.runtime.Composable
     private fun DrawerPreview(state: String) {
         val drawer = remember { com.deepseek.dsh.feature.sessions.DshDrawerState().apply { if (state == "chat-drawer") open() } }

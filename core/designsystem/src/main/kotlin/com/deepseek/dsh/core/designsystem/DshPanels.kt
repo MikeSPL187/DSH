@@ -1,5 +1,18 @@
 package com.deepseek.dsh.core.designsystem
 
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.paneTitle
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ripple
+import androidx.compose.ui.text.style.TextAlign
 import android.view.Gravity
 import android.view.View
 import androidx.compose.animation.core.animateDpAsState
@@ -640,75 +653,87 @@ private class DshMenuPositionProvider(
 }
 
 /**
- * Bottom-sheet panel: translucent menu material, 16dp top radius,
- * 4dp content inset and the quiet drag handle.
+ * Лист снизу для панелей плагинов (surface): тот же системный лист, что у окон.
  *
- * @param onDismiss sheet dismiss callback.
- * @param content sheet rows, typically menu groups.
+ * @param onDismiss закрыть.
+ * @param content содержимое листа.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DshSheetPanel(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    val colors = dshPanelColors()
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(),
-        // Android cannot blur the content behind a window, so composite the
-        // translucent menu material over the base layer to keep the sheet legible.
-        containerColor = colors.menuSurfaceFill.compositeOver(colors.bgBase),
-        contentColor = colors.labelPrimary,
-        scrimColor = Color.Transparent,
-        tonalElevation = 0.dp,
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-        dragHandle = {
-            Box(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(32.dp)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(colors.borderL3),
-                )
-            }
-        },
+fun DshSheetPanel(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) = DshModalSheet(onDismiss, content)
+
+/** Ряд кнопок внизу листа: каждая кнопка [DshDialogButton] берёт равную долю ширины. */
+private val LocalSheetFooter = androidx.compose.runtime.staticCompositionLocalOf<RowScope?> { null }
+
+/**
+ * Модальный лист системы (`.sheet` прототипа) поверх всего окна: затемнение, карточка
+ * снизу (радиус 34, s1, «ручка»), въезд пружиной, смахивание вниз и «Назад» закрывают.
+ */
+@Composable
+private fun DshModalSheet(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    val c = Dsh.colors
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val progress = remember { androidx.compose.animation.core.Animatable(0f) }
+    val drag = remember { androidx.compose.animation.core.Animatable(0f) }
+    var height by remember { androidx.compose.runtime.mutableIntStateOf(1) }
+    var leaving by remember { androidx.compose.runtime.mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(Unit) { progress.animateTo(1f, DshMotion.smooth()) }
+    fun close() {
+        if (leaving) return
+        leaving = true
+        scope.launch { progress.animateTo(0f, DshMotion.snappy()); onDismiss() }
+    }
+    Dialog(
+        onDismissRequest = ::close,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
-        CompositionLocalProvider(
-            LocalDshPanelColors provides colors,
-            LocalContentColor provides colors.labelPrimary,
-            LocalTextStyle provides LocalTextStyle.current.copy(
-                fontSize = 13.sp,
-                lineHeight = 20.sp,
-                fontWeight = FontWeight.Normal,
-            ),
+        DisableDialogWindowDim()
+        BoxWithConstraints(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = progress.value.coerceIn(0f, 1f) }
+                .background(c.scrim)
+                .clickable(remember { MutableInteractionSource() }, indication = null, onClick = ::close),
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .imePadding()
+                    .navigationBarsPadding()
+                    .padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
+                    .widthIn(max = 560.dp)
+                    .heightIn(max = maxHeight * 0.9f)
+                    .onSizeChanged { height = it.height }
+                    .graphicsLayer { translationY = (1f - progress.value) * height * 1.05f + drag.value }
+                    .shadow(28.dp, RoundedCornerShape(34.dp), ambientColor = Color.Black.copy(alpha = 0.18f), spotColor = Color.Black.copy(alpha = 0.18f))
+                    .clip(RoundedCornerShape(34.dp))
+                    .background(c.s1)
+                    .pointerInput(Unit) { detectTapGestures { } }
+                    .draggable(
+                        orientation = androidx.compose.foundation.gestures.Orientation.Vertical,
+                        state = androidx.compose.foundation.gestures.rememberDraggableState { d -> scope.launch { drag.snapTo((drag.value + d).coerceAtLeast(0f)) } },
+                        onDragStopped = { v -> if (drag.value > height * 0.25f || v > 1800f) close() else drag.animateTo(0f, DshMotion.snappy()) },
+                    )
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = DshPanelDefaults.ContentPadding)
-                    .padding(bottom = 8.dp),
-                content = content,
-            )
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 18.dp),
+            ) {
+                Box(Modifier.align(Alignment.CenterHorizontally).padding(top = 4.dp, bottom = 12.dp).size(width = 38.dp, height = 5.dp).clip(RoundedCornerShape(3.dp)).background(c.s3))
+                CompositionLocalProvider(LocalContentColor provides c.t1) { content() }
+            }
         }
     }
 }
 
 /**
- * Modal dialog from the shared `Modal` primitive: 28dp radius, secondary
- * layer fill, prominent shadow, 22/14/12/24 header, 16sp/24 medium title, 28dp
- * close control, 24dp side padding, 20dp content gap and a right-aligned footer
- * with an 8dp gap.
+ * Окно приложения в виде листа системы: заголовок `.sheet h3`, пояснение, содержимое
+ * и ряд кнопок на всю ширину. Закрывается затемнением, смахиванием и «Назад».
  *
- * @param onDismiss dismiss callback (mask, close control and system back).
- * @param title dialog heading.
- * @param closeLabel localized accessible close-button label.
- * @param description optional supporting sentence under the title.
- * @param width card width cap (380dp, or 440dp for the risk confirmation).
- * @param content optional dialog body.
- * @param footer optional action row.
+ * @param onDismiss закрыть.
+ * @param title заголовок листа.
+ * @param closeLabel подпись для озвучивания закрытия (у листа нет крестика — закрывают «ручка» и фон).
+ * @param description пояснение под заголовком.
+ * @param width не используется: лист занимает ширину экрана (до 560 dp).
+ * @param content содержимое.
+ * @param footer кнопки [DshDialogButton] — поровну по ширине.
  */
 @Composable
 fun DshDialog(
@@ -716,223 +741,66 @@ fun DshDialog(
     title: String,
     closeLabel: String,
     description: String? = null,
-    width: Dp = DshPanelDefaults.DialogWidth,
+    @Suppress("UNUSED_PARAMETER") width: Dp = DshPanelDefaults.DialogWidth,
     content: (@Composable ColumnScope.() -> Unit)? = null,
     footer: (@Composable RowScope.() -> Unit)? = null,
 ) {
-    val colors = dshPanelColors()
-    val shape = DshPanelDefaults.DialogShape
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
-    ) {
-        DisableDialogWindowDim()
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(colors.bgMask1)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onDismiss,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            val cardWidth = (maxWidth - DshPanelDefaults.DialogInset * 2).coerceAtMost(width)
-            val cardMaxHeight = maxHeight - DshPanelDefaults.DialogInset * 2
-            Box(
-                modifier = Modifier
-                    .width(cardWidth)
-                    .heightIn(max = cardMaxHeight)
-                    .pointerInput(Unit) {
-                        detectTapGestures { }
-                    }
-                    .shadow(
-                        elevation = 6.dp,
-                        shape = shape,
-                        clip = false,
-                        ambientColor = Color.Black.copy(alpha = 0.05f),
-                        spotColor = Color.Black.copy(alpha = 0.04f),
-                    )
-                    .clip(shape)
-                    .background(colors.dialogFill)
-                    .border(0.5.dp, colors.borderL4, shape),
-            ) {
-                CompositionLocalProvider(
-                    LocalDshPanelColors provides colors,
-                    LocalContentColor provides colors.labelPrimary,
-                ) {
-                    Column {
-                        Column {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(start = 24.dp, top = 22.dp, end = 14.dp, bottom = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = title,
-                                    color = colors.labelPrimary,
-                                    fontSize = 16.sp,
-                                    lineHeight = 24.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                DshDialogCloseButton(onClick = onDismiss, label = closeLabel)
-                            }
-                            Row(
-                                modifier = Modifier
-                                    .weight(1f, fill = false)
-                                    .verticalScroll(rememberScrollState()),
-                            ) {
-                                Column {
-                                    if (description != null) {
-                                        Text(
-                                            text = description,
-                                            color = colors.labelPrimary,
-                                            fontSize = 14.sp,
-                                            lineHeight = 22.sp,
-                                            fontWeight = FontWeight.Normal,
-                                            modifier = Modifier.padding(horizontal = 24.dp),
-                                        )
-                                    }
-                                    if (content != null) {
-                                        Column(
-                                            modifier = Modifier
-                                                .padding(horizontal = 24.dp)
-                                                .padding(top = 20.dp),
-                                            content = content,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        if (footer != null) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(start = 24.dp, end = 24.dp, top = 20.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                                verticalAlignment = Alignment.CenterVertically,
-                                content = footer,
-                            )
-                        }
-                        Spacer(Modifier.height(24.dp))
-                    }
-                }
-            }
+    val c = Dsh.colors
+    DshModalSheet(onDismiss) {
+        Box(Modifier.semantics { paneTitle = title; contentDescription = closeLabel }) { DshSheetTitle(title) }
+        if (description != null) {
+            Text(
+                description,
+                style = TextStyle(fontFamily = DshFonts.body, fontSize = 14.5.sp, lineHeight = 21.sp),
+                color = c.t2,
+                modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 14.dp).offset(y = (-6).dp),
+            )
+        }
+        if (content != null) Column(Modifier.fillMaxWidth(), content = content)
+        if (footer != null) {
+            Row(
+                Modifier.fillMaxWidth().padding(top = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) { CompositionLocalProvider(LocalSheetFooter provides this) { footer() } }
         }
     }
 }
 
 /**
- * Headless modal shell: the mask and 28dp card without default
- * header/footer chrome, for dialogs that own their layout (for example the
- * Agent preset guide with its 20sp title and no action footer).
+ * Лист без готовых заголовка и кнопок — для окон со своей раскладкой.
  *
- * @param onDismiss dismiss callback (mask and system back).
- * @param width card width cap.
- * @param content card content; the caller supplies padding and scrolling.
+ * @param onDismiss закрыть.
+ * @param width не используется: ширина листа — экран (до 560 dp).
+ * @param content содержимое листа.
  */
 @Composable
 fun DshHeadlessModal(
     onDismiss: () -> Unit,
-    width: Dp = DshPanelDefaults.DialogWidth,
+    @Suppress("UNUSED_PARAMETER") width: Dp = DshPanelDefaults.DialogWidth,
     content: @Composable ColumnScope.() -> Unit,
-) {
-    val colors = dshPanelColors()
-    val shape = DshPanelDefaults.DialogShape
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
-    ) {
-        DisableDialogWindowDim()
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(colors.bgMask1)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onDismiss,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            val cardWidth = (maxWidth - DshPanelDefaults.DialogInset * 2).coerceAtMost(width)
-            val cardMaxHeight = maxHeight - DshPanelDefaults.DialogInset * 2
-            Box(
-                modifier = Modifier
-                    .width(cardWidth)
-                    .heightIn(max = cardMaxHeight)
-                    .pointerInput(Unit) {
-                        detectTapGestures { }
-                    }
-                    .shadow(
-                        elevation = 6.dp,
-                        shape = shape,
-                        clip = false,
-                        ambientColor = Color.Black.copy(alpha = 0.05f),
-                        spotColor = Color.Black.copy(alpha = 0.04f),
-                    )
-                    .clip(shape)
-                    .background(colors.dialogFill)
-                    .border(0.5.dp, colors.borderL4, shape),
-            ) {
-                CompositionLocalProvider(
-                    LocalDshPanelColors provides colors,
-                    LocalContentColor provides colors.labelPrimary,
-                ) {
-                    Column(content = content)
-                }
-            }
-        }
-    }
-}
+) = DshModalSheet(onDismiss, content)
 
-/** Modal close control (28dp seat, 14dp glyph, 8dp corner radius). */
+/** Совместимость: у листов системы нет крестика, но место для него ещё может звать старый код. */
 @Composable
 fun DshDialogCloseButton(
     onClick: () -> Unit,
     label: String,
     size: Dp = DshPanelDefaults.DialogCloseSize,
-    cornerRadius: Dp = 8.dp,
+    @Suppress("UNUSED_PARAMETER") cornerRadius: Dp = 8.dp,
     iconSize: Dp = 14.dp,
 ) {
-    val colors = dshPanelColors()
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
     Box(
-        modifier = Modifier
-            .size(size)
-            .clip(RoundedCornerShape(cornerRadius))
-            .background(if (pressed) colors.interactiveHover else Color.Transparent)
-            .clickable(
-                interactionSource = interaction,
-                indication = null,
-                role = Role.Button,
-                onClick = onClick,
-            ),
+        Modifier.size(maxOf(size, 40.dp)).clip(CircleShape).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            painter = painterResource(id = R.drawable.ic_close),
-            contentDescription = label,
-            tint = colors.labelSecondary,
-            modifier = Modifier.size(iconSize),
-        )
-    }
+    ) { Icon(DshGlyphs.X, null, tint = Dsh.colors.t3, modifier = Modifier.size(maxOf(iconSize, 18.dp))) }
 }
 
 /**
- * Button inside a dialog: 36dp height, 12dp radius, 14sp/22 label,
- * primary brand fill or a 0.5dp outlined control.
+ * Кнопка листа, как `.btn` прототипа: высота 48, радиус 14, главная — индиго,
+ * вторая — на s2. В ряду [DshDialog] кнопки делят ширину поровну.
  *
- * @param text visible label.
- * @param primary primary fill versus outline.
- * @param enabled whether the button can be pressed.
- * @param onClick activation callback.
- * @param modifier external modifier (min-widths for risk actions).
- * @param height button height; dialogs use 36dp, the plugin install footer uses 40dp.
+ * @param height минимальная высота (не меньше 48).
  */
 @Composable
 fun DshDialogButton(
@@ -943,40 +811,32 @@ fun DshDialogButton(
     modifier: Modifier = Modifier,
     height: Dp = DshPanelDefaults.DialogButtonHeight,
 ) {
-    val colors = dshPanelColors()
+    val c = Dsh.colors
     val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val shape = RoundedCornerShape(12.dp)
-    val fill = when {
-        primary && pressed && enabled -> colors.buttonPrimaryHover
-        primary -> colors.buttonPrimaryFill
-        pressed && enabled -> colors.interactiveHover
-        else -> Color.Transparent
+    val row = LocalSheetFooter.current
+    val share = if (row != null) with(row) { Modifier.weight(1f) } else Modifier
+    val (fill, ink) = when {
+        !enabled -> c.s3 to c.t3
+        primary -> c.accent to c.onAccent
+        else -> c.s2 to c.t1
     }
     Box(
-        modifier = modifier
-            .height(height)
-            .clip(shape)
-            .then(if (enabled) Modifier else Modifier.alpha(0.4f))
+        modifier
+            .then(share)
+            .heightIn(min = maxOf(height, 48.dp))
+            .pressScale(interaction)
+            .clip(RoundedCornerShape(14.dp))
             .background(fill)
-            .then(if (primary) Modifier else Modifier.border(0.5.dp, colors.borderL3, shape))
-            .clickable(
-                interactionSource = interaction,
-                indication = null,
-                enabled = enabled,
-                role = Role.Button,
-                onClick = onClick,
-            )
-            .padding(horizontal = 14.dp),
+            .clickable(interaction, ripple(), enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = text,
-            color = if (primary) colors.labelPrimaryForeground else colors.labelPrimary,
-            fontSize = 14.sp,
-            lineHeight = 22.sp,
-            fontWeight = FontWeight.Normal,
-            maxLines = 1,
+            text,
+            style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, lineHeight = 20.sp),
+            color = ink,
+            textAlign = TextAlign.Center,
+            maxLines = 2,
         )
     }
 }
@@ -1048,21 +908,22 @@ fun DshTextInput(
      */
     secret: Boolean = false,
 ) {
-    val colors = dshPanelColors()
-    val shape = RoundedCornerShape(12.dp)
+    val c = Dsh.colors
+    val shape = RoundedCornerShape(16.dp)
     Box(
         modifier = modifier
-            .height(40.dp)
+            .heightIn(min = 52.dp)
             .clip(shape)
-            .background(colors.bgLayer2)
-            .border(0.5.dp, colors.borderL4, shape)
-            .padding(horizontal = 12.dp),
+            .background(c.s2)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
+        if (value.isEmpty()) Text(placeholder, style = TextStyle(fontFamily = DshFonts.body, fontSize = 15.sp, lineHeight = 20.sp), color = c.t3, maxLines = 1)
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
             singleLine = true,
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(c.accent),
             keyboardOptions = if (secret) {
                 androidx.compose.foundation.text.KeyboardOptions(
                     keyboardType = androidx.compose.ui.text.input.KeyboardType.Password,
@@ -1072,30 +933,17 @@ fun DshTextInput(
                 androidx.compose.foundation.text.KeyboardOptions.Default
             },
             visualTransformation = if (secret) {
-                androidx.compose.ui.text.input.PasswordVisualTransformation()
+                androidx.compose.ui.text.input.PasswordVisualTransformation('•')
             } else {
                 androidx.compose.ui.text.input.VisualTransformation.None
             },
             textStyle = TextStyle(
-                color = colors.labelPrimary,
-                fontSize = 13.sp,
+                fontFamily = if (secret) DshFonts.mono else DshFonts.body,
+                color = c.t1,
+                fontSize = if (secret) 14.sp else 15.sp,
                 lineHeight = 20.sp,
             ),
-            cursorBrush = SolidColor(colors.labelPrimary),
-            modifier = Modifier.fillMaxWidth(),
-            decorationBox = { innerTextField ->
-                Box(contentAlignment = Alignment.CenterStart) {
-                    if (value.isEmpty()) {
-                        Text(
-                            text = placeholder,
-                            color = colors.labelCaption,
-                            fontSize = 13.sp,
-                            lineHeight = 20.sp,
-                        )
-                    }
-                    innerTextField()
-                }
-            },
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = placeholder },
         )
     }
 }

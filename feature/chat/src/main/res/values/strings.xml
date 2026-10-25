@@ -3,7 +3,6 @@
     <string name="app_name">DSH</string>
 
     <!-- Navigation Titles -->
-    <string name="session_new">New Session</string>
 
     <!-- Welcome & Chat Screen (Aligned with dsh-upstream copy) -->
     <string name="chat_input_placeholder_plan">describe your task to generate plan</string>
@@ -43,18 +42,10 @@
     <string name="reasoning_max">Max Reasoning</string>
 
     <!-- Composer plus menu (aligned with ui-commands / ui-input-trigger) -->
-    <string name="cmd_section_add">Add</string>
-    <string name="cmd_section_commands">Commands</string>
-    <string name="cmd_file">File</string>
-    <string name="cmd_file_desc">Add files or images to this message</string>
     <string name="cmd_goal">Goal</string>
-    <string name="cmd_goal_desc">Set or view the goal for a long-running task</string>
-    <string name="cmd_plan">Plan</string>
-    <string name="cmd_plan_desc">Enter or leave plan mode</string>
     <string name="cmd_feedback">Feedback</string>
     <string name="cmd_feedback_desc">Record feedback about this session</string>
     <string name="cmd_compact">Compact</string>
-    <string name="cmd_compact_desc">Compact older conversation history</string>
     <string name="cmd_permission">Permission</string>
     <string name="cmd_permission_desc">Switch the permission preset (sandbox mode + approval policy)</string>
     <string name="cmd_model">Model</string>
@@ -63,21 +54,10 @@
     <string name="cmd_export_desc">Download this Session log as a ZIP archive</string>
     <string name="action_cancel">Cancel</string>
     <string name="row_rename">Rename</string>
-    <string name="row_fork">Fork session</string>
-    <string name="row_pin">Pin session</string>
-    <string name="row_unpin">Unpin session</string>
-    <string name="row_archive">Archive session</string>
-    <string name="row_session_id">Copy Session ID</string>
 
     <!-- Composer Dock -->
 
     <!-- Drawer & Account Menu (Aligned with ui-settings-account / AccountMenu.tsx) -->
-    <string name="drawer_account_menu_more">More</string>
-    <string name="drawer_account_settings">Settings</string>
-    <string name="drawer_account_feedback">Feedback</string>
-    <string name="drawer_account_signout">Sign Out</string>
-    <string name="drawer_nav_plugins">Plugins</string>
-    <string name="drawer_nav_schedule">Scheduled Automation</string>
 
     <!-- Plugins Screen -->
     <string name="action_close">Close</string>
@@ -85,11 +65,6 @@
     <!-- Files Screen -->
 
     <!-- Hosts Screen -->
-    <string name="hosts_title">Hosts &amp; Connections</string>
-    <string name="hosts_subtitle">Local first; remote connection is optional (v4.0 §11)</string>
-    <string name="action_scan_pair">Scan QR Code</string>
-    <string name="host_tag_local">Local Environment</string>
-    <string name="host_desc_local">127.0.0.1 (Phone User Space)</string>
 
     <!-- Approval Screen -->
 
@@ -97,12 +72,6 @@
 
 
     <!-- Runtime Control Screen -->
-    <string name="runtime_title">Local Linux Runtime Control</string>
-    <string name="runtime_phase">Phase: %1$s</string>
-    <string name="runtime_port">Port: %1$s</string>
-    <string name="runtime_token">Token: %1$s</string>
-    <string name="action_start_container">Start DSH Container</string>
-    <string name="action_stop_container">Stop DSH Container</string>
 
     <!-- Chat status & recording -->
     <string name="chat_creating_session">Creating session…</string>
@@ -113,12 +82,10 @@
     <string name="plan_banner_title">Plan mode</string>
     <string name="plan_banner_desc">Describe the task and the agent will propose a plan first; execution starts after you confirm.</string>
     <string name="plan_banner_exit">Leave plan mode</string>
-    <string name="attachment_remove">Remove attachment</string>
     <string name="cmd_goal_hint">Enter a goal…</string>
     <string name="cmd_feedback_hint">Enter feedback…</string>
     <string name="cmd_compact_hint">Describe what to compact…</string>
     <string name="cmd_export_hint">Export log</string>
-<string name="cmd_section_host">Host commands</string>
 <string name="presented_file">File</string>
 <string name="presented_all">All (%1$d)</string>
 <string name="presented_collapse">Show less</string>
@@ -139,11 +106,8 @@
     <string name="queue_edit">Edit</string>
     <string name="queue_remove">Remove</string>
     <string name="queue_steer">Steer</string>
-    <string name="queue_edit_title">Edit queued message</string>
-    <string name="queue_edit_placeholder">Queued message</string>
     <string name="queue_save">Save</string>
     <string name="queue_cancel">Cancel</string>
-    <string name="cmd_section_skills">Skills</string>
 <string name="feedback_helpful">Helpful</string>
     <string name="feedback_not_helpful">Not helpful</string>
     <string name="feedback_add_note">Add note</string>
@@ -153,7 +117,6 @@
 <string name="trajectory_title">Trajectory</string>
     <string name="trajectory_subtitle">%1$d session events</string>
     <string name="trajectory_empty">No events recorded yet.</string>
-    <string name="trajectory_close">Close</string>
 <string name="message_actions_title">Message</string>
     <string name="message_action_copy">Copy text</string>
     <string name="message_action_fork">Fork from here</string>

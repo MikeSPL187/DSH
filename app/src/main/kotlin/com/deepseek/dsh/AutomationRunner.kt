@@ -275,40 +275,5 @@ object ScheduleBridge {
 }
 
 
-/** Вкладка «Расписание» правой панели чата: ближайшие автоматизации и задачи агента, переход в «Автоматизацию». */
-@androidx.compose.runtime.Composable
-internal fun AutomationSidePanel(onOpen: () -> Unit) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val source = ScheduleBridge.flow ?: kotlinx.coroutines.flow.MutableStateFlow(emptyList<ScheduleInfo>())
-    val host: List<ScheduleInfo> by source.collectAsState()
-    androidx.compose.runtime.LaunchedEffect(Unit) { ScheduleBridge.refresh?.invoke() }
-    val items = AutomationStore.items.filter { it.on }
-    com.deepseek.dsh.feature.settings.ui.FsView {
-        if (items.isEmpty() && host.isEmpty()) {
-            com.deepseek.dsh.feature.settings.ui.FsEmpty(context.getString(com.deepseek.dsh.feature.settings.R.string.au_empty))
-        }
-        if (items.isNotEmpty()) {
-            com.deepseek.dsh.feature.settings.ui.FsSec(context.getString(com.deepseek.dsh.feature.settings.R.string.au_mine), count = items.size.toString())
-            com.deepseek.dsh.feature.settings.ui.Gl {
-                items.forEach { a ->
-                    row {
-                        val next = AutomationStore.nextRun(a)?.let { java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT).format(java.util.Date(it)) }
-                        com.deepseek.dsh.feature.settings.ui.Gr(a.name, sub = next, leading = { com.deepseek.dsh.feature.settings.ui.Gic(com.deepseek.dsh.core.designsystem.DshGlyphs.get(a.icon)) }, onClick = onOpen)
-                    }
-                }
-            }
-        }
-        if (host.isNotEmpty()) {
-            com.deepseek.dsh.feature.settings.ui.FsSec(context.getString(com.deepseek.dsh.feature.settings.R.string.au_agent_tasks), count = host.size.toString())
-            com.deepseek.dsh.feature.settings.ui.Gl {
-                host.forEach { s -> row { com.deepseek.dsh.feature.settings.ui.Gr(s.title.ifBlank { s.prompt.take(60) }, sub = scheduleText(context, s), leading = { com.deepseek.dsh.feature.settings.ui.Gic(com.deepseek.dsh.core.designsystem.DshGlyphs.Clock) }) } }
-            }
-        }
-        com.deepseek.dsh.feature.settings.ui.KBtn(
-            context.getString(com.deepseek.dsh.feature.settings.R.string.au_title), onOpen,
-            androidx.compose.ui.Modifier.fillMaxWidthCompat().then(androidx.compose.ui.Modifier.padding(top = 16.dp)), icon = com.deepseek.dsh.core.designsystem.DshGlyphs.Clock,
-        )
-    }
-}
 
 private fun androidx.compose.ui.Modifier.fillMaxWidthCompat() = this.then(androidx.compose.ui.Modifier.fillMaxWidth())

@@ -35,7 +35,6 @@
     <string name="dw_fork_sub">A copy of the conversation; the original stays as is</string>
     <string name="dw_to_archive">Archive</string>
     <string name="dw_unarchive">Restore from archive</string>
-    <string name="dw_menu">Menu</string>
     <plurals name="dw_sessions">
         <item quantity="one">%1$d session</item>
         <item quantity="other">%1$d sessions</item>

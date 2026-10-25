@@ -24,7 +24,6 @@
     <string name="ck_copied">Copied</string>
     <string name="ck_work_done">Done · %1$s · %2$s</string>
     <string name="ck_work_done_short">Done · %1$s</string>
-    <string name="ck_work_stopped">Stopped</string>
     <string name="ck_sec">%1$s s</string>
     <string name="ck_min_sec">%1$d min %2$d s</string>
     <string name="ck_h_thinking">Thinking</string>

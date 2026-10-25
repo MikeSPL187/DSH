@@ -102,7 +102,6 @@ internal fun SignInDialogs(
                     enabled = true,
                     onClick = onAddKey,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
                 com.deepseek.dsh.core.designsystem.DshDialogButton(
                     text = stringResource(R.string.onboarding_login),
                     primary = true,
@@ -125,7 +124,6 @@ internal fun SignInDialogs(
                     enabled = true,
                     onClick = onDismissApiKey,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
                 com.deepseek.dsh.core.designsystem.DshDialogButton(
                     text = stringResource(R.string.onboarding_login),
                     primary = true,

@@ -58,23 +58,12 @@
     <!-- Files Screen -->
 
     <!-- Hosts Screen -->
-    <string name="hosts_title">Hosts &amp; Connections</string>
-    <string name="hosts_subtitle">Local first; remote connection is optional (v4.0 §11)</string>
-    <string name="action_scan_pair">Scan QR Code</string>
-    <string name="host_tag_local">Local Environment</string>
-    <string name="host_desc_local">127.0.0.1 (Phone User Space)</string>
 
     <!-- Approval Screen -->
 
     <!-- Settings Screen -->
 
     <!-- Runtime Control Screen -->
-    <string name="runtime_title">Local Linux Runtime Control</string>
-    <string name="runtime_phase">Phase: %1$s</string>
-    <string name="runtime_port">Port: %1$s</string>
-    <string name="runtime_token">Token: %1$s</string>
-    <string name="action_start_container">Start DSH Container</string>
-    <string name="action_stop_container">Stop DSH Container</string>
 </resources>
 
 

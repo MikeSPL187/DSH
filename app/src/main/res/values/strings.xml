@@ -7,8 +7,6 @@
     <string name="page_plugins">Plugins</string>
     <string name="page_automation">Automation tasks</string>
     <string name="page_files">Files</string>
-    <string name="page_hosts">Remote Hosts</string>
-    <string name="page_runtime">Runtime</string>
     <string name="page_settings">Settings</string>
     <string name="drawer_default_user">DeepSeek User</string>
 
@@ -87,8 +85,6 @@
     <string name="agent_team_ready">Ready to start</string>
     <string name="agent_team_dependencies">Dependencies</string>
     <string name="agent_team_write_scopes">Write scopes</string>
-    <string name="agent_team_expand">Expand</string>
-    <string name="agent_team_collapse">Collapse</string>
     <string name="inspector_node_diagnostics">Node.js diagnostics</string>
     <string name="inspector_devtools_hint">Press Ctrl/Cmd+Shift+. to open Chrome DevTools in the bottom panel</string>
     <string name="inspector_reload">Reload</string>
@@ -173,8 +169,6 @@
     <string name="onboarding_key_title">Add an API key to get started</string>
     <string name="onboarding_key_desc">Configure an official DeepSeek model to begin.</string>
     <string name="onboarding_key_placeholder">Enter API key</string>
-    <string name="runtime_install_reset">Install / reset rootfs</string>
-    <string name="runtime_installing">Installing…</string>
     <string name="runtime_update_title">Runtime update</string>
     <string name="runtime_update_later">Later</string>
     <string name="runtime_update_desc">New rootfs available: %1$s (current %2$s). Updating downloads the runtime again and keeps your account, sessions and workspace.</string>
@@ -211,15 +205,12 @@
     <string name="companion_available_desc">Open Plugins → Plugin Store to install it</string>
     <string name="companion_go_install">Install</string>
     <string name="companion_ignore">Ignore</string>
-    <string name="error_prefix">Error: %1$s</string>
-    <string name="startup_failed">Startup failed: %1$s</string>
     <string name="action_back">Back</string>
     <string name="runtime_update_available">Runtime update available</string>
     <string name="action_update">Update</string>
     <string name="dismiss_reminder">Dismiss reminder</string>
     <string name="session_diagnostics">Session data diagnostics</string>
     <string name="restart_dsh_hint">Restart DSH to apply this change.</string>
-    <string name="finished_section">Finished %1$d</string>
     <string name="restart_reason_package_moved">The installed plugin package resolved to another directory, or replaced a package bundled with DSH. Uninstall it before installing from another location.</string>
     <string name="restart_reason_no_hmr">This change cannot be hot-reloaded; restart DSH to apply it.</string>
     <string name="restart_reason_host_module">This change affects Host module loading; restart DSH to apply it.</string>
@@ -256,23 +247,12 @@
     <!-- Files Screen -->
 
     <!-- Hosts Screen -->
-    <string name="hosts_title">Hosts &amp; Connections</string>
-    <string name="hosts_subtitle">Local first; remote connection is optional (v4.0 §11)</string>
-    <string name="action_scan_pair">Scan QR Code</string>
-    <string name="host_tag_local">Local Environment</string>
-    <string name="host_desc_local">127.0.0.1 (Phone User Space)</string>
 
 
     <!-- Settings Screen -->
 
 
     <!-- Runtime Control Screen -->
-    <string name="runtime_title">Local Linux Runtime Control</string>
-    <string name="runtime_phase">Phase: %1$s</string>
-    <string name="runtime_port">Port: %1$s</string>
-    <string name="runtime_token">Token: %1$s</string>
-    <string name="action_start_container">Start DSH Container</string>
-    <string name="action_stop_container">Stop DSH Container</string>
     <string name="plan_prompt_prefix">[Plan mode] Please first output an implementation plan (step-by-step changes) and wait for my confirmation before executing:\n\n</string>
     <string name="attachment_copy_failed">Could not copy %1$s</string>
     <string name="session_fork_failed">Fork failed</string>
@@ -289,41 +269,12 @@
     <string name="session_export_failed">Could not export the session log</string>
 <string name="account_bonus_title">Reward received</string>
     <string name="account_bonus_ok">Got it</string>
-    <string name="right_sidebar_tab_files">Files</string>
-    <string name="right_sidebar_tab_document">Document</string>
-    <string name="right_sidebar_tab_plan">Plan</string>
-    <string name="right_sidebar_tab_deliverables">Deliverables</string>
     <string name="model_switch_failed">Model switch failed: %1$s</string>
-    <string name="right_sidebar_tab_terminal">Terminal</string>
-    <string name="right_sidebar_tab_schedule">Tasks</string>
     <string name="header_agents_count">%1$d agents</string>
     <string name="header_jobs_running">%1$d background jobs running</string>
     <string name="header_jobs_idle">%1$d background jobs</string>
-    <string name="right_sidebar_tab_browser">Browser</string>
-    <string name="right_sidebar_up">Up</string>
-    <string name="right_sidebar_import">Import</string>
-    <string name="right_sidebar_files_empty">This folder is empty.</string>
-    <string name="right_sidebar_document_empty">Pick a file in the Files tab to preview it.</string>
-    <string name="right_sidebar_attach">Attach</string>
-    <string name="right_sidebar_close_preview">Close</string>
-    <string name="right_sidebar_loading">Loading…</string>
-    <string name="right_sidebar_plan_empty">No plan entries for this session yet.</string>
-    <string name="right_sidebar_deliverables_empty">No deliverables from this session yet.</string>
-    <string name="right_sidebar_browser_unavailable">The desktop browser pane is not part of the mobile app; use Terminal or open links externally.</string>
     <string name="plugin_toggle_restarting">Restarting Host to apply the plugin…</string>
     <string name="onboarding_key_failed">Could not save the API key. Check it and try again.</string>
-    <string name="right_sidebar_tab_guide">Start</string>
-    <string name="right_guide_files_title">Workspace files</string>
-    <string name="right_guide_files_desc">Browse files in the session workspace</string>
-    <string name="right_guide_terminal_title">New terminal</string>
-    <string name="right_guide_terminal_desc">Run commands in the session workspace</string>
-    <string name="right_guide_browser_title">Browser</string>
-    <string name="right_guide_browser_desc">Browse the web</string>
-    <string name="right_guide_plugin_desc">Open plugin page</string>
     <string name="host_loading_data">Loading account and plugins…</string>
     <string name="plugin_status_needs_approval">Needs approval</string>
-    <string name="native_trust_deny">Not now</string>
-    <string name="remote_pairing_title">Pair a remote Host</string>
-    <string name="remote_pairing_desc">Paste the pairing code shown by the gateway (QR content). The connection is verified against the certificate fingerprint in the code before the pairing code is sent.</string>
-    <string name="remote_pairing_connect">Pair</string>
 </resources>

@@ -10,4 +10,7 @@
     <string name="ob_restore_failed">Couldn\'t restore — this isn\'t a DSH backup</string>
     <string name="commit_prompt">Write a git commit message in English for these changes. First line up to 72 characters, imperative mood, no trailing period. If useful, after a blank line add 1–3 short bullet points. Output only the message.</string>
     <string name="commit_empty">The model returned nothing — try again</string>
+    <string name="jobs_title">Background jobs</string>
+    <string name="team_title">Agent team</string>
+    <string name="plugin_panes_title">Plugin panels</string>
 </resources>

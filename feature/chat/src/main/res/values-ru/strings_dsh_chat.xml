@@ -24,7 +24,6 @@
     <string name="ck_copied">Скопировано</string>
     <string name="ck_work_done">Готово · %1$s · %2$s</string>
     <string name="ck_work_done_short">Готово · %1$s</string>
-    <string name="ck_work_stopped">Остановлено</string>
     <string name="ck_sec">%1$s с</string>
     <string name="ck_min_sec">%1$d мин %2$d с</string>
     <string name="ck_h_thinking">Думаю</string>

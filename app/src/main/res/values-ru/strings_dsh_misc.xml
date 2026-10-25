@@ -10,4 +10,7 @@
     <string name="ob_restore_failed">Не удалось восстановить — это не резервная копия DSH</string>
     <string name="commit_prompt">Напиши сообщение git-коммита на русском по этим изменениям. Первая строка — до 72 символов, в повелительном наклонении, без точки в конце. Если нужно, после пустой строки — 1–3 коротких пункта. Выведи только сообщение.</string>
     <string name="commit_empty">Модель не вернула сообщение — попробуйте ещё раз</string>
+    <string name="jobs_title">Фоновые задачи</string>
+    <string name="team_title">Команда агента</string>
+    <string name="plugin_panes_title">Панели плагинов</string>
 </resources>
