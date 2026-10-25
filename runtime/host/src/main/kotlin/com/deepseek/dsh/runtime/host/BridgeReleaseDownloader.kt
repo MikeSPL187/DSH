@@ -8,12 +8,12 @@ import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeUnit
 
 /**
- * bridge 插件发布包（GitHub tag 的 zipball）的下载器。
+ * Загрузчик пакета выпуска bridge-плагина (zipball тега GitHub).
  *
- * 走 App 自己的 HTTP 栈，而不是在 Host 里跑 `git`/`pnpm`：
- * Host 跑在 proot 里，Android 的 DNS 解析在 proot 内不可用（`getent` 返回
- * EAI_AGAIN），GitHub 与 npm registry 都解析不到；App 进程用的是系统解析器，
- * 同一网络下可以正常下载。插件发布带没有资产，一个源码 zipball 就够。
+ * Через собственный HTTP приложения, а не `git`/`pnpm` в Host:
+ * Host работает в proot, где DNS Android недоступен (`getent` возвращает
+ * EAI_AGAIN), и ни GitHub, ни реестр npm не разрешаются; процесс приложения использует системный разборщик,
+ * и в той же сети всё скачивается. У выпуска плагина нет вложений — хватает одного zipball исходников.
  */
 class BridgeReleaseDownloader(
     private val client: OkHttpClient = OkHttpClient.Builder()
@@ -24,11 +24,11 @@ class BridgeReleaseDownloader(
         .build(),
 ) {
     /**
-     * 下载一个 tag 的源码归档。
-     * @param repository GitHub 仓库地址，例如 `https://github.com/owner/repo`。
-     * @param version 已发布的插件版本（不带 `v` 前缀）。
-     * @param onProgress 下载进度（0..1）与步骤文案。
-     * @return 归档字节；超出体积上限、HTTP 失败或版本号非法时抛异常。
+     * Скачать архив исходников тега.
+     * @param repository адрес репозитория GitHub, например `https://github.com/owner/repo`.
+     * @param version выпущенная версия плагина (без префикса `v`).
+     * @param onProgress ход загрузки (0..1) и подпись шага.
+     * @return байты архива; превышение размера, ошибка HTTP или неверный номер версии — исключение.
      */
     suspend fun download(
         repository: String,
@@ -82,10 +82,10 @@ class BridgeReleaseDownloader(
     }
 
     companion object {
-        /** 已发布版本只接受纯数字三元组，避免把任意字符串拼进 URL 路径。 */
+        /** Выпущенная версия — только три числа, чтобы произвольная строка не попала в путь URL. */
         private val VERSION_PATTERN = Regex("""^\d+\.\d+\.\d+$""")
 
-        /** 从仓库地址里取出 `owner/repo`；不是 GitHub 地址时为 null。 */
+        /** `owner/repo` из адреса репозитория; не GitHub — null. */
         fun repositorySlug(repository: String): String? {
             val trimmed = repository.trim().removeSuffix("/").removeSuffix(".git")
             val match = GITHUB_REPOSITORY.find(trimmed) ?: return null
@@ -96,13 +96,13 @@ class BridgeReleaseDownloader(
         }
 
         /**
-         * 构造 tag 归档地址。
+         * Собрать адрес архива тега.
          *
-         * 直接用 codeload 而不是 GitHub API：API 有未授权的速率限制，且
-         * `/tarball` 只会多一次重定向；codeload 的归档地址是稳定入口。
-         * @param repository GitHub 仓库地址。
-         * @param version 已发布版本。
-         * @return 归档 URL；仓库或版本不可用时为 null。
+         * Напрямую codeload, а не GitHub API: у API ограничение запросов без авторизации, а
+         * `/tarball` даёт лишь лишнюю переадресацию; адрес архива codeload — стабильный вход.
+         * @param repository адрес репозитория GitHub.
+         * @param version выпущенная версия.
+         * @return URL архива; репозиторий или версия недопустимы — null.
          */
         fun archiveUrl(repository: String, version: String): String? {
             if (!VERSION_PATTERN.matches(version)) return null

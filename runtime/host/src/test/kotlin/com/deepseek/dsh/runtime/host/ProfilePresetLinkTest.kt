@@ -12,7 +12,7 @@ class ProfilePresetLinkTest {
         try {
             val profileDir = File(root, "root/.dsh/profiles/web")
             val scope = File(profileDir, "node_modules/@deepseek-ai").apply { mkdirs() }
-            // 新 rootfs 自带的 hoisted 包，必须保留。
+            // Поднятые пакеты из нового rootfs должны остаться.
             File(scope, "cosmokit").mkdirs()
 
             val installed = File(
@@ -26,7 +26,7 @@ class ProfilePresetLinkTest {
 
             assertTrue(File(scope, "cosmokit").isDirectory)
             assertTrue(
-                "官方 bundle 必须出现在 profile 作用域里",
+                "Официальный bundle должен быть в области profile",
                 File(scope, "dsh-agent-preset").isDirectory,
             )
         } finally {

@@ -11,19 +11,19 @@ import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.BasicFileAttributes
 
 /**
- * 不跟随符号链接的目录树操作。
+ * Операции с деревом папок без перехода по символическим ссылкам.
  *
- * Kotlin 的 `File.deleteRecursively()` / `copyRecursively()` / `walkTopDown()` 用
- * `File.isDirectory()` 判断目录，会**跟随**指向目录的符号链接：rootfs 和 node_modules
- * 里到处是链接（镜像自带的、Agent 在 proot 里创建的、pnpm 的），删除旧 rootfs 时就可能
- * 顺着一个指向 `/storage/emulated/0` 的链接把共享存储里的文件删掉（App 持有
- * MANAGE_EXTERNAL_STORAGE）。这里的实现只删除/复制链接本身，绝不进入链接目标。
+ * `File.deleteRecursively()` / `copyRecursively()` / `walkTopDown()` в Kotlin определяют папку через
+ * `File.isDirectory()` и **идут** по ссылкам на папки: в rootfs и node_modules
+ * ссылок полно (из образа, созданные агентом в proot, от pnpm), и при удалении старого rootfs можно было
+ * по ссылке на `/storage/emulated/0` удалить файлы общей памяти (у приложения есть
+ * MANAGE_EXTERNAL_STORAGE). Здесь удаляется и копируется только сама ссылка, в её цель не заходим никогда.
  */
 object SafeFiles {
 
     /**
-     * 删除整棵树；符号链接只删链接本身。
-     * @return 删除后路径不存在为 true。
+     * Удалить всё дерево; символическая ссылка удаляется как ссылка.
+     * @return true, если после удаления пути нет.
      */
     fun deleteTree(file: File): Boolean {
         val root = file.toPath()
@@ -32,7 +32,7 @@ object SafeFiles {
             if (Files.isSymbolicLink(root) || !Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)) {
                 Files.deleteIfExists(root)
             } else {
-                // walkFileTree 默认不跟随链接：链接作为普通文件交给 visitFile。
+                // walkFileTree по умолчанию по ссылкам не ходит: ссылка приходит в visitFile как обычный файл.
                 Files.walkFileTree(root, object : SimpleFileVisitor<Path>() {
                     override fun visitFile(path: Path, attrs: BasicFileAttributes): FileVisitResult {
                         Files.deleteIfExists(path)
@@ -55,11 +55,11 @@ object SafeFiles {
     }
 
     /**
-     * 复制整棵树：符号链接按原样重建（不复制目标内容），保留文件属性与可执行位。
+     * Скопировать всё дерево: символические ссылки воссоздаются как есть (без копии цели), атрибуты и бит исполнения сохраняются.
      *
-     * @param skip 返回 true 的相对路径（以 `/` 分隔）连同其子树被跳过。
-     * @param overwrite 目标已存在的文件是否覆盖。
-     * @throws IOException 任意一个条目复制失败（调用方据此回滚，而不是吞掉错误）。
+     * @param skip для относительных путей (через `/`), где вернул true, путь и его поддерево пропускаются.
+     * @param overwrite перезаписывать ли существующие файлы цели.
+     * @throws IOException если не скопировалась любая запись (вызывающий откатывается, а не глотает ошибку).
      */
     fun copyTree(
         source: File,
@@ -99,7 +99,7 @@ object SafeFiles {
         })
     }
 
-    /** 先写同目录临时文件并 fsync，再 rename 覆盖；崩溃时不会留下半截文件。 */
+    /** Сначала временный файл в той же папке и fsync, затем rename поверх: при падении не останется половины файла. */
     fun writeAtomically(file: File, text: String) {
         file.parentFile?.mkdirs()
         val tmp = File(file.parentFile, ".${file.name}.tmp-${System.nanoTime()}")

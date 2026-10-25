@@ -22,12 +22,12 @@ class ToolingIntegrationTest {
             endpoints = listOf(
                 InvocationDescriptor(
                     name = "session.list",
-                    description = "获取当前会话列表",
+                    description = "List the current sessions",
                     digest = "ep_digest_1"
                 ),
                 InvocationDescriptor(
                     name = "session.send",
-                    description = "发送指令",
+                    description = "Send a command",
                     digest = "ep_digest_2"
                 )
             )

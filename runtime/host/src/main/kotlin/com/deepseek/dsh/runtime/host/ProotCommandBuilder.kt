@@ -3,7 +3,7 @@ package com.deepseek.dsh.runtime.host
 import java.io.File
 
 /**
- * v4.0 设计文档 §4.3: 启动与就绪命令组装规范
+ * Сборка команды запуска.
  *
  * proot -0 -r <rootfs> -b /proc -b /dev -b /sys \
  *   -b /storage/emulated/0:/mnt/phone \
@@ -11,7 +11,7 @@ import java.io.File
  *   -b <appfiles>/cache:/cache \
  *   -b <appfiles>/saf:/saf \
  *   --link2symlink <rootfs>/usr/bin/env -i HOME=/root DSH_HOME=/root/.dsh ... \
- *   <rootfs>/opt/dsh/bin/dsh --profile web --no-open --port <随机>
+ *   <rootfs>/opt/dsh/bin/dsh --profile web --no-open --port <случайный>
  */
 object ProotCommandBuilder {
 
@@ -19,15 +19,15 @@ object ProotCommandBuilder {
         val layout: RuntimeLayout,
         val userWorkspacePath: String,
         val internalStoragePath: String = "/storage/emulated/0",
-        val port: Int = 0, // 0 = 随机端口
+        val port: Int = 0, // 0 — случайный порт
         val customEnv: Map<String, String> = emptyMap()
     )
 
     /**
-     * 一条待执行命令：argv 加上 proot 自身需要的环境变量。
+     * Команда к выполнению: argv и переменные окружения, нужные самому proot.
      *
-     * 把环境一并交出来，是因为 `PROOT_LOADER` 必须由调用方的进程环境提供，
-     * 而不是命令行参数；启动 Host 时同样如此。
+     * Окружение отдаётся вместе с командой, потому что `PROOT_LOADER` должен прийти из окружения процесса вызывающего,
+     * а не из аргументов командной строки; при запуске Host так же.
      */
     data class ExecCommand(
         val command: List<String>,
@@ -35,14 +35,14 @@ object ProotCommandBuilder {
     )
 
     /**
-     * 在 rootfs 内执行一条任意命令（不启动 Host）。
+     * Выполнить произвольную команду внутри rootfs (без запуска Host).
      *
-     * 绑定、`--link2symlink` 与环境隔离与启动 Host 时一致，因此插件安装看到的
-     * 文件系统就是运行时的那一个。工作目录固定为 `/`：安装命令按 profile 解析
-     * 路径，不依赖 cwd。
-     * @param layout 运行时目录。
-     * @param argv rootfs 内的命令，例如 `["/usr/local/bin/node", "…/bin.js", "plugin", …]`。
-     * @return 可执行的 argv 与所需环境变量。
+     * Привязки, `--link2symlink` и изоляция окружения — как при запуске Host, поэтому установка плагинов видит
+     * ту же файловую систему, что и окружение. Рабочая папка всегда `/`: команды установки разбирают пути
+     * по профилю и от cwd не зависят.
+     * @param layout папки окружения.
+     * @param argv команда внутри rootfs, например `["/usr/local/bin/node", "…/bin.js", "plugin", …]`.
+     * @return исполняемый argv и нужные переменные окружения.
      */
     fun buildExec(layout: RuntimeLayout, argv: List<String>, workspacePath: String? = null): ExecCommand {
         val cmd = mutableListOf<String>()
@@ -58,10 +58,10 @@ object ProotCommandBuilder {
         cmd.add("--link2symlink")
         cmd.add("-w")
         cmd.add("/")
-        // 与启动 Host 时相同的缓存绑定：DSH 可能把中间产物写到 /cache。
+        // Та же привязка кэша, что при запуске Host: DSH может писать промежуточные файлы в /cache.
         cmd.add("-b")
         cmd.add("${layout.cacheDir.absolutePath}:/cache")
-        // passwd/group 覆盖：让 getpwuid(Android uid) 能解析，node-pty 才能起 shell。
+        // Замена passwd/group: чтобы getpwuid(uid Android) разбирался, иначе node-pty не запустит shell.
         cmd.add("-b")
         cmd.add("${layout.passwdOverlay.absolutePath}:/etc/passwd")
         cmd.add("-b")
@@ -99,10 +99,10 @@ object ProotCommandBuilder {
 
         val cmd = mutableListOf<String>()
         cmd.add(proot)
-        // 与 DSHA 的 Termux proot 参数对齐：
-        // -L 修正 symlink 的 lstat 大小；--kill-on-exit 让 launcher 退出时回收 guest；
-        // -0 给 guest 假 root（真实权限仍是应用 UID）。这三项配合下面的 bind，
-        // 是 Host 内 subprocess 能按 Linux 语义 spawn bash 的前提。
+        // Параметры как у proot Termux в DSHA:
+        // -L исправляет размер lstat у symlink; --kill-on-exit завершает гостя при выходе launcher;
+        // -0 даёт гостю мнимый root (настоящие права — по-прежнему UID приложения). Вместе с привязками ниже
+        // это условие, при котором subprocess в Host запускает bash по правилам Linux.
         cmd.add("-L")
         cmd.add("--kill-on-exit")
         cmd.add("-0")
@@ -115,47 +115,47 @@ object ProotCommandBuilder {
             cmd.add(if (guest == null || guest == host) host else "$host:$guest")
         }
 
-        // Linux 伪文件系统挂载。DSHA 另外暴露 /system、/apex、/dev/fd；
-        // 这些是 Android 上 Node 原生模块与 bash 的常见依赖。
+        // Псевдофайловые системы Linux. DSHA ещё открывает /system, /apex, /dev/fd —
+        // обычные зависимости нативных модулей Node и bash на Android.
         bind("/proc")
         bind("/dev")
         bind("/sys")
         bind("/system")
         bind("/apex")
         bind("/proc/self/fd", "/dev/fd")
-        // Android 的 /dev/random 可能缺省；bash/openssl 会读它。
+        // /dev/random на Android может отсутствовать по умолчанию; bash и openssl его читают.
         bind("/dev/urandom", "/dev/random")
 
-        // 用户选中的工作区绑定为 /workspace (C4 硬约束)
+        // Выбранная пользователем рабочая папка привязывается как /workspace (жёсткое требование).
         bind(config.userWorkspacePath, "/workspace")
 
-        // App 私有缓存与 SAF 镜像
+        // Личный кэш приложения и зеркало SAF.
         bind(cache, "/cache")
 
-        // passwd/group 覆盖（见 RuntimeLayout.ensureIdentityOverlays）：
-        // proot 里的 uid 是 Android uid，镜像的 passwd 里没有它，node-pty 的
-        // getpwuid 会失败，官方 terminal/create 直接报系统错误。
+        // Замена passwd/group (см. RuntimeLayout.ensureIdentityOverlays):
+        // uid в proot — это uid Android, его нет в passwd образа, и getpwuid
+        // у node-pty не срабатывает — terminal/create сразу сообщает о системной ошибке.
         bind(config.layout.passwdOverlay.absolutePath, "/etc/passwd")
         bind(config.layout.groupOverlay.absolutePath, "/etc/group")
 
-        // 注意：Host 进程不能加 --link2symlink。该 flag 会让 proot 把 link() 模拟成
-        // `.l2s.*` 中间文件并移走源文件，在 FUSE 工作区上导致官方 write 工具的
-        // “临时文件 + 硬链接”原子发布报 ENOENT。这里改用 Node 预载补丁：link 在
-        // FUSE 上拿到 EPERM 后退化成 copy+unlink（见 RuntimeLayout.ensureNodePatches）。
-        // 插件安装等 buildExec 命令仍保留 --link2symlink，那是它们需要的语义。
+        // Внимание: процессу Host нельзя давать --link2symlink. С этим флагом proot имитирует link() через
+        // промежуточные файлы `.l2s.*` и уносит исходный, и на рабочей папке FUSE атомарная запись инструмента write
+        // «временный файл + жёсткая ссылка» падает с ENOENT. Вместо этого — preload-патч Node: link на
+        // FUSE получает EPERM и переходит к copy+unlink (см. RuntimeLayout.ensureNodePatches).
+        // Команды buildExec (установка плагинов и т. п.) сохраняют --link2symlink — им нужна именно эта семантика.
         cmd.add("-w")
         cmd.add("/root")
 
-        // 启动环境隔离
+        // Изоляция окружения запуска.
         cmd.add("/usr/bin/env")
         cmd.add("-i")
         cmd.add("HOME=/root")
         cmd.add("DSH_HOME=/root/.dsh")
-        // Android/proot 没有可用的 bubblewrap/Landlock 后端；默认完全权限才能执行 shell 工具。
+        // На Android/proot нет рабочего бэкенда bubblewrap/Landlock; инструменты shell работают только с полным доступом.
         cmd.add("DSH_PERMISSION_MODE=danger-full-access")
         cmd.add("PATH=/opt/dsh/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
         cmd.add("NODE_ENV=production")
-        // V8 编译缓存：首次启动写盘，之后模块编译直接命中，冷启动明显更快。
+        // Кэш компиляции V8: при первом запуске пишется на диск, дальше модули берутся из него — холодный старт заметно быстрее.
         cmd.add("NODE_COMPILE_CACHE=/root/.dsh/node-compile-cache")
         cmd.add("LANG=C.UTF-8")
         cmd.add("TMPDIR=/root/.dsh/tmp")
@@ -164,26 +164,26 @@ object ProotCommandBuilder {
             cmd.add("$k=$v")
         }
 
-        // 直接用 node 执行 dsh 的 bin.js：绕过 /opt/dsh/bin/dsh 包装脚本，
-        // 保证 import.meta.url 指向真实安装目录（否则 profile bundle 解析锚点会错）。
+        // bin.js dsh запускается прямо через node, в обход обёртки /opt/dsh/bin/dsh, —
+        // так import.meta.url указывает на настоящую папку установки (иначе опора разбора bundle профиля неверна).
         cmd.add("/usr/local/bin/node")
-        // 启动剖面：定位 Host 冷启动热点（--cpu-prof 只在调试构建开启）。
+        // Профиль запуска: найти горячие места холодного старта Host (--cpu-prof только в отладочной сборке).
         if (config.customEnv["DSH_CPU_PROFILE"] == "1") {
             cmd.add("--cpu-prof")
             cmd.add("--cpu-prof-dir=/root/.dsh/cpu-prof")
         }
-        // 引擎的 Loader/app-boot 通过 node-addon-require-builtin 读 Node internal
-        // 模块；该原生插件在部分 rootfs 镜像里缺平台二进制时会直接让 Host 起不来
-        // （Cannot find module .../node-addon-require-builtin/...）。暴露 internals
-        // 后引擎优先走 require('internal/...')，不再依赖那个原生插件。
+        // Loader/app-boot движка читают внутренние модули Node через node-addon-require-builtin;
+        // если в образе rootfs нет двоичного файла платформы этого нативного дополнения, Host просто не стартует
+        // (Cannot find module .../node-addon-require-builtin/...). С открытыми internals
+        // движок сначала пробует require('internal/...') и от дополнения не зависит.
         cmd.add("--expose-internals")
-        // FUSE 工作区的硬链接兜底（write 工具的原子新建路径）。
+        // Запасной путь жёстких ссылок на рабочей папке FUSE (атомарное создание инструментом write).
         cmd.add("--require")
         cmd.add("/root/.dsh/patches/fs-link-fallback.cjs")
         cmd.add("--require")
         cmd.add("/root/.dsh/patches/startup-trace.cjs")
-        // 镜像里若带了启动入口 bundle，优先用它：把 ~1,200 次模块文件打开
-        // 降到一次（proot 下这是冷启动的主要成本）；没有则退回原 bin.js。
+        // Если в образе есть bundle входа запуска — берём его: ~1200 открытий файлов модулей
+        // сводятся к одному (под proot это главная цена холодного старта); иначе — исходный bin.js.
         val bundledEntry = java.io.File(
             config.layout.rootfsDir,
             "usr/local/lib/node_modules/@deepseek-ai/dsh/lib/host.bundle.mjs",

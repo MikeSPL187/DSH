@@ -16,15 +16,15 @@ import java.nio.file.Files
 import java.nio.file.Paths
 import java.security.MessageDigest
 
-/** 安装进度：0..1 + 面向用户的步骤文案。 */
+/** Ход установки: 0..1 и подпись шага для пользователя. */
 data class InstallProgress(
     val step: String,
     val progress: Float
 )
 
 /**
- * `rootfs-manifest.json` 的契约：真正的镜像地址/校验值由发布流水线写入，
- * App 只负责下载、校验、解包与安装标记。
+ * Контракт `rootfs-manifest.json`: настоящие адреса образа и контрольные суммы пишет конвейер выпуска,
+ * приложение только скачивает, проверяет, распаковывает и ставит метку установки.
  */
 @Serializable
 data class RootfsManifest(
@@ -36,35 +36,35 @@ data class RootfsManifest(
     val pageSize: String = "",
     val bundledPackages: List<String> = emptyList(),
     val archiveFormat: String = "tar.gz",
-    /** ABI -> assets 内自带的 rootfs 归档路径（可选，主要用于离线调试）。 */
+    /** ABI → путь архива rootfs, встроенного в assets (необязательно, в основном для отладки без сети). */
     val assetArchives: Map<String, String> = emptyMap(),
-    /** ABI -> 归档 SHA-256。 */
+    /** ABI → SHA-256 архива. */
     val assetSha256: Map<String, String> = emptyMap(),
-    /** ABI -> 首次下载地址（正式发布使用，App 不再内置大体积 rootfs）。 */
+    /** ABI → адрес первой загрузки (для выпуска; большого rootfs в приложении больше нет). */
     val downloadUrls: Map<String, String> = emptyMap(),
-    /** ABI -> 下载归档 SHA-256。 */
+    /** ABI → SHA-256 скачанного архива. */
     val downloadSha256: Map<String, String> = emptyMap(),
     val downloadUrl: String = "",
     val sha256: String = "",
     val archiveSizeBytes: Long = 0L,
     val prootLibrary: String = "libproot.so",
     /**
-     * 镜像是否在 rootfs 构建阶段就已经应用了 Android 运行时补丁。
+     * Применены ли патчи окружения Android уже при сборке rootfs.
      *
-     * 为 true 时不再要求镜像的 DSH 段与本 APK 的整文件补丁目标一致：镜像里的
-     * 上游文件已经是「最新 DSH + 补丁」的组合，App 只需跳过运行时覆盖。
+     * Если да, часть DSH образа не обязана совпадать с целью полнофайловых патчей этого APK: файлы
+     * в образе уже «последний DSH + патчи», приложение просто пропускает замену при запуске.
      */
     val androidPatched: Boolean = false,
 )
 
 /**
- * rootfs 安装流水线（官方 §4.2/§4.7）：
- * 下载（可跳过）→ SHA-256 校验 → 空间预检 → 解包到 staging（旧 rootfs 不动）→
- * 旧目录 rename 为备份 → 新目录 rename 到位 → 合并 DSH_HOME → 工具链门禁 → 安装标记
- * → 删除备份。任一步失败（含进程被杀后下次启动）都回滚到旧 rootfs（审计 F-02/N-08）。
+ * Конвейер установки rootfs:
+ * загрузка (можно пропустить) → проверка SHA-256 → проверка места → распаковка в staging (старый rootfs не трогаем) →
+ * старая папка переименовывается в резерв → новая встаёт на место → слияние DSH_HOME → проверка инструментов → метка установки
+ * → удаление резерва. Ошибка любого шага (и убийство процесса с продолжением при следующем запуске) возвращает старый rootfs (аудит F-02/N-08).
  *
- * 开发期可把镜像放到 `cache/rootfs-local.tar.gz`（无需网络），manifest 的
- * `sha256` 留空时跳过校验但会记录告警。
+ * При разработке образ можно положить в `cache/rootfs-local.tar.gz` (без сети); если в манифесте
+ * `sha256` пуст, проверка пропускается, но в журнал пишется предупреждение.
  */
 class RootfsInstaller(
     private val layout: RuntimeLayout,
@@ -83,7 +83,7 @@ class RootfsInstaller(
             .getOrNull()
     }
 
-    /** 读取安装标记；缺失或损坏时为 null。 */
+    /** Прочитать метку установки; нет или повреждена — null. */
     internal fun readMarker(): InstallMarker? {
         val marker = markerFile()
         if (!marker.isFile) return null
@@ -102,7 +102,7 @@ class RootfsInstaller(
         )
     }
 
-    /** 把调用方提供的归档（assets 自带 / SAF 选择）按 manifest 契约安装。 */
+    /** Установить переданный архив (из assets или через SAF) по контракту манифеста. */
     suspend fun installFromArchive(
         manifest: RootfsManifest,
         archiveFile: File,
@@ -116,7 +116,7 @@ class RootfsInstaller(
         )
     }
 
-    /** 按 manifest 安装；`cache/rootfs-local.tar.gz` 优先用于无网调试。 */
+    /** Установить по манифесту; `cache/rootfs-local.tar.gz` — в первую очередь для отладки без сети. */
     suspend fun install(
         manifest: RootfsManifest,
         abi: String? = null,
@@ -136,7 +136,7 @@ class RootfsInstaller(
         val archive = when {
             localOverride.isFile -> localOverride
             archiveUrl.isNotBlank() -> {
-                // 网络来源必须走 HTTPS 且带 SHA-256：没有校验值的远程 manifest 不能安装。
+                // Сетевой источник — только HTTPS и с SHA-256: удалённый манифест без контрольной суммы не ставится.
                 if (!archiveUrl.startsWith("https://", ignoreCase = true)) {
                     return@withContext Result.failure(IllegalStateException(HostStrings.get(R.string.rt_https_required, "The rootfs download URL must use HTTPS: %1\$s", archiveUrl)))
                 }
@@ -170,18 +170,18 @@ class RootfsInstaller(
         return@withContext installArchive(effectiveManifest, archive, onProgress)
     }
 
-    /** 上一次安装进行到一半时留下的日志文件（存在即表示未完成）。 */
+    /** Журнал незавершённой установки (есть файл — установка не закончена). */
     private fun journalFile(): File = File(layout.runtimeMetaDir, "rootfs-install.pending")
 
-    /** 替换期间保存的旧 rootfs。 */
+    /** Старый rootfs, сохранённый на время замены. */
     private fun previousRootfsDir(): File = File(layout.baseDir, "${RootfsNaming.INSTALL_DIR}.previous")
 
     /**
-     * 如果上次安装在替换阶段被打断（kill/断电），把旧 rootfs 换回来。
-     * 安装标记最后才写，所以日志存在时当前 rootfs 一定不是完整的新版本。
+     * Если прошлая установка оборвалась на замене (kill, отключение питания), вернуть старый rootfs.
+     * Метка установки пишется последней, поэтому при наличии журнала текущий rootfs точно не полная новая версия.
      */
     internal fun recoverInterruptedInstall() {
-        // 本进程里正在安装时，日志与备份都是「进行中」的正常状态，不能回滚。
+        // Пока установка идёт в этом процессе, журнал и резерв — нормальное состояние «в процессе», откатывать нельзя.
         if (INSTALL_IN_PROGRESS.get()) return
         // Распаковка, прерванная до свапа (kill, выключение), оставляла staging на сотни МБ
         // в cache. Повторная установка той же версии его чистила, другой — нет.
@@ -234,7 +234,7 @@ class RootfsInstaller(
                 }
             }
 
-            // 新旧两份 rootfs 要同时存在一段时间：空间不够时在动旧环境之前就失败。
+            // Старый и новый rootfs какое-то время существуют вместе: если места мало — ошибка до того, как тронем старое окружение.
             val required = estimatedUnpackedBytes(archive) + SPACE_MARGIN_BYTES
             val usable = layout.baseDir.usableSpace
             if (usable in 1 until required) {
@@ -252,7 +252,7 @@ class RootfsInstaller(
                 onProgress(InstallProgress(HostStrings.get(R.string.rt_extract_pct, "Extracting rootfs… %1\$d%%", (fraction * 100).toInt()), 0.55f + fraction * 0.3f))
             }
 
-            // rootfs 归档通常包含根目录内容；若多包了一层，则下钻。
+            // Архив rootfs обычно содержит корень; если есть лишний уровень — спускаемся.
             val source = unwrapSingleRoot(staging)
             if (!File(source, "etc/os-release").isFile && !File(source, "usr/bin/env").isFile) {
                 SafeFiles.deleteTree(staging)
@@ -268,7 +268,7 @@ class RootfsInstaller(
             }
             swapped = true
             if (!source.renameTo(layout.rootfsDir)) {
-                // staging 与 rootfs 都在 baseDir 下，rename 正常不会失败；兜底复制。
+                // staging и rootfs оба в baseDir, rename обычно не падает; запасной путь — копирование.
                 SafeFiles.copyTree(source, layout.rootfsDir)
             }
             SafeFiles.deleteTree(staging)
@@ -277,12 +277,12 @@ class RootfsInstaller(
 
             val previousHome = File(previous, "root/.dsh")
             if (previousHome.isDirectory) {
-                // 恢复旧 DSH_HOME（会话/凭证/设置），但 node_modules 单独合并：
-                // 新镜像的 node_modules 带着新版 bridge 与官方依赖，旧目录整体盖回去会把
-                // 新 bridge 弄丢（「行在、包不在」）；但旧目录里还有用户后来装的第三方插件，
-                // 全排除又会把它们弄丢。所以：① 恢复时跳过 node_modules；② 恢复后把旧
-                // node_modules 里**新镜像没有的**包（用户插件）补进来，同名以新镜像为准。
-                // 失败会抛出并回滚，绝不在丢了用户数据的情况下继续。
+                // Вернуть старый DSH_HOME (сессии, учётные данные, настройки), но node_modules слить отдельно:
+                // node_modules нового образа несёт новый мост и официальные зависимости, и возврат старой папки целиком
+                // потерял бы новый мост («строка есть, пакета нет»); но в старой папке есть и сторонние плагины пользователя,
+                // и полное исключение потеряло бы их. Поэтому: 1) при возврате node_modules пропускается; 2) затем из старой
+                // node_modules добавляются пакеты, **которых нет в новом образе** (плагины пользователя), при совпадении имён побеждает новый образ.
+                // Ошибка — исключение и откат: продолжать с потерянными данными пользователя нельзя.
                 val nodeModulesRel = "profiles/web/node_modules"
                 SafeFiles.copyTree(previousHome, layout.dshHomeDir, overwrite = true) { rel ->
                     rel == nodeModulesRel || rel.startsWith("$nodeModulesRel/")
@@ -304,7 +304,7 @@ class RootfsInstaller(
                     }
                 }
             }
-            // 旧 profile 的 pnpm-lock 可能锁定旧版 DSH；删掉让它由新版重新解析。
+            // pnpm-lock старого профиля может зафиксировать старый DSH; удаляем, новый разберёт заново.
             runCatching {
                 File(layout.dshHomeDir, "profiles/web/pnpm-lock.yaml").delete()
             }
@@ -329,7 +329,7 @@ class RootfsInstaller(
                     )
                 )
             )
-            // 提交点：标记已写，删除日志与旧 rootfs。
+            // Точка фиксации: метка записана, журнал и старый rootfs удаляются.
             journal.delete()
             SafeFiles.deleteTree(previous)
             onProgress(InstallProgress(HostStrings.get(R.string.rt_done, "Runtime installed"), 1.0f))
@@ -346,8 +346,8 @@ class RootfsInstaller(
     }
 
     /**
-     * 解包后大小的估计：gzip 尾部 ISIZE（原始大小 mod 2^32）与压缩包 3 倍取大，
-     * 只用于空间预检；真实不足时解包会失败并回滚。
+     * Оценка размера после распаковки: большее из хвоста gzip ISIZE (исходный размер mod 2^32) и тройного размера архива;
+     * только для проверки места — если места реально мало, распаковка упадёт и откатится.
      */
     private fun estimatedUnpackedBytes(archive: File): Long =
         maxOf(gzipUncompressedSize(archive), archive.length() * 3)
@@ -413,7 +413,7 @@ class RootfsInstaller(
                     var processed = 0L
                     while (true) {
                         val entry = tar.nextEntry ?: break
-                        // 归档常带 "./" 前缀；规范化后再做路径穿越校验。
+                        // В архивах часто префикс "./"; сначала нормализуем, затем проверяем выход за пределы.
                         val name = entry.name.replace('\\', '/')
                             .split('/')
                             .filter { it.isNotEmpty() && it != "." }
@@ -427,9 +427,9 @@ class RootfsInstaller(
                         when {
                             entry.isDirectory -> target.mkdirs()
                             entry.isSymbolicLink -> {
-                                // 链接目标按 guest 语义解释（proot 把绝对路径映射到 rootfs 内）。
-                                // 相对目标不得经 `..` 逃出 rootfs；App 侧所有树操作都不跟随链接
-                                // （见 SafeFiles），所以绝对目标不会被 Android 侧误用。
+                                // Цель ссылки — в смысле гостя (proot отображает абсолютные пути внутрь rootfs).
+                                // Относительная цель не может выйти из rootfs через `..`; все операции с деревом на стороне приложения по ссылкам не ходят
+                                // (см. SafeFiles), поэтому абсолютная цель на стороне Android не используется по ошибке.
                                 if (!isSafeSymlinkTarget(name, entry.linkName)) {
                                     throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("rootfs archive contains an escaping symlink: $name -> ${entry.linkName}", "Архив rootfs содержит выходящую наружу ссылку: $name -> ${entry.linkName}"))
                                 }
@@ -449,7 +449,7 @@ class RootfsInstaller(
                                 if (linkSource.isFile) {
                                     target.parentFile?.mkdirs()
                                     linkSource.copyTo(target, overwrite = true)
-                                    // 硬链接同样要恢复可执行位（pnpm 等二进制依赖它）。
+                                    // Жёстким ссылкам тоже возвращается бит исполнения (от него зависят pnpm и другие программы).
                                     applyMode(target, entry.mode)
                                 }
                             }
@@ -474,8 +474,8 @@ class RootfsInstaller(
     }
 
     /**
-     * 相对符号链接从链接所在目录出发、按路径段解析，`..` 不得越过 rootfs 根；
-     * 绝对链接在 guest 内总是落在 rootfs 里，允许。NUL 字节一律拒绝。
+     * Относительная ссылка разбирается от своей папки по сегментам, `..` не может выйти за корень rootfs;
+     * абсолютная внутри гостя всегда попадает в rootfs — разрешена. Байты NUL отклоняются всегда.
      */
     internal fun isSafeSymlinkTarget(entryName: String, linkName: String): Boolean {
         if (linkName.isEmpty() || linkName.contains('\u0000')) return false
@@ -540,11 +540,11 @@ class RootfsInstaller(
     }
 
     private companion object {
-        /** 进程级安装锁：RootfsInstaller 会被多处各自 new 出来。 */
+        /** Блокировка установки на процесс: RootfsInstaller создаётся в нескольких местах отдельно. */
         val INSTALL_IN_PROGRESS = java.util.concurrent.atomic.AtomicBoolean(false)
         val SHA256_HEX = Regex("^[0-9a-fA-F]{64}$")
         const val MIB = 1024L * 1024
-        /** 解包之外预留的空间（DSH_HOME 合并、日志、npm 缓存）。 */
+        /** Запас места сверх распаковки (слияние DSH_HOME, журналы, кэш npm). */
         const val SPACE_MARGIN_BYTES = 256L * MIB
     }
 
@@ -558,7 +558,7 @@ class RootfsInstaller(
         val abi: String = "",
         val rootfsName: String = RootfsNaming.ARCHIVE_PREFIX,
         val releaseTag: String = "",
-        /** 镜像是否已烧入 Android 补丁；旧标记没有该字段时为 false。 */
+        /** Вшиты ли в образ патчи Android; в старой метке поля нет — false. */
         val androidPatched: Boolean = false,
     )
 }

@@ -6,34 +6,34 @@ import java.security.SecureRandom
 import java.util.Base64
 
 /**
- * 设备桥的本地鉴权。
+ * Локальная авторизация моста устройства.
  *
- * 桥监听在 127.0.0.1，但 Android 上 loopback 不是「只有本应用能连」：同机任意
- * 应用都可以连到 127.0.0.1:<随机端口>，随机端口只是降低命中率，不能当作鉴权。
+ * Мост слушает 127.0.0.1, но на Android loopback — не «только это приложение»: любое приложение
+ * на телефоне может подключиться к 127.0.0.1:<случайный порт>; случайный порт лишь снижает вероятность попадания и авторизацией не является.
  *
- * Host 侧（proot 内的 bash / fs-search 补丁）从 guest 的
- * [TOKEN_PATH_IN_GUEST] 读取 token，并在每个请求里携带；App 每次启动 Host 时
- * 轮换 token。该文件位于应用私有目录，其他 Android 应用读不到，因此拿不到
- * token 就无法调用桥。
+ * Сторона Host (патчи bash / fs-search в proot) читает токен из
+ * [TOKEN_PATH_IN_GUEST] гостя и передаёт в каждом запросе; приложение меняет токен при каждом запуске Host.
+ * Файл лежит в личной папке приложения, другие приложения Android его не прочитают, а без
+ * токена мост не вызвать.
  */
 object BridgeAuth {
 
-    /** 桥 token 在 guest 内的固定路径，对应 rootfs 的 `/root/.dsh/.bridge_token`。 */
+    /** Постоянный путь токена моста у гостя: `/root/.dsh/.bridge_token` в rootfs. */
     const val TOKEN_PATH_IN_GUEST: String = "/root/.dsh/.bridge_token"
 
-    /** token 文件在 [java.io.File] 视角下的名字。 */
+    /** Имя файла токена с точки зрения [java.io.File]. */
     const val TOKEN_FILE_NAME: String = ".bridge_token"
 
-    /** JSON-RPC 错误码：请求未通过本地鉴权。 */
+    /** Код ошибки JSON-RPC: запрос не прошёл локальную авторизацию. */
     const val UNAUTHORIZED_CODE: Int = -32001
 
-    /** 一次 token 的随机字节数（256 位）。 */
+    /** Число случайных байтов токена (256 бит). */
     private const val TOKEN_BYTES: Int = 32
 
     /**
-     * 生成一枚新的桥 token。
-     * @param random 随机源；默认使用 [SecureRandom]。
-     * @returns URL-safe、无填充的 256 位 token。
+     * Создать новый токен моста.
+     * @param random источник случайности; по умолчанию [SecureRandom].
+     * @returns токен 256 бит, URL-safe, без дополнения.
      */
     fun newToken(random: SecureRandom = SecureRandom()): String {
         val bytes = ByteArray(TOKEN_BYTES)
@@ -42,10 +42,10 @@ object BridgeAuth {
     }
 
     /**
-     * 以常量时间比较预期 token 与请求携带的 token。
-     * @param expected 当前进程的 token；null 或空表示未配置，按失败处理。
-     * @param presented 请求里的 token；null 或空按失败处理。
-     * @returns 两者完全一致时为 true。
+     * Сравнить ожидаемый токен с присланным за постоянное время.
+     * @param expected токен текущего процесса; null или пусто — не задан, это отказ.
+     * @param presented токен из запроса; null или пусто — отказ.
+     * @returns true при полном совпадении.
      */
     fun verify(expected: String?, presented: String?): Boolean {
         if (expected.isNullOrEmpty() || presented.isNullOrEmpty()) return false
@@ -56,13 +56,13 @@ object BridgeAuth {
     }
 
     /**
-     * 把 token 写到 guest 可读的文件，并收紧为仅属主可读写。
+     * Записать токен в файл, читаемый гостем, с правами только для владельца.
      *
-     * 先写同目录临时文件再 rename：Host 可能在写入的同时读取，半截文件会拿到
-     * 错误的 token。Unix 上 rename 覆盖是原子的，读到旧 token 的请求会收到
-     * 鉴权失败，而不是执行半次操作。
-     * @param file 目标文件（rootfs 内的 `root/.dsh/.bridge_token`）。
-     * @param token 要写入的 token。
+     * Сначала временный файл в той же папке, потом rename: Host может читать во время записи, и половина файла
+     * дала бы неверный токен. В Unix замена через rename атомарна: запрос со старым токеном получит
+     * отказ авторизации, а не выполнит половину операции.
+     * @param file целевой файл (`root/.dsh/.bridge_token` в rootfs).
+     * @param token токен для записи.
      */
     fun writeTokenFile(file: File, token: String) {
         file.parentFile?.mkdirs()

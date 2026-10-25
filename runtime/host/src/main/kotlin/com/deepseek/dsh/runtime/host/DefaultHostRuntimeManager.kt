@@ -14,7 +14,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 
 /**
- * v4.0 设计文档 §4 & §10.2: 本地运行时管理器实现（联动设备能力桥 BridgeServer）
+ * Менеджер локального рабочего окружения (вместе с мостом возможностей устройства BridgeServer).
  */
 class DefaultHostRuntimeManager(
     private val context: Context,
@@ -25,7 +25,7 @@ class DefaultHostRuntimeManager(
     private var bridgeServer: BridgeServer? = null
     private val startMutex = Mutex()
 
-    /** 清单来源：实时拉取，失败时退缓存，最后才用 APK 兜底。 */
+    /** Источник манифеста: свежая загрузка, при ошибке — кэш, в крайнем случае — из APK. */
     private val manifestSourceCache by lazy { RootfsManifestSource(context, layout) }
 
     private fun manifestSource(): RootfsManifestSource = manifestSourceCache
@@ -35,7 +35,7 @@ class DefaultHostRuntimeManager(
     }
 
     override suspend fun isRootfsInstalled(): Boolean = withContext(Dispatchers.IO) {
-        // 只看本地文件与安装标记：这里判断的是「装没装」，不该因为离线而改变结论。
+        // Только локальные файлы и метка установки: вопрос «установлено ли» не зависит от сети.
         runCatching {
             val installer = RootfsInstaller(layout)
             // Сначала откатываем установку, прерванную kill/выключением во время замены
@@ -58,8 +58,8 @@ class DefaultHostRuntimeManager(
     }
 
     override suspend fun availableRootfsVersion(): String? = withContext(Dispatchers.IO) {
-        // 实时拉取：这个方法回答的是「最新可用是什么」，缓存值会让它报旧版本。
-        // 离线时 resolve 仍会退回缓存，因此不会因为断网就变成 null。
+        // Свежая загрузка: метод отвечает «что последнее доступно», кэш дал бы старую версию.
+        // Без сети resolve всё равно вернётся к кэшу, поэтому null из-за офлайна не будет.
         runCatching {
             manifestSource().resolve(forceRefresh = true)?.manifest?.runtimeVersion
         }.getOrNull()
@@ -83,7 +83,7 @@ class DefaultHostRuntimeManager(
         )
     }
 
-    /** 已安装镜像是否在构建期烧入了 Android 补丁。 */
+    /** Вшиты ли в установленный образ патчи Android на этапе сборки. */
     private fun installedAndroidPatched(): Boolean =
         runCatching { RootfsInstaller(layout).readMarker()?.androidPatched == true }.getOrDefault(false)
 
@@ -92,19 +92,19 @@ class DefaultHostRuntimeManager(
     }
 
     /**
-     * 读 Host **正在运行**的插件版本。
+     * Версия плагина, которая **сейчас работает** в Host.
      *
-     * 落盘的 `package.json` 与运行中的代码可能不一致（装完还没重启），而更新判断
-     * 关心的是「现在跑的是哪一版」。Host 未运行、bridge 不可达或插件没加载时报 null，
-     * 调用方退回落盘版本。
+     * `package.json` на диске может расходиться с работающим кодом (поставили, но не перезапустили),
+     * а для обновления важно «какая версия работает». Host не запущен, мост недоступен или плагин не загружен — null,
+     * тогда вызывающий берёт версию с диска.
      */
     private suspend fun runningBridgeVersion(): String? = runCatching {
         HostRuntimeHolder.runningBridgeVersionProvider?.invoke()
     }.getOrNull()?.takeIf { it.isNotBlank() }
 
     override suspend fun assessUpdates(): UpdateAssessment = withContext(Dispatchers.IO) {
-        // 每一步各自容错：查询插件仓库要联网、读 rootfs 要访问文件系统，
-        // 任何一步失败都不该让整页版本信息变成「未知」。
+        // Каждый шаг терпит ошибки отдельно: запрос к репозиторию плагина идёт в сеть, чтение rootfs — в файлы,
+        // и ни один сбой не должен превращать все версии на странице в «неизвестно».
         val manifest = runCatching { BridgePluginManifest.load(context) }.getOrNull()
         val latest = manifest?.repository
             ?.takeIf { it.isNotBlank() }
@@ -152,8 +152,8 @@ class DefaultHostRuntimeManager(
         lastStartResult = null
         layout.ensureDirectories()
         val installer = RootfsInstaller(layout)
-        // 清单实时拉取：下载地址与校验值随每次发版变化，内置的那份会过期，
-        // 用它去下载只会得到 404 或校验失败。装不上就直接报错，不猜。
+        // Манифест — только свежий: адреса загрузки и контрольные суммы меняются с каждым выпуском,
+        // встроенный устаревает и дал бы 404 или ошибку проверки. Не установить — честная ошибка, без догадок.
         onProgress(0.01f, HostStrings.get(R.string.rt_check_latest, "Checking the latest rootfs version…"))
         val resolved = try {
             manifestSource().resolve(forceRefresh = true)
@@ -170,7 +170,7 @@ class DefaultHostRuntimeManager(
         }
         onProgress(0f, HostStrings.get(R.string.rt_prepare, "Preparing to install %1\$s…", manifest.baseDistro.ifBlank { "rootfs" }))
 
-        // App 自带 rootfs 优先；否则按 ABI 下载首次运行所需的归档。
+        // Сначала rootfs из APK; иначе архив для первого запуска по ABI.
         val abi = android.os.Build.SUPPORTED_ABIS.firstOrNull {
             manifest.assetArchives.containsKey(it) || manifest.downloadUrls.containsKey(it)
         }
@@ -201,10 +201,10 @@ class DefaultHostRuntimeManager(
             }
         }
         if (result.isSuccess) {
-            // 新镜像换掉了 usr/local 里的引擎文件，而补丁标记/ shim 标记在
-            // /root/.dsh（用户数据，跨镜像保留）里。不先让旧标记失效，
-            // applyBundledRuntimePatches 会以为「已经打过补丁」直接返回，
-            // 新镜像就带着未打补丁的引擎启动（proot 下会再次踩 ENOSYS）。
+            // Новый образ заменил файлы движка в usr/local, а метки патчей и shim лежат в
+            // /root/.dsh (данные пользователя, переживают смену образа). Если не сбросить старые метки,
+            // applyBundledRuntimePatches решит, что патчи уже стоят, и выйдет —
+            // новый образ запустится с непропатченным движком (под proot снова ENOSYS).
             File(layout.rootfsDir, "root/.dsh/.runtime-patch-revision").delete()
             File(layout.rootfsDir, "root/.dsh/.addon-shim-revision").delete()
             applyBundledRuntimePatches()
@@ -218,8 +218,8 @@ class DefaultHostRuntimeManager(
     }
 
     /**
-     * 清理上次崩溃遗留的 proot/node 子进程；多个 proot 同时操作同一 rootfs 会触发
-     * glibc "double free or corruption"。
+     * Убрать процессы proot/node, оставшиеся от прошлого сбоя: несколько proot над одним rootfs вызывают
+     * в glibc «double free or corruption».
      */
     private fun killStaleHostProcesses() {
         val procRoot = File("/proc")
@@ -235,28 +235,28 @@ class DefaultHostRuntimeManager(
     }
 
     /**
-     * App 侧补丁：修复 DSH 在 proot/Android 下会触发 ENOSYS 的路径解析、
-     * 文件锁释放与 spill 临时目录逻辑，无需重新下载整份 rootfs。
+     * Патчи приложения: исправляют в DSH пути, которые под proot/Android дают ENOSYS, — разбор путей,
+     * снятие файловых блокировок и временные папки spill — без повторной загрузки всего rootfs.
      */
     private fun applyBundledRuntimePatches() {
-        // 构建期已烧入补丁的镜像：DSH 文件本身就是「上游 + 补丁」，再用 APK 里的
-        // 整文件覆盖反而会把版本钉回旧引擎。只保留 /root/.dsh 下的 Node preload。
+        // Образ со вшитыми патчами: файлы DSH уже «исходник + патч», замена целыми файлами из APK
+        // вернула бы старый движок. Остаётся только Node preload в /root/.dsh.
         if (installedAndroidPatched()) return
-        // 补丁只在版本变化时复制，避免每次启动都重写 ~1MB JS 拖慢 Host。
+        // Патчи копируются только при смене версии — иначе каждый запуск переписывал бы ~1 МБ JS и тормозил Host.
         val patchMarker = File(layout.rootfsDir, "root/.dsh/.runtime-patch-revision")
-        // 34: app-boot 的 internal 模块改走 --expose-internals，绕开缺平台二进制的
-        // node-addon-require-builtin（Host 启动报 Cannot find module 的直接原因）。
-        // 35: bash / fs-search 的 bridge socket 超时从 15s 提到 30min，长命令不再被
-        // android bridge timeout 打断。
-        // 36: fs.link 兜底只复制、不删除源文件，修官方 attachment store 的
-        // ATTACHMENT_WRITE_FAILED（它自己在 link 成功后还会 unlink staging）。
-        // 37: subprocess 控制通道 fd7 恢复为真实管道（之前被改成 "ignore"，
-        // 导致 workflow PTC worker 拿到 null control，卡在 reading 'on' of null）。
-        // 38: bash / fs-search 的设备桥请求携带本地 token；桥按 fail-closed 鉴权，
-        // 阻止同机其他应用连回环端口执行设备命令。
-        // 39: bash 工具移回 Host 容器执行（不再走 android_exec_shell）；Host 的
-        // proot 参数同时对齐 DSHA（-0 / --kill-on-exit / -L / system、apex、fd 绑定）。
-        // fs-search 仍走设备桥，因为它在 Android 侧的 proot 里做 find/grep。
+        // 34: внутренние модули app-boot — через --expose-internals, в обход
+        // node-addon-require-builtin без двоичного файла платформы (прямая причина Cannot find module при запуске Host).
+        // 35: таймаут сокета моста у bash / fs-search — с 15 с до 30 мин, долгие команды
+        // больше не обрываются android bridge timeout.
+        // 36: запасной fs.link только копирует, не удаляя исходник, — исправляет ATTACHMENT_WRITE_FAILED
+        // хранилища вложений (после успешного link оно само делает unlink staging).
+        // 37: канал управления fd7 подпроцесса снова настоящий pipe (раньше "ignore",
+        // и PTC worker workflow получал null control и падал на reading 'on' of null).
+        // 38: запросы bash / fs-search к мосту устройства несут локальный токен; мост проверяет его fail-closed —
+        // другие приложения на телефоне не выполнят команды через порт loopback.
+        // 39: инструмент bash снова выполняется в контейнере Host (не через android_exec_shell); параметры
+        // proot Host совпадают с DSHA (-0 / --kill-on-exit / -L / привязки system, apex, fd).
+        // fs-search по-прежнему через мост устройства: он делает find/grep в proot на стороне Android.
         val patchRevision = "39"
         if (patchMarker.isFile && patchMarker.readText().trim() == patchRevision) return
         val patches = mapOf(
@@ -282,18 +282,18 @@ class DefaultHostRuntimeManager(
                 "usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-tool-fs-search/lib/index.js",
             "rootfs-patches/dsh-storage-json-index.js" to
                 "usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-storage-json/lib/index.js",
-            // 客户端模块的包解析在 Android/proot 下走 Loader 解析器会全部落空，
-            // 启动清单因此为空、浏览器外壳起不来；这份补丁改成从 tree 的
-            // node_modules 直接读清单。
+            // Разбор пакетов клиентских модулей через Loader под Android/proot ничего не находит,
+            // манифест запуска пуст и оболочка браузера не стартует; патч читает манифест
+            // прямо из node_modules дерева.
             "rootfs-patches/dsh-client-modules-index.js" to
                 "usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-client-modules/lib/index.js",
-            // SenseVoice 的模型检查用 fs.access；proot 返回 ENOSYS，改用 stat
-            // 验证存在性，后续大小和 SHA-256 校验保持不变。
+            // Проверка модели SenseVoice через fs.access; proot возвращает ENOSYS — проверяем
+            // существование через stat, проверки размера и SHA-256 остаются.
             "rootfs-patches/dsh-speech-sensevoice-index.js" to
                 "usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules/" +
                 "@deepseek-ai/dsh-experimental-speech-to-text-sensevoice/lib/index.js",
-            // bash 工具在 proot/远程调用下 spec.workdir 可能为空，而输出 schema
-            // 要求 cwd 必填；补 result.cwd/process.cwd 兜底，避免工具结果被判定 invalid。
+            // Под proot и при удалённом вызове spec.workdir у bash может быть пуст, а схема вывода
+            // требует cwd; подставляем result.cwd/process.cwd, чтобы результат инструмента не считался invalid.
             "rootfs-patches/dsh-tool-bash-index.js" to
                 "usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules/" +
                 "@deepseek-ai/dsh-tool-bash/lib/index.js",
@@ -315,26 +315,25 @@ class DefaultHostRuntimeManager(
     }
 
     /**
-     * 把 bridge 插件挂进 web-app 这一层，而不是 profile 的 bundles。
+     * Подключить bridge-плагин к слою web-app, а не к bundles профиля.
      *
-     * profile 的 `dsh.profile.bundles` 在每次启动时会被核对：设备上没有可用的
-     * pnpm/git 源，外部依赖判定不成立，条目被删掉，bridge 路由随之 404 —— 实测
-     * 重启一次就复现。web-app 自己的 patch 属于「随安装发布的状态」，不受那次
-     * 核对影响，因此插件在这一层是稳定的。
+     * `dsh.profile.bundles` профиля сверяется при каждом запуске: на устройстве нет доступного
+     * источника pnpm/git, внешняя зависимость не подтверждается, запись удаляется и маршруты моста дают 404 —
+     * воспроизводится одним перезапуском. Патч самого web-app — «состояние из установки», эта сверка
+     * его не трогает, поэтому на этом слое плагин держится.
      *
-     * 幂等：已经追加过就不再重复写，避免文件无限增长。
+     * Повторный вызов безопасен: уже добавленное не дописывается, файл не растёт.
      */
 
     /**
-     * 给已安装的第三方插件补一行 Loader 行。
+     * Добавить строку Loader установленным сторонним плагинам.
      *
-     * 插件装进 profile 的 node_modules 之后，Host 不会自己把它挂上：profile 的
-     * `dsh.profile.bundles` 每次启动都会被核对，设备上没有 pnpm/git 源时外部依赖判定
-     * 不成立、条目被删；profile 的 `cordis.patch.yml` 也会被运行时重写。web-app 的
-     * patch 属于「随安装发布的状态」，不受这两处影响，因此第三方插件的行写在这一层。
+     * Пакет в node_modules профиля Host сам не подключает: `dsh.profile.bundles` профиля
+     * сверяется при каждом запуске и без источника pnpm/git запись удаляется; `cordis.patch.yml` профиля
+     * тоже переписывается. Патч web-app — «состояние из установки», его это не касается, поэтому строки сторонних плагинов — здесь.
      *
-     * 只处理非 `@deepseek-ai/` 的包，并且只在包里确实带客户端半边（`dsh.client`）时
-     * 补行——那是「这个包会在界面里出现」的判据。幂等：行已存在就跳过。
+     * Только пакеты не из `@deepseek-ai/` и только если в пакете есть клиентская половина (`dsh.client`) —
+     * признак «пакет появится в интерфейсе». Повторный вызов безопасен: есть строка — пропуск.
      */
     private fun applyInstalledPluginRows() {
         val webAppPatch = File(
@@ -347,29 +346,29 @@ class DefaultHostRuntimeManager(
         val packages = profileModules.listFiles()?.filter { it.isDirectory } ?: return
         runCatching {
             var current = webAppPatch.readText()
-            // ① 先清掉本类历次追加过的独立挂载行（形状见 prunePluginRows）。
+            // 1. Сначала убрать отдельные строки подключения, которые этот класс добавлял раньше (вид — в prunePluginRows).
             //
-            // 不清会出两类故障：
-            // - 「行在、包不在」的残留在 Loader 里创建失败 entry，整个 Web 客户端
-            //   停在启动失败页；
-            // - 同一包重复挂载（scoped 包的引号写法、安装器自己的 marker 块）会让
-            //   同一个插件被 apply 两次 —— 例如 genui 第二次注册同名 prompt section
-            //   直接抛错，插件被禁用。
-            // 只删「本类自己追加的」行：插件作者随包发布的 patch 内容（安装器按
-            // marker 原样写入）形状完全一样，必须保护，否则会删掉插件自己的挂载行。
+            // Без этого два вида сбоев:
+            // - строка есть, а пакета нет — Loader создаёт сбойную запись, и весь веб-клиент
+            //   застревает на странице ошибки запуска;
+            // - один пакет подключён дважды (кавычки scoped-пакета, блок маркера установщика) —
+            //   плагин применяется дважды; например, genui второй раз регистрирует одноимённый prompt section,
+            //   выбрасывает ошибку, и плагин выключается.
+            // Удаляются только «свои» строки: патч, который автор плагина выпустил с пакетом (установщик пишет его
+            // по маркеру как есть), выглядит так же — его надо беречь, иначе удалятся строки самого плагина.
             val protectedPatches = readInstalledBundlePatches(profileModules)
             val (pruned, removed) = prunePluginRows(current, protectedPatches)
             if (removed.isNotEmpty()) {
                 current = pruned
                 webAppPatch.writeText(current)
             }
-            // ② 再补齐已安装插件的挂载行（幂等）。安装器自己的 marker 块里已经
-            // 挂过的包（任何引号写法）跳过，不重复挂。
+            // 2. Затем добавить строки установленным плагинам (повтор безопасен). Пакеты, уже подключённые
+            // в блоке маркера установщика (с любыми кавычками), пропускаются.
             val appended = StringBuilder()
             for (dir in packages) {
                 val name = dir.name
-                // 官方包由 profile 自带的 bundle 层负责，重复挂一行会加载两次；
-                // 第三方 scoped 包（@scope/name）要照挂，只排除官方 scope。
+                // Официальные пакеты подключает слой bundle профиля — лишняя строка загрузила бы их дважды;
+                // сторонние scoped-пакеты (@scope/name) подключаются, исключён только официальный scope.
                 if (name == "@deepseek-ai" || name.startsWith(".")) continue
                 if (name.startsWith("@")) {
                     val scopeDir = dir
@@ -394,11 +393,10 @@ class DefaultHostRuntimeManager(
     }
 
     /**
-     * 读取已安装插件随包发布的 cordis patch 文本（`package.json` 的
-     * `dsh.bundle.patch`）。
+     * Патч cordis, выпущенный с установленным плагином (`dsh.bundle.patch` в `package.json`).
      *
-     * 安装器会把这些文本原样写进 web-app patch（带 `# android-installed:` 标记）。
-     * 它们和本类追加的独立行形状可能完全相同，清理时必须按内容保护，不能只看形状。
+     * Установщик пишет эти тексты в патч web-app как есть (с меткой `# android-installed:`).
+     * Они могут совпадать по виду со строками этого класса, поэтому при очистке их защищает содержимое, а не вид.
      */
     private fun readInstalledBundlePatches(profileModules: File): List<String> {
         val texts = mutableListOf<String>()
@@ -426,17 +424,17 @@ class DefaultHostRuntimeManager(
         return texts
     }
 
-    /** patch 里是否已经挂过这个包的行（`name:` 可能带单/双引号，也可能裸写）。 */
+    /** Подключён ли пакет в патче (`name:` в одинарных, двойных кавычках или без них). */
     private fun rowMounted(patchText: String, packageName: String): Boolean =
         patchText.contains("name: $packageName") ||
             patchText.contains("name: \"$packageName\"") ||
             patchText.contains("name: '$packageName'")
 
     /**
-     * 一份 `package.json` 是否声明了浏览器半边（`dsh.client`）。
+     * Объявлена ли в `package.json` половина для браузера (`dsh.client`).
      *
-     * 判据用 JSON 结构而不是文本包含：`"dsh"`/`"client"` 这样的子串在依赖名或
-     * description 里也会出现，误判会把纯 Host 服务当 UI 插件挂进浏览器。
+     * Проверка по структуре JSON, а не по тексту: подстроки `"dsh"`/`"client"` встречаются в именах зависимостей
+     * и description, и ошибка подключила бы чистую службу Host в браузер как плагин интерфейса.
      */
     private fun declaresClientHalf(dir: File): Boolean {
         val manifest = File(dir, "package.json")
@@ -449,19 +447,19 @@ class DefaultHostRuntimeManager(
     }
 
     /**
-     * 清掉本类追加过的独立挂载块（全部，不做保留判断）。
+     * Убрать все отдельные блоки подключения, добавленные этим классом (без проверок).
      *
-     * 只认同一种形状：顶层 `- insert:` 紧跟两行 `- id: X` / `name: X`，且后面
-     * 没有更多字段（补丁自带的 insert 块通常在 name 之后还有 config/disabled
-     * 或并列的多条 row；安装器写入的 marker 块也带 `# android-installed:` 注释
-     * 和插件自己的多行 patch，因此都不会被误删）。官方 scope 的包不碰。
+     * Узнаётся только один вид: верхний `- insert:`, сразу две строки `- id: X` / `name: X`, и больше
+     * никаких полей (блоки insert из патчей обычно имеют после name ещё config/disabled
+     * или несколько строк; блоки маркера установщика несут комментарий `# android-installed:`
+     * и многострочный патч плагина, поэтому не удаляются). Пакеты официального scope не трогаются.
      *
-     * 调用方随后会按当前 profile 目录重建需要的行，因此这里不区分「包是否还在」：
-     * 先全删，避免同一形状在多次启动/安装之间累积成重复 entry。
+     * Затем вызывающий заново строит нужные строки по текущему профилю, поэтому «есть ли ещё пакет» здесь не важно:
+     * сначала удаляется всё, чтобы один и тот же вид не копился дублями между запусками и установками.
      *
-     * @param text patch 文件内容。
-     * @param protectedPatches 插件随包发布的 patch 文本；这些内容原样保留。
-     * @returns 处理后的内容与被移除的包名。
+     * @param text содержимое файла патча.
+     * @param protectedPatches патчи, выпущенные с плагинами; остаются как есть.
+     * @returns новое содержимое и имена удалённых пакетов.
      */
     private fun prunePluginRows(
         text: String,
@@ -488,7 +486,7 @@ class DefaultHostRuntimeManager(
                 index += 1
                 continue
             }
-            // 插件作者随包发布的行：内容完全一致时保留。
+            // Строки, выпущенные автором с пакетом: при полном совпадении остаются.
             val blockText = "${lines[index]}\n${lines[index + 1]}\n${lines[index + 2]}"
             if (protectedPatches.any { it.contains(blockText) }) {
                 index += 3
@@ -506,10 +504,10 @@ class DefaultHostRuntimeManager(
         return lines.joinToString("\n") to removed
     }
     /**
-     * web-app 层 patch 在 rootfs 内的固定位置。
+     * Постоянное место патча слоя web-app в rootfs.
      *
-     * 这一层是「随安装发布的状态」，不受 profile 清单核对影响，bridge 与第三方
-     * 插件的挂载行都写在这里；也正因为它持久化，卸载/半装留下的死行会一直存在。
+     * Этот слой — «состояние из установки», сверка профиля его не трогает; здесь строки моста и сторонних
+     * плагинов. Поэтому же мёртвые строки после удаления или неполной установки остаются здесь навсегда.
      */
     private fun webAppPatchFile(): File = File(
         layout.rootfsDir,
@@ -517,17 +515,17 @@ class DefaultHostRuntimeManager(
             "@deepseek-ai/dsh-web-app/cordis.patch.yml",
     )
 
-    /** rootfs 全局 `@deepseek-ai` 包目录（官方 bundle 的解析锚点）。 */
+    /** Общая папка пакетов `@deepseek-ai` в rootfs (опора разбора официальных bundle). */
     private fun rootfsGlobalModulesDir(): File =
         File(layout.rootfsDir, "usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules")
 
     /**
-     * 挂载行里的 `name:` 对应的包是否真的装上了。
+     * Установлен ли пакет из `name:` строки подключения.
      *
-     * 先看 profile 的 `node_modules`；`@deepseek-ai/<包名>` 与 bridge 插件还可能在 rootfs
-     * 全局目录里（官方 bundle 从那里解析）。`name:` 允许是包子路径（例如
-     * `@deepseek-ai/dsh-tool-subagent/model-selection-settings`），所以先归一到包根名，
-     * 否则会把 web-app 自带的合法子路径行误删。
+     * Сначала `node_modules` профиля; `@deepseek-ai/<пакет>` и bridge-плагин могут лежать и в общей папке
+     * rootfs (оттуда разбираются официальные bundle). `name:` может быть подпутём пакета (например,
+     * `@deepseek-ai/dsh-tool-subagent/model-selection-settings`), поэтому сначала берётся корень пакета —
+     * иначе удалились бы законные строки подпутей самого web-app.
      */
     private fun pluginPackageInstalled(packageName: String): Boolean {
         val rootName = packageRootName(packageName)
@@ -540,7 +538,7 @@ class DefaultHostRuntimeManager(
         return File(rootfsGlobalModulesDir(), "$rootName/package.json").isFile
     }
 
-    /** `@scope/pkg/sub/path` / `pkg/sub` 归一成包根名。 */
+    /** `@scope/pkg/sub/path` / `pkg/sub` → имя корня пакета. */
     private fun packageRootName(specifier: String): String {
         val name = specifier.trim().trim('"', '\'')
         if (name.isEmpty()) return ""
@@ -553,17 +551,17 @@ class DefaultHostRuntimeManager(
     }
 
     /**
-     * 启动前自愈 web-app 层 patch 里的悬空挂载行。
+     * Перед запуском починить висящие строки подключения в патче слоя web-app.
      *
-     * 只处理「本类自己追加的」3 行独立形状（`- insert:` + `- id:` + `name:`，后面
-     * 紧跟空行/下一条顶层行/注释）；带 `config`/`disabled` 等额外字段的块属于插件
-     * 随包发布的 patch，一律不碰。删两类行：
-     * 1. `name:` 指向的包已经不在了（卸载残留、半装失败）——一条这样的 entry 就
-     *    足以让 Web 客户端停在启动失败页；
-     * 2. 同名重复挂载（保留第一条）——同一插件被 apply 两次会直接抛错。
+     * Только «свой» вид из трёх строк (`- insert:` + `- id:` + `name:`, за которыми
+     * пустая строка, следующая верхняя строка или комментарий); блоки с `config`/`disabled` и другими полями —
+     * патчи плагинов, их не трогаем. Удаляются два вида строк:
+     * 1. пакета из `name:` больше нет (остаток удаления, неполная установка) — одной такой записи
+     *    хватает, чтобы веб-клиент застрял на странице ошибки запуска;
+     * 2. повторное подключение того же имени (первое остаётся) — двойное применение плагина сразу падает.
      *
-     * 与 [prunePluginRows] 的区别：这里按「包是否存在」判断，因此也能清掉
-     * `@deepseek-ai/<包名>` 的悬空行（prunePluginRows 出于安全不碰官方 scope）。
+     * В отличие от [prunePluginRows], решает «есть ли пакет», поэтому убирает и висящие строки
+     * `@deepseek-ai/<пакет>` (prunePluginRows официальный scope из осторожности не трогает).
      */
     private fun sanitizeWebAppPatchRows() {
         val webAppPatch = webAppPatchFile()
@@ -571,11 +569,11 @@ class DefaultHostRuntimeManager(
         try {
             val original = webAppPatch.readText()
             val profileModules = File(layout.rootfsDir, "root/.dsh/profiles/web/node_modules")
-            // 插件随包发布的 patch 内容与「本类追加的独立行」形状可能完全一致，
-            // 必须按内容保护，否则会把插件自己的挂载行当成残留删掉。
+            // Патч, выпущенный с плагином, может выглядеть точно как «своя» строка этого класса —
+            // защищаем по содержимому, иначе строки самого плагина удалились бы как остатки.
             val protectedPatches = readInstalledBundlePatches(profileModules)
-            // bridge 行自带 `config:` 块，不走下面的独立行形状；包不在时必须整块
-            // 删除，否则一条 import 不到的 entry 就足以让 Web 客户端启动失败。
+            // Строка моста идёт с блоком `config:`, не в «своём» виде; если пакета нет, весь блок
+            // удаляется — одной записи без import хватает, чтобы веб-клиент не запустился.
             val bridgeInstalled = pluginPackageInstalled(BridgePluginManifest.DEFAULT_PACKAGE)
             val (sanitized, dropped) = dropDanglingMountRows(
                 text = original,
@@ -592,7 +590,7 @@ class DefaultHostRuntimeManager(
         }
     }
 
-    /** 先写临时文件再改名：写到一半被杀不会留下半截 YAML 把后续启动全弄坏。 */
+    /** Сначала временный файл, потом переименование: оборванная запись не оставит половину YAML, ломающую запуски. */
     private fun writeTextAtomically(file: File, text: String) {
         val temp = File(file.parentFile, "${file.name}.tmp-${System.nanoTime()}")
         try {
@@ -606,13 +604,13 @@ class DefaultHostRuntimeManager(
     }
 
     /**
-     * [sanitizeWebAppPatchRows] 的纯文本部分：返回处理后的内容与被移除的包名。
+     * Текстовая часть [sanitizeWebAppPatchRows]: новое содержимое и имена удалённых пакетов.
      *
-     * 保持逐行删除而不是 YAML 重新序列化：patch 里大量注释与 `!!js` 表达式必须
-     * 原样保留，重排会改变语义。
+     * Удаление по строкам, а не пересериализация YAML: в патче много комментариев и выражений `!!js`,
+     * они должны остаться как есть — перестановка изменила бы смысл.
      *
-     * @param protectedPatches 插件随包发布的 patch 文本；内容一致的块原样保留。
-     * @param dropBridgeRow bridge 插件包不在时，把它带 `config:` 的整块挂载删掉。
+     * @param protectedPatches патчи, выпущенные с плагинами; блоки с тем же содержимым остаются.
+     * @param dropBridgeRow пакета bridge-плагина нет — удалить весь его блок подключения с `config:`.
      */
     private fun dropDanglingMountRows(
         text: String,
@@ -643,13 +641,13 @@ class DefaultHostRuntimeManager(
             val standalone = following == null || following.isBlank() ||
                 following.startsWith("- ") || following.startsWith("#")
             if (!standalone) {
-                // 还带着 config/disabled 等字段：插件作者自己的 patch，不动。
+                // Есть config/disabled и другие поля: патч самого автора плагина, не трогаем.
                 index += 1
                 continue
             }
             val blockText = "${lines[index]}\n${lines[index + 1]}\n${lines[index + 2]}"
             if (protectedPatches.any { it.contains(blockText) }) {
-                // 与插件随包发布的 patch 内容一致：是它的挂载行，不是本类残留。
+                // Совпадает с патчем, выпущенным с плагином: это его строка, а не наш остаток.
                 index += 3
                 continue
             }
@@ -668,10 +666,10 @@ class DefaultHostRuntimeManager(
     }
 
     /**
-     * 删除 bridge 插件的整块挂载（含 `config:`）。
+     * Удалить весь блок подключения bridge-плагина (с `config:`).
      *
-     * 只认顶层 `- insert:` 到下一个顶层行之前的块，且块里出现 bridge 的 id；
-     * 这样不会误删别的 insert 块，也不会动注释掉的文本。
+     * Узнаётся только блок от верхнего `- insert:` до следующей верхней строки, в котором есть id моста;
+     * так не удаляются другие блоки insert и закомментированный текст.
      */
     private fun dropBridgeMountBlock(
         lines: MutableList<String>,
@@ -704,8 +702,8 @@ class DefaultHostRuntimeManager(
     private fun applyBridgeBundleRow() {
         val webAppPatch = webAppPatchFile()
         if (!webAppPatch.isFile) return
-        // 包不在时绝不补行：Loader 里一条 import 不到的 entry 足以让整个 Web 客户端
-        // 启动失败，比「bridge 缺失」更糟。等插件装好后下一次启动再补。
+        // Без пакета строка не добавляется никогда: одной записи Loader без import хватает, чтобы весь веб-клиент
+        // не запустился, — это хуже, чем «нет моста». Строка появится при следующем запуске после установки плагина.
         if (!pluginPackageInstalled(BridgePluginManifest.DEFAULT_PACKAGE)) return
         val row = runCatching {
             context.assets.open("rootfs-patches/bridge-bundle-row.yml").bufferedReader().use { it.readText() }
@@ -718,33 +716,33 @@ class DefaultHostRuntimeManager(
     }
 
     private companion object {
-        /** Logcat tag。 */
+        /** Тег Logcat. */
         const val TAG = "DshHostRuntime"
 
         /** Сколько автоматический прогрев не повторяет неудачный запуск Host. */
         const val AUTO_START_COOLDOWN_MS = 5 * 60_000L
 
-        /** 启动时等待 `dsh web:` URL 的上限；超时按启动失败处理，不再无限 STARTING。 */
+        /** Сколько ждать URL `dsh web:` при запуске; дольше — ошибка запуска, а не вечный STARTING. */
         const val ENDPOINT_TIMEOUT_MS = 90_000L
 
-        /** 等待端口期间轮询运行时状态的间隔：进程失败时能立刻返回，而不是等满超时。 */
+        /** Интервал опроса состояния, пока ждём порт: при сбое процесса — сразу выход, а не ожидание до таймаута. */
         const val ENDPOINT_POLL_INTERVAL_MS = 200L
 
-        /** 超时错误文案里附带的最近输出行数（与设置页展示的条数一致）。 */
+        /** Сколько последних строк вывода приложить к тексту ошибки таймаута (как в настройках). */
         const val LOG_TAIL_ON_ERROR = 8
 
-        /** bridge 插件在 cordis 树里的行 id；用于幂等判断。 */
+        /** id строки bridge-плагина в дереве cordis — для проверки повторов. */
         const val BRIDGE_BUNDLE_ID = "id: dsh-mobile-bridge-plugin"
 
-        /** 插件包中声明的 HTTPS 域名；用于通用 hosts 预解析。 */
+        /** Домены HTTPS, объявленные в пакетах плагинов, — для общего предварительного разбора hosts. */
     }
 
-    /** 后台补 hosts 等非关键启动任务；start 返回后继续跑。 */
+    /** Некритичные задачи запуска (дописать hosts и т. п.) — продолжаются после возврата start. */
     private val backgroundScope = kotlinx.coroutines.CoroutineScope(
         kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO
     )
 
-    /** 解析并写入 /etc/hosts；失败的域名跳过。 */
+    /** Разобрать домены и записать в /etc/hosts; неразрешённые пропускаются. */
     private fun writeHostsFile(hosts: List<String>) {
         runCatching {
             val entries = hosts.distinct().take(160).mapNotNull { host ->
@@ -757,7 +755,7 @@ class DefaultHostRuntimeManager(
         }
     }
 
-    /** 扫描已安装插件 JS 里声明的域名（官方 hosts 预解析的补齐部分）。 */
+    /** Найти домены, объявленные в JS установленных плагинов (дополнение к предварительному разбору hosts). */
     private fun scanDeclaredHosts(): List<String> = runCatching {
         val urlHost = Regex("""https://([A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?)""")
         val modules = File(layout.rootfsDir, "root/.dsh/profiles/web/node_modules")
@@ -821,8 +819,8 @@ class DefaultHostRuntimeManager(
     }
 
     private suspend fun startLocked(workspacePath: String): Result<RuntimeStatus> {
-        // NonCancellable：调用方的 scope 被取消（切页/重组/返回）时，不能把 runner
-        // 丢在 STARTING 里。启动要么跑完、要么落到明确的 ERROR，由看门狗和超时兜底。
+        // NonCancellable: если область вызывающего отменят (смена страницы, перекомпоновка, «Назад»), runner
+        // не должен застрять в STARTING. Запуск либо доходит до конца, либо — до явной ERROR; страхуют сторож и таймаут.
         val result = withContext(Dispatchers.IO + NonCancellable) {
         layout.ensureDirectories()
         // Прогрев из Application идёт сюда напрямую: откатываем прерванную замену rootfs до запуска.
@@ -835,10 +833,10 @@ class DefaultHostRuntimeManager(
                 IllegalStateException(HostStrings.get(R.string.rt_not_installed, "The rootfs is not installed: install it from the runtime page first"))
             )
         }
-        // APK 的 rootfs 补丁按内置清单的 DSH 版本整文件替换；已安装镜像若来自
-        // 另一个 DSH 版本（例如 rootfs 仓库先发了 rc.3），再套 rc.2 的补丁会让
-        // 运行树版本混杂。构建期烧入补丁的镜像不受此限：它内部已经是
-        // 「最新 DSH + 补丁」，启动时只需跳过整文件覆盖。
+        // Патчи rootfs из APK заменяют файлы целиком по версии DSH из встроенного манифеста; если установленный образ —
+        // другой версии DSH (например, репозиторий rootfs уже выпустил rc.3), патчи rc.2 смешали бы
+        // версии в рабочем дереве. Образа со вшитыми патчами это не касается: внутри уже
+        // «последний DSH + патчи», при запуске замена файлов просто пропускается.
         val expectedDsh = manifestSource().bundledDshVersion()
         val installedMarker = runCatching { RootfsInstaller(layout).readMarker() }.getOrNull()
         val installedRootfsVersion = installedMarker?.runtimeVersion
@@ -853,18 +851,18 @@ class DefaultHostRuntimeManager(
             )
         }
         applyBundledRuntimePatches()
-        // 图片镜像可能没有打进 node-addon-require-builtin 的平台二进制；缺了就换
-        // 纯 JS 兜底（配合 --expose-internals），否则 Host 在加载 Loader 时直接退出。
+        // В образе может не быть двоичного файла платформы для node-addon-require-builtin; тогда подставляем
+        // чистый JS (с --expose-internals), иначе Host завершится при загрузке Loader.
         RuntimeAddonShim.ensure(layout)
-        // 先清掉上次卸载/半装留下的悬空挂载行，再补行：顺序反了会把刚补的又删掉。
-        // 一条 import 不到的 Loader 行就足以让整个 Web 客户端停在启动失败页。
+        // Сначала убрать висящие строки после удаления или неполной установки, потом добавлять: наоборот — удалились бы только что добавленные.
+        // Одной строки Loader без import хватает, чтобы весь веб-клиент застрял на странице ошибки запуска.
         sanitizeWebAppPatchRows()
-        // 插件挂载层每次启动都核对一遍：卸载留下的「id 在、包不在」的 Loader 行
-        // 会让整个 Web 客户端停在启动失败页（一个失败的 entry 就够），而补丁
-        // 文件是持久化的，不修就一直是坏的。这是幂等的文件核对，成本只有一次读。
+        // Слой подключения плагинов сверяется при каждом запуске: строка Loader «id есть, пакета нет» после удаления
+        // оставляет весь веб-клиент на странице ошибки запуска (хватает одной сбойной записи), а файл патча
+        // постоянный — без починки так и останется сломанным. Сверка безопасна при повторе и стоит одного чтения.
         applyBridgeBundleRow()
         applyInstalledPluginRows()
-        // bridge 插件由 rootfs 内置或 GitHub 安装；APK 不再内置代码。
+        // Bridge-плагин — из rootfs или установкой с GitHub; кода в APK больше нет.
         runCatching {
             val installer = BridgePluginInstaller(context, layout)
             installer.ensureProfileEntry()
@@ -875,9 +873,9 @@ class DefaultHostRuntimeManager(
                 IllegalStateException(com.deepseek.dsh.core.model.Tr.t("${layout.prootBinary.name} is missing: proot for this ABI must be packaged in jniLibs", "Нет ${layout.prootBinary.name}: proot для этого ABI должен быть в jniLibs"))
             )
         }
-        // proot 的 bind 目标需要存在；DSH 配置目录先创建，避免首次启动 mkdir 失败。
+        // Цели привязок proot должны существовать; папка настроек DSH создаётся заранее, чтобы первый mkdir не упал.
         File(layout.rootfsDir, "root/.dsh/profiles/web").mkdirs()
-        // profile 需要从自身目录解析 @deepseek-ai/* bundle；链接到 rootfs 全局 node_modules。
+        // Профилю нужно разбирать bundle @deepseek-ai/* из своей папки — ссылка на общий node_modules rootfs.
         ensureProfilePresetLink(File(layout.rootfsDir, "root/.dsh/profiles/web"))
         File(layout.rootfsDir, "root/.dsh/sessions/--workspace--").mkdirs()
         File(layout.rootfsDir, "root/.dsh/storages").mkdirs()
@@ -886,12 +884,12 @@ class DefaultHostRuntimeManager(
         // activates it. Create their parent directories on Android first so the loader
         // never depends on proot's recursive-mkdir behavior for a fresh storage root.
         File(layout.rootfsDir, "root/.dsh/genui/.designs").mkdirs()
-        // 通用插件存储根：插件自行创建子目录。只建根目录，不按插件名适配。
+        // Общий корень хранилища плагинов: подпапки плагины создают сами. Только корень, без привязки к именам плагинов.
         File(layout.rootfsDir, "root/.dsh/plugins").mkdirs()
         File(layout.rootfsDir, "root/.dsh/node-compile-cache").mkdirs()
         File(layout.rootfsDir, "root/.dsh/cpu-prof").mkdirs()
         File(workspacePath).mkdirs()
-        // proot 需要能 chdir 进 bind 目标；rootfs 内 /workspace 必须是可进入目录。
+        // proot должен войти в цель привязки: /workspace в rootfs — папка, в которую можно войти.
         File(layout.rootfsDir, "workspace").apply {
             mkdirs()
             setReadable(true, false)
@@ -902,8 +900,8 @@ class DefaultHostRuntimeManager(
             File(layout.rootfsDir, "root/.dsh/tmp/$it").mkdirs()
         }
         File(layout.rootfsDir, "root/.dsh/tmp").mkdirs()
-        // 通用 DNS：优先使用 Android 当前网络的 DNS 服务器，任意域名都能解析；
-        // 公共 DNS 仅作兜底，不再为每个插件/域名单独写解析。
+        // Общий DNS: сначала DNS-серверы текущей сети Android — разрешается любой домен;
+        // публичные DNS — запасной вариант, отдельных записей под каждый плагин или домен больше нет.
         val dnsServers = runCatching {
             val manager = context.getSystemService(android.net.ConnectivityManager::class.java)
             manager?.activeNetwork?.let { network ->
@@ -918,13 +916,13 @@ class DefaultHostRuntimeManager(
             parentFile?.mkdirs()
             writeText(resolvers.joinToString("") { "nameserver $it\n" })
         }
-        // 把域名预先解析并写入 hosts，绕开 proot 内 glibc DNS 的 EAI_AGAIN。
+        // Домены разрешаются заранее и пишутся в hosts — в обход EAI_AGAIN у glibc DNS внутри proot.
         //
-        // 除了插件安装/平台自身需要的固定域名，还会扫描已安装插件包中声明的
-        // https 域名。这样任何插件（OAuth、API、CDN）都不需要单独适配 hosts。
-        // 启动关键路径只解析平台自身必需的几个域名；扫描 node_modules 里
-        // 插件声明的域名 + 逐个 DNS 解析可能要几百毫秒到数秒，改为进程起来后
-        // 在后台补齐（glibc 每次 lookup 都会重新读 /etc/hosts，后写入同样生效）。
+        // Кроме постоянных доменов установки плагинов и самой платформы, просматриваются https-домены,
+        // объявленные в пакетах установленных плагинов. Так любому плагину (OAuth, API, CDN) не нужна своя настройка hosts.
+        // На критическом пути запуска — только несколько доменов самой платформы; обход node_modules
+        // с доменами плагинов и разбор каждого DNS может занять от сотен миллисекунд до секунд, поэтому
+        // это делается в фоне после старта процесса (glibc перечитывает /etc/hosts при каждом lookup, поздняя запись тоже работает).
         val infraHosts = listOf(
             "platform.deepseek.com",
             "api.deepseek.com",
@@ -944,18 +942,18 @@ class DefaultHostRuntimeManager(
                 }
             }
         }
-        // 上次异常退出可能残留 credentials 写锁，启动前清理。
+        // После аварийного выхода может остаться блокировка записи credentials — убрать до запуска.
         File(layout.rootfsDir, "root/.dsh").listFiles()
             ?.filter { it.name.startsWith(".credentials.yaml.lock") }
             ?.forEach { it.delete() }
 
-        // 1. 启动本地 BridgeServer 并获得 loopback 端口；token 写入 guest 的 DSH_HOME，
-        // Host 侧补丁按请求携带（见 BridgeAuth）。
+        // 1. Запустить локальный BridgeServer и получить порт loopback; токен пишется в DSH_HOME гостя,
+        // патчи Host передают его в запросах (см. BridgeAuth).
         val bridge = BridgeServer(context, layout.bridgeTokenFile, workspacePath = workspacePath)
         val bridgePort = bridge.start()
         bridgeServer = bridge
 
-        // 2. 启动 Android 前台服务保证生命周期 (v4.0 §4.4)
+        // 2. Запустить фоновую службу Android, чтобы процесс жил.
         val serviceIntent = Intent(context, HostService::class.java).apply {
             action = HostService.ACTION_START
         }
@@ -971,15 +969,15 @@ class DefaultHostRuntimeManager(
                 .onFailure { android.util.Log.w(TAG, "HostService не запущен", it) }
         }
 
-        // 3. 将 DSH_ANDROID_BRIDGE_PORT 环境变量注入 proot 容器
-        // 终端/子进程要在 proot 里解析 uid，先把 passwd/group 覆盖写好。
+        // 3. Передать переменную DSH_ANDROID_BRIDGE_PORT в контейнер proot.
+        // Терминалу и подпроцессам нужно разбирать uid в proot — заранее перезаписать passwd/group.
         layout.ensureIdentityOverlays()
         layout.repairProfilePatch()
         layout.ensureNodePatches()
         layout.ensureHostRuntimePatches()
-        // 官方 workspace/changes 的 git baseline 放到 Host 启动后后台补：每个
-        // 工作区目录都要 spawn 一次 proot+git，放在关键路径上会明显拖慢启动。
-        // 首个 turn 之后完成的初始化同样能被录制器用上。
+        // Базовая точка git для workspace/changes ставится в фоне после запуска Host: для каждой
+        // рабочей папки нужен отдельный proot+git, на критическом пути это заметно замедлило бы запуск.
+        // Сделанное после первого хода записывающий тоже использует.
         val launchConfig = ProotCommandBuilder.LaunchConfig(
             layout = layout,
             userWorkspacePath = workspacePath,
@@ -988,8 +986,8 @@ class DefaultHostRuntimeManager(
             )
         )
         val cmd = ProotCommandBuilder.build(launchConfig)
-        // 通过 shell 启动：直接 exec proot 时会继承 App 进程的 linker 环境，
-        // 导致 proot 内 Node 的模块解析与手动执行不一致。
+        // Запуск через shell: прямой exec proot унаследовал бы окружение компоновщика процесса приложения,
+        // и разбор модулей Node в proot отличался бы от ручного запуска.
         val launchCmd = listOf(
             "/system/bin/sh",
             "-c",
@@ -1007,10 +1005,10 @@ class DefaultHostRuntimeManager(
             workingDir = layout.baseDir,
             logFile = logFile,
             environment = mapOf(
-                // 新版 proot 自带独立 loader：loader 也随 jniLibs 解压到 nativeLibraryDir。
+                // Новый proot несёт свой loader: он тоже распаковывается из jniLibs в nativeLibraryDir.
                 "PROOT_LOADER" to "${layout.nativeLibraryDir.absolutePath}/libproot-loader.so",
                 "PROOT_TMP_DIR" to layout.cacheDir.absolutePath,
-                // proot 动态依赖 libtalloc/libandroid-shmem，和 proot 一起解压到 nativeLibraryDir。
+                // proot динамически зависит от libtalloc/libandroid-shmem — они распаковываются в nativeLibraryDir вместе с ним.
                 "LD_LIBRARY_PATH" to layout.nativeLibraryDir.absolutePath,
             ),
             onEndpointFound = { endpoint ->
@@ -1028,10 +1026,10 @@ class DefaultHostRuntimeManager(
             runCatching { ensureWorkspaceGitBaseline(workspacePath) }
         }
 
-        // 等端口的同时盯住进程状态：DSH 启动失败（插件 import 不到）通常几秒内
-        // 就退出，不该让调用方把 90 秒超时等满才拿到结果；看门狗落的状态已经带着
-        // 退出码与最近输出，直接用它。STOPPED 表示用户在启动途中主动停止（例如
-        // 划掉任务或前台服务被回收），这是正常结束，不能改写成「启动超时」。
+        // Пока ждём порт, следим за процессом: сбой запуска DSH (плагин не импортируется) обычно
+        // завершает его за секунды, ждать все 90 секунд таймаута незачем; состояние от сторожа уже
+        // содержит код выхода и последний вывод — берём его. STOPPED — пользователь сам остановил запуск
+        // (смахнул задачу или система забрала фоновую службу): это нормальный конец, не «таймаут запуска».
         val endpoint: ProcessOutputParser.ParsedEndpoint? = withTimeoutOrNull(ENDPOINT_TIMEOUT_MS) {
             while (!endpointDeferred.isCompleted) {
                 when (runner.statusFlow.value.phase) {
@@ -1045,20 +1043,20 @@ class DefaultHostRuntimeManager(
         if (endpoint == null) {
             val failed = runner.statusFlow.value
             if (failed.phase == RuntimePhase.ERROR) {
-                // 进程已在启动中途退出：保留看门狗写的错误（含退出码/日志尾巴），
-                // 不要用「超时」覆盖掉真正的原因。
+                // Процесс уже вышел во время запуска: оставить ошибку от сторожа (с кодом выхода и хвостом журнала),
+                // а не затирать настоящую причину «таймаутом».
                 bridge.stop()
                 return@withContext Result.failure(
                     IllegalStateException(failed.lastError ?: HostStrings.get(R.string.rt_host_exited, "The Host process exited during startup"))
                 )
             }
             if (failed.phase == RuntimePhase.STOPPED) {
-                // 主动停止：保持 STOPPED，不杀进程、不写 ERROR，也不留下半启动的 bridge。
+                // Остановлено пользователем: STOPPED, процесс не убиваем, ERROR не пишем и мост не оставляем полузапущенным.
                 bridge.stop()
                 return@withContext Result.success(failed)
             }
-            // 端口一直没出现：先杀进程，再把最近输出写进状态。用户需要的不是
-            // 一句「未能解析到端口」，而是 Host 最后打印了什么。
+            // Порт так и не появился: убить процесс и записать в состояние последний вывод. Пользователю нужна не
+            // фраза «не удалось получить порт», а то, что Host напечатал последним.
             runner.terminate()
             val tail = runner.statusFlow.value.logTail.takeLast(LOG_TAIL_ON_ERROR)
             val detail = if (tail.isEmpty()) HostStrings.get(R.string.rt_no_output, "no output") else tail.joinToString("\n")
@@ -1068,8 +1066,8 @@ class DefaultHostRuntimeManager(
             return@withContext Result.failure(IllegalStateException(message))
         }
 
-        // DSH 打印出 Web URL 即代表服务已监听；Android 运行时下额外 HTTP/WS 探针
-        // 可能被网络策略干扰，直接把阶段推进到 RUNNING。
+        // Напечатан Web URL — сервис уже слушает; дополнительные проверки HTTP/WS под Android
+        // может сорвать сетевая политика, поэтому сразу переходим в RUNNING.
         runner.markReady()
         Result.success(runner.statusFlow.value)
         }
@@ -1084,18 +1082,18 @@ class DefaultHostRuntimeManager(
         val serviceIntent = Intent(context, HostService::class.java).apply {
             action = HostService.ACTION_STOP
         }
-        // 后台（例如从最近任务划掉后）startService 可能抛 IllegalStateException；
-        // Host 进程已经结束，服务停不停都不应让调用方崩溃。
+        // В фоне (например, после смахивания из недавних) startService может выбросить IllegalStateException;
+        // процесс Host уже завершён, и остановка службы не должна ронять вызывающего.
         runCatching { context.startService(serviceIntent) }
         result
     }
 
     /**
-     * 给工作区下的每个会话目录初始化 git 仓库（幂等）。
+     * Создать репозиторий git в каждой папке сессии рабочей области (повтор безопасен).
      *
-     * Host 的 `workspace/changes` 录制器用 git 快照做 turn baseline；没有仓库时它
-     * 只能记录官方文件工具的改动，而移动端的 bash 走 Android shell，改动不会被看见。
-     * rootfs 自带 `/usr/bin/git`，所以这里在 proot 里跑一次 `git init`。
+     * Записывающий `workspace/changes` Host берёт снимок git как базу хода; без репозитория он
+     * видит только изменения через файловые инструменты, а bash на телефоне идёт через shell Android — его изменения не видны.
+     * В rootfs есть `/usr/bin/git`, поэтому здесь в proot один раз выполняется `git init`.
      */
     private suspend fun ensureWorkspaceGitBaseline(userWorkspacePath: String) = withContext(Dispatchers.IO) {
         runCatching {
@@ -1107,8 +1105,8 @@ class DefaultHostRuntimeManager(
             directories.forEach { directory ->
                 val gitDir = File(directory, ".git")
                 if (gitDir.exists()) {
-                    // 中断过的 init 会留下缺 objects/refs 的残缺仓库（git 会报
-                    // "not a git repository"，workspace/changes 也取不到 baseline）。
+                    // Прерванный init оставляет неполный репозиторий без objects/refs (git пишет
+                    // "not a git repository", и workspace/changes не получает базу).
                     val complete = File(gitDir, "objects").isDirectory &&
                         File(gitDir, "refs").isDirectory
                     if (complete) return@forEach

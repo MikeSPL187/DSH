@@ -7,15 +7,15 @@ import org.junit.Test
 import java.io.File
 
 /**
- * APK 内置清单与版本串形态的一致性。
+ * Согласованность встроенного манифеста APK и вида строки версии.
  *
- * 三个仓库在这里交汇：插件仓库的 release tag、rootfs 打包脚本写出的
- * `runtimeVersion`、以及 APK 里的 `rootfs-manifest.json`。任何一处漂移都会让
- * 「插件必需 / 镜像可选」的判断失效，所以在客户端这一侧把它钉住。
+ * Здесь сходятся три репозитория: тег выпуска репозитория плагина, `runtimeVersion`,
+ * записанный скриптом сборки rootfs, и `rootfs-manifest.json` в APK. Расхождение в любом месте сломает
+ * решение «плагин обязателен / образ необязателен», поэтому на стороне клиента это закреплено.
  */
 class RootfsManifestContractTest {
 
-    /** 从仓库根开始找一个文件，兼容从模块目录运行测试。 */
+    /** Найти файл от корня репозитория (работает и при запуске тестов из папки модуля). */
     private fun locate(relative: String): File? {
         val candidates = listOf(
             File(relative),
@@ -29,7 +29,7 @@ class RootfsManifestContractTest {
     @Test
     fun `the bundled rootfs manifest declares all three version segments`() {
         val file = locate("app/src/main/assets/rootfs-manifest.json")
-            ?: return // 在只编译本模块时不强制存在。
+            ?: return // При сборке только этого модуля файл не обязателен.
         val text = file.readText()
         val version = RootfsVersion.parse(
             Regex("\"runtimeVersion\"\\s*:\\s*\"([^\"]+)\"").find(text)?.groupValues?.get(1),
@@ -72,9 +72,9 @@ class RootfsManifestContractTest {
 
     @Test
     fun `the plugin manifest version is never older than the version baked into the image`() {
-        // APK 可以比镜像新：插件是就地升级的，客户端自带的那份通常会先于下一次
-        // 镜像重建。但反过来不行 —— 客户端带着比镜像更旧的插件，等于启动即报
-        // 「插件必须更新」。
+        // APK может быть новее образа: плагин обновляется на месте, и копия клиента обычно опережает
+        // следующую сборку образа. Наоборот нельзя: клиент с плагином старее образа сразу после запуска
+        // сообщил бы «плагин нужно обновить».
         val rootfs = locate("app/src/main/assets/rootfs-manifest.json") ?: return
         val plugin = locate("app/src/main/assets/bridge-plugin.json") ?: return
         val imageBridge = RootfsVersion.parse(
@@ -88,7 +88,7 @@ class RootfsManifestContractTest {
         )
     }
 
-    /** 逐段比较 `major.minor.patch`；解析不了的段按 0 处理。 */
+    /** Сравнение `major.minor.patch` по частям; неразбираемая часть — 0. */
     private fun compareVersions(left: String, right: String): Int {
         val a = left.split(".").map { it.toIntOrNull() ?: 0 }
         val b = right.split(".").map { it.toIntOrNull() ?: 0 }

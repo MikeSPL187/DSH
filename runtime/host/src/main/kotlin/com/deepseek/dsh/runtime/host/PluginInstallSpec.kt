@@ -1,20 +1,20 @@
 package com.deepseek.dsh.runtime.host
 
 /**
- * 安装 spec 的解析与最小 semver 匹配。
+ * Разбор spec установки и минимальное сопоставление semver.
  *
- * 插件页的「添加插件」接受三类输入：npm 包名、GitHub 仓库地址、本地绝对目录。
- * Host 内的 pnpm 在 proot 下会拿到 `ENOSYS`（rename/unlink/mkdtemp 不可用），
- * 因此 App 侧兜底安装只实现自己需要的那部分解析，不追求完整的 npm 语义。
+ * «Добавить плагин» принимает три вида ввода: имя пакета npm, адрес репозитория GitHub, абсолютную локальную папку.
+ * pnpm в Host под proot получает `ENOSYS` (rename/unlink/mkdtemp недоступны),
+ * поэтому запасной установщик приложения разбирает только нужное ему, без полной семантики npm.
  */
 internal sealed class PluginInstallSpec {
-    /** npm 包名，可带 `@range`。 */
+    /** Имя пакета npm, можно с `@range`. */
     data class Registry(val name: String, val range: String?) : PluginInstallSpec()
 
-    /** GitHub 仓库地址，可带 `#ref`。 */
+    /** Адрес репозитория GitHub, можно с `#ref`. */
     data class GitHub(val owner: String, val repo: String, val ref: String?) : PluginInstallSpec()
 
-    /** rootfs 内的绝对目录。 */
+    /** Абсолютная папка внутри rootfs. */
     data class LocalPath(val path: String) : PluginInstallSpec()
 
     companion object {
@@ -25,18 +25,18 @@ internal sealed class PluginInstallSpec {
         private val PACKAGE_NAME = Regex("""^(?:@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*$""")
 
         /**
-         * npm 包名校验（含 scope）。安装器会把包名拼成 `node_modules/<name>` 并在其上
-         * 删除/替换目录，所以任何来自 package.json 或依赖表的名字都必须先过这一关：
-         * 只允许小写 npm 名字字符，不允许路径分隔符（scope 的单个 `/` 除外）、`.`/`..`
-         * 段、绝对路径或超长名字。
+         * Проверка имени пакета npm (со scope). Установщик складывает имя в `node_modules/<name>` и удаляет
+         * или заменяет по нему папки, поэтому любое имя из package.json или списка зависимостей сначала проходит проверку:
+         * только строчные символы имён npm, без разделителей пути (кроме одного `/` у scope), без сегментов `.`/`..`,
+         * абсолютных путей и слишком длинных имён.
          */
         fun isValidPackageName(name: String): Boolean =
             name.length in 1..214 && PACKAGE_NAME.matches(name)
 
         /**
-         * 解析用户输入。
-         * @param raw 对话框里的原始 spec。
-         * @return 解析结果；无法识别时为 null。
+         * Разобрать ввод пользователя.
+         * @param raw spec из окна.
+         * @return итог разбора; не распознано — null.
          */
         fun parse(raw: String): PluginInstallSpec? {
             val spec = raw.trim()
@@ -59,19 +59,19 @@ internal sealed class PluginInstallSpec {
 }
 
 /**
- * npm 语义的 semver：版本比较、range 解析与匹配。
+ * semver по правилам npm: сравнение версий, разбор и сопоставление range.
  *
- * 覆盖 npm 常用 range 语法：精确版本、`=`/`v` 前缀、比较符（`>`/`>=`/`<`/`<=`）、
- * `^`/`~`/`~>`、x-range（`1.x`、`1.2.*`、`1`）、连字符 range（`1.2.3 - 2.3.4`）、
- * 空格交集与 `||` 并集，以及 npm 的 prerelease 规则（prerelease 版本只在同一
- * `[major, minor, patch]` 的比较符显式带 prerelease 时才匹配）。
+ * Обычный синтаксис range npm: точная версия, префиксы `=`/`v`, сравнения (`>`/`>=`/`<`/`<=`),
+ * `^`/`~`/`~>`, x-range (`1.x`, `1.2.*`, `1`), range через дефис (`1.2.3 - 2.3.4`),
+ * пересечение через пробел и объединение `||`, а также правило prerelease npm (prerelease подходит, только если
+ * сравнение с тем же `[major, minor, patch]` явно содержит prerelease).
  *
- * **fail closed**：无法解析的 range、或没有任何候选满足 range 时返回 null，
- * 绝不退回「取最高版本」——那会静默装上不兼容的依赖。
+ * **fail closed**: неразбираемый range или отсутствие подходящих кандидатов — null,
+ * никакого отката к «самой высокой версии» — это тихо поставило бы несовместимую зависимость.
  */
 internal object Semver {
 
-    /** 解析后的版本；build metadata 不参与比较。 */
+    /** Разобранная версия; build metadata в сравнении не участвует. */
     data class Version(
         val major: Long,
         val minor: Long,
@@ -112,7 +112,7 @@ internal object Semver {
             """(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$""",
     )
 
-    /** 部分版本：`1`、`1.2`、`1.x`、`1.2.*`、`*`；null 分量表示通配。 */
+    /** Частичная версия: `1`, `1.2`, `1.x`, `1.2.*`, `*`; null в компоненте — любое значение. */
     private data class Partial(
         val major: Long?,
         val minor: Long?,
@@ -140,7 +140,7 @@ internal object Semver {
         }
     }
 
-    /** 解析成可比较的版本；非 semver 返回 null。 */
+    /** Разобрать в сравнимую версию; не semver — null. */
     fun parseVersion(raw: String): Version? {
         val match = VERSION.matchEntire(raw.trim()) ?: return null
         return Version(
@@ -151,11 +151,11 @@ internal object Semver {
         )
     }
 
-    /** 是否是可解析的 range 或常见 dist-tag。 */
+    /** Разбирается ли как range или обычный dist-tag. */
     fun isRangeLike(raw: String): Boolean =
         raw == "latest" || raw == "next" || parseRange(raw) != null
 
-    /** 比较两个版本；任一无法解析时按字符串比较（只用于展示排序）。 */
+    /** Сравнить версии; если какую-то не разобрать — как строки (только для порядка при показе). */
     fun compare(a: String, b: String): Int {
         val left = parseVersion(a)
         val right = parseVersion(b)
@@ -163,7 +163,7 @@ internal object Semver {
         return left.compareTo(right)
     }
 
-    /** 版本是否满足 range；range 无法解析时为 false（fail closed）。 */
+    /** Подходит ли версия под range; range не разобрать — false (fail closed). */
     fun satisfies(version: String, range: String?): Boolean {
         val parsed = parseVersion(version) ?: return false
         val sets = parseRange(range ?: "*") ?: return false
@@ -171,9 +171,9 @@ internal object Semver {
     }
 
     /**
-     * 从候选版本里挑出满足 range 的最高版本。
+     * Самая высокая из кандидатов версия, подходящая под range.
      *
-     * @return 满足的最高版本；range 无法解析或没有满足项时为 null。
+     * @return самая высокая подходящая; range не разобрать или подходящих нет — null.
      */
     fun maxSatisfying(versions: Collection<String>, range: String?): String? {
         val sets = parseRange(range?.trim().orEmpty().ifEmpty { "*" }) ?: return null
@@ -187,11 +187,11 @@ internal object Semver {
     private fun testSet(set: List<Comparator>, version: Version): Boolean {
         if (!set.all { it.test(version) }) return false
         if (!version.isPrerelease) return true
-        // npm：prerelease 只有在同一 [major,minor,patch] 的比较符显式带 prerelease 时才可选。
+        // npm: prerelease можно выбрать, только если сравнение с тем же [major,minor,patch] явно содержит prerelease.
         return set.any { it.version.isPrerelease && it.version.sameTuple(version) }
     }
 
-    /** 解析 range 为「并集 of 交集」；无法解析时 null。 */
+    /** Разобрать range в «объединение пересечений»; не разобрать — null. */
     private fun parseRange(raw: String): List<List<Comparator>>? {
         val text = raw.trim()
         if (text.isEmpty()) return listOf(emptyList())
@@ -201,7 +201,7 @@ internal object Semver {
 
     private fun parseComparatorSet(raw: String): List<Comparator>? {
         if (raw.isEmpty()) return emptyList()
-        // 连字符 range：`a - b`（两边必须有空格）。
+        // Range через дефис: `a - b` (пробелы с обеих сторон обязательны).
         val hyphen = Regex("""^(\S+)\s+-\s+(\S+)$""").matchEntire(raw)
         if (hyphen != null) {
             val low = parsePartial(hyphen.groupValues[1]) ?: return null
@@ -216,7 +216,7 @@ internal object Semver {
             }
             return result
         }
-        // 把「>= 1.2.3」这样的空格合并到运算符上。
+        // Пробел в «>= 1.2.3» присоединяется к оператору.
         val normalized = raw.replace(Regex("""(>=|<=|>|<|=|\^|~>|~)\s+"""), "$1")
         val tokens = normalized.split(Regex("""\s+""")).filter { it.isNotEmpty() }
         return tokens.flatMap { token -> parseComparator(token) ?: return null }
@@ -259,7 +259,7 @@ internal object Semver {
                 else -> listOf(Comparator(Op.LTE, Version(major, minor, patch, pre)))
             }
             else -> when {
-                // 精确或 x-range（`1.2.3`、`=1.2.3`、`1.x`、`1`、`*`）。
+                // Точная версия или x-range (`1.2.3`, `=1.2.3`, `1.x`, `1`, `*`).
                 major == null -> emptyList()
                 minor == null -> listOf(
                     Comparator(Op.GTE, Version(major, 0, 0)),
@@ -274,7 +274,7 @@ internal object Semver {
         }
     }
 
-    /** `^`：不改变最左侧非零分量（npm 对 0.x / 0.0.x 的特殊语义）。 */
+    /** `^`: не меняет самую левую ненулевую часть (особые правила npm для 0.x / 0.0.x). */
     private fun caret(p: Partial): List<Comparator> {
         val major = p.major ?: return emptyList()
         val minor = p.minor

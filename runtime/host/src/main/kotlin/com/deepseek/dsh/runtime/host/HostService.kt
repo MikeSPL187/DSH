@@ -18,15 +18,15 @@ class HostService : Service() {
         const val NOTIFICATION_ID = 1001
         const val ACTION_START = "com.deepseek.dsh.runtime.host.START"
         const val ACTION_STOP = "com.deepseek.dsh.runtime.host.STOP"
-        /** 通知栏「停止」按钮：停止 Host（随后 manager 会发 [ACTION_STOP]）。 */
+        /** Кнопка «Остановить» в уведомлении: остановить Host (затем manager пошлёт [ACTION_STOP]). */
         const val ACTION_USER_STOP = "com.deepseek.dsh.runtime.host.USER_STOP"
 
         private const val PREFS = "dsh_host_service"
         private const val KEY_KEEP_ALIVE = "keep_alive_on_task_removed"
 
         /**
-         * 同步设置里的「有任务时保持后台运行」（审计 F-10/N-18）。服务可能在 App UI
-         * 不在时被系统重建，所以存一份到 SharedPreferences，而不是只放内存。
+         * Синхронизировать настройку «Работать в фоне, пока есть задачи» (аудит F-10/N-18). Систему может пересоздать службу,
+         * когда интерфейса приложения нет, поэтому значение хранится в SharedPreferences, а не только в памяти.
          */
         fun setKeepAliveOnTaskRemoved(context: Context, keepAlive: Boolean) {
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
@@ -147,9 +147,9 @@ class HostService : Service() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        // 用户在设置里打开了「有任务时保持后台运行」：划掉界面不停 Host，前台通知
-        // 一直在，可以随时点「停止」。关闭时按旧行为：连同 Host 一起停掉，不在后台
-        // 留下 proot/Node 进程。（manifest 里 stopWithTask=false，否则这个回调根本不会触发。）
+        // Пользователь включил «Работать в фоне, пока есть задачи»: смахнули интерфейс — Host не останавливается, уведомление
+        // остаётся, «Остановить» доступно всегда. Если выключено — как раньше: остановить вместе с Host и не оставлять в фоне
+        // процессов proot/Node. (В manifest stopWithTask=false, иначе этот колбэк не вызывается вовсе.)
         if (shouldKeepHostInBackground(this)) {
             watchUntilTasksDone()
         } else {

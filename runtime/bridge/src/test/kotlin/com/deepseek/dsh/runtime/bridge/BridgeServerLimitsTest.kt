@@ -18,7 +18,7 @@ class BridgeServerLimitsTest {
 
     private fun connect(port: Int) = Socket(InetAddress.getByName("127.0.0.1"), port).apply { soTimeout = 5_000 }
 
-    /** 服务器关闭连接时 read 返回 -1（或连接被重置）。 */
+    /** Когда сервер закрыл соединение, read возвращает -1 (или соединение сброшено). */
     private fun closedByServer(socket: Socket): Boolean =
         runCatching { socket.getInputStream().read() == -1 }.getOrDefault(true)
 

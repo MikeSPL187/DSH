@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 
 /**
- * v4.0 设计文档 §10.2: 设备能力桥 JSON-RPC 协议与能力模型
+ * Протокол JSON-RPC моста возможностей устройства и модель возможностей.
  */
 @Serializable
 data class BridgeRequest(
@@ -13,12 +13,12 @@ data class BridgeRequest(
     val method: String,
     val params: JsonElement? = null,
     /**
-     * 本地鉴权 token。
+     * Токен локальной авторизации.
      *
-     * 桥监听在 127.0.0.1，但 Android 上 loopback 不是「只有本应用能连」，
-     * 端口随机只能降低命中率；Host 侧补丁从 guest 的
-     * `/root/.dsh/.bridge_token` 读取并在每个请求里携带。缺失或错误的
-     * token 会被拒绝，不执行任何设备操作。
+     * Мост слушает 127.0.0.1, но на Android loopback — не «только это приложение»,
+     * случайный порт лишь снижает вероятность; патчи Host читают его из
+     * `/root/.dsh/.bridge_token` гостя и передают в каждом запросе. Без токена или с неверным
+     * запрос отклоняется, никакие действия на устройстве не выполняются.
      */
     val auth: String? = null
 )

@@ -7,12 +7,12 @@ import java.io.File
 import java.nio.file.Files
 
 /**
- * [RuntimeAddonShim] 的 JVM 测试：纯文件操作，不依赖 rootfs。
+ * Тесты [RuntimeAddonShim] на JVM: только файлы, без rootfs.
  *
- * 覆盖三条真实路径：
- * 1. 原生插件缺失 → 安装纯 JS shim；
- * 2. 主文件缺失（半装）→ 用 shim 替换，原目录改名留档；
- * 3. 健康安装（平台包在）→ 不动原包。
+ * Три настоящих пути:
+ * 1. нет нативного дополнения → ставится заглушка на чистом JS;
+ * 2. нет главного файла (неполная установка) → замена заглушкой, старая папка переименовывается;
+ * 3. исправная установка (пакет платформы на месте) → пакет не трогается.
  */
 class RuntimeAddonShimTest {
 
@@ -44,7 +44,7 @@ class RuntimeAddonShimTest {
             val layout = RuntimeLayout(baseDir = root, nativeLibraryDir = root)
             val modules = File(layout.rootfsDir, globalModules).apply { mkdirs() }
             val broken = File(modules, RuntimeAddonShim.PACKAGE).apply { mkdirs() }
-            // package.json 指向不存在的 lib/index.js：正是镜像半装的形状。
+            // package.json указывает на несуществующий lib/index.js — именно так выглядит неполная установка в образе.
             File(broken, "package.json").writeText(
                 """{"name":"${RuntimeAddonShim.PACKAGE}","main":"lib/index.js"}"""
             )

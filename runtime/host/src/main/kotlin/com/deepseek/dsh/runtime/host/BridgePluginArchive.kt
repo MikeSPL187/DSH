@@ -7,37 +7,37 @@ import java.io.InputStream
 import java.util.zip.ZipInputStream
 
 /**
- * GitHub release 归档（zipball）的校验与解压。
+ * Проверка и распаковка архива выпуска GitHub (zipball).
  *
- * 插件的发布带没有资产：tag `v<version>` 本身就是产物，客户端下载的是该 tag 的
- * 源码归档。归档里已经包含构建好的 `lib/`，因此这里只做三件事：路径安全、
- * 版本一致性、入口完整性 —— 不做构建，也不信任归档里的任何路径。
+ * У выпуска плагина нет файлов-вложений: сам тег `v<version>` и есть результат, клиент скачивает архив
+ * исходников этого тега. В архиве уже собранный `lib/`, поэтому здесь только три вещи: безопасность путей,
+ * совпадение версии, полнота входа — без сборки и без доверия к путям в архиве.
  *
- * 这个对象刻意不依赖 Android API，解压与校验因此可以用普通 JVM 单元测试覆盖。
+ * Объект нарочно не зависит от API Android, поэтому распаковка и проверки покрываются обычными тестами JVM.
  */
 internal object BridgePluginArchive {
 
-    /** 插件清单文件名。 */
+    /** Имя файла манифеста плагина. */
     private const val MANIFEST_FILE = "package.json"
 
-    /** 允许下载的最大归档字节数；当前发布约 130KB，留足余量。 */
+    /** Наибольший размер скачиваемого архива; текущий выпуск около 130 КБ, запас большой. */
     const val MAX_ARCHIVE_BYTES: Long = 32L * 1024 * 1024
 
-    /** 允许解压的最大累计字节数，挡住 zip 炸弹。 */
+    /** Наибольшая сумма распакованных байтов — защита от zip-бомб. */
     const val MAX_UNCOMPRESSED_BYTES: Long = 64L * 1024 * 1024
 
-    /** 允许的最大条目数。 */
+    /** Наибольшее число записей. */
     const val MAX_ENTRIES: Int = 4096
 
     private val json = Json { ignoreUnknownKeys = true }
 
     /**
-     * 归档里读出的一份插件清单。
-     * @param packageName `package.json` 的 `name`。
-     * @param version `package.json` 的 `version`。
-     * @param main 入口文件（相对包目录）。
-     * @param patch bundle patch 文件（相对包目录）。
-     * @param dependencies 运行时依赖，用于在安装前确认解析得到。
+     * Манифест плагина из архива.
+     * @param packageName `name` из `package.json`.
+     * @param version `version` из `package.json`.
+     * @param main входной файл (от папки пакета).
+     * @param patch файл патча bundle (от папки пакета).
+     * @param dependencies зависимости времени выполнения — проверить разбор до установки.
      */
     data class Contents(
         val packageName: String,
@@ -48,15 +48,15 @@ internal object BridgePluginArchive {
     )
 
     /**
-     * 把一份 GitHub zipball 解压到 [destination]，并校验插件身份。
+     * Распаковать zipball GitHub в [destination] и проверить, что это тот плагин.
      *
-     * 归档必须只有一个顶层目录（GitHub 的惯例）；条目路径不得逃出 [destination]。
-     * 校验失败时抛 [IllegalArgumentException]，由调用方清理未完成的目录。
-     * @param archive zip 字节流。
-     * @param destination 目标目录；调用方负责在失败时删除它。
-     * @param expectedPackage 期望的包名，必须与归档清单一致。
-     * @param expectedVersion 期望的版本，必须与归档清单一致。
-     * @return 校验过的清单内容。
+     * В архиве должна быть ровно одна верхняя папка (так делает GitHub); пути записей не должны выходить из [destination].
+     * Ошибка проверки — [IllegalArgumentException], недоделанную папку убирает вызывающий.
+     * @param archive поток байтов zip.
+     * @param destination целевая папка; при ошибке её удаляет вызывающий.
+     * @param expectedPackage ожидаемое имя пакета, должно совпасть с манифестом архива.
+     * @param expectedVersion ожидаемая версия, должна совпасть с манифестом архива.
+     * @return проверенное содержимое манифеста.
      */
     fun extract(
         archive: InputStream,
@@ -149,7 +149,7 @@ internal object BridgePluginArchive {
         )
     }
 
-    /** 把归档内的相对路径映射成目标文件，并拒绝任何越界路径。 */
+    /** Относительный путь в архиве → целевой файл; любой выход за пределы отклоняется. */
     private fun safeTarget(root: File, relative: String): File {
         if (relative.startsWith('/') || relative.startsWith('\\')) {
             throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive contains an absolute path: $relative", "В архиве абсолютный путь: $relative"))
@@ -171,14 +171,14 @@ internal object BridgePluginArchive {
         return target
     }
 
-    /** 要求归档里确实存在某个文件；清单里的路径同样不许逃出包目录。 */
+    /** Файл должен быть в архиве; пути из манифеста тоже не могут выходить из папки пакета. */
     private fun requireFile(root: File, relative: String, label: String) {
         if (relative.isBlank()) throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Plugin has no $label path", "У плагина не указан путь: $label"))
         val file = safeTarget(root, relative)
         if (!file.isFile) throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Plugin is missing $label: $relative", "У плагина отсутствует $label: $relative"))
     }
 
-    /** 清单里的路径可能带 `./` 前缀，统一成包内相对路径。 */
+    /** Пути манифеста могут начинаться с `./` — приводим к пути внутри пакета. */
     private fun String.normalizeArchivePath(): String =
         trim().removePrefix("./").replace('\\', '/').trimStart('/')
 

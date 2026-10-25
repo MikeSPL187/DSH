@@ -12,8 +12,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
 /**
- * v4.0 设计文档 §4.5 & §4.6:
- * 用户数据快照备份与脱敏诊断包导出
+ * Резервная копия данных пользователя и выгрузка диагностики без секретов.
  */
 class RuntimeBackupAndDiagnostics(
     private val layout: RuntimeLayout
@@ -27,7 +26,7 @@ class RuntimeBackupAndDiagnostics(
 
         try {
             ZipOutputStream(FileOutputStream(backupZip)).use { zos ->
-                // 保证至少写入一条根快照 entry
+                // Хотя бы одна корневая запись снимка.
                 val markerEntry = ZipEntry("snapshot_meta.txt")
                 zos.putNextEntry(markerEntry)
                 zos.write("DSH User Data Snapshot $timestamp\n".toByteArray(Charsets.UTF_8))
@@ -50,7 +49,7 @@ class RuntimeBackupAndDiagnostics(
 
         try {
             ZipOutputStream(FileOutputStream(diagZip)).use { zos ->
-                // 1. 导出运行日志 (自动脱敏)
+                // 1. Журналы окружения (секреты вычищаются).
                 if (layout.logsDir.exists()) {
                     layout.logsDir.listFiles()?.forEach { logFile ->
                         if (logFile.isFile && logFile.name.endsWith(".log")) {
@@ -63,7 +62,7 @@ class RuntimeBackupAndDiagnostics(
                     }
                 }
 
-                // 2. 导出环境描述
+                // 2. Описание окружения.
                 val envSummary = """
                     OS: Android ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})
                     Brand: ${android.os.Build.BRAND}
@@ -83,12 +82,12 @@ class RuntimeBackupAndDiagnostics(
     }
 
     internal fun scrubSensitiveInfo(rawText: String): String {
-        // §4.6 诊断脱敏：token/cookie/API key。除了 query/Bearer/sk- 之外，日志里常见
-        // JSON 字段、Cookie/Authorization 头和 GitHub 令牌，原实现会原样导出它们。
+        // Вычистка секретов: token/cookie/API-ключ. Кроме query/Bearer/sk-, в журналах часто встречаются
+        // поля JSON, заголовки Cookie/Authorization и токены GitHub — раньше они выгружались как есть.
         return SCRUB_RULES.fold(rawText) { text, (pattern, replacement) -> pattern.replace(text, replacement) }
     }
 
-    /** 递归打包目录：不跟随符号链接（node_modules 里的链接会指向整棵 rootfs 或形成环）。 */
+    /** Рекурсивно упаковать папку: по символическим ссылкам не ходим (ссылки в node_modules ведут на весь rootfs или образуют цикл). */
     private fun zipDirectory(folder: File, parentFolder: String, zos: ZipOutputStream) {
         for (file in folder.listFiles() ?: emptyArray()) {
             val path = file.toPath()

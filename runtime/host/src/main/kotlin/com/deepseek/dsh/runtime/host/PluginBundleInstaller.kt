@@ -18,26 +18,26 @@ import java.util.concurrent.TimeUnit
 import java.util.zip.ZipInputStream
 
 /**
- * App 侧的插件安装兜底。
+ * Запасной установщик плагинов на стороне приложения.
  *
- * Host 内的 pnpm 在 proot 下会拿到 `ENOSYS`（mkdir/rename/unlink 都不可用，
- * 实测；见 `BridgePluginInstaller` 的同类说明），所以「添加插件」不能只靠
- * Host。这里用 App 进程自己的文件与网络能力完成同一件事：
+ * pnpm в Host под proot получает `ENOSYS` (mkdir/rename/unlink недоступны,
+ * проверено; см. то же в `BridgePluginInstaller`), поэтому «Добавить плагин» не может полагаться только
+ * на Host. Здесь то же делается файлами и сетью процесса приложения:
  *
- * 1. 解析 spec（GitHub 仓库 / npm 包名 / rootfs 内绝对目录）；
- * 2. 取包内容（GitHub 源码归档、npm tarball 或本地目录）；
- * 3. 递归安装运行时依赖（只做 `dependencies`，peer 由运行时提供）；
- * 4. 铺进 profile 的 `node_modules`；
- * 5. 把包自带的 `cordis.patch.yml` 挂进 profile 的用户 patch 层。
+ * 1. разобрать spec (репозиторий GitHub / имя npm / абсолютная папка в rootfs);
+ * 2. получить содержимое пакета (архив исходников GitHub, tarball npm или локальная папка);
+ * 3. рекурсивно поставить зависимости времени выполнения (только `dependencies`, peer даёт окружение);
+ * 4. разложить в `node_modules` профиля;
+ * 5. подключить `cordis.patch.yml` пакета к пользовательскому слою патчей профиля.
  *
- * 装完需要重启 Host 才会加载新插件；调用方负责这一步。
+ * Новый плагин загрузится после перезапуска Host — это делает вызывающий.
  */
 class PluginBundleInstaller(
     private val context: Context,
     private val layout: RuntimeLayout,
     /**
-     * Host 里 `/workspace` 实际绑定的目录（[ProotCommandBuilder] 的 userWorkspacePath）。
-     * 本地安装 `/workspace/...` 必须解析到同一个目录，否则装的是另一份文件。
+     * Папка, к которой в Host привязан `/workspace` (userWorkspacePath в [ProotCommandBuilder]).
+     * Локальная установка `/workspace/...` должна разбираться в ту же папку, иначе поставятся другие файлы.
      */
     private val workspaceDir: () -> File? = { null },
     private val http: OkHttpClient = OkHttpClient.Builder()
@@ -55,10 +55,10 @@ class PluginBundleInstaller(
         get() = File(profileDir, "node_modules")
 
     /**
-     * 安装一个插件 spec。
-     * @param rawSpec 对话框输入的原始 spec。
-     * @param onProgress 进度与步骤文案。
-     * @return 成功时给出 `包名@版本`。
+     * Установить плагин по spec.
+     * @param rawSpec spec, введённый в окне.
+     * @param onProgress ход и подписи шагов.
+     * @return при успехе `имя@версия`.
      */
     suspend fun install(rawSpec: String, onProgress: (Float, String) -> Unit): Result<String> =
         withContext(Dispatchers.IO) {
@@ -94,7 +94,7 @@ class PluginBundleInstaller(
                     ?: return@withContext Result.failure(
                         IllegalStateException(HostStrings.get(R.string.pi_no_name, "The plugin package.json has no name"))
                     )
-                // 包名会被拼进 node_modules 路径并在其上删除/替换目录：先校验（审计 F-01）。
+                // Имя пакета входит в путь node_modules, по нему удаляются и заменяются папки: сначала проверка (аудит F-01).
                 if (!PluginInstallSpec.isValidPackageName(name)) {
                     return@withContext Result.failure(
                         IllegalStateException(HostStrings.get(R.string.pi_bad_name, "Invalid plugin package name: %1\$s", name))
@@ -112,7 +112,7 @@ class PluginBundleInstaller(
                         IllegalStateException(HostStrings.get(R.string.pi_no_patch, "%1\$s does not declare dsh.bundle.patch and cannot be installed as a plugin", name))
                     )
                 }
-                // 在动现有安装之前就验证 patch，失败时旧版本保持原样（审计 F-05/N-09）。
+                // Патч проверяется до изменения текущей установки: при ошибке старая версия остаётся как есть (аудит F-05/N-09).
                 val patchText = runCatching { safeChild(packageDir.dir, patchPath) }.getOrNull()
                     ?.takeIf { it.isFile && it.length() <= MAX_PATCH_BYTES }
                     ?.readText()
@@ -146,12 +146,12 @@ class PluginBundleInstaller(
         }
 
     /**
-     * 原子地把已暂存的包换到 `node_modules/<name>`。
+     * Атомарно заменить подготовленный пакет в `node_modules/<name>`.
      *
-     * 1. 暂存目录先移到 node_modules 下的同盘临时目录（rename 才是原子的）；
-     * 2. 旧版本 rename 成备份；
-     * 3. 新版本 rename 到位，再执行 [afterSwap]（挂 patch）；
-     * 任一步失败都删除新内容并把备份 rename 回去，旧插件保持可用。
+     * 1. подготовленная папка переносится во временную на том же диске внутри node_modules (атомарен только rename);
+     * 2. старая версия переименовывается в резервную копию;
+     * 3. новая встаёт на место через rename, затем [afterSwap] (подключить патч);
+     * при ошибке любого шага новое удаляется, резервная копия возвращается — старый плагин работает.
      */
     private fun commitPackage(source: File, name: String, afterSwap: () -> Unit) {
         nodeModules.mkdirs()
@@ -183,11 +183,11 @@ class PluginBundleInstaller(
     }
 
     /**
-     * 列出 App 安装器挂载过的包名（读 web-app patch 里的 `android-installed` 标记）。
+     * Пакеты, подключённые установщиком приложения (по меткам `android-installed` в патче web-app).
      *
-     * 用来区分「随安装自带」的官方插件和用户后来通过「添加插件」装进来的官方包。
+     * Так официальные плагины «из установки» отличаются от официальных пакетов, поставленных через «Добавить плагин».
      *
-     * @returns 包名集合；没有标记时为空。
+     * @returns имена пакетов; без меток — пусто.
      */
     fun managedPackages(): Set<String> {
         val patchFile = webAppPatchFile()
@@ -202,15 +202,15 @@ class PluginBundleInstaller(
     }
 
     /**
-     * 摘掉 web-app patch 里 `# android-installed: <包名>` 的整块挂载。
+     * Убрать весь блок подключения `# android-installed: <пакет>` из патча web-app.
      *
-     * 旧实现只删 `name:` 行、留一个 `- id:` 占位；Loader 仍会创建这一行，
-     * 而包已经不存在 → Web 客户端启动时该 entry 激活失败，整个浏览器界面停在
-     * 「Failed to load plugins」。行插件（没有 bundle 记录）卸载后正是这条路。
-     * 现在整块摘掉：没有 id、没有占位，Loader 也就不会再创建它。
+     * Раньше удалялась только строка `name:`, а заглушка `- id:` оставалась; Loader всё равно создавал строку,
+     * а пакета уже нет → при запуске веб-клиента запись не активируется, и весь интерфейс браузера застревает на
+     * «Failed to load plugins». Именно так шло удаление строковых плагинов (без записи bundle).
+     * Теперь блок убирается целиком: ни id, ни заглушки — Loader его не создаст.
      *
-     * @param packageName 安装时写入的包名。
-     * @returns 是否改动了 patch（摘掉了挂载块或其中的 name 行）。
+     * @param packageName имя пакета, записанное при установке.
+     * @returns изменился ли патч (убран блок или его строка name).
      */
     suspend fun stripRowMountName(packageName: String): Boolean = withContext(Dispatchers.IO) {
         val patchFile = webAppPatchFile()
@@ -235,14 +235,14 @@ class PluginBundleInstaller(
     }
 
     /**
-     * 卸载一个由 App 侧安装的插件。
+     * Удалить плагин, поставленный приложением.
      *
-     * 行插件没有 bundle 记录，Host 的 `removeBundle` 不适用；这里做安装的逆操作：
-     * 删掉 profile 里的包目录，并摘掉 web-app patch 里的挂载块。调用方随后重启
-     * Host 才会真正少掉这一条 Loader 行。
+     * У строковых плагинов нет записи bundle, `removeBundle` Host не подходит; здесь обратное установке:
+     * удалить папку пакета в профиле и блок подключения в патче web-app. Строка Loader исчезнет
+     * после перезапуска Host вызывающим.
      *
-     * @param packageName 安装时写入的包名。
-     * @return 删除结果；目录不存在也视为成功（幂等）。
+     * @param packageName имя пакета, записанное при установке.
+     * @return итог удаления; если папки нет — тоже успех (повтор безопасен).
      */
     suspend fun uninstall(packageName: String): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
@@ -262,7 +262,7 @@ class PluginBundleInstaller(
         }
     }
 
-    /** 摘掉 [removeMarkerBlock] 使用的挂载块头：从标记行到下一个标记行（或文件尾）。 */
+    /** Снять заголовок блока для [removeMarkerBlock]: от строки метки до следующей метки (или конца файла). */
     private fun removeMarkerBlock(text: String, marker: String): String {
         val lines = text.lines()
         val start = lines.indexOfFirst { it.trim() == marker }
@@ -276,9 +276,9 @@ class PluginBundleInstaller(
         return kept.joinToString("\n") + "\n"
     }
 
-    // ── 包来源 ────────────────────────────────────────────────────────────
+    // ── Источники пакетов ──────────────────────────────────────────────
 
-    /** GitHub 源码归档；tag/分支由 `#ref` 指定，缺省用 HEAD。 */
+    /** Архив исходников GitHub; тег или ветка — в `#ref`, по умолчанию HEAD. */
     private fun stageFromGitHub(
         spec: PluginInstallSpec.GitHub,
         onProgress: (Float, String) -> Unit,
@@ -290,9 +290,9 @@ class PluginBundleInstaller(
         val bytes = download(url)
         onProgress(0.3f, HostStrings.get(R.string.pi_unpacking, "Extracting the plugin…"))
         val source = extractZipToStaging(bytes, budget)
-        // GitHub 归档是源码仓库：构建产物（lib/）通常不在里面。能在 npm 上
-        // 找到同一版本时，用已构建的 tarball 替换源码目录 —— 否则装上去的
-        // 插件没有入口文件，Host 会直接报 import 失败。
+        // Архив GitHub — это исходники: результатов сборки (lib/) там обычно нет. Если та же версия есть
+        // в npm, папка исходников заменяется собранным tarball — иначе у поставленного
+        // плагина нет входного файла, и Host сразу сообщит об ошибке import.
         val manifest = readManifest(source.dir) ?: return source
         val name = manifest.name?.takeIf { PluginInstallSpec.isValidPackageName(it) }
         val version = manifest.version
@@ -316,7 +316,7 @@ class PluginBundleInstaller(
         return source
     }
 
-    /** 查一个包某个版本的 tarball 地址；没有该版本时返回 null。 */
+    /** Адрес tarball версии пакета; такой версии нет — null. */
     private fun findPublishedTarball(name: String, version: String): String? {
         val metadata = fetchRegistryMetadata(name) ?: return null
         return metadata["versions"]?.jsonObjectOrNull()
@@ -325,7 +325,7 @@ class PluginBundleInstaller(
             ?.get("tarball")?.jsonPrimitive?.contentOrNull
     }
 
-    /** npm registry：拿 metadata 定版本，再下 tarball。 */
+    /** Реестр npm: по metadata выбрать версию, затем скачать tarball. */
     private fun stageFromRegistry(
         name: String,
         range: String?,
@@ -349,8 +349,8 @@ class PluginBundleInstaller(
     }
 
     /**
-     * 按 npm 规则选版本：range 是 dist-tag 时取 tag；`latest` 满足 range 时优先它；
-     * 否则取满足 range 的最高版本。没有满足项时 null（fail closed，审计 A-01/N-10）。
+     * Версия по правилам npm: range — dist-tag, тогда тег; если `latest` подходит под range — он;
+     * иначе самая высокая подходящая. Подходящей нет — null (fail closed, аудит A-01/N-10).
      */
     private fun selectVersion(metadata: JsonObject, range: String?): String? {
         val versions = metadata["versions"]?.jsonObjectOrNull()?.keys.orEmpty()
@@ -366,7 +366,7 @@ class PluginBundleInstaller(
         return Semver.maxSatisfying(versions, wanted)
     }
 
-    /** rootfs 内的本地目录（映射 App 可见路径）。 */
+    /** Локальная папка внутри rootfs (сопоставляется с путём, видимым приложению). */
     private fun stageFromLocalPath(
         path: String,
         onProgress: (Float, String) -> Unit,
@@ -389,10 +389,10 @@ class PluginBundleInstaller(
     }
 
     /**
-     * 把 rootfs 内的绝对路径映射到 App 可直接访问的目录。
+     * Сопоставить абсолютный путь внутри rootfs с папкой, доступной приложению.
      *
-     * `/workspace` 与 Host 的绑定保持一致（审计 A-04）；结果必须规范化后仍在映射根目录内，
-     * `..` 或符号链接逃逸一律拒绝。
+     * `/workspace` совпадает с привязкой Host (аудит A-04); после нормализации путь обязан оставаться внутри корня,
+     * выход через `..` или символическую ссылку отклоняется.
      */
     private fun resolveLocalPath(path: String): File? {
         val mappings = listOf(
@@ -417,24 +417,24 @@ class PluginBundleInstaller(
         return canonical.takeIf { it.toPath().startsWith(root.canonicalFile.toPath()) }
     }
 
-    // ── 依赖 ──────────────────────────────────────────────────────────────
+    // ── Зависимости ────────────────────────────────────────────────────
 
     /**
-     * 一次安装的依赖布局：尽量把依赖提升到插件根的 `node_modules`（[rootModules]），
-     * 版本冲突时才嵌套到需要它的包下面。Node 从嵌套包向上逐级解析，所以提升后的
-     * 依赖对整棵树可见——旧实现按名字全局去重却只装在第一个依赖方下面，兄弟包解析不到。
+     * Раскладка зависимостей одной установки: по возможности поднимаются в `node_modules` корня плагина ([rootModules]),
+     * при конфликте версий — вкладываются в нуждающийся пакет. Node ищет вверх от вложенного пакета, поэтому поднятые
+     * зависимости видны всему дереву — раньше дубли убирались по имени глобально, но ставились только под первым, и соседи их не находили.
      */
     private class DependencyPlan(val rootModules: File, val budget: InstallBudget) {
-        /** 已提升到 [rootModules] 的 包名 → 版本。 */
+        /** Поднятые в [rootModules]: имя пакета → версия. */
         val hoisted = mutableMapOf<String, String>()
     }
 
     /**
-     * 递归安装 `dependencies`。
+     * Рекурсивно поставить `dependencies`.
      *
-     * peer 依赖交给运行时（profile 的 `@deepseek-ai` 链接）。任何一层的失败都会向上
-     * 汇总（审计 A-02/N-11），超出深度/数量上限视为失败而不是静默成功。
-     * @return 失败的依赖描述；空表示全部装好。
+     * Peer-зависимости даёт окружение (ссылка `@deepseek-ai` в профиле). Ошибка на любом уровне поднимается
+     * наверх (аудит A-02/N-11), превышение пределов глубины или количества — ошибка, а не тихий успех.
+     * @return описание неудавшихся зависимостей; пусто — всё поставлено.
      */
     private fun installDependencies(
         packageDir: File,
@@ -475,7 +475,7 @@ class PluginBundleInstaller(
         return failures
     }
 
-    /** 从 registry 装一个依赖（含它的传递依赖）；任何传递失败都会抛出。 */
+    /** Поставить зависимость из реестра (с её транзитивными); любая транзитивная ошибка выбрасывается. */
     private fun installOneDependency(
         parentModules: File,
         name: String,
@@ -507,7 +507,7 @@ class PluginBundleInstaller(
                 copyTreeLimited(extracted.dir, destination, budget = null)
                 SafeFiles.deleteTree(extracted.dir)
             }
-            // 先登记再递归：循环依赖（A→B→A）会直接命中已提升的版本。
+            // Сначала записать, потом рекурсия: цикл (A→B→A) сразу найдёт поднятую версию.
             if (parentModules == plan.rootModules) plan.hoisted[name] = version
             val nested = readManifest(destination) ?: return@use
             val nestedFailures = installDependencies(destination, nested, onProgress, plan, depth + 1)
@@ -518,34 +518,34 @@ class PluginBundleInstaller(
     }
 
     /**
-     * 依赖是否已经能被 Node 从插件目录解析到。
+     * Разбирается ли зависимость Node из папки плагина.
      *
-     * 只有 profile 的 `node_modules` 算数：`@deepseek-ai/<name>` 通过 profile 里的
-     * 链接解析，其余包必须真的在解析路径上。DSH 安装目录自己嵌套的依赖不在
-     * 插件的解析链里，不能算作已提供。
+     * Считается только `node_modules` профиля: `@deepseek-ai/<name>` разбирается через ссылку
+     * в профиле, остальные пакеты должны реально быть на пути поиска. Вложенные зависимости папки установки DSH
+     * в цепочку поиска плагина не входят и предоставленными не считаются.
      */
     private fun resolvableElsewhere(name: String): Boolean =
         File(nodeModules, name).exists()
 
-    // ── Host 挂载 ─────────────────────────────────────────────────────────
+    // ── Подключение к Host ─────────────────────────────────────────────
 
     /**
-     * 把插件的 bundle patch 追加进 `dsh-web-app` 的 patch 层。
+     * Дописать патч bundle плагина в слой патчей `dsh-web-app`.
      *
-     * 为什么不是 profile 的用户 patch 层：这台设备上 Host 每次启动都会重建
-     * profile 的 `package.json`/`cordis.patch.yml`（实测，启动日志里能抓到
-     * `initProfile` 被调用），写进 profile 的挂载下一轮启动就没了。web-app
-     * 自己的 patch 属于「随安装发布的状态」，不受那次重建影响 —— bridge 插件
-     * 用的也是这一层。
+     * Почему не пользовательский слой профиля: на этом устройстве Host при каждом запуске пересоздаёт
+     * `package.json`/`cordis.patch.yml` профиля (проверено, в журнале запуска виден вызов
+     * `initProfile`), и подключение в профиле пропадает при следующем запуске. Патч самого web-app —
+     * «состояние из установки», пересоздание его не трогает; этот же слой использует
+     * bridge-плагин.
      *
-     * 幂等：标记已存在就不再追加。
+     * Повтор безопасен: метка уже есть — ничего не дописывается.
      */
     private fun mountWebAppPatch(packageName: String, patchText: String) {
         val patchFile = webAppPatchFile()
         if (!patchFile.isFile) error(HostStrings.get(R.string.pi_no_patch_layer, "The dsh-web-app patch layer is missing; cannot mount %1\$s", packageName))
         val marker = "# android-installed: $packageName"
         val body = patchText.trimEnd()
-        // 重装/升级时用新 patch 替换旧挂载块（旧实现保留过期 patch）。
+        // При переустановке или обновлении блок заменяется новым патчем (раньше устаревший оставался).
         val current = patchFile.readText().let { text ->
             if (text.contains(marker)) removeMarkerBlock(text, marker) else text
         }
@@ -557,7 +557,7 @@ class PluginBundleInstaller(
         writeTextAtomically(patchFile, next)
     }
 
-    /** 先写同目录临时文件、fsync，再 rename 覆盖：断电/崩溃时不会留下半截 patch。 */
+    /** Сначала временный файл в той же папке и fsync, затем rename поверх: сбой питания или падение не оставят половину патча. */
     private fun writeTextAtomically(file: File, text: String) {
         val tmp = File(file.parentFile, ".${file.name}.tmp-${System.nanoTime()}")
         try {
@@ -571,23 +571,23 @@ class PluginBundleInstaller(
         }
     }
 
-    /** `dsh-web-app` 的 patch 文件：第三方插件的挂载层。 */
+    /** Файл патча `dsh-web-app`: слой подключения сторонних плагинов. */
     private fun webAppPatchFile(): File = File(
         layout.rootfsDir,
         "usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules/" +
             "@deepseek-ai/dsh-web-app/cordis.patch.yml",
     )
 
-    // ── HTTP / 归档 / 清单 ────────────────────────────────────────────────
+    // ── HTTP / архивы / манифест ───────────────────────────────────────
 
-    /** 下载一个 URL；上限 64MB。 */
+    /** Скачать URL; не больше 64 МБ. */
     private fun download(url: String): ByteArray {
         val request = Request.Builder()
             .url(url)
             .header("User-Agent", "dsh-android")
             .build()
         http.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw IllegalStateException("HTTP ${response.code}：$url")
+            if (!response.isSuccessful) throw IllegalStateException("HTTP ${response.code}: $url")
             val body = response.body ?: throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Empty response: $url", "Пустой ответ: $url"))
             val buffer = java.io.ByteArrayOutputStream()
             body.byteStream().use { input ->
@@ -605,7 +605,7 @@ class PluginBundleInstaller(
         }
     }
 
-    /** registry metadata（安装用的精简格式）。 */
+    /** Metadata реестра (сокращённый формат для установки). */
     private fun fetchRegistryMetadata(name: String): JsonObject? {
         val encoded = name.replace("/", "%2F")
         val request = Request.Builder()
@@ -621,8 +621,8 @@ class PluginBundleInstaller(
     }
 
     /**
-     * 一次安装（含全部依赖）共享的解压预算：限制总解压字节、条目数与包数量，
-     * 防止 zip/tar bomb 填满存储（审计 A-03/N-12）。按实际写出的字节计数，不信任归档头。
+     * Общий бюджет распаковки одной установки (со всеми зависимостями): пределы суммы байтов, числа записей и пакетов —
+     * защита от zip/tar-бомб, заполняющих память (аудит A-03/N-12). Считаются реально записанные байты, заголовкам архива не верим.
      */
     private class InstallBudget {
         var bytes = 0L
@@ -641,7 +641,7 @@ class PluginBundleInstaller(
         }
     }
 
-    /** 带上限地复制一个条目；超过单文件上限或总预算立即中止。 */
+    /** Скопировать запись с пределами; превышение предела файла или общего бюджета — сразу стоп. */
     private fun copyLimited(input: java.io.InputStream, target: File, budget: InstallBudget?) {
         target.outputStream().use { output ->
             val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
@@ -659,7 +659,7 @@ class PluginBundleInstaller(
         }
     }
 
-    /** 复制目录树：不跟随符号链接，计入预算。 */
+    /** Скопировать дерево папок: по символическим ссылкам не ходим, всё в бюджет. */
     private fun copyTreeLimited(source: File, target: File, budget: InstallBudget?) {
         val sourcePath = source.toPath()
         java.nio.file.Files.walk(sourcePath).use { stream ->
@@ -678,7 +678,7 @@ class PluginBundleInstaller(
         }
     }
 
-    /** 解压 GitHub zipball：去掉单一顶层目录，拒绝越界路径。 */
+    /** Распаковать zipball GitHub: убрать единственную верхнюю папку, выходящие наружу пути отклонить. */
     private fun extractZipToStaging(bytes: ByteArray, budget: InstallBudget): StagedPackage {
         val staging = StagedPackage(newStagingDir())
         try {
@@ -710,8 +710,8 @@ class PluginBundleInstaller(
     }
 
     /**
-     * 解压 npm tarball：去掉 `package/` 前缀，拒绝越界路径。
-     * 只解出普通文件；符号链接/硬链接/设备文件一律跳过（npm 包不需要它们）。
+     * Распаковать tarball npm: убрать префикс `package/`, выходящие наружу пути отклонить.
+     * Только обычные файлы; символические и жёсткие ссылки и файлы устройств пропускаются (пакетам npm они не нужны).
      */
     private fun extractTarGzToStaging(bytes: ByteArray, budget: InstallBudget): StagedPackage {
         val staging = StagedPackage(newStagingDir())
@@ -737,7 +737,7 @@ class PluginBundleInstaller(
         return staging
     }
 
-    /** 拼接子路径并拒绝逃出包目录（按路径段检查 `..`，再做规范路径校验）。 */
+    /** Склеить подпуть и не дать выйти из папки пакета (проверка `..` по сегментам, затем нормализованного пути). */
     private fun safeChild(root: File, relative: String): File {
         val normalized = relative.replace('\\', '/')
         if (normalized.startsWith("/") || normalized.split('/').any { it == ".." } || normalized.contains('\u0000')) {
@@ -750,7 +750,7 @@ class PluginBundleInstaller(
         return file
     }
 
-    /** 读插件清单。 */
+    /** Прочитать манифест плагина. */
     private fun readManifest(dir: File): PackageManifest? {
         val file = File(dir, "package.json")
         if (!file.isFile) return null
@@ -773,13 +773,13 @@ class PluginBundleInstaller(
         }.getOrNull()
     }
 
-    /** 新建本次安装的临时目录。 */
+    /** Новая временная папка для этой установки. */
     private fun newStagingDir(): File {
         val root = File(layout.cacheDir, "plugin-install").apply { mkdirs() }
         return File(root, "package-${System.nanoTime()}").apply { mkdirs() }
     }
 
-    /** 保证 profile 的 @deepseek-ai 链接存在（peer 依赖的解析锚点）。 */
+    /** Убедиться, что есть ссылка @deepseek-ai в профиле (опора разбора peer-зависимостей). */
     private fun ensurePresetLink() {
         ensureProfilePresetLink(profileDir)
     }
@@ -787,14 +787,14 @@ class PluginBundleInstaller(
     private fun kotlinx.serialization.json.JsonElement?.jsonObjectOrNull(): JsonObject? =
         this as? JsonObject
 
-    /** 一次安装里的包目录，结束时清理。 */
+    /** Папки пакетов одной установки; удаляются в конце. */
     private class StagedPackage(val dir: File) : AutoCloseable {
         override fun close() {
             SafeFiles.deleteTree(dir)
         }
     }
 
-    /** 安装需要的清单字段。 */
+    /** Поля манифеста, нужные установке. */
     private data class PackageManifest(
         val name: String?,
         val version: String?,
@@ -804,19 +804,19 @@ class PluginBundleInstaller(
     )
 
     private companion object {
-        /** 单个下载上限；插件与依赖都在几 MB 内。 */
+        /** Предел одной загрузки; плагины и зависимости — в пределах нескольких МБ. */
         const val MAX_DOWNLOAD_BYTES = 64L * 1024 * 1024
-        /** 一次安装（含全部依赖）解压出的总字节上限。 */
+        /** Предел суммы распакованных байтов одной установки (со всеми зависимостями). */
         const val MAX_TOTAL_UNCOMPRESSED_BYTES = 512L * 1024 * 1024
-        /** 归档内单个文件上限。 */
+        /** Предел одного файла в архиве. */
         const val MAX_ENTRY_BYTES = 128L * 1024 * 1024
-        /** 一次安装的归档条目总数上限。 */
+        /** Предел общего числа записей архивов одной установки. */
         const val MAX_ENTRIES = 60_000
-        /** 一次安装的依赖包数量上限。 */
+        /** Предел числа пакетов-зависимостей одной установки. */
         const val MAX_PACKAGES = 600
-        /** 依赖树最大深度；超过视为失败而非静默成功。 */
+        /** Наибольшая глубина дерева зависимостей; глубже — ошибка, а не тихий успех. */
         const val MAX_DEPENDENCY_DEPTH = 24
-        /** bundle patch 文件上限。 */
+        /** Предел файла патча bundle. */
         const val MAX_PATCH_BYTES = 1L * 1024 * 1024
     }
 }

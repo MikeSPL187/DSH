@@ -9,12 +9,12 @@ import org.junit.Test
 import java.nio.file.Files
 
 /**
- * [HostProcessRunner] 的跨平台 JVM 测试：不依赖 Android runtime，也不需要 proot。
+ * Тесты [HostProcessRunner] на JVM: без Android и без proot.
  *
- * 覆盖两条真实故障路径：
- * 1. 正常启动：解析 `dsh web:` 行里的端口/token，`markReady` 后进入 RUNNING；
- * 2. 启动中途退出：退出看门狗把状态推到 ERROR，带上退出码与 stderr 尾巴
- *    （这正是「移动运行时永远停在启动中」的根因）。
+ * Два настоящих пути сбоев:
+ * 1. Нормальный запуск: из строки `dsh web:` берутся порт и токен, после `markReady` — RUNNING;
+ * 2. Выход посреди запуска: сторож выхода переводит в ERROR с кодом выхода и хвостом stderr
+ *    (именно это было причиной «окружение навсегда в запуске»).
  */
 class HostProcessRunnerTest {
 
@@ -39,9 +39,9 @@ class HostProcessRunnerTest {
             }
             assertEquals(12345, starting.port)
             assertEquals("abc", starting.token)
-            // token 必须先脱敏才能进入状态/UI。
+            // Токен должен быть вычищен до попадания в состояние и интерфейс.
             assertTrue(
-                "logTail 应包含脱敏后的 URL，实际=${starting.logTail}",
+                "logTail должен содержать URL без секретов, факт=${starting.logTail}",
                 starting.logTail.any { it.contains("token=***") && !it.contains("token=abc") },
             )
 
@@ -73,11 +73,11 @@ class HostProcessRunnerTest {
             }
             assertEquals(3, error.exitCode)
             assertTrue(
-                "lastError 应包含退出码，实际=${error.lastError}",
+                "lastError должен содержать код выхода, факт=${error.lastError}",
                 error.lastError.orEmpty().contains("exit=3"),
             )
             assertTrue(
-                "logTail 应包含 stderr 的 boom，实际=${error.logTail}",
+                "logTail должен содержать boom из stderr, факт=${error.logTail}",
                 error.logTail.any { it.contains("boom") },
             )
         } finally {
@@ -86,7 +86,7 @@ class HostProcessRunnerTest {
         }
     }
 
-    /** 打印一行 DSH Web URL 后保持存活（等测试主动终止）。 */
+    /** Напечатать строку с Web URL DSH и жить, пока тест не завершит. */
     private fun endpointCommand(): List<String> = if (isWindows) {
         listOf(
             "cmd",
@@ -101,7 +101,7 @@ class HostProcessRunnerTest {
         )
     }
 
-    /** 往 stderr 打一行然后以退出码 3 结束。 */
+    /** Напечатать строку в stderr и выйти с кодом 3. */
     private fun failingCommand(): List<String> = if (isWindows) {
         listOf("cmd", "/c", "echo boom 1>&2 & exit /b 3")
     } else {

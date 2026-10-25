@@ -7,7 +7,7 @@ import java.io.File
 import java.security.MessageDigest
 
 /**
- * v4.0 设计文档 §5.6: 契约验证与回放器
+ * Проверка и воспроизведение контракта.
  */
 @Serializable
 data class ContractFixture(
@@ -28,12 +28,12 @@ data class FixtureEvent(
 class ContractReplayer(
     private val json: Json = Json { ignoreUnknownKeys = true }
 ) {
-    /** 规范化编码：固定字段顺序、省略缺省值，保证同一组事件只有一种字节表示。 */
+    /** Каноническое кодирование: порядок полей постоянный, значения по умолчанию пропускаются — у набора событий одно байтовое представление. */
     private val canonicalJson = Json { encodeDefaults = false; explicitNulls = false; prettyPrint = false }
 
     /**
-     * 读取并校验夹具：[ContractFixture.expectedDigest] 必须等于 [eventsDigest]（审计 F-19）。
-     * 被改动过的 mockEvents 会被拒绝，而不是当作有效契约回放。
+     * Прочитать и проверить образец: [ContractFixture.expectedDigest] должен совпадать с [eventsDigest] (аудит F-19).
+     * Изменённые mockEvents отклоняются, а не воспроизводятся как действующий контракт.
      */
     fun loadAndVerifyFixture(fixtureFile: File): Result<ContractFixture> {
         if (!fixtureFile.exists()) {
@@ -60,7 +60,7 @@ class ContractReplayer(
         }
     }
 
-    /** mockEvents 的 SHA-256：对规范化 JSON 数组求哈希（小写十六进制）。 */
+    /** SHA-256 mockEvents: хэш канонического массива JSON (hex в нижнем регистре). */
     fun eventsDigest(events: List<FixtureEvent>): String =
         calculateDigest(canonicalJson.encodeToString(ListSerializer(FixtureEvent.serializer()), events))
 

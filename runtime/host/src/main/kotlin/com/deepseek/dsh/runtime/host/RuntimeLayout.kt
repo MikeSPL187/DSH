@@ -3,18 +3,18 @@ package com.deepseek.dsh.runtime.host
 import java.io.File
 
 /**
- * v4.0 设计文档 §4.1: 本地运行时目录结构规范
+ * Папки локального окружения.
  *
  * files/
- * ├─ rootfs/                 # Debian slim（默认）/ Ubuntu minimal（备选）
- * │  ├─ opt/dsh/             # Node、pnpm、dsh 入口
- * │  └─ root/.dsh/           # DSH_HOME：配置/会话/插件/凭据
- * ├─ runtime/                # 版本清单、补丁、校验和
- * ├─ workspace-link/         # 工作区绑定信息
- * ├─ cache/                  # 依赖/构建缓存（/cache）
- * ├─ saf/                    # SAF 镜像根
- * ├─ logs/                   # 运行时日志
- * └─ backups/                # 用户数据快照
+ * ├─ rootfs/                 # Debian slim (по умолчанию) / Ubuntu minimal (запасной)
+ * │  ├─ opt/dsh/             # Node, pnpm, вход dsh
+ * │  └─ root/.dsh/           # DSH_HOME: настройки, сессии, плагины, учётные данные
+ * ├─ runtime/                # список версий, патчи, контрольные суммы
+ * ├─ workspace-link/         # привязка рабочей папки
+ * ├─ cache/                  # кэш зависимостей и сборки (/cache)
+ * ├─ saf/                    # корень зеркала SAF
+ * ├─ logs/                   # журналы окружения
+ * └─ backups/                # снимки данных пользователя
  */
 data class RuntimeLayout(
     val baseDir: File,
@@ -25,11 +25,11 @@ data class RuntimeLayout(
     val dshHomeDir: File get() = File(rootfsDir, "root/.dsh")
 
     /**
-     * 设备桥 token 文件。
+     * Файл токена моста устройства.
      *
-     * 与 guest 内的 `/root/.dsh/.bridge_token` 指向同一份字节；App 每次启动 Host
-     * 时轮换，Host 侧补丁按请求携带。文件位于应用私有目录，其他 Android 应用读不到，
-     * 因此无法连接宿主机的回环桥执行设备命令。
+     * Те же байты, что `/root/.dsh/.bridge_token` у гостя; приложение меняет его при каждом запуске Host,
+     * патчи Host передают его в запросах. Файл лежит в личной папке приложения, другие приложения Android его не прочитают
+     * и не смогут через мост loopback выполнять команды на устройстве.
      */
     val bridgeTokenFile: File get() = File(dshHomeDir, BridgeTokenFileName)
 
@@ -41,37 +41,37 @@ data class RuntimeLayout(
 
     val prootBinary: File get() = File(nativeLibraryDir, "libproot.so")
 
-    /** 覆盖 rootfs /etc/passwd 的绑定文件；Android uid 不在镜像的 passwd 里。 */
+    /** Файл, подменяющий /etc/passwd в rootfs: uid Android нет в passwd образа. */
     val passwdOverlay: File get() = File(runtimeMetaDir, "etc/passwd")
-    /** 覆盖 rootfs /etc/group 的绑定文件。 */
+    /** Файл, подменяющий /etc/group в rootfs. */
     val groupOverlay: File get() = File(runtimeMetaDir, "etc/group")
 
     /**
-     * 写入 passwd/group 覆盖文件。
+     * Записать подмены passwd/group.
      *
-     * proot 不带 -0 时 guest 的 uid 就是 Android uid（如 10227），而 rootfs 镜像
-     * 的 /etc/passwd 只有 root 等系统账号。node-pty 起 shell 时 libuv 会
-     * `uv_os_get_passwd`（getpwuid）——查不到就返回 ENOENT，官方终端因此
-     * 报 `A system error occurred`。这里把当前 uid/gid 补进 passwd/group，
-     * 再用 proot -b 绑定进去。
+     * Без -0 у proot uid гостя — это uid Android (например, 10227), а в /etc/passwd образа rootfs
+     * только root и системные учётные записи. Когда node-pty запускает shell, libuv вызывает
+     * `uv_os_get_passwd` (getpwuid) — не найдя, получает ENOENT, и терминал
+     * пишет `A system error occurred`. Здесь текущие uid/gid добавляются в passwd/group
+     * и привязываются через proot -b.
      */
-    /** 运行前注入的 Node 预载补丁目录（当前只有 fs.link 兜底）。 */
+    /** Папка preload-патчей Node перед запуском (пока только запасной fs.link). */
     val patchDir: File get() = File(dshHomeDir, "patches")
 
-    /** 预载补丁：把 FUSE 上必然 EPERM 的硬链接改成 copy+rename 语义。 */
+    /** Preload-патч: жёсткая ссылка на FUSE всегда даёт EPERM — заменяем семантикой copy+rename. */
     val linkFallbackPatch: File get() = File(patchDir, "fs-link-fallback.cjs")
 
-    /** 启动耗时探针：记录 preload、慢模块与 dsh web 就绪时刻。 */
+    /** Замер времени запуска: моменты preload, медленных модулей и готовности dsh web. */
     val startupTracePatch: File get() = File(patchDir, "startup-trace.cjs")
 
     /**
-     * 安装 Node 预载补丁。
+     * Поставить preload-патчи Node.
      *
-     * 官方 `write` 工具在“新建文件”时用 `link(temp, target)` 做原子发布；Android 的
-     * 外置存储是 FUSE，硬链接直接返回 EPERM（proot 的 --link2symlink 也拦不住
-     * Node 走 linkat 的路径），于是 Agent 的重叠写全失败、只能退回 shell。这里预载
-     * 一个小补丁：link 遇到 EPERM/ENOTSUP/EXDEV 时退化成“复制 + 删除临时文件”，
-     * 保持“目标不存在才成功”的语义。
+     * Инструмент `write` при создании файла атомарно публикует его через `link(temp, target)`; внешняя память
+     * Android — FUSE, жёсткая ссылка сразу даёт EPERM (--link2symlink у proot не перехватывает
+     * путь linkat из Node), и перекрывающая запись агента всегда падает, остаётся только shell. Здесь
+     * маленький preload-патч: при EPERM/ENOTSUP/EXDEV link заменяется на «копия + удаление временного файла»,
+     * с сохранением правила «успех, только если цели не было».
      */
     fun ensureNodePatches() {
         patchDir.mkdirs()
@@ -81,9 +81,9 @@ data class RuntimeLayout(
             |const fsp = require('node:fs/promises')
             |const FALLBACK_CODES = new Set(['EPERM', 'ENOTSUP', 'EOPNOTSUPP', 'EXDEV', 'EACCES'])
             |function fallbackSync(existingPath, newPath) {
-            |  // 只复制、不删除源文件：调用方在 link 成功后通常还会自己 unlink 源
-            |  // （官方 attachment store / fs-local 的原子发布都如此），提前删掉会让
-            |  // 那一步报 ENOENT 并被包装成写入失败。
+            |  // Только копия, источник не удаляется: после успешного link вызывающий обычно сам делает unlink источника
+            |  // (так публикуют атомарно attachment store и fs-local), раннее удаление дало бы
+            |  // на том шаге ENOENT, обёрнутый в ошибку записи.
             |  fs.copyFileSync(existingPath, newPath, fs.constants.COPYFILE_EXCL || 1)
             |}
             |const originalLinkSync = fs.linkSync
@@ -117,8 +117,8 @@ data class RuntimeLayout(
         val traceSource = """
             |'use strict'
             |const Module = require('node:module')
-            |// 进程被 force-stop 时不会走 exit 钩子，编译缓存必须定期主动 flush，
-            |// 否则 NODE_COMPILE_CACHE 目录永远是空的。这里保持静默，不输出时间日志。
+            |// При force-stop процесса хуки exit не вызываются, кэш компиляции нужно регулярно сбрасывать самим,
+            |// иначе папка NODE_COMPILE_CACHE всегда пуста. Здесь тихо, без журнала времени.
             |const flush = () => { try { Module.flushCompileCache?.() } catch {} }
             |const flushTimer = setInterval(flush, 5000)
             |flushTimer.unref()
@@ -130,12 +130,12 @@ data class RuntimeLayout(
     }
 
     /**
-     * 修正 Host 里已经安装好的 subprocess provider 的空 control 通道缺陷。
+     * Исправить в уже установленном в Host provider subprocess дефект пустого канала control.
      *
-     * proot 下 `controlPipe()` 可能返回 null；provider 只有 `!== undefined` 判断，
-     * 于是一边把 null 塞进 controlChannels，一边调用 `control.once(...)`，把
-     * workflow 的 worker 启动炸成 `Cannot read properties of null (reading 'once')`。
-     * 这里只把守卫放宽为 null/undefined 都跳过；幂等，随 App 版本生效。
+     * Под proot `controlPipe()` может вернуть null; provider проверяет только `!== undefined`,
+     * поэтому кладёт null в controlChannels и вызывает `control.once(...)` —
+     * запуск worker workflow падает с `Cannot read properties of null (reading 'once')`.
+     * Здесь проверка лишь расширяется на null/undefined; повтор безопасен, действует с версией приложения.
      */
     fun ensureHostRuntimePatches() {
         val provider = java.io.File(
@@ -154,16 +154,16 @@ data class RuntimeLayout(
         }
     }
 
-    /** profile 的用户 patch 文件（Host 的插件开关会往这里追加 `- id:` 行）。 */
+    /** Пользовательский файл патча профиля (переключатель плагинов Host дописывает сюда строки `- id:`). */
     val profilePatchFile: File
         get() = File(rootfsDir, "root/.dsh/profiles/web/cordis.patch.yml")
 
     /**
-     * 修复历史版本写坏的 profile patch。
+     * Исправить патч профиля, испорченный старыми версиями.
      *
-     * Host 的 setPluginEnabled 在空数组文件（内容是 `[]`）后面直接追加 `- id: ...`，
-     * 得到 `[]` 紧跟列表项的非法 YAML，下次启动会直接崩在 loadOverlayPatches。
-     * 只要文件里已经有列表项，就把单独成行的 `[]` 去掉；只有 `[]` 时保持原样。
+     * setPluginEnabled в Host дописывал `- id: ...` сразу после файла с пустым массивом (`[]`),
+     * получался неверный YAML «`[]` и за ним элементы списка», и следующий запуск падал в loadOverlayPatches.
+     * Если в файле уже есть элементы списка, отдельная строка `[]` удаляется; если только `[]` — без изменений.
      */
     fun repairProfilePatch() {
         val file = profilePatchFile
@@ -218,7 +218,7 @@ data class RuntimeLayout(
     }
 
     private companion object {
-        /** 与 `BridgeAuth.TOKEN_FILE_NAME` 保持一致；host 模块不反向依赖 bridge 模块。 */
+        /** Как `BridgeAuth.TOKEN_FILE_NAME`; модуль host не зависит от модуля bridge в обратную сторону. */
         const val BridgeTokenFileName = ".bridge_token"
     }
 }
