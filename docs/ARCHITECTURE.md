@@ -14,7 +14,7 @@ app                      сборка приложения: MainActivity, MainAp
  ├─ plugin:*             плагины: native-host (APK-компаньоны), surface (панели Host), runtime-web (веб-островки)
  ├─ runtime:*            host — Linux (rootfs), процесс Host, git, бэкап; bridge — мост к Host
  ├─ core:data            DshRepository (вся работа с Host и Room), настройки
- ├─ core:protocol        RemoteClient (HTTP/WS к Host), вход в аккаунт, состояние соединения
+ ├─ core:protocol        RemoteClient (HTTP/WS к Host) — фасад клиентов по областям, вход, соединение
  ├─ core:bridge          bridge/v1: каталог плагинов, слоты
  ├─ core:designsystem    токены «Фарфор»/«Графит», иконки, компоненты, листы, kit (каркас экранов)
  └─ core:model           модели данных, Tr (тексты ru/en без Context)
@@ -64,12 +64,20 @@ tooling:*                проверка контракта с Host и гене
 | `AppChatServices.kt` | возможности Host для чата: оценки, картинки, workflow, траектория, ветвление, выгрузка |
 | `Dsh*Route.kt` | связки экранов «Плагины», «Автоматизация», «Настройки» с логикой |
 
+## Протокол (`core:protocol`)
+
+`DshClientProtocol` собран из интерфейсов по областям Host-API: `SessionsApi`, `AccountApi`,
+`PluginsApi`, `SettingsApi`, `TeamApi`, `JobsApi`, `TerminalApi`, `ChangesApi`, `HostEventsApi`,
+`HostRpcApi`. Каждую реализует свой `internal`-клиент (`SessionsClient`, `PluginsClient`…) поверх
+общего `HostConnection` (адрес, OkHttp, JSON, `rpcRaw`). `RemoteClient` — только фасад: делегирует
+интерфейсы клиентам (`by`) и меняет адрес Host. Новый вызов Host добавляется в интерфейс своей
+области и в её клиент — остальные файлы не трогаются.
+
 ## Что дальше (по пользе)
 
 1. **Страница чата** (≈400 строк в `MainAppHost`): перенести оставшиеся данные сессии (сообщения,
    задачи, цель, очередь, изменения) в `ChatServices` — тогда `MainAppHost` станет чистой навигацией.
-2. **`RemoteClient` (3300 строк) и `DshRepository` (2500 строк)**: разделить по областям
-   Host-API — сессии, плагины, аккаунт, рабочие папки, речь. Сейчас это «всё в одном классе».
+2. **`DshRepository` (2500 строк)**: разделить по областям так же, как протокол.
 3. **Удалённый Host**: клиент работает с одним адресом. Чтобы подключать компьютер, нужно
    хранить хосты (токен — в Keystore), переключать `RemoteClient` на адрес хоста с пиннингом TLS
    (`PairingTls`), затем включить `SettingsUi.remoteHostsSupported`.
