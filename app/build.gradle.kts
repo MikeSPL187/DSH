@@ -148,21 +148,11 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
 }
 
-
-
-
-
-
-
-
-
-
-
-// Галерея экранов использует ComponentActivity из ui-test-manifest, который подключён только
-// к debug (тестовая Activity не должна попадать в релизный APK). В release-варианте её
-// не запускаем — те же экраны проверяются в testDebugUnitTest.
+// Снимочные тесты экранов запускают ComponentActivity из ui-test-manifest, который подключён
+// только к debug (тестовая Activity не должна попадать в релизный APK). В release-варианте
+// их не запускаем — те же экраны проверяются в testDebugUnitTest.
 tasks.withType<Test>().configureEach {
     if (name == "testReleaseUnitTest") {
-        exclude("**/ScreensGalleryTest*")
+        exclude("**/ScreensGalleryTest*", "**/DesignSystemGalleryTest*", "**/DshScreensSweepTest*")
     }
 }
