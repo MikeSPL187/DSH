@@ -14,7 +14,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,18 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deepseek.dsh.core.model.WorkflowRunInfo
 
-
-/**
- * workflow 运行卡片的数据桥（宿主注入）。
- *
- * 官方 `ui-workflow-run` 把一次 workflow 画成会话里的节点：运行名 + 状态 +
- * 各 phase 下的成员（子会话）。手机端用同样的信息画成卡片，数据来自客户端对
- * tool-workflow 事件的聚合。
- */
-object WorkflowRunsBridge {
-    var items by mutableStateOf<List<WorkflowRunInfo>>(emptyList())
-    var provider: (() -> List<WorkflowRunInfo>)? = null
-}
 
 /**
  * Запуск workflow — карточкой в стиле хода работы: название и состояние,

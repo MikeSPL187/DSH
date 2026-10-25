@@ -158,8 +158,6 @@ object DshFonts {
 data class DshType(
     val largeTitle: TextStyle = TextStyle(fontFamily = DshFonts.display, fontWeight = FontWeight.SemiBold, fontSize = 28.sp, lineHeight = 33.sp, letterSpacing = (-0.02).em),
     val title: TextStyle = TextStyle(fontFamily = DshFonts.display, fontWeight = FontWeight.SemiBold, fontSize = 21.sp, lineHeight = 26.sp, letterSpacing = (-0.015).em),
-    val headline: TextStyle = TextStyle(fontFamily = DshFonts.display, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, lineHeight = 22.sp),
-    val navTitle: TextStyle = TextStyle(fontFamily = DshFonts.display, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 20.sp),
     val body: TextStyle = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Normal, fontSize = 15.sp, lineHeight = 20.sp),
     val bodyMedium: TextStyle = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Medium, fontSize = 15.sp, lineHeight = 20.sp),
     val message: TextStyle = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 24.8.sp),
@@ -168,14 +166,12 @@ data class DshType(
     val caption: TextStyle = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Normal, fontSize = 11.5.sp, lineHeight = 14.sp),
     val sectionLabel: TextStyle = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.06.em),
     val code: TextStyle = TextStyle(fontFamily = DshFonts.mono, fontWeight = FontWeight.Normal, fontSize = 13.sp, lineHeight = 20.sp),
-    val codeSmall: TextStyle = TextStyle(fontFamily = DshFonts.mono, fontWeight = FontWeight.Normal, fontSize = 12.sp, lineHeight = 18.sp),
 )
 
 val LocalDshType = staticCompositionLocalOf { DshType() }
 
 /** Сетка 4 dp, радиусы 10/16/24 и размеры касаемых зон. */
 object DshSpace {
-    val gutter: Dp = 16.dp
     val rowMin: Dp = 52.dp
     val touch: Dp = 44.dp
     val groupRadius: Dp = 18.dp

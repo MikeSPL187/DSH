@@ -46,23 +46,6 @@ class SurfaceCatalogStore {
         }
     }
 
-    fun addSurfaceItem(item: SurfaceItem) {
-        val current = _catalogFlow.value
-        val list = current.surfaces.toMutableList()
-        list.removeAll { it.pluginId == item.pluginId && it.slot == item.slot }
-        list.add(item)
-        _catalogFlow.value = current.copy(surfaces = list)
-    }
-
-    /** 从目录中移除一个已安装插件（卸载），不存在时为空操作。 */
-    fun removeSurfaceItem(pluginId: String, slot: String) {
-        val current = _catalogFlow.value
-        val list = current.surfaces.filterNot { it.pluginId == pluginId && it.slot == slot }
-        if (list.size != current.surfaces.size) {
-            _catalogFlow.value = current.copy(surfaces = list)
-        }
-    }
-
     /**
      * 将 DSH Slot 精确映射到手机端原生宿主承载位置
      */

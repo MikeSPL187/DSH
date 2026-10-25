@@ -76,36 +76,6 @@ class RootfsInstaller(
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun parseManifest(rawJson: String): RootfsManifest = json.decodeFromString(rawJson)
-
-    /**
-     * 尝试联网检查 deepseek-harness-mobile-rootfs 最新 release 中的 rootfs-manifest.json。
-     * 若网络不通或未发布，则平滑 fallback 返回本地 bundled manifest。
-     */
-    suspend fun resolveLatestManifest(bundledManifest: RootfsManifest): RootfsManifest = withContext(Dispatchers.IO) {
-        val latestManifestUrl = "https://github.com/EricFL1998/deepseek-harness-mobile-rootfs/releases/latest/download/rootfs-manifest.json"
-        try {
-            val request = Request.Builder()
-                .url(latestManifestUrl)
-                .header("User-Agent", "dsh-android")
-                .build()
-            httpClient.newCall(request).execute().use { response ->
-                if (response.isSuccessful) {
-                    val body = response.body?.string().orEmpty()
-                    if (body.isNotBlank()) {
-                        val remoteManifest = parseManifest(body)
-                        if (remoteManifest.runtimeVersion.isNotBlank()) {
-                            return@withContext remoteManifest
-                        }
-                    }
-                }
-            }
-        } catch (_: Exception) {
-            // 网络异常或 404，无缝回退本地 manifest
-        }
-        bundledManifest
-    }
-
     fun installedVersion(): String? {
         val marker = markerFile()
         if (!marker.isFile) return null
@@ -118,17 +88,6 @@ class RootfsInstaller(
         val marker = markerFile()
         if (!marker.isFile) return null
         return runCatching { json.decodeFromString<InstallMarker>(marker.readText()) }.getOrNull()
-    }
-
-    fun isInstalled(manifest: RootfsManifest): Boolean {
-        recoverInterruptedInstall()
-        val version = installedVersion() ?: return false
-        if (version != manifest.runtimeVersion) return false
-        val marker = readMarker()
-        val currentAbi = android.os.Build.SUPPORTED_ABIS?.firstOrNull().orEmpty()
-        if (!marker?.abi.isNullOrBlank() && currentAbi.isNotBlank() && marker.abi != currentAbi) return false
-        return File(layout.rootfsDir, "etc/os-release").isFile ||
-            File(layout.rootfsDir, "usr/bin/env").isFile
     }
 
     suspend fun verifyAndInstall(

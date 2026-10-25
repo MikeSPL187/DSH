@@ -8,7 +8,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.os.PersistableBundle
 import com.deepseek.dsh.core.model.MessageRole
-import com.deepseek.dsh.feature.settings.PermissionPresetBridge
+import com.deepseek.dsh.feature.settings.HostPermissionPreset
 import com.deepseek.dsh.feature.settings.logic.AutoRun
 import com.deepseek.dsh.feature.settings.logic.Automation
 import com.deepseek.dsh.feature.settings.logic.AutomationStore
@@ -20,7 +20,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.runtime.getValue
-import androidx.compose.foundation.layout.fillMaxWidth
 import com.deepseek.dsh.core.model.ScheduleInfo
 
 /**
@@ -144,7 +143,7 @@ object AutomationRunner {
 
     /** Пресет прав Host: «только читать» или «править в рабочей папке». */
     private fun presetFor(perm: String): String? {
-        val options = PermissionPresetBridge.options.map { it.value }
+        val options = HostPermissionPreset.options.map { it.value }
         return if (perm == "edit") options.firstOrNull { "workspace" in it || ("write" in it && "danger" !in it) } ?: "workspace-write"
         else options.firstOrNull { "read" in it } ?: "read-only"
     }
@@ -196,7 +195,7 @@ internal fun DshAutomationRoute(
     val app = context.applicationContext as DshApplication
     val toast = com.deepseek.dsh.core.designsystem.kit.rememberToast()
     val reasoning = com.deepseek.dsh.feature.chat.ReasoningLevel.entries.map { context.getString(it.labelResId) }
-    androidx.compose.runtime.LaunchedEffect(Unit) { ScheduleBridge.refresh?.invoke() }
+    androidx.compose.runtime.LaunchedEffect(Unit) { HostSchedules.refresh?.invoke() }
     val actions = object : com.deepseek.dsh.feature.settings.ui.AutomationActions {
         override fun save(a: Automation) {
             val withLabel = if (a.model.isNotBlank() && " · " !in a.model && reasoning.isNotEmpty()) a.copy(model = a.model + " · " + reasoning.getOrElse(a.reasoning) { reasoning.first() }) else a
@@ -209,7 +208,7 @@ internal fun DshAutomationRoute(
             app.applicationScope.launch { AutomationRunner.run(app, id, 0) }
         }
         override fun openSession(sessionId: String) = onOpenSession(sessionId)
-        override fun cancelAgentTask(id: String) { hostTasks.firstOrNull { it.id == id }?.let(ScheduleBridge::cancel) }
+        override fun cancelAgentTask(id: String) { hostTasks.firstOrNull { it.id == id }?.let(HostSchedules::cancel) }
     }
     val tasks = hostTasks.filter { it.status.isBlank() || it.status == "pending" || it.status == "scheduled" || it.status == "active" }.map { s ->
         com.deepseek.dsh.feature.settings.ui.AgentTask(s.id, s.title.ifBlank { s.prompt.take(60) }, scheduleText(context, s), s.sessionId.ifBlank { null })
@@ -237,7 +236,7 @@ private fun scheduleText(context: Context, s: com.deepseek.dsh.core.model.Schedu
  *
  * Список — `schedule/catalog`, отмена — `schedule/delete`.
  */
-object ScheduleBridge {
+object HostSchedules {
     /** 计划任务目录的实时数据源（取消后会自动跟着刷新）。 */
     var flow: kotlinx.coroutines.flow.StateFlow<List<ScheduleInfo>>? = null
         private set
@@ -272,5 +271,3 @@ object ScheduleBridge {
 }
 
 
-
-private fun androidx.compose.ui.Modifier.fillMaxWidthCompat() = this.then(androidx.compose.ui.Modifier.fillMaxWidth())

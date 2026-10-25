@@ -143,9 +143,6 @@ class PageStack<T : Any>(root: T) {
     fun resetTo(root: T) { forward = false; items.clear(); items.add(root) }
 }
 
-@Composable
-fun <T : Any> rememberPageStack(root: T): PageStack<T> = remember { PageStack(root) }
-
 /**
  * Экран со стеком страниц: шапка + тело с переходом между страницами.
  * Системное «Назад» сначала закрывает вложенную страницу, потом экран ([onClose]).

@@ -24,10 +24,6 @@ class DeepSeekOAuthManager {
     )
     val accountFlow: StateFlow<DeepSeekAccountState> = _accountFlow.asStateFlow()
 
-    fun buildOAuthAuthorizeUrl(theme: String = "light"): String {
-        return "https://platform.deepseek.com/dsh/authorize?theme=$theme"
-    }
-
     fun signOut() {
         // 退出账号不清除已配置的 API Key（官方两种凭据相互独立）。
         _accountFlow.value = DeepSeekAccountState(

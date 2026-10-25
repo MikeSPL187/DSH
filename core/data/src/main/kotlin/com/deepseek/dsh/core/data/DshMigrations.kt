@@ -4,12 +4,13 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
- * Room 显式迁移。新增实体字段时：提高 [DshDatabase] 的 version，在这里追加
- * `MIGRATION_n_(n+1)`，并提交 `core/data/schemas/` 下导出的新 schema。
+ * Явные миграции Room: при изменении сущностей поднять version в [DshDatabase], добавить
+ * `MIGRATION_n_(n+1)` сюда и закоммитить новую схему из `core/data/schemas/`.
+ * Данные пользователя (сессии, сообщения, настройки) миграции не теряют — см. DshMigrationTest.
  */
 object DshMigrations {
 
-    /** v2 → v3：通知开关与远程 Host 连接设置（commit 7610ba9）。 */
+    /** v2 → v3: переключатели уведомлений и подключение к удалённому Host. */
     val MIGRATION_2_3 = object : Migration(2, 3) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("ALTER TABLE `app_settings` ADD COLUMN `notificationsEnabled` INTEGER NOT NULL DEFAULT 1")
@@ -20,5 +21,12 @@ object DshMigrations {
         }
     }
 
-    val ALL: Array<Migration> = arrayOf(MIGRATION_2_3)
+    /** v3 → v4: удалены таблицы, которые приложение не читало (hosts, drafts, approvals, surface_catalog). */
+    val MIGRATION_3_4 = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            for (table in listOf("hosts", "drafts", "approvals", "surface_catalog")) db.execSQL("DROP TABLE IF EXISTS `$table`")
+        }
+    }
+
+    val ALL: Array<Migration> = arrayOf(MIGRATION_2_3, MIGRATION_3_4)
 }

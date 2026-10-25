@@ -5,12 +5,6 @@ import androidx.compose.runtime.setValue
 import java.io.File
 
 
-internal fun formatAmount(raw: String): String {
-    val clean = raw.removePrefix("¥").trim()
-    val num = clean.toDoubleOrNull() ?: return "¥$raw"
-    return String.format(java.util.Locale.US, "¥%.2f", num)
-}
-
 /**
  * Host 会话目录名：`--workspace-<escaped>--`，非 ASCII 码点转义为 `~XXXX`。
  * 与 Host 实际落盘规则一致，用于在 Android 侧预建会话目录。
@@ -27,12 +21,6 @@ internal fun workspaceSessionDirName(workspaceName: String): String {
         }
     }
     return "--workspace-$escaped--"
-}
-
-/** 从 workspace/create|rename 的 response 中取 workspaceId。 */
-internal fun parseWorkspaceId(raw: String?): String? {
-    if (raw.isNullOrBlank()) return null
-    return Regex("\"workspaceId\"\\s*:\\s*\"([^\"]+)\"").find(raw)?.groupValues?.getOrNull(1)
 }
 
 /**
@@ -60,3 +48,27 @@ internal fun openWebLink(context: android.content.Context, url: String) {
     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
     runCatching { context.startActivity(intent) }
 }
+
+/**
+ * Следить за папкой [path], пока [enabled]: создание, удаление, перемещение и запись файлов
+ * вызывают [onChange] (из фонового потока FileObserver — менять только снимковое состояние).
+ */
+@androidx.compose.runtime.Composable
+internal fun WatchDirectory(path: String, enabled: Boolean, onChange: () -> Unit) {
+    val latest = androidx.compose.runtime.rememberUpdatedState(onChange)
+    androidx.compose.runtime.DisposableEffect(path, enabled) {
+        val mask = android.os.FileObserver.CREATE or android.os.FileObserver.DELETE or
+            android.os.FileObserver.MOVED_FROM or android.os.FileObserver.MOVED_TO or
+            android.os.FileObserver.MOVE_SELF or android.os.FileObserver.ATTRIB or android.os.FileObserver.CLOSE_WRITE
+        val observer = if (!enabled) null else directoryObserver(java.io.File(path), mask) { latest.value() }.apply { startWatching() }
+        onDispose { observer?.stopWatching() }
+    }
+}
+
+private fun directoryObserver(dir: java.io.File, mask: Int, onEvent: () -> Unit): android.os.FileObserver =
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+        object : android.os.FileObserver(dir, mask) { override fun onEvent(event: Int, path: String?) = onEvent() }
+    } else {
+        @Suppress("DEPRECATION")
+        object : android.os.FileObserver(dir.absolutePath, mask) { override fun onEvent(event: Int, path: String?) = onEvent() }
+    }

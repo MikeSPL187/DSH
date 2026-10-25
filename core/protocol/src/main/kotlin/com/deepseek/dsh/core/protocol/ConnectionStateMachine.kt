@@ -59,9 +59,6 @@ class ConnectionStateMachine {
     }
 
     @Synchronized
-    fun getGeneration(): Long = currentGeneration
-
-    @Synchronized
     fun transitionTo(newState: ConnectionState): Boolean {
         // 丢弃旧 generation 的状态跃迁
         val targetGen = when (newState) {

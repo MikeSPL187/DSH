@@ -101,18 +101,6 @@ class RootfsManifestSource(
         // 就是「最新 DSH + 补丁」，App 不会再整文件覆盖，因此可以直接接受。
         manifest.androidPatched || RootfsNaming.isDshCompatible(manifest.runtimeVersion, expectedDsh)
 
-    /**
-     * 取得清单，失败时抛异常。
-     *
-     * 安装流程需要「装或不装」的确定答案，不能拿一个可能过期的兜底去下载。
-     * @param forceRefresh 跳过缓存。
-     * @return 清单。
-     * @throws IllegalStateException 当网络、缓存、兜底全部不可用时。
-     */
-    suspend fun requireManifest(forceRefresh: Boolean = true): RootfsManifest =
-        resolve(forceRefresh)?.manifest
-            ?: error(HostStrings.get(R.string.rt_manifest_offline, "Cannot fetch the rootfs manifest: no network and no local cache"))
-
     /** 清单缓存文件；与 rootfs 安装标记同目录，避免污染 rootfs 本身。 */
     private fun cacheFile(): File = File(layout.baseDir, "runtime/${RootfsNaming.MANIFEST_CACHE_FILE}")
 

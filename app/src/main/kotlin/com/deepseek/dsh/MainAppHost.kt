@@ -618,82 +618,23 @@ fun MainAppHost(
             runCatching { dshRepository.refreshHostSkills(ui.activeHostId, sid) }
         }
     }
-    // job/list 跟着当前会话走。
+    // Настройки Host (тема, пресет доступа, загрузка журналов, расписания) — как только Host доступен,
+    // а не после открытия сессии: экран «Настройки» нужен и без неё.
+    LaunchedEffect(ui.activeHostId, runtimeUi.localHostBound) {
+        if (!runtimeUi.localHostBound && ui.currentAppSettings.remoteHostUrl.isBlank()) return@LaunchedEffect
+        HostSchedules.wire(dshRepository, ui.activeHostId, scope)
+        com.deepseek.dsh.feature.settings.HostSessionLogUpload.wire(dshRepository, ui.activeHostId, scope)
+        com.deepseek.dsh.feature.settings.HostPermissionPreset.wire(dshRepository, ui.activeHostId, scope)
+        com.deepseek.dsh.feature.settings.HostTheme.wire(dshRepository, ui.activeHostId, scope)
+    }
+    // Фоновые задачи и поток открытой сессии (follow: снимок досылает историю и результаты).
     LaunchedEffect(ui.activeHostId, ui.selectedSessionId, runtimeUi.localHostBound) {
         val sid = ui.selectedSessionId
         // Host 未绑定时 baseUrl 还是占位 127.0.0.1:1，开流只会连接失败。
         val bound = runtimeUi.localHostBound || ui.currentAppSettings.remoteHostUrl.isNotBlank()
         if (sid != null && bound) {
             dshRepository.watchJobs(ui.activeHostId, sid)
-            // 打开会话即订阅 follow：snapshot 会补历史消息与产物声明。
             dshRepository.watchSession(ui.activeHostId, sid)
-            // 轨迹面板的帧来源（同样走桥，不增加 MainAppHost 参数）。
-            ScheduleBridge.wire(dshRepository, ui.activeHostId, scope)
-            com.deepseek.dsh.feature.chat.WorkflowRunsBridge.provider = {
-                ui.selectedSessionId?.let { dshRepository.workflowRuns(it) } ?: emptyList()
-            }
-            com.deepseek.dsh.feature.settings.SessionLogUploadBridge.wire(
-                dshRepository, ui.activeHostId, scope,
-            )
-            // 默认权限预设：选项与当前值都来自 Host（catalog + settings）。
-            com.deepseek.dsh.feature.settings.PermissionPresetBridge.wire(
-                dshRepository, ui.activeHostId, scope,
-            )
-            // 外观（深浅色）与字号来自 Host 的 ui-theme 设置。
-            com.deepseek.dsh.feature.settings.ThemeBridge.wire(
-                dshRepository, ui.activeHostId, scope,
-            )
-            // 会话日志导出（官方 /api/session.export）。
-            com.deepseek.dsh.feature.chat.MessageActionBridge.exportSession = {
-                ui.selectedSessionId?.let { session ->
-                    scope.launch { performSessionExport(context, dshRepository, ui.activeHostId, session) }
-                }
-            }
-            // 消息级操作：从某条消息分叉（session/fork + atSeq）。
-            com.deepseek.dsh.feature.chat.MessageActionBridge.forkAt = { seq ->
-                ui.selectedSessionId?.let { session ->
-                    scope.launch {
-                        val forked = dshRepository.forkSession(ui.activeHostId, session, seq)
-                        if (forked != null) {
-                            ui.selectedSessionId = forked
-                            runCatching { dshRepository.watchSession(ui.activeHostId, forked) }
-                        } else {
-                            android.widget.Toast.makeText(
-                                context,
-                                context.getString(R.string.session_fork_failed),
-                                android.widget.Toast.LENGTH_LONG,
-                            ).show()
-                        }
-                    }
-                }
-            }
-            // 用户消息图片：引用快照 + 字节加载能力桥接给 chat 模块。
-            com.deepseek.dsh.feature.chat.MessageMediaBridge.provider = {
-                dshRepository.messageImagesFlow.value
-            }
-            com.deepseek.dsh.feature.chat.MessageMediaBridge.load = { ref ->
-                ui.selectedSessionId?.let {
-                    dshRepository.loadAttachmentImage(ui.activeHostId, it, ref.attachmentId)
-                }
-            }
-            com.deepseek.dsh.feature.chat.SessionFramesBridge.provider = {
-                ui.selectedSessionId?.let { dshRepository.rawSessionFrames(it) } ?: emptyList()
-            }
-            // 消息反馈能力以桥接注入 chat 模块（避免给 MainAppHost 增加参数）。
-            com.deepseek.dsh.feature.chat.MessageFeedbackBridge.refresh = {
-                ui.selectedSessionId?.let { dshRepository.listMessageFeedback(ui.activeHostId, it) }
-                    ?: emptyMap()
-            }
-            com.deepseek.dsh.feature.chat.MessageFeedbackBridge.submit = { messageId, rating, note ->
-                ui.selectedSessionId?.let { session ->
-                    scope.launch {
-                        com.deepseek.dsh.feature.chat.MessageFeedbackBridge.items =
-                            dshRepository.submitMessageFeedback(
-                                ui.activeHostId, session, messageId, rating, note,
-                            )
-                    }
-                }
-            }
         }
         else dshRepository.unwatchJobs()
     }
@@ -830,7 +771,6 @@ fun MainAppHost(
 
     // 文件夹名保持固定（用于磁盘路径），界面上按当前语言显示。
     val defaultWorkspaceLabel = stringResource(R.string.workspace_default)
-    val activeWorkspaceCwd = "/workspace/${runtimeUi.activeWorkspaceName}"
     val currentWorkspace = androidx.compose.runtime.rememberUpdatedState(activeWorkspace)
     val chatSender = remember(dshRepository, runtimeManager) {
         ChatSender(context, scope, dshRepository, ui, runtimeUi, runtimeManager, pendingMessages, chatAttachments) { currentWorkspace.value }
@@ -1064,51 +1004,9 @@ fun MainAppHost(
         )
     }
 
-    // 文件页：展示工作区（Host 只能看到 Documents/DSH-Workpace），
-    // 手机其它位置的文件用系统 picker 选后复制进工作区做「中转」。
-    // Список файлов виден и на странице «Файлы», и во вкладке файлов правой панели чата.
-    // Раньше наблюдатель работал только для страницы, и панель показывала список,
-    // снятый при запуске: новые файлы (в т.ч. созданные агентом) там не появлялись.
-    val filesVisible = ui.activePage == ActivePage.FILES
-    DisposableEffect(filesVisible, ui.filesDir, runtimeUi.activeWorkspaceName) {
-        val watched = if (ui.activePage == ActivePage.FILES) activeWorkspaceFolderPath else ui.filesDir.absolutePath
-        val observer = if (filesVisible) {
-            object : android.os.FileObserver(
-                watched,
-                android.os.FileObserver.CREATE or
-                    android.os.FileObserver.DELETE or
-                    android.os.FileObserver.MOVED_FROM or
-                    android.os.FileObserver.MOVED_TO or
-                    android.os.FileObserver.MOVE_SELF or
-                    android.os.FileObserver.ATTRIB or
-                    android.os.FileObserver.CLOSE_WRITE,
-            ) {
-                override fun onEvent(event: Int, path: String?) {
-                    runtimeUi.filesRevision += 1
-                }
-            }.apply { startWatching() }
-        } else {
-            null
-        }
-        onDispose { observer?.stopWatching() }
-    }
-    // 公共存储走 FUSE，每个条目一次 stat；大目录在主线程列举会卡顿甚至 ANR。
-    // 放到 IO 线程，刷新期间保留上一份列表。
-    val files by androidx.compose.runtime.produceState(
-        initialValue = emptyList<com.deepseek.dsh.feature.files.FileItem>(),
-        filesVisible,
-        ui.filesDir,
-        runtimeUi.filesRevision,
-    ) {
-        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            // Служебная папка называется «默认工作区» на диске (на имя завязаны сессии Host);
-            // в списке показываем её локализованное название.
-            workspaceManager.listFiles(ui.filesDir).map { item ->
-                if (item.isDirectory && item.name == DEFAULT_WORKSPACE_DIR_NAME) item.copy(name = defaultWorkspaceLabel) else item
-            }
-        }
-    }
-    // 全文件选择器 → 复制进当前浏览目录（工作区内），Host 才能访问。
+    // Страница «Файлы» открыта: изменения в папке проекта (в том числе от агента) сразу видны.
+    WatchDirectory(activeWorkspaceFolderPath, enabled = ui.activePage == ActivePage.FILES) { runtimeUi.filesRevision += 1 }
+    // Импорт файлов с телефона в открытую папку проекта: Host видит только папки проектов.
     val filesImportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.OpenMultipleDocuments(),
     ) { uris: List<android.net.Uri> ->
@@ -1280,6 +1178,8 @@ fun MainAppHost(
         if (!terminalSupported && ui.activePage == ActivePage.TERMINAL) ui.activePage = ActivePage.CHAT
     }
 
+    val chatServices = remember(dshRepository) { AppChatServices(context, dshRepository, ui, scope) }
+    androidx.compose.runtime.CompositionLocalProvider(com.deepseek.dsh.feature.chat.LocalChatServices provides chatServices) {
     Box(modifier = Modifier.fillMaxSize()) {
         com.deepseek.dsh.core.designsystem.DshSheetScaffold(
             sheet = drawerUi.sheet,
@@ -1945,7 +1845,7 @@ fun MainAppHost(
                             projects = workspaceFolders.map { com.deepseek.dsh.feature.settings.ui.AutoProject(it.name, it.path) }
                                 .ifEmpty { listOf(com.deepseek.dsh.feature.settings.ui.AutoProject(activeWorkspace.name, activeWorkspace.absolutePath)) },
                             models = availableModelNames,
-                            hostTasks = ScheduleBridge.flow?.collectAsState()?.value.orEmpty(),
+                            hostTasks = HostSchedules.flow?.collectAsState()?.value.orEmpty(),
                             onOpenSession = { sid -> ui.selectedSessionId = sid; ui.activePage = ActivePage.CHAT },
                             onClose = { ui.activePage = ActivePage.CHAT },
                         )
@@ -2073,5 +1973,6 @@ fun MainAppHost(
     
         if (pluginPanesOpen) PluginPanesSheet(rightPanePluginTabs, rightPaneGuideEntries, onDismiss = { pluginPanesOpen = false })
 }
+    }
 
 }

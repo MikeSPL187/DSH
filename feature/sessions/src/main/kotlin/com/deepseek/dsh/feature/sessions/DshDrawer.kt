@@ -92,9 +92,6 @@ class DshDrawerState {
     fun close() { isOpen = false }
 }
 
-@Composable
-fun rememberDshDrawerState(): DshDrawerState = remember { DshDrawerState() }
-
 /**
  * «Выдвижение» меню: чат сдвигается на ширину меню (86 %), уменьшается до 0,92
  * и скругляется (30 dp); меню въезжает слева с проявлением. Свайп от левого края открывает,

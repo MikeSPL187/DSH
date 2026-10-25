@@ -127,16 +127,6 @@ class DshApplication : Application() {
         }
     }
 
-    fun unbindLocalHost() {
-        localHostPort = 0
-        localHostToken = null
-        defaultClient.updateBaseUrl("http://127.0.0.1:1")
-        dshRepository.bindBridge(
-            "http://127.0.0.1:1",
-            com.deepseek.dsh.core.bridge.BridgeRegistry("http://127.0.0.1:1", okHttpClient),
-        )
-    }
-
     val dshRepository: DshRepository by lazy {
         DshRepository(
             dao = database.dshDao(),

@@ -154,7 +154,6 @@ object DshTileColors {
     val orange = Color(0xFFD97706)
     val red = Color(0xFFC4323A)
     val gray = Color(0xFF6B7280)
-    val teal = Color(0xFF0E9AA7)
     val violet = Color(0xFFA855F7)
 }
 

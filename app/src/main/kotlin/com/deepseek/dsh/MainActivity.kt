@@ -93,7 +93,7 @@ class MainActivity : ComponentActivity() {
             val app = application as DshApplication
             // 深浅色跟随 Host 的 ui-theme 设置（同一账号与浏览器一致），
             // 未连接 Host 时回落到系统。
-            val effectiveDark = when (com.deepseek.dsh.feature.settings.ThemeBridge.preference) {
+            val effectiveDark = when (com.deepseek.dsh.feature.settings.HostTheme.preference) {
                 "dark" -> true
                 "light" -> false
                 else -> androidx.compose.foundation.isSystemInDarkTheme()
@@ -112,7 +112,7 @@ class MainActivity : ComponentActivity() {
                     com.deepseek.dsh.plugin.nativehost.NativeHost.LocalHost provides nativeHost,
                     com.deepseek.dsh.plugin.nativehost.NativeHost.LocalTheme provides nativeTheme,
                     com.deepseek.dsh.core.designsystem.LocalConversationFontSize provides
-                        (com.deepseek.dsh.feature.settings.ThemeBridge.fontSize ?: 16),
+                        (com.deepseek.dsh.feature.settings.HostTheme.fontSize ?: 16),
                     // «Настройки → Оформление»: размер шрифта кода и вибрация при действиях.
                     com.deepseek.dsh.core.designsystem.LocalCodeFontSize provides com.deepseek.dsh.feature.settings.logic.DshUserPrefs.codeSize,
                     androidx.compose.ui.platform.LocalHapticFeedback provides

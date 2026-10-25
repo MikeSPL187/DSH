@@ -53,6 +53,11 @@ class DshMigrationTest {
             val dao = db.dshDao()
             val messages = dao.getMessages("local-host", "s1").first()
             assertEquals(listOf("Привет"), messages.map { it.contentJson })
+            // v3 → v4: таблицы, которые приложение не читало, удалены.
+            val tables = db.openHelper.readableDatabase.query("SELECT name FROM sqlite_master WHERE type='table'").use { c ->
+                generateSequence { if (c.moveToNext()) c.getString(0) else null }.toList()
+            }
+            assertTrue(tables.none { it in setOf("hosts", "drafts", "approvals", "surface_catalog") })
             val settings = dao.getAppSettings().first()
             assertNotNull(settings)
             assertEquals(7, settings!!.idleStopMinutes)

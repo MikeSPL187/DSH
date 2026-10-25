@@ -675,9 +675,6 @@ class DshRepository(
         return result
     }
 
-    suspend fun workspaceCreate(hostId: String, path: String): Result<String> =
-        rpcRaw(hostId, "workspace/create", "{\"request\":{\"path\":\"${path.replace("\"", "\\\"")}\"}}")
-
     /** 官方 `workspace/insertBefore`：把工作区移动到某个工作区之前（null = 末尾）。 */
     suspend fun moveWorkspace(
         hostId: String,
@@ -716,12 +713,6 @@ class DshRepository(
             "{\"request\":{\"workspaceId\":\"${workspaceId.replace("\"", "\\\"")}\",\"title\":\"${title.replace("\"", "\\\"")}\"}}"
         )
 
-    suspend fun workspaceDelete(hostId: String, workspaceId: String): Result<String> =
-        rpcRaw(
-            hostId,
-            "workspace/delete",
-            "{\"request\":{\"workspaceId\":\"${workspaceId.replace("\"", "\\\"")}\"}}"
-        )
     suspend fun rpcRaw(hostId: String, method: String, argsJson: String): Result<String> =
         when (val res = client.rpcRaw(hostId, method, argsJson)) {
             is RemoteResult.Success -> Result.success(res.data)
@@ -889,23 +880,7 @@ class DshRepository(
         )
     }
 
-    /** 官方 `terminal/rename`：改终端标题。 */
-    suspend fun renameTerminal(
-        hostId: String,
-        sessionId: String,
-        terminalId: String,
-        title: String,
-    ): Boolean {
-        val args = buildJsonObject {
-            put("agentId", sessionId)
-            put("id", terminalId)
-            put("title", title)
-        }
-        return rpcRaw(hostId, "terminal/rename", args.toString())
-            .getOrNull()?.contains("\"ok\":true") == true
-    }
-
-    /** 官方 `commands/list` 的斜杠命令。 */    /** 官方 `commands/list` 的斜杠命令。 */
+    /** Слэш-команды Host (`commands/list`). */
     private val _hostCommandsFlow = MutableStateFlow<List<com.deepseek.dsh.core.model.HostCommandInfo>>(emptyList())
     val hostCommandsFlow: StateFlow<List<com.deepseek.dsh.core.model.HostCommandInfo>> =
         _hostCommandsFlow.asStateFlow()
@@ -969,24 +944,13 @@ class DshRepository(
         _messageFeedbackFlow.asStateFlow()
 
     /**
-     * 应用一次反馈点击：rating 为 null 时删除现有条目，否则写入/更新。
-     *
-     * 收在数据层是为了让 Compose 侧的 lambda 保持很小 —— MainAppHost 是超长
-     * composable，新增内联逻辑会触发 DEX 方法体校验失败（VerifyError）。
+     * Оценка ответа: текущую версию записи берём у Host, затем put/delete,
+     * обновлённый список публикуем в [messageFeedbackFlow]. [rating] null — снять оценку.
      */
-    /** 提交一次反馈点击：自己查出当前 version 再 put/delete，宿主只传点击语义。 */
-    suspend fun submitMessageFeedback(
-        hostId: String,
-        sessionId: String,
-        messageId: String,
-        rating: String?,
-        note: String?,
-    ): Map<String, com.deepseek.dsh.core.model.MessageFeedbackInfo> {
+    suspend fun rateMessage(hostId: String, sessionId: String, messageId: String, rating: String?, note: String?) {
         val existing = listMessageFeedback(hostId, sessionId)[messageId]
-        applyMessageFeedback(
-            hostId, sessionId, messageId, rating, note, existing?.version,
-        )
-        return listMessageFeedback(hostId, sessionId)
+        applyMessageFeedback(hostId, sessionId, messageId, rating, note, existing?.version)
+        _messageFeedbackFlow.value = listMessageFeedback(hostId, sessionId)
     }
 
     suspend fun applyMessageFeedback(
@@ -1377,17 +1341,6 @@ class DshRepository(
         return rpcRaw(hostId, "pluginMarket/search", args.toString()).mapCatching { raw ->
             parseMarketSearch(remoteValueOrThrow(raw))
         }
-    }
-
-    /** 覆盖式保存索引源列表。 */
-    suspend fun marketSetIndexes(hostId: String, urls: List<String>): Result<Boolean> {
-        val args = buildJsonObject {
-            put(
-                "urls",
-                kotlinx.serialization.json.buildJsonArray { urls.forEach { add(JsonPrimitive(it)) } },
-            )
-        }
-        return rpcRaw(hostId, "pluginMarket/setIndexes", args.toString()).map { true }
     }
 
     // ── 语音输入（speech Remote）─────────────────────────────────────────────
@@ -1796,7 +1749,7 @@ class DshRepository(
             ?.let { (it["revision"] as? JsonPrimitive)?.contentOrNull?.toIntOrNull() }
     }
 
-    /** 当前会话里的 workflow 运行（官方 tool-workflow 事件聚合）。 */
+    /** Запуски workflow по сессиям (собраны из событий tool-workflow), по порядку создания. */
     private val _workflowRunsFlow =
         MutableStateFlow<Map<String, List<com.deepseek.dsh.core.model.WorkflowRunInfo>>>(
             emptyMap(),
@@ -1805,9 +1758,6 @@ class DshRepository(
         StateFlow<Map<String, List<com.deepseek.dsh.core.model.WorkflowRunInfo>>> =
         _workflowRunsFlow.asStateFlow()
 
-    /** 某个会话的 workflow 运行列表（按创建顺序）。 */
-    fun workflowRuns(sessionId: String): List<com.deepseek.dsh.core.model.WorkflowRunInfo> =
-        _workflowRunsFlow.value[sessionId].orEmpty()
 
     /** 官方 `schedule/catalog`：Host 上所有计划任务（含会话绑定与状态）。 */
     private val _scheduleCatalogFlow =
@@ -2064,13 +2014,6 @@ class DshRepository(
                 // Read from remote namespaces if present
             }
             is RemoteResult.Failure -> {}
-        }
-    }
-
-    suspend fun updateRemoteSetting(hostId: String, ns: String, patchJson: String): Boolean {
-        return when (val res = client.updateRemoteSettings(hostId, ns, patchJson)) {
-            is RemoteResult.Success -> res.data
-            is RemoteResult.Failure -> false
         }
     }
 

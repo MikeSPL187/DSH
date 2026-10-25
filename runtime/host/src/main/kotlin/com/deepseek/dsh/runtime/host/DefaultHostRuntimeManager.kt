@@ -20,7 +20,6 @@ class DefaultHostRuntimeManager(
     private val context: Context,
     private val layout: RuntimeLayout,
     private val runner: HostProcessRunner = HostProcessRunner(),
-    private val prober: ReadinessProber = ReadinessProber()
 ) : HostRuntimeManager {
 
     private var bridgeServer: BridgeServer? = null

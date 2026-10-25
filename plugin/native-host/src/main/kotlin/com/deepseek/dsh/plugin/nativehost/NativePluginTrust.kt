@@ -78,11 +78,6 @@ class NativePluginTrustStore(context: Context) {
             .apply()
     }
 
-    /** 撤销信任：下次扫描时该伴侣回到 UNTRUSTED。 */
-    fun revoke(pluginId: String) {
-        prefs.edit().remove(pluginId).apply()
-    }
-
     private companion object {
         const val PREFS = "dsh_native_plugin_trust"
     }

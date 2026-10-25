@@ -19,8 +19,8 @@ import com.deepseek.dsh.core.model.HostDescriptor
 import com.deepseek.dsh.feature.runtime.KeyCheck
 import com.deepseek.dsh.feature.runtime.OnboardingProvider
 import com.deepseek.dsh.feature.settings.ModelProviderUi
-import com.deepseek.dsh.feature.settings.PermissionPresetBridge
-import com.deepseek.dsh.feature.settings.ThemeBridge
+import com.deepseek.dsh.feature.settings.HostPermissionPreset
+import com.deepseek.dsh.feature.settings.HostTheme
 import com.deepseek.dsh.feature.settings.UpdateCenter
 import com.deepseek.dsh.feature.settings.logic.ApiKeyVault
 import com.deepseek.dsh.feature.settings.logic.BalanceLedger
@@ -122,8 +122,8 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
             onProvidersRaw = { d.runtimeUi.modelProvidersRaw = it },
             onCredentialsRaw = { d.runtimeUi.modelCredentialsRaw = it },
         )
-        PermissionPresetBridge.refresh()
-        ThemeBridge.refresh()
+        HostPermissionPreset.refresh()
+        HostTheme.refresh()
     }
     val custom = providers.filter { it.configured && !isDeepSeek(it) }
 
@@ -219,7 +219,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         autoApprove = approveState(),
         clipboard = clipboard,
         workspaceShared = sharedWs,
-        theme = ThemeBridge.preference,
+        theme = HostTheme.preference,
         language = language.takeIf { it in setOf("ru", "en") } ?: Locale.getDefault().language,
         codeSize = DshUserPrefs.codeSize,
         haptics = DshUserPrefs.haptics,
@@ -323,16 +323,16 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
             return true
         }
 
-        override fun setTheme(value: String) { ThemeBridge.setPreference(value) }
+        override fun setTheme(value: String) { HostTheme.setPreference(value) }
         override fun setLanguage(tag: String) { setLanguage(tag) }
         override fun setCodeSize(size: Int) { DshUserPrefs.codeSize = size }
         override fun setHaptics(on: Boolean) { DshUserPrefs.haptics = on }
 
         override fun setAutoApprove(auto: Boolean) {
-            val options = PermissionPresetBridge.options.map { it.value }
+            val options = HostPermissionPreset.options.map { it.value }
             val pick = if (auto) options.firstOrNull { "workspace" in it || ("write" in it && "danger" !in it) }
             else options.firstOrNull { "read" in it || "ask" in it || "default" in it || "untrusted" in it }
-            if (pick != null) PermissionPresetBridge.set(pick)
+            if (pick != null) HostPermissionPreset.set(pick)
         }
 
         override fun setClipboard(on: Boolean) { BridgePolicy.setClipboardReadAllowed(context, on); clipboard = on }
@@ -430,8 +430,8 @@ private fun isDeepSeek(p: ModelProviderUi) = p.id == "deepseek-official" || p.id
 
 /** Правило одобрения из пресетов Host: true — правки в папке без вопросов. */
 private fun approveState(): Boolean? {
-    val current = PermissionPresetBridge.current ?: return null
-    if (PermissionPresetBridge.options.isEmpty()) return null
+    val current = HostPermissionPreset.current ?: return null
+    if (HostPermissionPreset.options.isEmpty()) return null
     return "workspace" in current || ("write" in current && "danger" !in current)
 }
 

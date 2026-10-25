@@ -37,20 +37,6 @@ object ClaudeCodeModsPluginUi {
     /** 启用后才会出现横幅的 bundle（Claude Code 子智能体）。 */
     const val BUNDLE = "@deepseek-ai/dsh-subagent-claude-code"
 
-    /** 官方 `data-color` 的取值 → 主题色。 */
-    private fun colorOf(name: String?): Color? = when (name) {
-        "yellow" -> Color(0xFFB58900)
-        "red" -> Color(0xFFDC322F)
-        "green" -> Color(0xFF859900)
-        "cyan" -> Color(0xFF2AA198)
-        "blue" -> Color(0xFF268BD2)
-        "magenta" -> Color(0xFFD33682)
-        "gray", "grey" -> Color(0xFF93A1A1)
-        "white" -> Color(0xFFFDF6E3)
-        "black" -> Color(0xFF002B36)
-        else -> null
-    }
-
     /**
      * 画一条横幅。
      *

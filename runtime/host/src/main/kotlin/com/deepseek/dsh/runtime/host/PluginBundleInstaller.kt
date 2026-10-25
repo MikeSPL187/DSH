@@ -202,32 +202,6 @@ class PluginBundleInstaller(
     }
 
     /**
-     * 持久化一条 Loader 行的启停状态。
-     *
-     * Host 的 `setPluginEnabled` 把 `disabled` 覆盖写进 profile patch；而这台设备
-     * 每次启动都会重建 profile patch，覆盖会丢。这里再写一份到 web-app patch，
-     * 重启后仍然生效；开启时删除这份覆盖。
-     *
-     * @param patchId Loader 行的 patch id（entryId 去掉 `include:` 前缀）。
-     * @param enabled 目标状态。
-     */
-    suspend fun setRowEnabled(patchId: String, enabled: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
-        runCatching {
-            val patchFile = webAppPatchFile()
-            if (!patchFile.isFile) return@runCatching
-            val marker = "# android-row-override: $patchId"
-            var text = patchFile.readText()
-            if (text.contains(marker)) {
-                text = removeMarkerBlock(text, marker)
-            }
-            if (!enabled) {
-                text = text.trimEnd() + "\n\n$marker\n- id: $patchId\n  disabled: true\n"
-            }
-            writeTextAtomically(patchFile, text)
-        }
-    }
-
-    /**
      * 摘掉 web-app patch 里 `# android-installed: <包名>` 的整块挂载。
      *
      * 旧实现只删 `name:` 行、留一个 `- id:` 占位；Loader 仍会创建这一行，

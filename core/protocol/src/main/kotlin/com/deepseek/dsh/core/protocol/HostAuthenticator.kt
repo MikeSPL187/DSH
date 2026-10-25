@@ -43,9 +43,6 @@ class HostCookieJar : CookieJar {
         cookieStore.remove("$host:$port")
     }
 
-    fun getCookies(host: String, port: Int): List<Cookie> {
-        return cookieStore["$host:$port"]?.toList() ?: emptyList()
-    }
 }
 
 /**

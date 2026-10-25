@@ -28,10 +28,6 @@ internal class VoiceRecorder {
     /** 录音电平回调（0..1 的 RMS，用于界面电平条）。 */
     var onLevel: ((Float) -> Unit)? = null
 
-    /** 是否正在录音。 */
-    val isRecording: Boolean
-        get() = running
-
     /**
      * 开始录音。
      * @returns 是否成功启动（没有麦克风或被占用时为 false）。

@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
  * `settings/describe`，写入走 `settings/mutate`（带 revision 的 CAS）。宿主只在
  * 会话 effect 里调用一次 [wire]，设置页直接读写这里的状态。
  */
-object SessionLogUploadBridge {
+object HostSessionLogUpload {
     /** null 表示还没读到（不渲染开关，避免闪一下默认值）。 */
     var enabled by mutableStateOf<Boolean?>(null)
         private set

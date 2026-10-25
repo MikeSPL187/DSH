@@ -44,7 +44,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.deepseek.dsh.core.designsystem.DshPanelDefaults
 import com.deepseek.dsh.core.designsystem.DshSheetPanel
 import com.deepseek.dsh.core.designsystem.dshPanelColors
 import com.deepseek.dsh.core.model.SurfaceItem
@@ -251,7 +250,7 @@ private fun PanelIconSeat(onClick: () -> Unit, content: @Composable () -> Unit) 
     val pressed by interaction.collectIsPressedAsState()
     Box(
         modifier = Modifier
-            .size(DshPanelDefaults.DialogCloseSize)
+            .size(40.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(if (pressed) colors.interactiveHover else Color.Transparent)
             .clickable(

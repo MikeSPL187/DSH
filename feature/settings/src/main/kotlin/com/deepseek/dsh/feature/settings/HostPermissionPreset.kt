@@ -27,7 +27,7 @@ data class PermissionPresetOption(val value: String, val name: String)
  * 这样权限模式列表不再由客户端写死，Host 装了新的权限预设（例如 auto review）
  * 时设置页直接出现，无需改 APK。
  */
-object PermissionPresetBridge {
+object HostPermissionPreset {
     /** Host 提供的全部预设；空表示还没读到。 */
     var options by mutableStateOf<List<PermissionPresetOption>>(emptyList())
         private set

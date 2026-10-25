@@ -57,7 +57,7 @@ class PluginHostApiImpl(
     override fun currentTheme(): PluginTheme = themeProvider()
 
     override fun requestCapability(capability: String): Boolean =
-        capability in declaredCapabilities && capabilitySwitches.isEnabled(capability)
+        capability in declaredCapabilities
 
     override fun storage(): PluginStorage {
         requireCapability(PluginCapabilities.STORAGE)
@@ -69,17 +69,5 @@ class PluginHostApiImpl(
         check(capability in declaredCapabilities) {
             com.deepseek.dsh.core.model.Tr.t("Plugin $pluginId did not declare capability $capability", "Плагин $pluginId не объявил возможность $capability")
         }
-    }
-
-    private val capabilitySwitches = CapabilitySwitches
-
-    /** 能力总开关（用户可在设置里逐项或全部关掉）。 */
-    object CapabilitySwitches {
-        private val disabled = java.util.Collections.synchronizedSet(mutableSetOf<String>())
-        fun isEnabled(capability: String): Boolean = capability !in disabled
-        fun setEnabled(capability: String, enabled: Boolean) {
-            if (enabled) disabled.remove(capability) else disabled.add(capability)
-        }
-        fun disableAll() { /* 由 App 在「禁用全部插件 UI」时清空注册表 */ }
     }
 }

@@ -48,6 +48,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,14 +70,6 @@ import com.deepseek.dsh.core.model.MessageRole
 import com.deepseek.dsh.core.model.ComposerStats
 import com.deepseek.dsh.feature.chat.R
 
-/** 推理等级档位（对齐 ui-model-selection 的 effort 目录）。 */
-/** 官方客户端模型显示名：DeepSeek-V41-Flash -> DeepSeek-V4.1-Flash。 */
-private fun displayModelName(name: String): String {
-    val match = Regex("""^DeepSeek-V(\d{2,})([- ].*)?$""").find(name) ?: return name
-    val digits = match.groupValues[1]
-    val rest = match.groupValues[2]
-    return "DeepSeek-V${digits.dropLast(1)}.${digits.last()}$rest"
-}
 data class ReasoningOption(val id: String, val label: String, val description: String? = null)
 
 enum class ReasoningLevel(val labelResId: Int) {
@@ -324,14 +317,14 @@ fun ModernChatScreen(
     var agentPresetMenuOpen by remember { mutableStateOf(false) }
     var pendingConfirm by remember { mutableStateOf<PermissionPreset?>(null) }
 
-    // 消息反馈：宿主通过 MessageFeedbackBridge 注入拉取函数，ChatScreen 自己维护展示。
+    val services = LocalChatServices.current
+    val feedbackFlow = services.feedback
+    val feedback by (feedbackFlow ?: remember { kotlinx.coroutines.flow.MutableStateFlow(emptyMap<String, com.deepseek.dsh.core.model.MessageFeedbackInfo>()) }).collectAsState()
+    val messageImages by services.images.collectAsState()
+    val workflowRuns by services.workflowRuns.collectAsState(initial = emptyList())
+    // Оценки перечитываются, когда в сессии появились новые сообщения.
     LaunchedEffect(messages.size, messages.firstOrNull()?.sessionId) {
-        val refresh = MessageFeedbackBridge.refresh
-        if (refresh != null && messages.isNotEmpty()) {
-            MessageFeedbackBridge.items = refresh()
-        }
-        MessageMediaBridge.items = MessageMediaBridge.provider?.invoke() ?: emptyMap()
-        WorkflowRunsBridge.items = WorkflowRunsBridge.provider?.invoke() ?: emptyList()
+        if (messages.isNotEmpty()) services.refreshFeedback()
     }
     val listState = rememberLazyListState()
     val collapsedTurns = remember { androidx.compose.runtime.mutableStateMapOf<String, Boolean>() }
@@ -546,7 +539,7 @@ fun ModernChatScreen(
                 fun command(token: String) {
                     commandSheetOpen = false
                     // «Экспорт» — локально: скачать ZIP сессии.
-                    if (token == "export") { MessageActionBridge.exportSession?.invoke(); return }
+                    if (token == "export") { services.exportSession(); return }
                     // Текстовые команды — чипом в поле; при отправке уходят как /goal и т. п.
                     if (commandLabelRes(token) != null) activeCommandToken = token else append("/$token ")
                 }
@@ -608,7 +601,7 @@ fun ModernChatScreen(
                             .setPrimaryClip(android.content.ClipData.newPlainText("message", text))
                         android.widget.Toast.makeText(ctx, copied, android.widget.Toast.LENGTH_SHORT).show()
                     },
-                    onFork = { seq -> MessageActionBridge.forkAt?.invoke(seq) },
+                    onFork = services::forkAt,
                     onDismiss = { actionMessage = null },
                 )
             }
@@ -710,7 +703,7 @@ fun ModernChatScreen(
                                 when (m.role) {
                                     MessageRole.USER -> {
                                         // Картинки пользователя — над пузырём.
-                                        val refs = MessageMediaBridge.items[m.messageId]
+                                        val refs = messageImages[m.messageId]
                                         if (!refs.isNullOrEmpty()) MessageImagesRow(images = refs, modifier = Modifier.padding(start = 16.dp))
                                         UserBubble(m.content, Modifier.padding(top = 6.dp, bottom = 22.dp))
                                     }
@@ -749,15 +742,14 @@ fun ModernChatScreen(
                                                 },
                                             ) {
                                                 // Оценка ответа (плагин message-feedback) — теми же кнопками.
-                                                if (MessageFeedbackBridge.submit != null) MessageFeedbackActions(
-                                                    current = MessageFeedbackBridge.items[m.messageId],
+                                                if (feedbackFlow != null) MessageFeedbackActions(
+                                                    current = feedback[m.messageId],
                                                     onRating = { rating ->
-                                                        val existing = MessageFeedbackBridge.items[m.messageId]
-                                                        MessageFeedbackBridge.submit?.invoke(m.messageId, if (existing?.rating == rating) null else rating, existing?.note)
+                                                        val existing = feedback[m.messageId]
+                                                        services.rate(m.messageId, if (existing?.rating == rating) null else rating, existing?.note)
                                                     },
                                                     onNote = { note ->
-                                                        val existing = MessageFeedbackBridge.items[m.messageId]
-                                                        MessageFeedbackBridge.submit?.invoke(m.messageId, existing?.rating ?: "positive", note)
+                                                        services.rate(m.messageId, feedback[m.messageId]?.rating ?: "positive", note)
                                                     },
                                                 )
                                             }
@@ -800,7 +792,7 @@ fun ModernChatScreen(
                         )
                     }
                 }
-                if (WorkflowRunsBridge.items.isNotEmpty()) {
+                if (workflowRuns.isNotEmpty()) {
                     item(key = "workflow_runs") {
                         Column(
                             modifier = Modifier
@@ -808,7 +800,7 @@ fun ModernChatScreen(
                                 .padding(horizontal = 16.dp, vertical = 6.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            WorkflowRunsBridge.items.forEach { run ->
+                            workflowRuns.forEach { run ->
                                 WorkflowRunCard(run = run)
                             }
                         }
@@ -889,7 +881,7 @@ fun ModernChatScreen(
         }
         // Экран «Запрос агента» поверх чата, въезжает справа.
         androidx.compose.animation.AnimatedVisibility(
-            visible = dangerOpen && destructive && pendingApproval != null,
+            visible = dangerOpen && destructive,
             enter = slideInHorizontally(com.deepseek.dsh.core.designsystem.DshMotion.smooth()) { it },
             exit = slideOutHorizontally(com.deepseek.dsh.core.designsystem.DshMotion.smooth()) { it },
         ) {

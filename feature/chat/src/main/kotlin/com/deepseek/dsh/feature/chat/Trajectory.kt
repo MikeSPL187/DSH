@@ -28,16 +28,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
-/**
- * 会话原始帧的提供者（宿主注入）。
- *
- * 与消息反馈一样用桥接：轨迹面板需要的帧来自 RemoteClient 的环形缓存，宿主只在
- * 已有的会话 effect 里赋值，不再扩大 `MainAppHost`。
- */
-object SessionFramesBridge {
-    var provider: (() -> List<SessionRawFrame>)? = null
-}
-
 /** 一条轨迹记录（对齐官方 ui-trajectory 的一行）。 */
 data class TrajectoryRow(
     val seq: Long,
@@ -124,7 +114,8 @@ private fun trajectoryRow(event: JsonObject): TrajectoryRow? {
 @Composable
 fun androidx.compose.foundation.layout.ColumnScope.TrajectoryBody() {
     val c = com.deepseek.dsh.core.designsystem.Dsh.colors
-    val frames = remember { SessionFramesBridge.provider?.invoke().orEmpty() }
+    val services = LocalChatServices.current
+    val frames = remember { services.sessionFrames() }
     val rows = remember(frames) { buildTrajectory(frames).takeLast(200) }
     var expandedSeq by remember { mutableStateOf<Long?>(null) }
     com.deepseek.dsh.core.designsystem.DshSheetTitle(stringResource(R.string.trajectory_title))

@@ -24,7 +24,7 @@ import kotlinx.serialization.json.put
  * 这样手机与浏览器看同一个账号时显示一致。App 读这里的状态渲染主题，选择写回
  * Host；bridge 不可用时回落到跟随系统。
  */
-object ThemeBridge {
+object HostTheme {
     /** `light` / `dark` / `system`；默认跟随系统。 */
     var preference by mutableStateOf("system")
         private set

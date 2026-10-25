@@ -9,15 +9,6 @@ enum class HostKind {
     REMOTE
 }
 
-@Serializable
-enum class HostStatus {
-    STOPPED,
-    STARTING,
-    READY,
-    DEGRADED,
-    ERROR
-}
-
 /**
  * v4.0 设计文档 §11.1: Host 抽象模型
  */
@@ -61,19 +52,6 @@ data class PairPayload(
     val fp: String,
     val pair: String,
     val exp: Long = 0L
-)
-
-@Serializable
-data class HostInfo(
-    val id: String,
-    val name: String,
-    val kind: HostKind,
-    val baseUrl: String,
-    val token: String? = null,
-    val status: HostStatus = HostStatus.STOPPED,
-    val port: Int? = null,
-    val pid: Long? = null,
-    val lastSeenAt: Long = System.currentTimeMillis()
 )
 
 @Serializable
@@ -533,16 +511,6 @@ data class PluginSlotEntry(
     fun resolvedComponentId(): String? =
         componentId ?: module?.let { "$it#${identity ?: slot}" }
 }
-
-/**
- * 这个入口是否由**第三方**插件声明。
- *
- * 官方 `@deepseek-ai/…` 包向同一批浏览器槽位注册，但 App 对这些位置已有自己的
- * 原生实现（输入区、设置分区、模型卡）。只有第三方贡献需要按插件树现画，
- * 否则用户会看到两份同样的界面。
- */
-val PluginSlotEntry.isThirdPartyPlugin: Boolean
-    get() = module != null && !module.startsWith("@deepseek-ai/")
 
 /** 官方 inbox 投影里一条待发消息（下一轮队列）。 */
 data class QueuedMessageInfo(

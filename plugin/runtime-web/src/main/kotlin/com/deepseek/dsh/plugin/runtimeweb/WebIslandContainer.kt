@@ -83,7 +83,6 @@ class WebIslandContainer(
             allowContentAccess = false
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             domStorageEnabled = true
-            databaseEnabled = false
             cacheMode = WebSettings.LOAD_DEFAULT
             // Web 客户端按 CSS 视口渲染；默认的宽视口会让手机看到桌面布局。
             useWideViewPort = false
