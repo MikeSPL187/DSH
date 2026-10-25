@@ -41,8 +41,6 @@ import com.deepseek.dsh.core.model.MessageRole
 import com.deepseek.dsh.feature.chat.ModernChatScreen
 import com.deepseek.dsh.feature.files.FilesScreen
 import com.deepseek.dsh.feature.files.WorkspaceManager
-import com.deepseek.dsh.feature.sessions.ProjectSheetBody
-import com.deepseek.dsh.feature.sessions.SessionSheetBody
 import com.deepseek.dsh.plugin.surface.PluginOverlayContainer
 import com.deepseek.dsh.plugin.surface.SurfaceCatalogStore
 import com.deepseek.dsh.plugin.surface.SurfaceSheet
@@ -79,10 +77,8 @@ fun MainAppHost(
         initialRootfsProgress = 0f to context.getString(R.string.runtime_checking),
     )
 
-    val drawerState = com.deepseek.dsh.feature.sessions.rememberDshDrawerState()
-    var drawerSheet by remember { mutableStateOf<(@Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit)?>(null) }
-    var drawerQuery by remember { mutableStateOf("") }
-    var drawerShowArchived by remember { mutableStateOf(false) }
+    val drawerUi = remember { AppDrawerState() }
+    val drawerState = drawerUi.drawer
     val scope = rememberCoroutineScope()
 
     // 插件详情页打开时，顶栏返回/系统返回先退回插件列表，而不是直接离开插件页。
@@ -1640,160 +1636,24 @@ fun MainAppHost(
 
     Box(modifier = Modifier.fillMaxSize()) {
         com.deepseek.dsh.core.designsystem.DshSheetScaffold(
-            sheet = drawerSheet,
-            onDismiss = { drawerSheet = null },
+            sheet = drawerUi.sheet,
+            onDismiss = { drawerUi.sheet = null },
         ) {
         com.deepseek.dsh.feature.sessions.DshPushDrawer(
             state = drawerState,
             drawer = {
-                val currentFolder = workspaceFolders.firstOrNull { it.name == runtimeUi.activeWorkspaceName } ?: workspaceFolders.firstOrNull()
-                val waitingIds = pendingApprovalWaterfalls.mapNotNull { it.agentId }.toSet()
-                val drawerSessions = currentFolder?.sessions.orEmpty().map { s ->
-                    com.deepseek.dsh.feature.sessions.DrawerSession(
-                        id = s.sessionId,
-                        title = s.title.ifBlank { context.getString(R.string.drawer_untitled_session) },
-                        time = if (s.isRunning) context.getString(R.string.drawer_now) else com.deepseek.dsh.feature.sessions.drawerTime(s.updatedAt),
-                        preview = sessionPreviews[s.sessionId],
-                        updatedAt = s.updatedAt,
-                        running = s.isRunning,
-                        waiting = s.sessionId in waitingIds,
-                        pinned = s.pinned,
-                        archived = s.archived,
-                    )
-                }
-                fun go(page: ActivePage) {
-                    drawerState.close()
-                    ui.activePage = page
-                }
-                val projectName = currentFolder?.name?.let { if (it == DEFAULT_WORKSPACE_DIR_NAME) defaultWorkspaceLabel else it }
-                    ?: runtimeUi.activeWorkspaceName.ifBlank { defaultWorkspaceLabel }
-                com.deepseek.dsh.feature.sessions.DshDrawerContent(
+                AppDrawer(
+                    state = drawerUi, ui = ui, runtimeUi = runtimeUi, repository = dshRepository, scope = scope,
+                    folders = workspaceFolders, hostWorkspaces = hostWorkspaces, sessions = sessions,
+                    waitingIds = pendingApprovalWaterfalls.mapNotNull { it.agentId }.toSet(),
+                    previews = sessionPreviews,
                     hostLive = status.phase == RuntimePhase.RUNNING || ui.activeHostId != com.deepseek.dsh.core.model.HostDescriptor.Local().id,
-                    project = projectName,
-                    projectLetter = projectName.take(1).uppercase(),
-                    onProject = {
-                        drawerSheet = {
-                            ProjectSheetBody(
-                                projects = workspaceFolders,
-                                selectedName = currentFolder?.name.orEmpty(),
-                                displayName = { name -> if (name == DEFAULT_WORKSPACE_DIR_NAME) defaultWorkspaceLabel else name },
-                                onSelect = { folder -> runtimeUi.activeWorkspaceName = folder.name; drawerSheet = null },
-                                onAdd = {
-                                    drawerSheet = null
-                                    runtimeUi.newWorkspaceName = ""
-                                    runtimeUi.showAddWorkspaceDialog = true
-                                },
-                                onRename = { folder ->
-                                    drawerSheet = null
-                                    runtimeUi.renameWorkspaceFolder = folder
-                                    runtimeUi.renameWorkspaceName = folder.name
-                                },
-                                onMove = { folder, delta ->
-                                    val index = hostWorkspaces.indexOfFirst { it.path == folder.path }
-                                    val targetIndex = index + delta
-                                    if (index >= 0 && delta != 0 && targetIndex in hostWorkspaces.indices) {
-                                        // Вниз — перед элементом после цели, вверх — перед целью; в конец — без beforeWorkspaceId.
-                                        val beforeId = hostWorkspaces.getOrNull(if (delta > 0) targetIndex + 1 else targetIndex)?.id
-                                        scope.launch { dshRepository.moveWorkspace(ui.activeHostId, hostWorkspaces[index].id, beforeId) }
-                                    }
-                                    drawerSheet = null
-                                },
-                                onDelete = { folder ->
-                                    drawerSheet = null
-                                    runtimeUi.deleteWorkspaceFolder = folder
-                                },
-                            )
-                        }
-                    },
-                    sessions = drawerSessions,
-                    selectedId = ui.selectedSessionId,
-                    onSelect = { sessionId ->
-                        ui.selectedSessionId = sessionId
-                        go(ActivePage.CHAT)
-                    },
-                    onSessionMenu = { item ->
-                        val display = currentFolder?.sessions?.firstOrNull { it.sessionId == item.id }
-                        drawerSheet = {
-                            SessionSheetBody(
-                                session = item,
-                                onRename = {
-                                    drawerSheet = null
-                                    if (display != null) {
-                                        runtimeUi.renameSessionTarget = display
-                                        runtimeUi.renameSessionTitle = display.title
-                                    }
-                                },
-                                onPin = {
-                                    drawerSheet = null
-                                    scope.launch { dshRepository.setSessionPinned(ui.activeHostId, item.id, !item.pinned) }
-                                },
-                                onFork = {
-                                    drawerSheet = null
-                                    scope.launch {
-                                        val forked = dshRepository.forkSession(ui.activeHostId, item.id)
-                                        if (forked != null) {
-                                            ui.selectedSessionId = forked
-                                            go(ActivePage.CHAT)
-                                        } else {
-                                            android.widget.Toast.makeText(context, context.getString(R.string.session_fork_failed), android.widget.Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                },
-                                onArchive = {
-                                    drawerSheet = null
-                                    scope.launch { dshRepository.setSessionArchived(ui.activeHostId, item.id, !item.archived) }
-                                },
-                            )
-                        }
-                    },
-                    onNew = {
-                        // Новая сессия создаётся на Host только с первым сообщением.
-                        ui.selectedSessionId = null
-                        go(ActivePage.CHAT)
-                    },
-                    query = drawerQuery,
-                    onQuery = { query ->
-                        drawerQuery = query
-                        if (query.isBlank()) {
-                            runtimeUi.remoteSearchResults = emptyList()
-                        } else {
-                            scope.launch {
-                                val hits = dshRepository.searchSessions(ui.activeHostId, query)
-                                if (drawerQuery != query) return@launch
-                                val titles = sessions.associate { it.sessionId to it.title }
-                                runtimeUi.remoteSearchResults = hits.map { hit ->
-                                    val title = titles[hit.sessionId]
-                                    hit.sessionId to if (title.isNullOrBlank()) hit.snippet else "$title · ${hit.snippet}"
-                                }
-                            }
-                        }
-                    },
-                    searchHits = runtimeUi.remoteSearchResults,
+                    defaultWorkspaceLabel = defaultWorkspaceLabel,
                     pluginsOn = bridgePluginCatalog.bundles.count { it.enabled } +
                         runtimeUi.nativePluginItems.count { it.statusLabel == context.getString(R.string.plugin_status_installed) },
-                    automationsOn = com.deepseek.dsh.feature.settings.logic.AutomationStore.items.count { it.on },
-                    onPlugins = { go(ActivePage.PLUGINS) },
-                    onAutomation = { go(ActivePage.AUTOMATION) },
-                    userName = accountState.profile?.name ?: stringResource(R.string.drawer_default_user),
-                    footerSub = stringResource(
-                        if (com.deepseek.dsh.feature.settings.logic.ApiKeyVault.has(DEEPSEEK_VAULT_REF)) R.string.drawer_foot_key else R.string.drawer_foot_nokey,
-                    ),
-                    onSettings = { go(ActivePage.SETTINGS) },
+                    userName = accountState.profile?.name,
                     updateVersion = updateInfo?.tag?.takeIf { com.deepseek.dsh.feature.settings.UpdateCenter.hasUpdate(context) },
-                    onUpdate = {
-                        ui.settingsInitialSection = com.deepseek.dsh.feature.settings.ui.StPage.About
-                        go(ActivePage.SETTINGS)
-                    },
-                    archivedCount = currentFolder?.sessions.orEmpty().count { it.archived },
-                    showArchived = drawerShowArchived,
-                    onToggleArchived = { drawerShowArchived = !drawerShowArchived },
-                ) {
-                    // sidebar.*: место нативных плагинов внизу меню.
-                    com.deepseek.dsh.plugin.nativehost.NativeSlot(
-                        slot = com.deepseek.dsh.plugin.nativesdk.slots.NativeSlot.SIDEBAR_PANEL,
-                        spec = kotlinx.serialization.json.JsonObject(emptyMap()),
-                    )
-                }
+                )
             },
         ) {
             // 对话页使用完整顶栏；设置页自带标题栏（不再叠加）；其余全屏页只保留返回条，
