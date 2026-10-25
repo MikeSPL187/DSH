@@ -118,6 +118,10 @@ class ScreensGalleryTest {
     }
 
     private fun androidx.compose.ui.test.junit4.AndroidComposeTestRule<*, *>.open(text: String) {
+        // Содержимое папки читается в фоне (IO): ждём, пока строка появится, а не надеемся на тайминг.
+        mainClock.autoAdvance = true
+        waitUntil(5_000) { onAllNodes(androidx.compose.ui.test.hasText(text)).fetchSemanticsNodes().isNotEmpty() }
+        mainClock.autoAdvance = false
         onAllNodes(androidx.compose.ui.test.hasText(text))[0].performClick()
         mainClock.autoAdvance = true; waitForIdle(); mainClock.autoAdvance = false
         mainClock.advanceTimeBy(1_200)

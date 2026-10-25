@@ -1189,6 +1189,10 @@ fun MainAppHost(
     // 文件夹名保持固定（用于磁盘路径），界面上按当前语言显示。
     val defaultWorkspaceLabel = stringResource(R.string.workspace_default)
     val activeWorkspaceCwd = "/workspace/${runtimeUi.activeWorkspaceName}"
+    val currentWorkspace = androidx.compose.runtime.rememberUpdatedState(activeWorkspace)
+    val chatSender = remember(dshRepository, runtimeManager) {
+        ChatSender(context, scope, dshRepository, ui, runtimeUi, runtimeManager, pendingMessages, chatAttachments) { currentWorkspace.value }
+    }
     val activeWorkspaceFolderPath = java.io.File(activeWorkspace, runtimeUi.activeWorkspaceName).absolutePath
 
     // 真正的系统文件选择器（SAF）：可多选图片/任意文件，复制进当前工作区后
@@ -2043,169 +2047,15 @@ fun MainAppHost(
                                 }
                             }
 
-                            // Отправка сообщения: команда Host (/…), иначе prompt в текущую или новую сессию.
+                            // Отправка: ChatSender; модель для новой сессии — выбранная сейчас.
                             val sendChat: (String) -> Unit = { text ->
-                                // 斜杠命令走官方 commands/execute；Host 不认识的
-                                // 回退成普通 prompt。
-                                val commandLine = text.trim()
-                                val commandSession = ui.selectedSessionId
-                                val handledAsCommand = commandLine.startsWith("/") &&
-                                    commandSession != null
-                                if (handledAsCommand) {
-                                    val sid = commandSession!!
-                                    scope.launch {
-                                        val result = dshRepository.executeHostCommand(
-                                            ui.activeHostId, sid, commandLine,
-                                        )
-                                        if (result != null) {
-                                            val message = result.text ?: result.kind
-                                            android.widget.Toast.makeText(
-                                                context,
-                                                message,
-                                                android.widget.Toast.LENGTH_SHORT,
-                                            ).show()
-                                            dshRepository.refreshSessionStats(
-                                                ui.activeHostId, sid,
-                                            )
-                                        } else {
-                                            // Host 不认识这条命令：按普通消息发送。
-                                            runCatching {
-                                                dshRepository.sendMessage(
-                                                    ui.activeHostId, sid, commandLine,
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                                if (!handledAsCommand) {
-                                val localId = "local_${System.nanoTime()}"
-                                val isPlanPrompt = runtimeUi.chatPlanMode
-                                val outgoingText = if (isPlanPrompt) {
-                                    context.getString(R.string.plan_prompt_prefix) + text
-                                } else {
-                                    text
-                                }
-                                // 图片附件走官方 prompt 的内联 image part（base64），
-                                // 这样视觉模型能直接看到内容；普通文件仍用 @ 引用。
-                                val outgoingAttachments = chatAttachments.toList()
-                                val outgoingImages = outgoingAttachments.mapNotNull { attachment ->
-                                    val name = attachment.displayName
-                                    val extension = name.substringAfterLast('.', "").lowercase()
-                                    val mediaType = when (extension) {
-                                        "png" -> "image/png"
-                                        "jpg", "jpeg" -> "image/jpeg"
-                                        "webp" -> "image/webp"
-                                        "gif" -> "image/gif"
-                                        else -> return@mapNotNull null
-                                    }
-                                    // 相对路径可能相对工作区根，也可能相对会话目录
-                                    // （附件实际复制进 <root>/<workspaceName>/attachments）。
-                                    val relative = attachment.workspaceRelativePath
-                                    val file = listOf(
-                                        java.io.File(relative),
-                                        java.io.File(activeWorkspace, relative),
-                                        java.io.File(java.io.File(activeWorkspace, runtimeUi.activeWorkspaceName), relative),
-                                    ).firstOrNull { it.isFile }
-                                    if (file == null) return@mapNotNull null
-                                    // Кодирование (и уменьшение) — в фоне, перед отправкой.
-                                    Triple(file, mediaType, name)
-                                }
-                                chatAttachments.clear()
-                                pendingMessages.add(
-                                    ChatMessage(
-                                        hostId = ui.activeHostId,
-                                        sessionId = ui.selectedSessionId ?: "pending",
-                                        messageId = localId,
-                                        role = MessageRole.USER,
-                                        content = text,
-                                        createdAt = System.currentTimeMillis()
-                                    )
+                                chatSender.send(
+                                    text,
+                                    ModelChoice(
+                                        effectiveModelIdByName[currentModel] ?: currentModel,
+                                        currentProviderGroup?.id ?: if (accountState.hasApiKey) "deepseek-official" else "deepseek-account",
+                                    ),
                                 )
-                                runtimeUi.isSending = true
-                                scope.launch {
-                                    try {
-                                    var sid = ui.selectedSessionId
-                                    var createdSession = false
-                                    // 官方语义：当前会话存在就一直复用它。liveSessionIds 只表示
-                                    // “正在运行”，上一轮结束后就为空；以前用它判断会每发第二条
-                                    // 消息就新建会话（于是看起来自动开新会话、没有回复）。
-                                    if (sid == null) {
-                                        suspend fun createOnce(): String? = dshRepository.createSession(
-                                            ui.activeHostId,
-                                            text.take(24),
-                                            activeWorkspaceCwd,
-                                            (ui.pendingAgentPreset ?: ui.currentAppSettings.transcriptView).takeIf { it.isNotBlank() }
-                                        ).getOrNull()?.sessionId
-                                        sid = createOnce()
-                                        if (sid == null) {
-                                            // Host 可能刚崩溃/尚未就绪：重启一次再重试。
-                                            runtimeManager.start(activeWorkspace.absolutePath)
-                                            kotlinx.coroutines.delay(10000)
-                                            sid = createOnce()
-                                        }
-                                        if (sid != null) {
-                                            // proot 下 Host 的 mkdir 可能返回 ENOENT；先在 Android 侧建好会话目录。
-                                            // Host 会把工作区目录名中的非 ASCII 码点转义为 ~XXXX。
-                                            java.io.File(
-                                                context.filesDir,
-                                                "rootfs/root/.dsh/sessions/${workspaceSessionDirName(runtimeUi.activeWorkspaceName)}/$sid"
-                                            ).mkdirs()
-                                            ui.selectedSessionId = sid
-                                            createdSession = true
-                                        }
-                                    }
-                                    if (sid != null) {
-                                        // 只有刚创建的会话需要把当前选择写入 modelSelection；
-                                        // 已有会话不能再覆盖（之前每次都按账号 provider 重选，
-                                        // Kimi/订阅模型的 provider 被改错，回复变空白）。
-                                        if (createdSession) {
-                                            dshRepository.selectModel(
-                                                ui.activeHostId,
-                                                sid,
-                                                effectiveModelIdByName[currentModel] ?: currentModel,
-                                                currentProviderGroup?.id
-                                                    ?: if (accountState.hasApiKey) "deepseek-official" else "deepseek-account",
-                                            )
-                                        }
-                                        val encodedImages = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                            outgoingImages.mapNotNull { (file, mediaType, name) ->
-                                                runCatching { PromptImageEncoder.encode(file, mediaType, name) }.getOrNull()
-                                            }
-                                        }
-                                        dshRepository.sendMessage(ui.activeHostId, sid, outgoingText, encodedImages)
-                                    } else {
-                                        android.widget.Toast.makeText(
-                                            context, context.getString(R.string.session_create_failed), android.widget.Toast.LENGTH_LONG
-                                        ).show()
-                                        // Keep what the user typed visible: the composer is
-                                        // already cleared, so dropping the bubble loses the text.
-                                        pendingMessages.add(
-                                            ChatMessage(
-                                                hostId = ui.activeHostId,
-                                                sessionId = "pending",
-                                                messageId = "local_failed_${System.nanoTime()}",
-                                                role = MessageRole.USER,
-                                                content = text,
-                                                createdAt = System.currentTimeMillis(),
-                                            )
-                                        )
-                                        pendingMessages.add(
-                                            ChatMessage(
-                                                hostId = ui.activeHostId,
-                                                sessionId = "pending",
-                                                messageId = "local_error_${System.nanoTime()}",
-                                                role = MessageRole.ASSISTANT,
-                                                content = "⚠️ " + context.getString(R.string.session_create_failed),
-                                                createdAt = System.currentTimeMillis(),
-                                            )
-                                        )
-                                    }
-                                    } finally {
-                                        pendingMessages.removeAll { it.messageId == localId }
-                                        runtimeUi.isSending = false
-                                    }
-                                }
-                                }
                             }
                             // «Проверить с агентом» и подобные действия отправляют запрос сразу, как в прототипе.
                             LaunchedEffect(ui.pendingAutoSend) {
