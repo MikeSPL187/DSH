@@ -52,24 +52,24 @@ object NativePageRegistry {
     }
 
     /**
-     * 把 `settings.section` 组件匹配到伴侣的原生设置页，比 [find] 更宽容。
+     * Сопоставить компонент `settings.section` с нативной страницей настроек компаньона мягче, чем [find].
      *
-     * 精确的 `<package>#<id>` 匹配依赖两边的 id 完全一致；实际插件里原生页的 id
-     * 常常是作者另起的名字（例如 Web 分区 id 是 `subscriptions`，原生页 id 是
-     * `providers`）。在精确匹配失败后按顺序退让：
+     * Точное совпадение `<package>#<id>` требует одинаковых id с обеих сторон; на практике id нативной
+     * страницы автор называет по-своему (например, раздел веб-клиента `subscriptions`, нативная страница —
+     * `providers`). Если точного совпадения нет, по порядку:
      *
-     * 1. **标题相同**：同一份文案（含「订阅 / Subscriptions」这类中英混排，
-     *    去掉空白与分隔符后互相包含也算）；
-     * 2. **一一对应**：调用方确认该插件只有一个 `settings.section`，而伴侣只
-     *    注册了一个设置页时，它们就是同一页。
+     * 1. **Одинаковый заголовок**: тот же текст (в том числе смешанный, вроде «Подписки / Subscriptions» —
+     *    без пробелов и разделителей один содержит другой);
+     * 2. **Один к одному**: вызывающий подтвердил, что у плагина один `settings.section`, а компаньон
+     *    зарегистрировал одну страницу настроек — это одна и та же страница.
      *
-     * 不能匹配时返回 [SettingsPageMatch.reason]：把「伴侣没加载 / 没注册设置页 /
-     * id 对不上（列出已注册 id）」直接展示给用户，避免继续无提示地退回 Web UI。
+     * Не нашлось — [SettingsPageMatch.reason]: «компаньон не загружен / нет страницы настроек /
+     * id не совпали (список зарегистрированных)» показывается пользователю, а не молча открывается веб-интерфейс.
      *
-     * @param componentId `<package>#<id>` 组件身份。
-     * @param title 设置分区标题（已本地化）。
-     * @param registrations 已加载伴侣的页面注册。
-     * @param allowSinglePageFallback 是否允许一一对应兜底（插件只有一个分区时）。
+     * @param componentId компонент `<package>#<id>`.
+     * @param title заголовок раздела настроек (на языке интерфейса).
+     * @param registrations страницы загруженных компаньонов.
+     * @param allowSinglePageFallback разрешить сопоставление один к одному (у плагина один раздел).
      */
     fun findSettingsSection(
         componentId: String,
@@ -113,13 +113,13 @@ object NativePageRegistry {
         return SettingsPageMatch(page = null, reason = com.deepseek.dsh.core.model.Tr.t("No native page matched $componentId; registered [$ids]", "Нативная страница не найдена: $componentId; зарегистрированы [$ids]"))
     }
 
-    /** 匹配结果：命中的原生页，或未命中时给界面看的原因。 */
+    /** Итог сопоставления: найденная нативная страница или причина для интерфейса. */
     data class SettingsPageMatch(
         val page: PageContent?,
         val reason: String? = null,
     )
 
-    /** 去掉空白与常见分隔符后的小写文案，用于标题比对。 */
+    /** Текст в нижнем регистре без пробелов и обычных разделителей — для сравнения заголовков. */
     private fun normalizeLabel(raw: String?): String? = raw
         ?.replace(Regex("[\\s/·|,，、()（）\\[\\]]"), "")
         ?.lowercase()
@@ -132,12 +132,12 @@ object NativePageRegistry {
             add(declared.substringBeforeLast('@'))
             add(declared.substringAfterLast('/').substringBefore('@'))
             if (declared.contains("://") || declared.startsWith("git+")) {
-                // GitHub/Git 地址：取仓库名（去 .git / #ref / ?query）作为包名。
+                // Адрес GitHub/Git: имя пакета — имя репозитория (без .git / #ref / ?query).
                 val path = declared.substringBefore('#').substringBefore('?').trimEnd('/')
                 add(path.substringAfterLast('/').removeSuffix(".git"))
             }
         }
-        // 一边叫 `dsh-plugin-x`、另一边只叫 `x` 是常见写法；去掉已知前缀再比一次。
+        // Часто с одной стороны `dsh-plugin-x`, с другой просто `x` — сравнить ещё раз без известных префиксов.
         val ownerAliases = buildSet {
             add(owner)
             PACKAGE_PREFIXES.forEach { prefix ->
@@ -156,6 +156,6 @@ object NativePageRegistry {
         }
     }
 
-    /** 包名里常见、但不改变插件身份的前缀。 */
+    /** Частые префиксы имени пакета, не меняющие плагин. */
     private val PACKAGE_PREFIXES = listOf("dsh-plugin-", "dsh-")
 }

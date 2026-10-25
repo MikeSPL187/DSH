@@ -29,7 +29,7 @@ fun NativePluginComponentPane(
     pluginRpc: (suspend (method: String, payload: JsonObject) -> Result<String>)? = null,
     dispatchEvent: (suspend (componentId: String, event: String, payload: JsonObject) -> Unit)? = null,
     refreshEvents: SharedFlow<String>? = null,
-    /** 作为设置页子内容嵌入时传 false：返回条由设置页顶层 Header 提供。 */
+    /** false — встроено в настройки: шапку «Назад» даёт корень настроек. */
     showHeader: Boolean = true,
 ) {
     val host = NativeHost.LocalHost.current

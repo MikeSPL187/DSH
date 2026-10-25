@@ -8,24 +8,24 @@ import com.deepseek.dsh.plugin.nativesdk.slots.SlotRegistry
 import kotlinx.serialization.json.JsonObject
 
 /**
- * 右侧栏插件标签：App 侧新增的落点 API。
+ * Вкладки плагинов в панели: API места вставки на стороне приложения.
  *
- * 插件在 [NativeSlot.RIGHT_PANEL] 注册 [SlotContribution] 并设置 `tabTitle`，
- * App 的聊天右侧栏就会追加一个同名标签；标签内容是该贡献的 Render。内置标签
- * （Files / Document / Plan / Deliverables / Terminal / Schedule / Browser）
- * 永远排在最前面，插件标签按 [SlotContribution.order] 排序。
+ * Плагин регистрирует [SlotContribution] в [NativeSlot.RIGHT_PANEL] с `tabTitle`,
+ * и в листе панелей плагинов появляется вкладка с этим названием; её содержимое — Render вклада. Встроенные вкладки
+ * (Files / Document / Plan / Deliverables / Terminal / Schedule / Browser)
+ * всегда первые, вкладки плагинов — по [SlotContribution.order].
  *
- * 同一份描述同时供右侧栏和测试使用：纯函数 [rightPaneTabDescriptors] 只做
- * 过滤与排序，不依赖 Compose；[nativeRightPaneTabs] 再把描述包成可渲染项。
+ * Одно описание и для панели, и для тестов: чистая [rightPaneTabDescriptors] только
+ * фильтрует и сортирует, без Compose; [nativeRightPaneTabs] превращает описания в элементы для отрисовки.
  */
 data class NativeRightPaneTab(
-    /** 稳定标识：插件类名 + order，避免同标题冲突。 */
+    /** Стабильный ключ: класс плагина + order, чтобы одинаковые названия не конфликтовали. */
     val key: String,
     val title: String,
     val render: @Composable () -> Unit,
 )
 
-/** 从注册表快照里挑出带标题的右侧栏贡献（按 order 排序）。 */
+/** Вклады панели с названием из снимка реестра (по order). */
 fun rightPaneTabDescriptors(
     contributions: List<SlotContribution>,
 ): List<Pair<String, String>> = contributions
@@ -37,10 +37,10 @@ fun rightPaneTabDescriptors(
     }
 
 /**
- * 当前已注册的右侧栏插件标签。
+ * Зарегистрированные вкладки плагинов в панели.
  *
- * 读取 [SlotRegistry.resolve] 会观察注册表版本，插件 APK 装载/卸载后自动重组。
- * 无 NativeHost / Theme（预览、测试或 App 未接 Host）时返回空列表。
+ * Чтение [SlotRegistry.resolve] наблюдает версию реестра — после загрузки или удаления APK список обновится сам.
+ * Без NativeHost / Theme (превью, тесты, приложение без Host) — пустой список.
  */
 @Composable
 fun nativeRightPaneTabs(): List<NativeRightPaneTab> {
@@ -50,7 +50,7 @@ fun nativeRightPaneTabs(): List<NativeRightPaneTab> {
     val slotHost = remember(host) { SlotBridgeHost(host) }
     val descriptors = remember(contributions) { rightPaneTabDescriptors(contributions) }
     if (descriptors.isEmpty()) return emptyList()
-    // contributions 与 descriptors 一一对应（同一过滤/排序）。
+    // contributions и descriptors соответствуют один к одному (тот же фильтр и порядок).
     val titled = remember(contributions) {
         contributions
             .filter { it.slot == NativeSlot.RIGHT_PANEL && it.tabTitle != null }
@@ -66,7 +66,7 @@ fun nativeRightPaneTabs(): List<NativeRightPaneTab> {
                     pluginLabel = contribution.javaClass.simpleName,
                     theme = theme,
                 ) {
-                    // 右侧栏标签没有槽位级 spec：插件通过 PluginRpcHost 自己取数据。
+                    // У вкладок панели нет spec слота: данные плагин берёт сам через PluginRpcHost.
                     contribution.Render(JsonObject(emptyMap()), theme, slotHost)
                 }
             },
@@ -75,7 +75,7 @@ fun nativeRightPaneTabs(): List<NativeRightPaneTab> {
 }
 
 
-/** 右侧栏开始页的一枚插件入口胶囊（官方 `sidebar.right.tab.guide.entry`）。 */
+/** Капсула плагина на стартовой странице панели (`sidebar.right.tab.guide.entry`). */
 data class NativeGuideEntry(
     val key: String,
     val title: String,
@@ -83,7 +83,7 @@ data class NativeGuideEntry(
     val render: @Composable () -> Unit,
 )
 
-/** 从注册表快照里挑出带 guideTitle 的入口（按 order 排序）。 */
+/** Входы с guideTitle из снимка реестра (по order). */
 fun guideEntryDescriptors(
     contributions: List<SlotContribution>,
 ): List<Triple<String, String, String?>> = contributions
@@ -97,7 +97,7 @@ fun guideEntryDescriptors(
         )
     }
 
-/** 当前注册的 guide 入口胶囊。 */
+/** Зарегистрированные капсулы guide. */
 @Composable
 fun nativeGuideEntries(): List<NativeGuideEntry> {
     val host = NativeHost.LocalHost.current ?: return emptyList()

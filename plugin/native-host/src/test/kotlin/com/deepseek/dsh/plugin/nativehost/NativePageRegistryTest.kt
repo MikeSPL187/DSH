@@ -81,11 +81,11 @@ class NativePageRegistryTest {
 
     @Test
     fun `settings section falls back to a page with the same localized title`() {
-        // Web 分区 id 与原生页 id 不同、但来自同一份文案：按标题命中。
-        val providers = TestPage("providers", title = "订阅 / Subscriptions")
+        // id раздела веб-клиента и нативной страницы разные, но текст один — совпадение по заголовку.
+        val providers = TestPage("providers", title = "Подписки / Subscriptions")
         val match = NativePageRegistry.findSettingsSection(
             componentId = "dsh-plugin-subscription-oauth#subscriptions",
-            title = "订阅",
+            title = "Подписки",
             registrations = listOf(subscription.copy(pages = listOf(providers))),
         )
         assertSame(providers, match.page)
@@ -97,7 +97,7 @@ class NativePageRegistryTest {
         val providers = TestPage("providers", title = "Providers")
         val match = NativePageRegistry.findSettingsSection(
             componentId = "dsh-plugin-subscription-oauth#subscriptions",
-            title = "订阅",
+            title = "Подписки",
             registrations = listOf(subscription.copy(pages = listOf(providers))),
             allowSinglePageFallback = true,
         )
@@ -109,7 +109,7 @@ class NativePageRegistryTest {
         val providers = TestPage("providers", title = "Providers")
         val match = NativePageRegistry.findSettingsSection(
             componentId = "dsh-plugin-subscription-oauth#subscriptions",
-            title = "订阅",
+            title = "Подписки",
             registrations = listOf(subscription.copy(pages = listOf(providers))),
             allowSinglePageFallback = false,
         )
@@ -121,7 +121,7 @@ class NativePageRegistryTest {
     fun `companion loaded without settings pages reports why the web fallback stays`() {
         val match = NativePageRegistry.findSettingsSection(
             componentId = "dsh-plugin-subscription-oauth#subscriptions",
-            title = "订阅",
+            title = "Подписки",
             registrations = listOf(subscription.copy(pages = emptyList())),
         )
         assertNull(match.page)
@@ -130,7 +130,7 @@ class NativePageRegistryTest {
 
     @Test
     fun `git url jsPackage matches the repository name`() {
-        // 伴侣 manifest 可以把 jsPackage 写成 GitHub 地址；取仓库名与模块名比对。
+        // В manifest компаньона jsPackage может быть адресом GitHub: сравниваются имя репозитория и имя модуля.
         val fromUrl = subscription.copy(
             jsPackage = "https://github.com/EricFL1998/dsh-plugin-subscription-oauth",
         )
@@ -142,8 +142,8 @@ class NativePageRegistryTest {
 
     @Test
     fun `a missing dsh-plugin prefix does not break the pairing`() {
-        // 一边写 `dsh-plugin-subscription-oauth`、另一边写 `subscription-oauth` 时，
-        // 去掉已知前缀后按同一个插件处理。
+        // С одной стороны `dsh-plugin-subscription-oauth`, с другой `subscription-oauth` —
+        // без известных префиксов это один плагин.
         val short = subscription.copy(jsPackage = "subscription-oauth")
         assertSame(
             page,
@@ -153,10 +153,10 @@ class NativePageRegistryTest {
 
     @Test
     fun `a page registered under another placement is named in the reason`() {
-        val tab = TestPage("subscriptions", title = "订阅", placement = PageEntry.Placement.PLUGINS)
+        val tab = TestPage("subscriptions", title = "Подписки", placement = PageEntry.Placement.PLUGINS)
         val match = NativePageRegistry.findSettingsSection(
             componentId = "dsh-plugin-subscription-oauth#subscriptions",
-            title = "订阅",
+            title = "Подписки",
             registrations = listOf(subscription.copy(pages = listOf(tab))),
         )
         assertNull(match.page)

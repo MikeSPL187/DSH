@@ -58,7 +58,7 @@ class SurfaceCatalogTest {
                         "pluginId": "dsh-context",
                         "slot": "settings.page",
                         "order": 1,
-                        "title": "上下文设置",
+                        "title": "Context settings",
                         "kind": "PAGE"
                     }
                 ]
@@ -70,6 +70,6 @@ class SurfaceCatalogTest {
         assertEquals("test-client", catalog.clientId)
         assertEquals(1, catalog.surfaces.size)
         assertEquals("dsh-context", catalog.surfaces[0].pluginId)
-        assertEquals("上下文设置", catalog.surfaces[0].title)
+        assertEquals("Context settings", catalog.surfaces[0].title)
     }
 }

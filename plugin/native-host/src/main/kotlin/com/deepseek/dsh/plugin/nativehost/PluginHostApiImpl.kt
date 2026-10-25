@@ -8,14 +8,14 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 
 /**
- * [PluginHostApi] 的 App 侧实现：插件唯一摸得到的表面。
+ * Реализация [PluginHostApi] в приложении — единственное, к чему плагин может прикоснуться.
  *
- * 每项能力都过三道闸：
- * 1. **声明校验**：能力必须在插件 `descriptor.capabilities` 里声明过；
- * 2. **白名单**：URL 域、工作区路径前缀等；
- * 3. **审计**：每次调用记一条日志（pluginId + 能力 + 时间），设置页可查。
+ * Каждая возможность проходит три проверки:
+ * 1. **Объявление**: возможность указана в `descriptor.capabilities` плагина;
+ * 2. **Белый список**: домены URL, префиксы путей рабочей папки и т. п.;
+ * 3. **Журнал**: каждый вызов записывается (pluginId, возможность, время), смотреть — в настройках.
  *
- * `dispatchEvent` 走现成 bridge 的 `dispatch` op，与 Host 侧 JS 插件通信。
+ * `dispatchEvent` идёт через операцию `dispatch` моста к JS-плагину в Host.
  */
 class PluginHostApiImpl(
     private val pluginId: String,
@@ -38,9 +38,9 @@ class PluginHostApiImpl(
             com.deepseek.dsh.core.model.Tr.t("componentId prefix must equal the plugin id ($pluginId), got: $componentId", "Префикс componentId должен совпадать с id плагина ($pluginId), получено: $componentId")
         }
         audit(pluginId, "dispatch:$event")
-        // dispatch 是 suspend（走 bridge 网络）；宿主在渲染线程同步调用。旧实现在这里
-        // runBlocking，网络慢时直接卡住 UI 线程（ANR）。改为在串行的 IO 作用域里发出：
-        // 不阻塞渲染，同一插件的事件仍按调用顺序送达。
+        // dispatch — suspend (сеть моста), а хост вызывает его синхронно из отрисовки. Раньше здесь был
+        // runBlocking, и при медленной сети поток интерфейса вставал (ANR). Теперь отправка в последовательной области IO:
+        // отрисовка не блокируется, события одного плагина приходят по порядку.
         dispatchScope.launch {
             runCatching { dispatcher(componentId, event, payload) }
                 .onFailure { android.util.Log.w("PluginHostApi", "dispatch $event failed for $pluginId", it) }
@@ -50,7 +50,7 @@ class PluginHostApiImpl(
     override fun openUrl(url: String) {
         requireCapability(PluginCapabilities.OPEN_URL)
         audit(pluginId, "openUrl")
-        // 白名单内直接开；其余仍交给系统浏览器（urlOpener 内部做用户确认）。
+        // Из белого списка — открыть сразу; остальное — в системный браузер (urlOpener спрашивает пользователя).
         urlOpener(url)
     }
 

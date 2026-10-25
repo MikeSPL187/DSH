@@ -10,18 +10,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.Json
 
 /**
- * v4.0 设计文档 §7.4 & §7.5:
- * Surface 目录中心与原生放置决策，对齐全部核心 Slot
+ * Каталог поверхностей плагинов и выбор нативного места для каждого слота.
  */
 enum class PlacementDestination {
-    SETTING_SHEET,    // 设置页 (Sheet)
-    SIDEBAR_PANEL,    // 侧栏面板
-    COMPOSER_DOCK,    // 输入框菜单 / 底部药丸栏
-    COMPOSER_OVERLAY, // 输入框悬浮气泡
-    PLUGIN_OVERLAY,   // 顶层插件浮层 (悬浮/收起/气泡)
-    MESSAGE_ACTION,   // 消息长按动作
-    TOOL_VIEW_SHEET,  // 工具卡片专属弹窗
-    WEB_ISLAND_FULL   // 整岛回退
+    SETTING_SHEET,    // лист настроек
+    SIDEBAR_PANEL,    // панель сбоку
+    COMPOSER_DOCK,    // меню поля ввода / нижняя полоса капсул
+    COMPOSER_OVERLAY, // всплывающее окно у поля ввода
+    PLUGIN_OVERLAY,   // плавающее окно плагина (поверх, свёрнутое, пузырь)
+    MESSAGE_ACTION,   // действие по долгому нажатию на сообщение
+    TOOL_VIEW_SHEET,  // окно карточки инструмента
+    WEB_ISLAND_FULL   // запасной путь — весь веб-островок
 }
 
 data class SurfacePlacement(
@@ -47,7 +46,7 @@ class SurfaceCatalogStore {
     }
 
     /**
-     * 将 DSH Slot 精确映射到手机端原生宿主承载位置
+     * Слот DSH → нативное место на телефоне.
      */
     fun resolvePlacement(item: SurfaceItem): SurfacePlacement {
         val dest = when (item.slot) {
