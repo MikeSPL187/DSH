@@ -8,8 +8,6 @@ import com.deepseek.dsh.core.model.BuiltInPluginInfo
 import com.deepseek.dsh.core.model.ChatMessage
 import com.deepseek.dsh.core.model.ComposerStats
 import com.deepseek.dsh.core.model.ModelCatalogInfo
-import com.deepseek.dsh.core.model.PluginBundleItem
-import com.deepseek.dsh.core.model.PluginConfigItem
 import com.deepseek.dsh.core.model.PluginInventorySnapshotInfo
 import com.deepseek.dsh.core.model.PluginManagerSnapshot
 import com.deepseek.dsh.core.model.PluginRowInfo

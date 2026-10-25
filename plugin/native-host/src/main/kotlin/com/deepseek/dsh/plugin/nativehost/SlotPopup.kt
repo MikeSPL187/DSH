@@ -15,10 +15,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
-import com.deepseek.dsh.plugin.nativesdk.host.PluginHostApi
 import com.deepseek.dsh.plugin.nativesdk.slots.NativeSlot
 import com.deepseek.dsh.plugin.nativesdk.slots.SlotRegistry
-import com.deepseek.dsh.plugin.nativesdk.theme.PluginTheme
 import kotlinx.serialization.json.JsonObject
 
 /**

@@ -102,10 +102,8 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:protocol"))
     implementation(project(":core:bridge"))
-    implementation(project(":core:network"))
     implementation(project(":core:data"))
     implementation(project(":core:designsystem"))
-    implementation(project(":core:ui"))
 
     implementation(project(":feature:runtime"))
     implementation(project(":feature:hosts"))

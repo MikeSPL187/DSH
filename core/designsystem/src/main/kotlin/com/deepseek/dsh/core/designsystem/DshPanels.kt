@@ -14,26 +14,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ripple
 import androidx.compose.ui.text.style.TextAlign
 import android.view.Gravity
-import android.view.View
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -47,17 +40,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -65,38 +52,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
-import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
-import androidx.compose.ui.window.PopupProperties
 
 /**
  * Shared panel system that mirrors the DeepSeek Harness web client.
@@ -170,447 +144,20 @@ object DshPanelDefaults {
     val DialogButtonHeight = 36.dp
 }
 
-/** Horizontal alignment of an anchored menu relative to its anchor. */
-enum class DshMenuAlign { Start, End }
 
-/**
- * Menu surface card: 16dp radius, 4dp padding, translucent menu fill,
- * hairline elevation stroke, soft prominent shadow.
- *
- * @param modifier external modifier (for example an exact menu width).
- * @param scrollable whether overflowing rows scroll inside the card.
- * @param compact smaller 12dp radius card (compact menus).
- * @param minWidth menu minimum width (`.list` 144px; model menu 240px).
- * @param maxWidth menu maximum width (`.list` 360px; model menu 420px).
- * @param maxHeight card maximum height when scrollable.
- * @param contentWidth size the card to its widest row, so full-width rows/press fills work.
- * @param content menu rows, labels and separators.
- */
-@Composable
-fun DshMenuCard(
-    modifier: Modifier = Modifier,
-    scrollable: Boolean = true,
-    compact: Boolean = false,
-    minWidth: Dp = DshPanelDefaults.MenuMinWidth,
-    maxWidth: Dp = DshPanelDefaults.MenuMaxWidth,
-    maxHeight: Dp = DshPanelDefaults.MenuMaxHeight,
-    contentWidth: Boolean = false,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    val colors = dshPanelColors()
-    val shape = if (compact) DshPanelDefaults.CompactShape else DshPanelDefaults.Shape
-    Column(
-        modifier = modifier
-            .widthIn(min = minWidth, max = maxWidth)
-            .then(if (contentWidth) Modifier.width(IntrinsicSize.Max) else Modifier)
-            .shadow(
-                elevation = 5.dp,
-                shape = shape,
-                clip = false,
-                ambientColor = Color.Black.copy(alpha = 0.04f),
-                spotColor = Color.Black.copy(alpha = 0.05f),
-            )
-            .clip(shape)
-            // Android cannot blur content behind an anchored popup window; compositing the
-            // translucent material over the base layer keeps the menu legible
-            // while matching the menu's flattened fill.
-            .background(colors.menuSurfaceFill.compositeOver(colors.bgBase))
-            .border(0.5.dp, if (colors.isDark) colors.borderL3 else colors.borderL1, shape)
-            .padding(DshPanelDefaults.ContentPadding),
-    ) {
-        CompositionLocalProvider(
-            LocalDshPanelColors provides colors,
-            LocalContentColor provides colors.labelPrimary,
-            LocalTextStyle provides LocalTextStyle.current.copy(
-                fontSize = 13.sp,
-                lineHeight = 20.sp,
-                fontWeight = FontWeight.Normal,
-            ),
-        ) {
-            if (scrollable) {
-                Column(
-                    // 顺序必须是「先限高、再滚动」：heightIn 在外层把视口约束到
-                    // maxHeight，verticalScroll 在内层才会得到 Infinity 的测量约束，
-                    // 从而真正产生滚动范围。反过来写会把内容直接压到 maxHeight，
-                    // 溢出部分被裁掉、列表滚不动（模型列表底部被裁的根因）。
-                    modifier = Modifier
-                        .heightIn(max = maxHeight)
-                        .verticalScroll(rememberScrollState()),
-                ) {
-                    content()
-                }
-            } else {
-                content()
-            }
-        }
-    }
-}
 
-/**
- * One menu row: 34dp minimum height, 8dp/6dp padding, 12dp radius,
- * 6dp gap, 13sp/20 label rhythm and pressed fill instead of a ripple.
- *
- * @param onClick row activation.
- * @param modifier external modifier.
- * @param fillWidth whether the row fills the card width (false for content-width cards).
- * @param enabled whether the row can be activated.
- * @param danger destructive styling: error ink and danger pressed fill.
- * @param selectedFill fill-mode selection (used where the row keeps the hover fill).
- * @param content row content.
- */
-@Composable
-fun DshMenuRow(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    fillWidth: Boolean = true,
-    enabled: Boolean = true,
-    danger: Boolean = false,
-    selectedFill: Boolean = false,
-    content: @Composable RowScope.() -> Unit,
-) {
-    val colors = dshPanelColors()
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val ink = if (danger) colors.stateErrorPrimary else colors.labelPrimary
-    val fill = when {
-        selectedFill && enabled -> colors.interactiveHover
-        pressed && enabled -> if (danger) colors.interactiveHoverDanger else colors.interactiveHover
-        else -> Color.Transparent
-    }
-    Row(
-        modifier = modifier
-            .then(if (fillWidth) Modifier.fillMaxWidth() else Modifier)
-            .clip(DshPanelDefaults.RowShape)
-            .background(fill)
-            .clickable(
-                interactionSource = interaction,
-                indication = null,
-                enabled = enabled,
-                role = Role.Button,
-                onClick = onClick,
-            )
-            .heightIn(min = DshPanelDefaults.RowMinHeight)
-            .padding(
-                horizontal = DshPanelDefaults.RowHorizontalPadding,
-                vertical = DshPanelDefaults.RowVerticalPadding,
-            )
-            .then(if (enabled) Modifier else Modifier.alpha(0.4f)),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(DshPanelDefaults.RowGap),
-    ) {
-        CompositionLocalProvider(LocalContentColor provides ink) {
-            content()
-        }
-    }
-}
 
-/** Menu row label: primary ink, 13sp/20, one ellipsized line. */
-@Composable
-fun DshMenuLabel(text: String, modifier: Modifier = Modifier, maxLines: Int = 1) {
-    Text(
-        text = text,
-        color = LocalDshPanelColors.current.labelPrimary,
-        fontSize = 13.sp,
-        lineHeight = 20.sp,
-        fontWeight = FontWeight.Normal,
-        maxLines = maxLines,
-        overflow = TextOverflow.Ellipsis,
-        modifier = modifier,
-    )
-}
 
-/** Trailing menu value (for example a current model name): tertiary 13sp/20. */
-@Composable
-fun DshMenuValue(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        color = LocalDshPanelColors.current.labelTertiary,
-        fontSize = 13.sp,
-        lineHeight = 20.sp,
-        fontWeight = FontWeight.Normal,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = modifier,
-    )
-}
 
-/** Keyboard shortcut hint inside a menu row: caption 11sp/16. */
-@Composable
-fun DshMenuShortcut(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        color = LocalDshPanelColors.current.labelCaption,
-        fontSize = 11.sp,
-        lineHeight = 16.sp,
-        fontWeight = FontWeight.Normal,
-        maxLines = 1,
-        modifier = modifier,
-    )
-}
 
-/** Superscript badge used by permission rows (EXP). */
-@Composable
-fun DshMenuBadge(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        color = LocalDshPanelColors.current.labelTertiary,
-        fontSize = 8.sp,
-        lineHeight = 10.sp,
-        fontWeight = FontWeight.Medium,
-        letterSpacing = 0.2.sp,
-        modifier = modifier,
-    )
-}
 
-/** Secondary row caption (command alias, 12sp/18 tertiary). */
-@Composable
-fun DshMenuCaption(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        color = LocalDshPanelColors.current.labelTertiary,
-        fontSize = 12.sp,
-        lineHeight = 18.sp,
-        fontWeight = FontWeight.Normal,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = modifier,
-    )
-}
 
-/** Right-aligned row description (12sp/18 tertiary, one ellipsized line). */
-@Composable
-fun DshMenuDescription(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text = text,
-        color = LocalDshPanelColors.current.labelTertiary,
-        fontSize = 12.sp,
-        lineHeight = 18.sp,
-        fontWeight = FontWeight.Normal,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        textAlign = androidx.compose.ui.text.style.TextAlign.End,
-        modifier = modifier,
-    )
-}
 
-/** Menu row icon seat: 14dp glyph tinted with the menu icon token. */
-@Composable
-fun DshMenuIcon(resId: Int, modifier: Modifier = Modifier, size: Dp = 14.dp, tint: Color? = null) {
-    Icon(
-        painter = painterResource(id = resId),
-        contentDescription = null,
-        tint = tint ?: LocalDshPanelColors.current.menuIcon,
-        modifier = modifier.size(size),
-    )
-}
 
-/** Trailing selection check (14dp, primary ink). */
-@Composable
-fun DshMenuCheck(modifier: Modifier = Modifier) {
-    Icon(
-        painter = painterResource(id = R.drawable.ic_check),
-        contentDescription = null,
-        tint = LocalDshPanelColors.current.labelPrimary,
-        modifier = modifier.size(14.dp),
-    )
-}
 
-/** Non-interactive group heading: tertiary 11sp/16, medium weight, 23dp seat. */
-@Composable
-fun DshMenuSectionLabel(text: String, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = 23.dp)
-            .padding(
-                start = DshPanelDefaults.RowHorizontalPadding,
-                end = DshPanelDefaults.RowHorizontalPadding,
-                top = 5.dp,
-                bottom = 2.dp,
-            ),
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        Text(
-            text = text,
-            color = LocalDshPanelColors.current.labelTertiary,
-            fontSize = 11.sp,
-            lineHeight = 16.sp,
-            fontWeight = FontWeight.Medium,
-        )
-    }
-}
 
-/** Menu hairline separator (0.5dp border-l2 with 3dp/2dp margins). */
-@Composable
-fun DshMenuDivider() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 2.dp, vertical = 3.dp)
-            .height(0.5.dp)
-            .background(LocalDshPanelColors.current.borderL2),
-    )
-}
 
-/**
- * Anchored dropdown: 4dp gap, viewport-safe placement, right/left
- * aligned to the anchor and a 12dp shadow gutter around the card.
- *
- * @param expanded whether the menu is open.
- * @param onDismiss dismiss callback.
- * @param menuWidth exact card width; omitted means content-derived with bounds.
- * @param align card alignment relative to the anchor edge.
- * @param maxHeight card maximum height (model selection uses the 360dp cap).
- * @param contentWidth size an unmeasured card to its widest row.
- * @param anchorGap gap between the card and its anchor; pass 0.dp for a menu that
- *        must sit flush against a bottom panel (for example the account menu).
- * @param content menu rows.
- */
-@Composable
-fun AnchoredMenuPopup(
-    expanded: Boolean,
-    onDismiss: () -> Unit,
-    menuWidth: Dp? = null,
-    align: DshMenuAlign = DshMenuAlign.End,
-    maxHeight: Dp = DshPanelDefaults.MenuMaxHeight,
-    contentWidth: Boolean = false,
-    anchorGap: Dp = DshPanelDefaults.AnchorGap,
-    /** 稳定展开方向：true 固定向上，false 固定向下，null 按空间自动选择。 */
-    preferredAbove: Boolean? = null,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    if (!expanded) return
-    val density = LocalDensity.current
-    val gapPx = with(density) { anchorGap.roundToPx() }
-    val shadowPx = with(density) { DshPanelDefaults.PopupShadowPadding.roundToPx() }
-    val marginPx = with(density) { 12.dp.roundToPx() }
-    val positionProvider = remember(gapPx, shadowPx, marginPx, align, preferredAbove) {
-        DshMenuPositionProvider(gapPx, shadowPx, marginPx, align == DshMenuAlign.End, preferredAbove)
-    }
-    Popup(
-        popupPositionProvider = positionProvider,
-        onDismissRequest = onDismiss,
-        properties = PopupProperties(focusable = true),
-    ) {
-        Box(modifier = Modifier.padding(DshPanelDefaults.PopupShadowPadding)) {
-            DshMenuCard(
-                modifier = if (menuWidth != null) Modifier.width(menuWidth) else Modifier,
-                maxHeight = maxHeight,
-                contentWidth = contentWidth,
-                content = content,
-            )
-        }
-    }
-}
 
-/**
- * Menu overlay for edge-to-edge surfaces where a normal Popup window would be
- * inset/clamped by the system bars (composer triggers, drawer rows). The caller
- * measures the anchor in window coordinates; the overlay renders a full-screen
- * dialog window with no dim and places the menu card flush against that anchor.
- *
- * @param expanded whether the menu is open.
- * @param anchorBounds anchor rectangle in window coordinates, or null while unmeasured.
- * @param onDismiss outside-click/back dismissal.
- * @param menuWidth exact card width; omitted uses the menu's intrinsic bounds.
- * @param align card alignment relative to the anchor edge.
- * @param maxHeight card maximum height.
- * @param anchorGap gap between the card and the anchor (0 = flush).
- * @param content menu rows.
- */
-@Composable
-fun AnchoredMenuOverlay(
-    expanded: Boolean,
-    anchorBounds: Rect?,
-    onDismiss: () -> Unit,
-    menuWidth: Dp? = null,
-    align: DshMenuAlign = DshMenuAlign.End,
-    maxHeight: Dp = DshPanelDefaults.MenuMaxHeight,
-    anchorGap: Dp = 0.dp,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    if (!expanded || anchorBounds == null) return
-    val density = LocalDensity.current
-    val gapPx = with(density) { anchorGap.roundToPx() }
-    val marginPx = with(density) { 12.dp.roundToPx() }
-    val maxHeightPx = with(density) { maxHeight.roundToPx() }
-    val exactWidthPx = menuWidth?.let { with(density) { it.roundToPx() } }
-    // The dialog window fits the system bars, while the measured anchor rect is in
-    // decor coordinates; convert the anchor into the dialog's content coordinates.
-    val resources = LocalView.current.context.resources
-    val statusBarRes = resources.getIdentifier("status_bar_height", "dimen", "android")
-    val statusBarPx = if (statusBarRes > 0) resources.getDimensionPixelSize(statusBarRes) else 0
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false,
-        ),
-    ) {
-        DisableDialogWindowDim(
-            topInsetPx = statusBarPx,
-            fullHeightPx = LocalView.current.resources.displayMetrics.heightPixels,
-        )
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val screenW = constraints.maxWidth
-            val screenH = constraints.maxHeight
-            Layout(
-                modifier = Modifier.fillMaxSize(),
-                content = {
-                    // Transparent scrim: dismiss on outside tap without dimming.
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = onDismiss,
-                            ),
-                    )
-                    // Consume taps on the card so they never reach the scrim.
-                    Box(modifier = Modifier.pointerInput(Unit) { detectTapGestures { } }) {
-                        DshMenuCard(
-                            modifier = if (menuWidth != null) Modifier.width(menuWidth) else Modifier,
-                            maxHeight = maxHeight,
-                            content = content,
-                        )
-                    }
-                },
-            ) { measurables, _ ->
-                val scrim = measurables[0].measure(
-                    Constraints.fixed(width = screenW, height = screenH),
-                )
-                val card = measurables[1].measure(
-                    Constraints(
-                        maxWidth = exactWidthPx ?: (screenW - 2 * marginPx).coerceAtLeast(0),
-                        maxHeight = maxHeightPx.coerceAtMost(screenH),
-                    ),
-                )
-                layout(screenW, screenH) {
-                    scrim.place(0, 0)
-                    val cardW = card.width
-                    val cardH = card.height
-                    val anchorLeft = anchorBounds.left.toInt()
-                    val anchorTop = anchorBounds.top.toInt() - statusBarPx
-                    val anchorRight = anchorBounds.right.toInt()
-                    val anchorBottom = anchorBounds.bottom.toInt() - statusBarPx
-                    val desiredX = if (align == DshMenuAlign.End) anchorRight - cardW else anchorLeft
-                    val maxX = (screenW - cardW - marginPx).coerceAtLeast(marginPx)
-                    val cardX = desiredX.coerceIn(marginPx, maxX)
-                    val below = anchorBottom + gapPx
-                    val above = anchorTop - cardH - gapPx
-                    val maxY = (screenH - cardH - marginPx).coerceAtLeast(marginPx)
-                    val cardY = when {
-                        below + cardH <= screenH - marginPx -> below
-                        above >= marginPx -> above
-                        else -> below
-                    }.coerceIn(marginPx, maxY)
-                    card.place(cardX, cardY)
-                }
-            }
-        }
-    }
-}
 
 /**
  * Menu placement: below the anchor when it fits, otherwise above;
@@ -781,20 +328,6 @@ fun DshHeadlessModal(
     content: @Composable ColumnScope.() -> Unit,
 ) = DshModalSheet(onDismiss, content)
 
-/** Совместимость: у листов системы нет крестика, но место для него ещё может звать старый код. */
-@Composable
-fun DshDialogCloseButton(
-    onClick: () -> Unit,
-    label: String,
-    size: Dp = DshPanelDefaults.DialogCloseSize,
-    @Suppress("UNUSED_PARAMETER") cornerRadius: Dp = 8.dp,
-    iconSize: Dp = 14.dp,
-) {
-    Box(
-        Modifier.size(maxOf(size, 40.dp)).clip(CircleShape).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = label },
-        contentAlignment = Alignment.Center,
-    ) { Icon(DshGlyphs.X, null, tint = Dsh.colors.t3, modifier = Modifier.size(maxOf(iconSize, 18.dp))) }
-}
 
 /**
  * Кнопка листа, как `.btn` прототипа: высота 48, радиус 14, главная — индиго,

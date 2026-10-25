@@ -9,7 +9,6 @@ import com.deepseek.dsh.core.bridge.BridgeRegistry
 import com.deepseek.dsh.core.model.AccountBalanceInfo
 import com.deepseek.dsh.core.model.AccountProfileInfo
 import com.deepseek.dsh.core.model.AccountViewInfo
-import com.deepseek.dsh.core.model.AgentPresetGroupInfo
 import com.deepseek.dsh.core.model.AutomationTaskItem
 import com.deepseek.dsh.core.model.BuiltInPluginInfo
 import com.deepseek.dsh.core.model.ChatMessage
@@ -31,8 +30,6 @@ import com.deepseek.dsh.core.model.PluginSettingsDocument
 import com.deepseek.dsh.core.model.PluginSettingsPage
 import com.deepseek.dsh.core.model.PluginSlotEntry
 import com.deepseek.dsh.core.model.ModelCatalogInfo
-import com.deepseek.dsh.core.model.PluginBundleItem
-import com.deepseek.dsh.core.model.PluginConfigItem
 import com.deepseek.dsh.core.model.PluginInventorySnapshotInfo
 import com.deepseek.dsh.core.model.PluginManagerSnapshot
 import com.deepseek.dsh.core.model.SessionInfo

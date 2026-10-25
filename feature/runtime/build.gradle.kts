@@ -26,7 +26,6 @@ android {
 
 dependencies {
     implementation(project(":core:model"))
-    implementation(project(":core:ui"))
     implementation(project(":core:designsystem"))
     implementation(project(":runtime:host"))
     implementation(platform(libs.androidx.compose.bom))

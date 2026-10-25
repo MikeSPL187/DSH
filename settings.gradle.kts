@@ -34,10 +34,8 @@ includeBuild("$dshSdkRepo/sdk") {
 include(":core:model")
 include(":core:protocol")
 include(":core:bridge")
-include(":core:network")
 include(":core:data")
 include(":core:designsystem")
-include(":core:ui")
 
 // Features
 include(":feature:runtime")

@@ -10,7 +10,6 @@ import androidx.room.Room
 import com.deepseek.dsh.core.data.DefaultSettingsRepository
 import com.deepseek.dsh.core.data.DshDatabase
 import com.deepseek.dsh.core.data.DshRepository
-import com.deepseek.dsh.core.protocol.HostAuthenticator
 import com.deepseek.dsh.core.protocol.HostCookieJar
 import com.deepseek.dsh.core.protocol.RemoteClient
 import kotlinx.coroutines.CoroutineScope
