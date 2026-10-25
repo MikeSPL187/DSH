@@ -37,7 +37,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deepseek.dsh.core.model.ChatMessage
 import com.deepseek.dsh.core.model.MessageRole
-import com.deepseek.dsh.feature.chat.ModernChatScreen
 import com.deepseek.dsh.feature.files.FilesScreen
 import com.deepseek.dsh.feature.files.WorkspaceManager
 import com.deepseek.dsh.plugin.surface.PluginOverlayContainer
@@ -265,9 +264,6 @@ fun MainAppHost(
         }
     }
 
-    val currentSessionStats by dshRepository.getStatsForSession(ui.selectedSessionId ?: "").collectAsState(
-        initial = com.deepseek.dsh.core.model.ComposerStats()
-    )
 
     // Подписка на каталог: чтение StateFlow.value в composition не перерисовывает UI при изменениях.
     val bridgeCatalogState by dshRepository.plugins.bridgePluginCatalogFlow.collectAsState()
@@ -397,17 +393,6 @@ fun MainAppHost(
             onDismiss = { ui.sessionInspectorOpen = false },
         )
     }
-
-    fun pressClaudeCodeBand(generation: Long, actionId: String) {
-        val sid = ui.selectedSessionId ?: return
-        scope.launch {
-            runtimeUi.bandPressing = true
-            dshRepository.pressClaudeCodeBand(ui.activeHostId, sid, generation, actionId)
-                .onSuccess { snapshot -> if (snapshot != null) runtimeUi.bandSnapshot = snapshot }
-            runtimeUi.bandPressing = false
-        }
-    }
-
 
     val builtInPluginsList by dshRepository.plugins.builtInPluginsFlow.collectAsState()
     val pluginSnapshot by dshRepository.plugins.pluginSnapshotFlow.collectAsState()
@@ -594,13 +579,6 @@ fun MainAppHost(
         notificationsEnabled = ui.currentAppSettings.notificationsEnabled,
     )
     val hostJobs by dshRepository.tasks.jobsFlow.collectAsState()
-    val hostCommands by dshRepository.commands.hostCommandsFlow.collectAsState()
-    val hostSkills by dshRepository.commands.hostSkillsFlow.collectAsState()
-    val sessionTodos by dshRepository.todosFlow.collectAsState()
-    val sessionGoal by dshRepository.goalFlow.collectAsState()
-    val sessionDeliverables by dshRepository.deliverablesFlow.collectAsState()
-    val sessionChanges by dshRepository.changesFlow.collectAsState()
-    val sessionQueuedMessages by dshRepository.queuedMessagesFlow.collectAsState()
     // 终端页状态：屏幕缓冲（去 ANSI）、状态行、可写标志。
     // Host 客户端是否已绑定到真实地址（决定能否开远程流）。
     // 未读奖励提示（官方 account/getUnnotifiedBonuses）；无奖励时什么都不渲染。
@@ -638,10 +616,7 @@ fun MainAppHost(
         }
         else dshRepository.tasks.unwatchJobs()
     }
-    val streamingText by dshRepository.streamingTextFlow.collectAsState()
-    val streamingReasoning by dshRepository.streamingReasoningFlow.collectAsState()
     val hostWorkspaces by dshRepository.hostWorkspacesFlow.collectAsState()
-    val hostSessionModels by dshRepository.sessionModelFlow.collectAsState()
     LaunchedEffect(accountState.isSignedIn, accountState.hasApiKey) {
         if (accountState.isSignedIn || accountState.hasApiKey) {
             kotlinx.coroutines.delay(600)
@@ -771,6 +746,7 @@ fun MainAppHost(
 
     // 文件夹名保持固定（用于磁盘路径），界面上按当前语言显示。
     val defaultWorkspaceLabel = stringResource(R.string.workspace_default)
+    fun workspaceLabelOf(name: String) = if (name == DEFAULT_WORKSPACE_DIR_NAME) defaultWorkspaceLabel else name
     val currentWorkspace = androidx.compose.runtime.rememberUpdatedState(activeWorkspace)
     val chatSender = remember(dshRepository, runtimeManager) {
         ChatSender(context, scope, dshRepository, ui, runtimeUi, runtimeManager, pendingMessages, chatAttachments) { currentWorkspace.value }
@@ -1058,7 +1034,7 @@ fun MainAppHost(
         val askTemplate = stringResource(com.deepseek.dsh.feature.files.R.string.fs_ask_prompt)
         FilesScreen(
             root = projectDir,
-            rootLabel = if (runtimeUi.activeWorkspaceName == DEFAULT_WORKSPACE_DIR_NAME) defaultWorkspaceLabel else runtimeUi.activeWorkspaceName,
+            rootLabel = workspaceLabelOf(runtimeUi.activeWorkspaceName),
             refreshKey = runtimeUi.filesRevision,
             git = filesGit,
             onClose = { ui.activePage = ActivePage.CHAT },
@@ -1360,415 +1336,50 @@ fun MainAppHost(
                         Box(modifier = Modifier.weight(1f)) {
                     when (ui.activePage) {
                         ActivePage.CHAT -> PageContentSlot {
-                            var reasoningLevel by remember {
-                                mutableStateOf(
-                                    runCatching {
-                                        com.deepseek.dsh.feature.chat.ReasoningLevel.valueOf(ui.currentAppSettings.defaultReasoningLevel)
-                                    }.getOrDefault(com.deepseek.dsh.feature.chat.ReasoningLevel.FAST)
-                                )
-                            }
-
-                            val configuredModel = activeSession?.model ?: ui.currentAppSettings.defaultModel
-                            val modelPrefs = remember {
-                                context.getSharedPreferences("dsh_model_prefs", android.content.Context.MODE_PRIVATE)
-                            }
-                            var lastUsedModel by remember {
-                                mutableStateOf(modelPrefs.getString("last_model_name", "").orEmpty())
-                            }
-                            val catalogDefaultName = hostModels
-                                .firstOrNull { it.id == catalogInfo.defaultModel }?.name
-                            // 官方逻辑：会话的模型来自 Host `modelSelection` 投影（hostSessionModels），
-                            // 数据库里的 configuredModel 是 Host 暂时没连上时的兜底；全局 lastUsedModel
-                            // 只用于还没有会话的新会话。以前 lastUsedModel 优先，重启后打开旧会话会
-                            // 被全局选择覆盖，看起来“没有选中上次用的模型”。
-                            fun modelNameOf(value: String?): String? = when {
-                                value.isNullOrBlank() -> null
-                                value in availableModelNames -> value
-                                else -> effectiveModelIdByName.entries
-                                    .firstOrNull { it.value == value }?.key
-                            }
-                            val sessionModelName = modelNameOf(configuredModel)
-                            val hostModelName = ui.selectedSessionId?.let { sid ->
-                                modelNameOf(hostSessionModels[sid])
-                            }
-                            val currentModel = when {
-                                // Host 目录尚未返回时，先用上次使用的模型占位，避免闪“请选择模型”。
-                                availableModelNames.isEmpty() && lastUsedModel.isNotBlank() -> lastUsedModel
-                                availableModelNames.isEmpty() -> ""
-                                hostModelName != null -> hostModelName
-                                sessionModelName != null -> sessionModelName
-                                lastUsedModel in availableModelNames -> lastUsedModel
-                                // 首次进入：选 Host 目录的默认/最新模型（当前为 DeepSeek-V41-Flash）。
-                                else -> catalogDefaultName ?: availableModelNames.first()
-                            }
-                            LaunchedEffect(currentModel, availableModelNames) {
-                                if (currentModel in availableModelNames && currentModel != lastUsedModel) {
-                                    lastUsedModel = currentModel
-                                    modelPrefs.edit().putString("last_model_name", currentModel).apply()
-                                }
-                            }
-                            LaunchedEffect(hostModelName) {
-                                if (!hostModelName.isNullOrBlank() &&
-                                    hostModelName != lastUsedModel &&
-                                    hostModelName in availableModelNames
-                                ) {
-                                    lastUsedModel = hostModelName
-                                    modelPrefs.edit()
-                                        .putString("last_model_name", hostModelName)
-                                        .apply()
-                                }
-                            }
-                            // Host 目录还没回来时用上次缓存的目录：推理等级、默认档位
-                            // 全部来自 Host 的 modelCatalog，而不是客户端预置文案。
-                            val modelGroupsForUi = catalogInfo.groups.ifEmpty { cachedModels.groups }
-                            val currentProviderGroup = modelGroupsForUi.firstOrNull { group ->
-                                group.models.any { it.name == currentModel }
-                            }
-                            val currentModelMeta = currentProviderGroup?.models?.firstOrNull { it.name == currentModel }
-                            val backendEfforts = currentModelMeta?.reasoningEfforts?.map { effort ->
-                                com.deepseek.dsh.feature.chat.ReasoningOption(effort.id, effort.name, effort.description)
-                            } ?: emptyList()
-                            var selectedReasoningId by remember(currentModel) {
-                                mutableStateOf(
-                                    currentModelMeta?.defaultReasoningEffort
-                                        ?: backendEfforts.firstOrNull()?.id.orEmpty()
-                                )
-                            }
-                            LaunchedEffect(currentModel, currentModelMeta) {
-                                if (backendEfforts.none { it.id == selectedReasoningId }) {
-                                    selectedReasoningId = currentModelMeta?.defaultReasoningEffort
-                                        ?: backendEfforts.firstOrNull()?.id.orEmpty()
-                                }
-                            }
-
-                            val effortLabelText = backendEfforts
-                                .firstOrNull { it.id == selectedReasoningId }?.label
-                                .orEmpty()
-                            val currentPermission = remember(activeSession?.permissionPreset) {
-                                when (activeSession?.permissionPreset) {
-                                    "read_only" -> com.deepseek.dsh.feature.chat.PermissionPreset.READ_ONLY
-                                    "danger_full_access" -> com.deepseek.dsh.feature.chat.PermissionPreset.FULL_ACCESS
-                                    "auto_review" -> com.deepseek.dsh.feature.chat.PermissionPreset.AUTO_REVIEW
-                                    else -> com.deepseek.dsh.feature.chat.PermissionPreset.WORKSPACE_WRITE
-                                }
-                            }
-
-                            // Отправка: ChatSender; модель для новой сессии — выбранная сейчас.
-                            val sendChat: (String) -> Unit = { text ->
-                                chatSender.send(
-                                    text,
-                                    ModelChoice(
-                                        effectiveModelIdByName[currentModel] ?: currentModel,
-                                        currentProviderGroup?.id ?: if (accountState.hasApiKey) "deepseek-official" else "deepseek-account",
-                                    ),
-                                )
-                            }
-                            // «Проверить с агентом» и подобные действия отправляют запрос сразу, как в прототипе.
-                            LaunchedEffect(ui.pendingAutoSend) {
-                                val text = ui.pendingAutoSend ?: return@LaunchedEffect
-                                ui.pendingAutoSend = null
-                                sendChat(text)
-                            }
-
-                            ModernChatScreen(
-                                topBar = chatTopBar,
-                                userName = accountState.profile?.name,
-                                resume = sessions
-                                    .filter { it.sessionId in runningSessionIds && it.sessionId != ui.selectedSessionId }
-                                    .maxByOrNull { it.updatedAt }
-                                    ?.let { com.deepseek.dsh.feature.chat.ChatResume(it.sessionId, it.title) },
-                                onResume = { r -> ui.selectedSessionId = r.sessionId },
-                                filesBadge = sessionChanges?.files?.size ?: 0,
-                                onOpenFiles = { ui.activePage = ActivePage.FILES },
-                                onOpenTerminal = if (terminalSupported) ({ ui.activePage = ActivePage.TERMINAL }) else null,
-                                approval = chatApproval,
-                                defaultModelId = catalogInfo.defaultModel.ifBlank { null },
-                                sessionTitle = sessions.find { it.sessionId == ui.selectedSessionId }?.title,
-                                messages = messages,
-                                streamingText = streamingText,
-                                streamingReasoning = streamingReasoning,
-                                hostCommands = hostCommands,
-                                skills = hostSkills,
-                                loadSkills = {
-                                    val sid = ui.selectedSessionId
-                                    if (sid == null) emptyList()
-                                    else dshRepository.commands.listSkills(ui.activeHostId, sid)
-                                },
-                                onRefreshSkills = {
-                                    val sid = ui.selectedSessionId
-                                    if (sid != null) {
-                                        scope.launch {
-                                            runCatching { dshRepository.commands.refreshHostSkills(ui.activeHostId, sid) }
-                                        }
-                                    }
-                                },
-                                todos = sessionTodos,
-                                goal = sessionGoal,
-                                deliverables = sessionDeliverables,
-                                queuedMessages = sessionQueuedMessages,
-                                onQueueAction = { id, kind, text ->
-                                    val sid = ui.selectedSessionId
-                                    if (sid != null) {
-                                        scope.launch {
-                                            dshRepository.updateQueue(ui.activeHostId, sid, id, kind, text)
-                                        }
-                                    }
-                                },
-                                changes = sessionChanges,
-                                onLoadChangeDiff = { index ->
-                                    val sid = ui.selectedSessionId
-                                    if (sid == null) null
-                                    else dshRepository.loadChangeDiff(ui.activeHostId, sid, index)
-                                },
-                                onOpenDeliverable = { file ->
-                                    // Host 路径 /workspace/<x> 对应本机工作区 <activeWorkspace>/<x>。
-                                    val hostPrefix = "/workspace/"
-                                    val localPath = when {
-                                        file.path.startsWith(hostPrefix) -> java.io.File(
-                                            activeWorkspace,
-                                            file.path.removePrefix(hostPrefix),
-                                        ).absolutePath
-                                        file.path.startsWith(activeWorkspace.absolutePath) ->
-                                            file.path
-                                        else -> null
-                                    }
-                                    val dir = localPath?.let { java.io.File(it).parentFile }
-                                    if (dir != null && dir.exists()) {
-                                        ui.filesDir = dir
-                                        ui.activePage = ActivePage.FILES
-                                    } else {
-                                        android.widget.Toast.makeText(
-                                            context,
-                                            file.path,
-                                            android.widget.Toast.LENGTH_SHORT,
-                                        ).show()
-                                    }
-                                },
-                                onHostCommand = { line ->
-                                    val sid = ui.selectedSessionId
-                                    if (sid != null) {
-                                        scope.launch {
-                                            val result = dshRepository.commands.executeHostCommand(
-                                                ui.activeHostId, sid, line,
-                                            )
-                                            val message = result?.text
-                                                ?: result?.kind
-                                                ?: context.getString(R.string.cmd_unknown)
-                                            android.widget.Toast.makeText(
-                                                context,
-                                                message,
-                                                android.widget.Toast.LENGTH_SHORT,
-                                            ).show()
-                                        }
-                                    }
-                                },
-                                onLoadOlder = {
-                                    val sid = ui.selectedSessionId
-                                    if (sid != null) {
-                                        scope.launch {
-                                            dshRepository.loadOlderMessages(ui.activeHostId, sid)
-                                        }
-                                    }
-                                },
-                                onAnswerUserQuestion = { callId, questionId, selected ->
-                                    val sid = ui.selectedSessionId
-                                    if (sid != null) {
-                                        scope.launch {
-                                            dshRepository.answerUserQuestion(
-                                                ui.activeHostId, sid, callId, questionId, selected
-                                            )
-                                        }
-                                    }
-                                },
-                                onSendMessage = sendChat,
-                                isSending = runtimeUi.isSending,
-                                workspaceName = if (runtimeUi.activeWorkspaceName == DEFAULT_WORKSPACE_DIR_NAME) {
-                                    defaultWorkspaceLabel
-                                } else {
-                                    runtimeUi.activeWorkspaceName
-                                },
-                                // 工作区列表来自 Host；选中即切换当前工作区，末行开新建对话框。
-                                workspaceNames = workspaceFolders.map { folder ->
-                                    if (folder.name == DEFAULT_WORKSPACE_DIR_NAME) defaultWorkspaceLabel else folder.name
-                                },
-                                onWorkspaceSelected = { name -> runtimeUi.activeWorkspaceName = name },
-                                onAddWorkspace = { runtimeUi.newWorkspaceName = ""; runtimeUi.showAddWorkspaceDialog = true },
-                                onWorkspaceClick = { scope.launch { drawerState.open() } },
-                                isThinking = ui.selectedSessionId != null && ui.selectedSessionId in runningSessionIds,
-                                onStopClick = {
-                                    val sid = ui.selectedSessionId
-                                    if (sid != null) {
-                                        scope.launch { dshRepository.cancelSession(ui.activeHostId, sid) }
-                                    }
-                                },
-                                selectedModel = currentModel,
-                                selectedModelId = effectiveModelIdByName[currentModel] ?: currentModel,
-                                onNativeModelSelect = { provider, model, effort ->
-                                    runCatching {
-                                        val sid = ui.selectedSessionId
-                                            ?: error(context.getString(R.string.no_active_session_fast))
-                                        dshRepository.selectModel(
-                                            ui.activeHostId,
-                                            sid,
-                                            model,
-                                            provider,
-                                            effort,
+                            ChatRoute(
+                                ChatDeps(
+                                    ui = ui,
+                                    runtimeUi = runtimeUi,
+                                    repository = dshRepository,
+                                    settingsRepository = settingsRepository,
+                                    topBar = chatTopBar,
+                                    userName = accountState.profile?.name,
+                                    hasApiKey = accountState.hasApiKey,
+                                    sessions = sessions,
+                                    activeSession = activeSession,
+                                    runningSessionIds = runningSessionIds,
+                                    messages = messages,
+                                    approval = chatApproval,
+                                    catalog = catalogInfo,
+                                    cachedModelGroups = cachedModels.groups,
+                                    availableModels = availableModelNames,
+                                    modelIdByName = effectiveModelIdByName,
+                                    workspace = activeWorkspace,
+                                    workspaceLabel = workspaceLabelOf(runtimeUi.activeWorkspaceName),
+                                    workspaceNames = workspaceFolders.map { workspaceLabelOf(it.name) },
+                                    sender = chatSender,
+                                    voice = voice,
+                                    voiceEnabled = voiceEnabled,
+                                    translateReasoning = cotTranslationEnabled,
+                                    attachments = chatAttachments,
+                                    onPickAttachments = { attachmentPickerLauncher.launch(arrayOf("*/*")) },
+                                    onPickPhotos = {
+                                        photoPickerLauncher.launch(
+                                            androidx.activity.result.PickVisualMediaRequest(
+                                                androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly,
+                                            ),
                                         )
-                                    }
-                                },
-                                availableModels = availableModelNames,
-                                agentPresetLabel = com.deepseek.dsh.feature.chat.agentPresetLabel(
-                                    ui.pendingAgentPreset ?: ui.currentAppSettings.transcriptView
+                                    },
+                                    onTakePhoto = if (hasCamera) ({
+                                        val dir = java.io.File(context.cacheDir, "camera").apply { mkdirs() }
+                                        val file = java.io.File(dir, "photo-" + System.currentTimeMillis() + ".jpg")
+                                        val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
+                                        cameraUri = uri
+                                        cameraLauncher.launch(uri)
+                                    }) else null,
+                                    onOpenTerminal = if (terminalSupported) ({ ui.activePage = ActivePage.TERMINAL }) else null,
+                                    onOpenDrawer = { scope.launch { drawerState.open() } },
                                 ),
-                                agentPresetSelectedId = ui.pendingAgentPreset ?: ui.currentAppSettings.transcriptView,
-                                onAgentPresetSelected = { preset ->
-                                    // 立即生效：新会话用新预设；当前会话保持原样。
-                                    ui.pendingAgentPreset = preset
-                                    scope.launch {
-                                        settingsRepository.updateSettings { current ->
-                                            current.copy(transcriptView = preset)
-                                        }
-                                    }
-                                },                                modelGroups = modelGroupsForUi,
-                                onModelSelected = { provider, modelId, name ->
-                                    // provider/模型 id 直接来自 Host 模型目录的分组，
-                                    // 不再按名字猜 provider（否则 Claude/Kimi 会被写成 deepseek-*）。
-                                    val sid = ui.selectedSessionId
-                                    val displayName = name.ifBlank { modelId }
-                                    // 新会话还没有 sessionId：先把选择记成默认模型，下一条
-                                    // 消息创建会话时会带着它走。
-                                    if (displayName in availableModelNames) {
-                                        lastUsedModel = displayName
-                                        modelPrefs.edit().putString("last_model_name", displayName).apply()
-                                    }
-                                    if (sid != null) {
-                                        scope.launch {
-                                            val result = dshRepository.selectModel(
-                                                ui.activeHostId,
-                                                sid,
-                                                modelId.ifBlank {
-                                                    effectiveModelIdByName[displayName] ?: displayName
-                                                },
-                                                provider.ifBlank {
-                                                    if (accountState.hasApiKey) {
-                                                        "deepseek-official"
-                                                    } else {
-                                                        "deepseek-account"
-                                                    }
-                                                },
-                                                displayName = displayName,
-                                            )
-                                            result.onSuccess {
-                                                // 立刻更新本地选择，别等 Host 投影回来才换标签。
-                                                if (displayName in availableModelNames) {
-                                                    lastUsedModel = displayName
-                                                    modelPrefs.edit()
-                                                        .putString("last_model_name", displayName)
-                                                        .apply()
-                                                }
-                                            }.onFailure { error ->
-                                                android.widget.Toast.makeText(
-                                                    context,
-                                                    context.getString(
-                                                        R.string.model_switch_failed,
-                                                        error.message.orEmpty(),
-                                                    ),
-                                                    android.widget.Toast.LENGTH_LONG,
-                                                ).show()
-                                            }
-                                        }
-                                    }
-                                },
-                                selectedPermission = currentPermission,
-                                onPermissionSelected = { preset ->
-                                    val presetStr = when (preset) {
-                                        com.deepseek.dsh.feature.chat.PermissionPreset.READ_ONLY -> "read_only"
-                                        com.deepseek.dsh.feature.chat.PermissionPreset.FULL_ACCESS -> "danger_full_access"
-                                        com.deepseek.dsh.feature.chat.PermissionPreset.AUTO_REVIEW -> "auto_review"
-                                        else -> "workspace_write"
-                                    }
-                                    ui.selectedSessionId?.let { sid ->
-                                        scope.launch {
-                                            dshRepository.selectPermissionPreset(ui.activeHostId, sid, presetStr)
-                                        }
-                                    }
-                                },
-                                reasoningLevel = reasoningLevel,
-                                reasoningOptions = backendEfforts,
-                                selectedReasoningId = selectedReasoningId,
-                                effortLabelOverride = effortLabelText,
-                                onReasoningSelected = { option ->
-                                    selectedReasoningId = option.id
-                                    scope.launch {
-                                        settingsRepository.updateSettings { current ->
-                                            current.copy(defaultReasoningLevel = option.id)
-                                        }
-                                        ui.selectedSessionId?.let { sid ->
-                                            dshRepository.selectModel(
-                                                ui.activeHostId,
-                                                sid,
-                                                effectiveModelIdByName[currentModel] ?: currentModel,
-                                                currentProviderGroup?.id,
-                                                option.id
-                                            )
-                                        }
-                                    }
-                                },
-                                onReasoningLevelChange = { level ->
-                                    reasoningLevel = level
-                                    scope.launch {
-                                        settingsRepository.updateSettings { it.copy(defaultReasoningLevel = level.name) }
-                                    }
-                                },
-                                stats = currentSessionStats,
-                                voiceEnabled = voiceEnabled,
-                                voiceRecording = runtimeUi.voiceRecording,
-                                voiceSeconds = runtimeUi.voiceSeconds,
-                                voiceLevel = runtimeUi.voiceLevel,
-                                voiceBusy = runtimeUi.voiceBusy,
-                                voiceError = runtimeUi.voiceError,
-                                voiceTranscript = runtimeUi.voiceTranscript,
-                                onVoiceStart = voice::start,
-                                onVoiceStop = voice::stop,
-                                onVoiceCancel = voice::cancel,
-                                onVoiceTranscriptConsumed = { runtimeUi.voiceTranscript = null },
-                                translateReasoning = if (cotTranslationEnabled) {
-                                    { text ->
-                                        dshRepository.translation.cotTranslationTranslate(
-                                            ui.activeHostId,
-                                            text,
-                                            ui.selectedSessionId ?: "",
-                                        )
-                                    }
-                                } else null,
-                                bandSnapshot = runtimeUi.bandSnapshot,
-                                bandPressing = runtimeUi.bandPressing,
-                                onBandPress = { generation, actionId -> pressClaudeCodeBand(generation, actionId) },
-                                attachments = chatAttachments,
-                                onRemoveAttachment = { attachment ->
-                                    chatAttachments.remove(attachment)
-                                },
-                                onPickAttachments = {
-                                    // SAF 选择器：任意类型文件 + 图片；图片走同一通道。
-                                    attachmentPickerLauncher.launch(arrayOf("*/*"))
-                                },
-                                onPickPhotos = {
-                                    photoPickerLauncher.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
-                                },
-                                onTakePhoto = if (hasCamera) ({
-                                    val dir = java.io.File(context.cacheDir, "camera").apply { mkdirs() }
-                                    val file = java.io.File(dir, "photo-" + System.currentTimeMillis() + ".jpg")
-                                    val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
-                                    cameraUri = uri
-                                    cameraLauncher.launch(uri)
-                                }) else null,
-                                terminalContext = (ui.selectedSessionId ?: sessions.firstOrNull()?.sessionId)?.let { sid ->
-                                    com.deepseek.dsh.terminal.TerminalHub.lastFailed(ui.activeHostId, sid)?.let { b ->
-                                        com.deepseek.dsh.feature.chat.ChatTerminalContext(b.cmd, b.code, b.out.plain())
-                                    }
-                                },
-                                planMode = runtimeUi.chatPlanMode,
-                                onPlanModeChange = { enabled -> runtimeUi.chatPlanMode = enabled },
                             )
                         }
 
