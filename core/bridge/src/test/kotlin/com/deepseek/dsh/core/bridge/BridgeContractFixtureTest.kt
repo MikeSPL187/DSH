@@ -10,11 +10,11 @@ import org.junit.Test
 import java.io.File
 
 /**
- * 契约夹具测试。
+ * Тест по образцу контракта.
  *
- * `fixtures/bridge-contract-fixture.json` 是脱敏的线协议样本，与 Host 插件的
- * `docs/protocol.md` 对齐。这里用真实的解码器读它：夹具一旦漂移，测试立刻失败，
- * 而不是等到设备上才发现字段名对不上。
+ * `fixtures/bridge-contract-fixture.json` — обезличенный образец протокола, совпадает с
+ * `docs/protocol.md` плагина Host. Его читает настоящий разборщик: разойдётся образец — тест упадёт сразу,
+ * а не на устройстве, когда имена полей не сойдутся.
  */
 class BridgeContractFixtureTest {
 
@@ -71,7 +71,7 @@ class BridgeContractFixtureTest {
         assertEquals(30, list.registrations[0].order)
         assertEquals("agent-loop", list.registrations[0].componentId)
         assertTrue(list.emptySlots.isEmpty())
-        // 分组是客户端唯一需要的组织方式。
+        // Группировка — единственная нужная клиенту организация.
         assertEquals(2, list.bySlot()["plugins.item"]?.size)
     }
 

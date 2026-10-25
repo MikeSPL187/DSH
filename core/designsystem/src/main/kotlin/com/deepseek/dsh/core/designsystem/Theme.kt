@@ -54,24 +54,24 @@ private fun materialTypography(): Typography {
 }
 
 /**
- * 会话正文的字号（sp），来自 Host 的 `ui-theme.fontSize`。
+ * Размер текста ленты сессии (sp) из `ui-theme.fontSize` Host.
  *
- * 设置页的「字号」只影响对话内容，不缩放整个界面，所以用一个 CompositionLocal
- * 传给聊天区的文本渲染，而不是改全局 density。
+ * «Размер текста» в настройках меняет только содержимое диалога, а не весь интерфейс, поэтому
+ * он передаётся тексту чата через CompositionLocal, а не через общую density.
  */
 val LocalConversationFontSize = androidx.compose.runtime.compositionLocalOf { 14 }
 
 /**
- * 当前界面是否为深色主题（由 DshTheme 提供）。
+ * Тёмная ли тема сейчас (задаёт DshTheme).
  *
- * 自定义面板/设置页以前直接读系统深浅色：Host 把主题设成 dark 而手机系统是
- * light 时会出现混搭。所有自绘配色都应该读这个值。
+ * Раньше свои панели и настройки читали тему системы: при тёмной теме в Host и светлой
+ * в телефоне цвета смешивались. Все собственные цвета берут это значение.
  */
 val LocalDshDarkTheme = androidx.compose.runtime.compositionLocalOf { false }
 
 @Composable
 fun DshTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(), // 严格跟随手机系统深浅色模式
+    darkTheme: Boolean = isSystemInDarkTheme(), // по умолчанию — тема системы
     content: @Composable () -> Unit
 ) {
     val colors = if (darkTheme) DshGraphite else DshPorcelain

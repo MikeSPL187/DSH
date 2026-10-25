@@ -4,7 +4,7 @@ package com.deepseek.dsh.core.data
  * То, что интерфейс показывает из итога включения или выключения bundle.
  *
  * Это `ChangeResult` из `pluginManager` Host; `application` бывает
- * `applied / restart-required / overridden / failed / cancelled`；
+ * `applied / restart-required / overridden / failed / cancelled`;
  * при `restart-required` интерфейс просит перезапустить DSH, `warnings` —
  * замечания этой операции (веб-версия тоже их показывает).
  */

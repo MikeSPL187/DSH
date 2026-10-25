@@ -28,7 +28,7 @@ data class SpeechStep(val kind: String, val status: String)
 
 /** Состояние подготовки модели сервиса. */
 data class SpeechPreparation(
-    /** checking / unprepared / downloading / verifying / loading / ready / standby / waking / failed / cancelled / cancelling。 */
+    /** checking / unprepared / downloading / verifying / loading / ready / standby / waking / failed / cancelled / cancelling. */
     val phase: String,
     val message: String? = null,
     val steps: List<SpeechStep> = emptyList(),
@@ -42,7 +42,7 @@ data class SpeechPreparation(
 data class SpeechProvider(
     val id: String,
     val name: String,
-    /** host-local / cloud。 */
+    /** host-local / cloud. */
     val location: String,
     val languages: List<String>,
     val downloadSources: List<String>,

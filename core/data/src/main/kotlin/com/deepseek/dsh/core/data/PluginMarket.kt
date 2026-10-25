@@ -48,7 +48,7 @@ data class MarketEntry(
     val labels: List<String>,
     val versions: List<MarketVersion>,
     val defaultVersion: String?,
-    /** `not-installed` / `installed` / `update-available` / `different-version` / `provided`。 */
+    /** `not-installed` / `installed` / `update-available` / `different-version` / `provided`. */
     val installationStatus: String,
 ) {
     /** Версия для списка: по умолчанию, иначе первая. */

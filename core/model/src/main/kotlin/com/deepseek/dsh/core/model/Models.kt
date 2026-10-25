@@ -10,7 +10,7 @@ enum class HostKind {
 }
 
 /**
- * v4.0 设计文档 §11.1: Host 抽象模型
+ * Описание Host.
  */
 @Serializable
 sealed interface HostDescriptor {
@@ -41,8 +41,8 @@ sealed interface HostDescriptor {
 }
 
 /**
- * v4.0 设计文档 §11.3: 扫码配对 payload 结构规范
- * 二维码格式: {v, name, url, fp, pair, exp}
+ * Данные QR-кода сопряжения.
+ * Формат: {v, name, url, fp, pair, exp}
  */
 @Serializable
 data class PairPayload(
@@ -99,20 +99,19 @@ data class ModelCatalogInfo(
 )
 
 /**
- * v4.0 设计文档 §13.2:
- * 手机端用户偏好与设置数据模型
+ * Настройки пользователя на телефоне.
  */
 @Serializable
 data class AppSettings(
     val defaultModel: String = "",
     val defaultReasoningLevel: String = "",
-    val idleStopMinutes: Int = 5,           // 空闲 5 分钟后停止容器 (0 = 常驻)
-    val keepAliveOnTask: Boolean = true,    // 后台有任务时保持运行
-    val autoBootRecovery: Boolean = false,  // 开机恢复
-    val highRiskConfirm: Boolean = true,    // 高危操作强确认
-    val showCodingView: Boolean = true,     // 显示代码工作视图（轨迹 / 代码差异 / 完整预设切换）
-    val transcriptView: String = "standard", // 工作步骤展示：compact / standard / detailed（首次引导写入）
-    val enableSoundNotice: Boolean = true,  // 任务完成语音/提示音
+    val idleStopMinutes: Int = 5,           // остановить контейнер через 5 минут простоя (0 — не останавливать)
+    val keepAliveOnTask: Boolean = true,    // работать в фоне, пока есть задачи
+    val autoBootRecovery: Boolean = false,  // восстановление после перезагрузки
+    val highRiskConfirm: Boolean = true,    // строгое подтверждение опасных действий
+    val showCodingView: Boolean = true,     // вид работы с кодом (траектория, diff, полный выбор пресетов)
+    val transcriptView: String = "standard", // пресет агента для новых сессий (пишется при первом запуске)
+    val enableSoundNotice: Boolean = true,  // звук по завершении задачи
     val notificationsEnabled: Boolean = true,
     val notifyOnTurnComplete: Boolean = true,
     val notifyOnError: Boolean = true,
@@ -211,10 +210,10 @@ data class TeamTaskItem(
 )
 
 /**
- * 智能体团队的一名成员。
+ * Участник команды агентов.
  *
- * 来自会话投影 `agentTeam`（官方 `TeamProjection.members`）。`id` 就是成员的
- * 会话 id，点开成员会话时直接用它。
+ * Из проекции сессии `agentTeam` (`TeamProjection.members`). `id` — id сессии участника,
+ * по нему открывается его сессия.
  */
 @Serializable
 data class AgentTeamMember(
@@ -225,7 +224,7 @@ data class AgentTeamMember(
     val error: String? = null,
 )
 
-/** 共享任务板里的一项（官方 `TeamTaskView`）。 */
+/** Пункт общей доски задач (`TeamTaskView`). */
 @Serializable
 data class AgentTeamTask(
     val id: String,
@@ -239,7 +238,7 @@ data class AgentTeamTask(
     val writeScopeWarnings: List<String> = emptyList(),
 )
 
-/** 会话投影 `agentTeam` 里原生团队面板要用的部分。 */
+/** Часть проекции `agentTeam`, нужная нативной панели команды. */
 @Serializable
 data class AgentTeamSummary(
     val members: List<AgentTeamMember> = emptyList(),
@@ -247,14 +246,14 @@ data class AgentTeamSummary(
     val failure: String? = null,
 )
 
-/** 官方 `todos` 投影的一条待办。 */
+/** Пункт плана из проекции `todos`. */
 @Serializable
 data class TodoEntryInfo(
     val content: String,
     val status: String, // pending | in_progress | completed
 )
 
-/** 官方 `goal` 投影的当前目标。 */
+/** Текущая цель из проекции `goal`. */
 @Serializable
 data class GoalInfo(
     val objective: String,
@@ -264,7 +263,7 @@ data class GoalInfo(
     val maxGoalRounds: Int = 0,
 )
 
-/** 官方 `commands/list` 的一条斜杠命令描述。 */
+/** Слэш-команда из `commands/list`. */
 @Serializable
 data class HostCommandInfo(
     val name: String,
@@ -273,7 +272,7 @@ data class HostCommandInfo(
     val acceptsAttachments: Boolean = false,
 )
 
-/** 官方 workflow 运行里的一个成员（子会话）。 */
+/** Участник запуска workflow (дочерняя сессия). */
 @Serializable
 data class WorkflowMemberInfo(
     val seq: Int = 0,
@@ -282,14 +281,14 @@ data class WorkflowMemberInfo(
     val status: String = "running",
 )
 
-/** 官方 workflow 运行里的一个阶段（phase 可缺省）。 */
+/** Фаза запуска workflow (phase может отсутствовать). */
 @Serializable
 data class WorkflowPhaseInfo(
     val phase: String? = null,
     val members: List<WorkflowMemberInfo> = emptyList(),
 )
 
-/** 由官方 tool-workflow 事件聚合出的一次 workflow 运行。 */
+/** Запуск workflow, собранный из событий tool-workflow. */
 @Serializable
 data class WorkflowRunInfo(
     val runId: String,
@@ -298,7 +297,7 @@ data class WorkflowRunInfo(
     val phases: List<WorkflowPhaseInfo> = emptyList(),
 )
 
-/** 官方 `schedule/catalog` 里的一个计划任务（提醒）。 */
+/** Расписание (напоминание) из `schedule/catalog`. */
 @Serializable
 data class ScheduleInfo(
     val id: String,
@@ -308,19 +307,19 @@ data class ScheduleInfo(
     val sessionId: String = "",
     val status: String = "",
     val kind: String = "",
-    /** `after` 的一次性延迟秒数。 */
+    /** Разовая задержка `after`, секунды. */
     val afterSeconds: Long = 0,
-    /** `every` 的固定间隔秒数。 */
+    /** Интервал `every`, секунды. */
     val everySeconds: Long = 0,
-    /** `daily` / `weekly` 的本地时间 HH:mm:ss.SSS。 */
+    /** Местное время `daily` / `weekly`, HH:mm:ss.SSS. */
     val time: String = "",
-    /** `weekly` 的星期序号（ISO：1=周一）。 */
+    /** Дни недели `weekly` (ISO: 1 — понедельник). */
     val weekdays: List<Int> = emptyList(),
-    /** `cron` 的五段表达式。 */
+    /** Выражение `cron` из пяти полей. */
     val expression: String = "",
 )
 
-/** 官方 `account/getUnnotifiedBonuses` 里的一条奖励通知。 */
+/** Уведомление о бонусе из `account/getUnnotifiedBonuses`. */
 @Serializable
 data class AccountBonusInfo(
     val orderId: String,
@@ -329,7 +328,7 @@ data class AccountBonusInfo(
     val expiresAt: String = "",
 )
 
-/** 官方 `messageFeedback` 的一条消息反馈。 */
+/** Оценка сообщения из `messageFeedback`. */
 @Serializable
 data class MessageFeedbackInfo(
     val messageId: String,
@@ -338,7 +337,7 @@ data class MessageFeedbackInfo(
     val version: String = "",
 )
 
-/** 官方 `terminal/list` 里的一个网页终端。 */
+/** Веб-терминал из `terminal/list`. */
 @Serializable
 data class TerminalInfo(
     val id: String,
@@ -347,7 +346,7 @@ data class TerminalInfo(
     val shellName: String = "",
 )
 
-/** 官方 `skills/list` 里人可调用的一个技能。 */
+/** Навык из `skills/list`, который может вызвать человек. */
 @Serializable
 data class SkillInfo(
     val name: String,
@@ -356,7 +355,7 @@ data class SkillInfo(
     val modelInvocable: Boolean = false,
 )
 
-/** 官方 `commands/execute` 的结果。 */
+/** Результат `commands/execute`. */
 @Serializable
 data class HostCommandResult(
     val kind: String,
@@ -381,15 +380,15 @@ data class PluginBundleItem(
     val iconKey: String = "default",
     val version: String? = null,
     val official: Boolean = false,
-    /** 这个包是否真的落在设备上（与「随安装提供」相对）。 */
+    /** Лежит ли пакет на устройстве (в отличие от «из установки»). */
     val installed: Boolean = false,
-    /** Host 报告的可用性：`installation` / `installed` / `missing`。 */
+    /** Доступность по Host: `installation` / `installed` / `missing`. */
     val availability: String = "",
     val removable: Boolean = true,
     val error: String? = null,
     val rows: List<PluginComponentInfo> = emptyList(),
     val iconData: String? = null,
-    // 插件页策略由 bridge 下发（旧版 bridge 缺省时这些值保持 false/0）。
+    // Правила страницы плагинов — от моста (старый мост не присылает: false/0).
     val profileRoot: Boolean = false,
     val pinned: Boolean = false,
     val order: Int = 0,
@@ -450,10 +449,10 @@ data class SurfaceCatalog(
 
 
 /**
- * 一个插件声明的、映射到原生界面的入口。
+ * Точка входа плагина, соответствующая нативному интерфейсу.
  *
- * 目前只有设置页一种：插件只要声明了 `Config` schema，Host 就会为它生成一个设置
- * 命名空间，原生设置里也就应当出现对应条目。内容页尚未实现，条目先只负责导航。
+ * Пока только страница настроек: если плагин объявил схему `Config`, Host создаёт пространство
+ * настроек, и в нативных настройках должен быть пункт. Страницы содержимого ещё нет — пункт только ведёт туда.
  */
 @Serializable
 data class PluginSettingsPage(
@@ -464,9 +463,9 @@ data class PluginSettingsPage(
 )
 
 /**
- * 一份插件设置文档：Host 投影出来的表单、它的当前值与版本。
+ * Документ настроек плагина: форма из Host, текущие значения и версия.
  *
- * 表单来自插件自己的 `Config` schema，客户端只负责画字段与回写，不重新定义字段。
+ * Форма — из схемы `Config` самого плагина; клиент рисует поля и пишет обратно, но поля не переопределяет.
  */
 @Serializable
 data class PluginSettingsDocument(
@@ -474,11 +473,11 @@ data class PluginSettingsDocument(
     val revision: Int = 0,
     val schema: JsonObject = JsonObject(emptyMap()),
     val value: JsonObject = JsonObject(emptyMap()),
-    /** 已配置的密钥位置（Host 只下发 path + set，值本身被剥离）。 */
+    /** Заданные места секретов (Host присылает только path и set, значения вырезаны). */
     val secretSlots: List<PluginSecretSlot> = emptyList(),
 )
 
-/** 一个密钥字段位置（路径 + 是否已配置）。 */
+/** Место поля-секрета (путь и задан ли). */
 @Serializable
 data class PluginSecretSlot(
     val path: List<String> = emptyList(),
@@ -486,10 +485,10 @@ data class PluginSecretSlot(
 )
 
 /**
- * 插件声明的一个界面入口，已经带有原生落点。
+ * Точка входа плагина с уже определённым нативным местом.
  *
- * 落点由 bridge 从 slot 名翻译而来，客户端只负责把每个落点渲染到对应屏幕；
- * 尚未实现的位置也会出现在列表里，而不是被丢掉。
+ * Место переводит мост из имени слота, клиент рисует каждое место на своём экране;
+ * ещё не реализованные места тоже остаются в списке, а не теряются.
  */
 @Serializable
 data class PluginSlotEntry(
@@ -497,22 +496,22 @@ data class PluginSlotEntry(
     val order: Int = 0,
     val slot: String,
     val id: String? = null,
-    /** keyed 槽位的身份（例如 `tool.call.toolview` 按工具名注册的 `render_ui`）。 */
+    /** Идентификатор слота с ключом (например, `render_ui` в `tool.call.toolview` по имени инструмента). */
     val key: String? = null,
     val title: String? = null,
     val module: String? = null,
-    /** bridge 给出的组件身份 `<package>#<id|key|slot>`，优先于客户端自行拼接。 */
+    /** Компонент `<package>#<id|key|slot>` от моста — важнее собранного клиентом. */
     val componentId: String? = null,
 ) {
-    /** 用于按工具名/会话位匹配的稳定身份：id 优先，keyed 槽位回落到 key。 */
+    /** Стабильный идентификатор для сопоставления по инструменту или месту: сначала id, у слотов с ключом — key. */
     val identity: String? get() = id ?: key
 
-    /** 组件身份：bridge 有给就用，否则按 `<module>#<identity|slot>` 拼。 */
+    /** Компонент: от моста, иначе `<module>#<identity|slot>`. */
     fun resolvedComponentId(): String? =
         componentId ?: module?.let { "$it#${identity ?: slot}" }
 }
 
-/** 官方 inbox 投影里一条待发消息（下一轮队列）。 */
+/** Сообщение в очереди на следующий ход (проекция inbox). */
 data class QueuedMessageInfo(
     val id: String,
     val text: String,

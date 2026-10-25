@@ -110,8 +110,8 @@ val DshDarkPanelColors = panelFrom(DshGraphite)
 @Composable
 fun dshPanelColors(): DshPanelColors {
     val provided = LocalDshPanelColors.current
-    // DshTheme 会按实际主题 provide；未被 provide（默认 light）时，深色系统仍取暗色，
-    // 保持预览与旧调用点的行为。
+    // DshTheme задаёт значение по фактической теме; без него (по умолчанию light) тёмная система
+    // всё равно получает тёмные цвета — как в превью и старых местах вызова.
     return if (provided.isDark || !isSystemInDarkTheme()) {
         provided
     } else {

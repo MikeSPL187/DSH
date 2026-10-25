@@ -3,7 +3,7 @@ package com.deepseek.dsh.core.model
 import kotlinx.serialization.Serializable
 
 /**
- * DeepSeek 账号体系 (来源: @deepseek-ai/dsh-deepseek-account)
+ * Аккаунт DeepSeek (по @deepseek-ai/dsh-deepseek-account).
  */
 @Serializable
 data class DeepSeekUserProfile(
@@ -25,12 +25,12 @@ data class DeepSeekAccountState(
     val profile: DeepSeekUserProfile? = null,
     val wallets: List<DeepSeekWallet> = emptyList(),
     val bonusWallets: List<DeepSeekWallet> = emptyList(),
-    /** 是否已配置 API Key（官方允许「有 API Key、未登录账号」的独立状态）。 */
+    /** Задан ли API-ключ (бывает «ключ есть, входа в аккаунт нет»). */
     val hasApiKey: Boolean = false,
     val platformUrl: String = "https://platform.deepseek.com"
 )
 
-/** Host `account/getState` 的安全投影（不含凭据）。 */
+/** Безопасная проекция `account/getState` Host (без учётных данных). */
 data class AccountViewInfo(
     val status: String = "signed-out",
     val attemptId: String? = null,
@@ -38,7 +38,7 @@ data class AccountViewInfo(
     val authorizeUrl: String? = null
 )
 
-/** Host `account/getProfile` 的安全资料。 */
+/** Безопасный профиль из `account/getProfile` Host. */
 data class AccountProfileInfo(
     val id: String? = null,
     val name: String? = null,
@@ -46,7 +46,7 @@ data class AccountProfileInfo(
     val avatarUrl: String? = null
 )
 
-/** Host `account/getBalance` 的余额。 */
+/** Баланс из `account/getBalance` Host. */
 data class AccountBalanceInfo(
     val wallets: List<DeepSeekWallet> = emptyList(),
     val bonusWallets: List<DeepSeekWallet> = emptyList()

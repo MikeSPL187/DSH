@@ -13,14 +13,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 插件目录归一测试。
+ * Тест сведения каталога плагинов.
  *
- * 覆盖设计文档要求的降级顺序：官方 slot 注册优先，Host 原生清单兜底，两者都缺
- * 时是明确的空目录（`source = NONE`），绝不伪造分类。
+ * Порядок запасных путей: сначала официальные регистрации слотов, затем список Host, без обоих —
+ * явно пустой каталог (`source = NONE`), категории не выдумываются.
  */
 class BridgePluginCatalogTest {
 
-    /** 用固定响应队列构造客户端；按顺序消费，队列耗尽返回 500。 */
+    /** Клиент с заданной очередью ответов; по порядку, после конца — 500. */
     private fun clientWith(vararg responses: Pair<Int, String>): OkHttpClient {
         val queue = responses.toMutableList()
         return OkHttpClient.Builder().addInterceptor(Interceptor { chain ->
@@ -58,10 +58,10 @@ class BridgePluginCatalogTest {
         { "ok": true, "provider": "client-slots", "version": 1, "warnings": [],
           "data": { "slot": "plugins.item",
                     "registrations": [
-                      { "slot": "plugins.item", "id": "shell", "order": 40, "label": "终端",
+                      { "slot": "plugins.item", "id": "shell", "order": 40, "label": "Terminal",
                         "package": "@deepseek-ai/dsh-client-ui-settings-shell", "locale": "settings.shell",
                         "render": { "kind": "component", "componentId": "shell" } },
-                      { "slot": "plugins.item", "id": "agent-loop", "order": 30, "label": "Agent 循环",
+                      { "slot": "plugins.item", "id": "agent-loop", "order": 30, "label": "Agent loop",
                         "package": "@deepseek-ai/dsh-client-ui-settings-agent-loop", "locale": "settings.agentLoop",
                         "render": { "kind": "component", "componentId": "agent-loop" } }
                     ],
@@ -76,7 +76,7 @@ class BridgePluginCatalogTest {
           "data": { "componentId": "$componentId", "size": 40, "svg": ${jsonQuote(svg)} } }
     """.trimIndent()
 
-    /** 把一段文本编成 JSON 字符串字面量，避免测试里手写转义。 */
+    /** Текст в строковый литерал JSON, чтобы не экранировать вручную. */
     private fun jsonQuote(text: String): String = buildString {
         append('"')
         for (character in text) {
@@ -103,8 +103,8 @@ class BridgePluginCatalogTest {
 
     @Test
     fun `client slots drive the categories and their artwork`() = runBlocking {
-        // 调用顺序：manifest → client-slots/list → package-inventory/bundles → 每个分类的图标
-        // （图标按已排序的注册顺序取，因此 agent-loop 先于 shell）。
+        // Порядок вызовов: manifest → client-slots/list → package-inventory/bundles → значки категорий
+        // (в порядке отсортированных регистраций, поэтому agent-loop раньше shell).
         val client = BridgeClient(
             "http://127.0.0.1:43121",
             clientWith(
@@ -119,14 +119,14 @@ class BridgePluginCatalogTest {
         val result = BridgePluginCatalog.load(registry)
         val catalog = result.catalog
         assertEquals(BridgePluginCatalogSource.CLIENT_SLOTS, catalog.source)
-        // 官方 order 决定顺序，客户端不重新排序。
+        // Порядок задаёт официальный order, клиент не пересортировывает.
         assertEquals(listOf("agent-loop", "shell"), catalog.categories.map { it.id })
-        assertEquals(listOf("Agent 循环", "终端"), catalog.categories.map { it.label })
+        assertEquals(listOf("Agent loop", "Terminal"), catalog.categories.map { it.label })
         assertEquals("@deepseek-ai/dsh-client-ui-settings-shell", catalog.categories[1].packageName)
         assertEquals("settings.agentLoop", catalog.categories[0].locale)
         assertTrue(catalog.categories[0].iconSvg!!.contains("<circle"))
         assertTrue(catalog.categories[1].iconSvg!!.contains("M1 1"))
-        // bundle 清单照常可用，因此第三方插件仍然呈现。
+        // Список bundle по-прежнему доступен, поэтому сторонние плагины видны.
         assertEquals(listOf("dsh-purge"), catalog.bundles.map { it.name })
         assertEquals("data:image/png;base64,AAAA", catalog.bundles[0].iconDataUrl)
     }
@@ -161,7 +161,7 @@ class BridgePluginCatalogTest {
 
     @Test
     fun `an icon failure keeps the category and records why`() = runBlocking {
-        // 顺序同上：agent-loop 的图标取到，shell 的取不到。
+        // Порядок тот же: значок agent-loop получен, shell — нет.
         val client = BridgeClient(
             "http://127.0.0.1:43121",
             clientWith(
@@ -213,7 +213,7 @@ class BridgePluginCatalogTest {
         )
         val catalog = BridgePluginCatalog.load(BridgeRegistry(client)).catalog
         val bundle = catalog.bundles.single()
-        assertEquals("broken", bundle.title) // 没有 title 时回落到包名，绝不空着
+        assertEquals("broken", bundle.title) // без title — имя пакета, но не пусто
         assertEquals("not-bundle", bundle.errorCode)
         assertTrue(bundle.official && bundle.optional && !bundle.removable)
     }
