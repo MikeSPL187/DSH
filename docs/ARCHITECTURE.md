@@ -103,4 +103,4 @@ Host по областям. Области — отдельные классы, 
    (`PairingTls`), затем включить `SettingsUi.remoteHostsSupported`.
 2. **Тесты UI-логики** в `feature:chat`, `feature:runtime` и `core:designsystem` — сейчас там
    нет модульных тестов, проверка идёт снимками в `app` (`DshScreensSweepTest`, `ScreensGalleryTest`).
-   Для областей данных тесты есть (`core:data`); осталось покрыть `PluginsRepository` и `TasksRepository`.
+   Для областей данных тесты есть (`core:data`, подставной Host).
