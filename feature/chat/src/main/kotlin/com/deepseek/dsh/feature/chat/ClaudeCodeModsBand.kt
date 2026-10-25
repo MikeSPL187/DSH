@@ -27,22 +27,22 @@ import com.deepseek.dsh.core.data.ClaudeCodeBandSnapshot
 import com.deepseek.dsh.core.designsystem.LocalDshPanelColors
 
 /**
- * 「Claude Code 子智能体」插件的原生界面：输入框上方的模组横幅。
+ * Нативный интерфейс плагина «Субагенты Claude Code»: полоса модов над полем ввода.
  *
- * 官方 `client-ui-claude-code-mods` 在 `conversation.input.dock` 注册一条
- * 动态横幅，内容由 Host 序列化成 `Text`/`Box`/`Button` 节点树；按钮按下走
- * `claudeCodeMods.pressBand`。这里按同样的树与配色画原生版。
+ * `client-ui-claude-code-mods` регистрирует в `conversation.input.dock` живую полосу:
+ * Host присылает дерево узлов `Text`/`Box`/`Button`, нажатие кнопки идёт в
+ * `claudeCodeMods.pressBand`. Здесь то же дерево рисуется нативно.
  */
 object ClaudeCodeModsPluginUi {
-    /** 启用后才会出现横幅的 bundle（Claude Code 子智能体）。 */
+    /** Bundle, при котором появляется полоса (субагенты Claude Code). */
     const val BUNDLE = "@deepseek-ai/dsh-subagent-claude-code"
 
     /**
-     * 画一条横幅。
+     * Нарисовать полосу.
      *
-     * @param snapshot 当前快照；`root == null` 时什么都不画（官方同样）。
-     * @param pressing 有按钮在处理中（禁用其余按钮并显示处理中）。
-     * @param onPress 点按钮：传入 generation 与 actionId。
+     * @param snapshot текущий снимок; при `root == null` ничего не рисуется.
+     * @param pressing нажатие обрабатывается (остальные кнопки выключены, видно «Выполняется»).
+     * @param onPress нажатие кнопки: generation и actionId.
      */
     @Composable
     fun BandView(
@@ -66,7 +66,7 @@ object ClaudeCodeModsPluginUi {
     }
 }
 
-/** 递归画一个节点。 */
+/** Нарисовать узел (рекурсивно). */
 @Composable
 private fun NodeView(
     node: BandNode,
@@ -142,7 +142,7 @@ private fun NodeView(
     }
 }
 
-/** 官方 `data-color` → 颜色；没有时用主文本色。 */
+/** `data-color` → цвет; без него — основной цвет текста. */
 @Composable
 private fun colorOrLabel(name: String?): Color =
     name?.let { candidate ->

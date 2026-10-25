@@ -18,27 +18,27 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.deepseek.dsh.plugin.runtimeweb.WebIslandContainer
 
 /**
- * 插件的「完整界面」：把 Host 的 Web 客户端放进一个 WebView 岛屿里运行。
+ * «Полный интерфейс» плагина: веб-клиент Host в островке WebView.
  *
- * 静态转译只能给出插件**声明的结构**；服务商列表、登录态、实时用量这类内容，
- * 以及登录/登出/刷新令牌这些操作，都需要插件自己的 JS 和它到 Host 的 RPC。
- * 与其假装能转译出来，不如让真实界面在这里跑：岛屿加载的是同一个 Host、
- * 同一份会话 cookie，所以里面的操作就是真实操作，效果与浏览器一致。
+ * Статическая копия даёт лишь **объявленную структуру**; список сервисов, вход, живое потребление,
+ * вход, выход и обновление токенов требуют JS плагина и его RPC к Host.
+ * Вместо имитации здесь работает настоящий интерфейс: островок загружает тот же Host
+ * с тем же cookie сессии, поэтому действия в нём настоящие, как в браузере.
  *
- * 这个组件只负责**一块 WebView**：尺寸由调用方给（必须是受限高度，不能塞进
- * `verticalScroll`），加载/失败状态经 [onLoadingChanged] / [onFailed] 交给调用方。
+ * Компонент отвечает только за **один WebView**: размер даёт вызывающий (высота должна быть ограничена,
+ * не внутри `verticalScroll`), загрузка и ошибка уходят через [onLoadingChanged] / [onFailed].
  *
- * WebView 外面套一层 `FrameLayout`：WebView 的布局视口修复需要一次真实的
- * 父级重新布局（见 [WebIslandContainer] 的 `nudgeViewport`），而 Compose 的
- * `AndroidView` 只保证它直接持有的那个 View 的尺寸，改变 WebView 自己的
- * LayoutParams 不会被 Compose 的测量采用。
+ * WebView обёрнут в `FrameLayout`: исправлению вьюпорта WebView нужен настоящий
+ * перерасчёт раскладки родителя (`nudgeViewport` в [WebIslandContainer]), а Compose
+ * `AndroidView` гарантирует размер только своего прямого View; LayoutParams самого
+ * WebView измерение Compose не учитывает.
  *
- * @param port 本地 Host 的 loopback 端口；0 表示 Host 未运行。
- * @param token 启动 token，用于在 WebView 里换取会话 cookie。
- * @param reloadKey 变化时重载页面（宿主 Header 上的刷新按钮）。
- * @param focusSettingsLabels 自动打开的设置分区标签候选。
- * @param onLoadingChanged 主框架加载开始/结束。
- * @param onFailed 主框架加载失败或 Web 客户端启动失败。
+ * @param port порт loopback локального Host; 0 — Host не запущен.
+ * @param token токен запуска: в WebView он меняется на cookie сессии.
+ * @param reloadKey изменился — перезагрузить (кнопка обновления в шапке).
+ * @param focusSettingsLabels подписи раздела настроек, который открыть сразу.
+ * @param onLoadingChanged начало и конец загрузки основного фрейма.
+ * @param onFailed основной фрейм не загрузился или веб-клиент не запустился.
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -63,8 +63,8 @@ fun PluginWebIsland(
         }
         return
     }
-    // AndroidView 的 factory 只跑一次；后续重组只能经 update 改状态。记住“已经
-    // 应用的 reloadKey / focus 标签”，update 时对比，只有真正变化才重载页面。
+    // factory у AndroidView выполняется один раз, дальше состояние меняет только update. Запоминаем
+    // применённые reloadKey и подписи и перезагружаем, только если они действительно изменились.
     val currentReloadKey = rememberUpdatedState(reloadKey)
     val currentFocusLabels = rememberUpdatedState(focusSettingsLabels)
     val currentFocusSectionId = rememberUpdatedState(focusSectionId)
@@ -91,10 +91,10 @@ fun PluginWebIsland(
                 ),
             )
             web.apply {
-                // 自动走到这个插件在 Web 客户端里的设置分区；失败则停在客户端本身。
+                // Сразу к разделу настроек этого плагина в веб-клиенте; не вышло — остаёмся на клиенте.
                 focusSettingsSection(focusSettingsLabels, focusSectionId)
-                // 非隔离加载：插件页面是 Web 客户端里的一层，没有独立路由；
-                // 岛屿给出完整界面，用户在其中进入 设置 → 插件分区。
+                // Загрузка без изоляции: страница плагина — слой веб-клиента без своего маршрута;
+                // островок даёт весь интерфейс, пользователь идёт в Настройки → раздел плагина.
                 loadSurface(
                     surfaceSlot = "settings.section",
                     pluginId = "",

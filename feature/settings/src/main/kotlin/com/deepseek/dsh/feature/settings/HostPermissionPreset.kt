@@ -17,26 +17,26 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.put
 
-/** 一个可选权限预设（Host 的 `permissionPresets/catalog` 返回项）。 */
+/** Вариант режима доступа (элемент `permissionPresets/catalog` Host). */
 data class PermissionPresetOption(val value: String, val name: String)
 
 /**
- * 默认权限预设的桥：选项来自 Host 的 `permissionPresets/catalog`，当前值来自
- * `settings/describe` 的 `permission.defaultPreset`，写入走 `settings/mutate`。
+ * Режим доступа по умолчанию: варианты — из `permissionPresets/catalog` Host, текущее значение —
+ * `permission.defaultPreset` из `settings/describe`, запись — через `settings/mutate`.
  *
- * 这样权限模式列表不再由客户端写死，Host 装了新的权限预设（例如 auto review）
- * 时设置页直接出现，无需改 APK。
+ * Список не зашит в клиент: появится в Host новый режим (например, auto review) —
+ * он сразу будет в настройках, без нового APK.
  */
 object HostPermissionPreset {
-    /** Host 提供的全部预设；空表示还没读到。 */
+    /** Все режимы Host; пусто — ещё не прочитаны. */
     var options by mutableStateOf<List<PermissionPresetOption>>(emptyList())
         private set
 
-    /** 当前默认预设值；null 表示还没读到。 */
+    /** Текущий режим по умолчанию; null — ещё не прочитан. */
     var current by mutableStateOf<String?>(null)
         private set
 
-    /** 最后一次读到的设置 revision，写回时作为 expectedRevision 的 CAS。 */
+    /** Последняя прочитанная revision настроек — expectedRevision при записи. */
     private var revision: Int = 0
 
     private var reader: (() -> Unit)? = null

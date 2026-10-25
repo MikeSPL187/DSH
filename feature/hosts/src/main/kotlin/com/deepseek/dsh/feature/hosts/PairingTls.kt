@@ -9,10 +9,10 @@ import javax.net.ssl.SSLContext
 import javax.net.ssl.X509TrustManager
 
 /**
- * 配对二维码里的 TLS 指纹（`fp`）。
+ * Отпечаток TLS из QR-кода сопряжения (`fp`).
  *
- * 接受常见写法：`SHA256:<hex|base64>`、`sha256/<base64>`、带冒号的十六进制。
- * 指纹既可以是整张证书 DER 的 SHA-256，也可以是公钥（SPKI）的 SHA-256。
+ * Принимаются обычные записи: `SHA256:<hex|base64>`, `sha256/<base64>`, hex с двоеточиями.
+ * Отпечаток — SHA-256 всего сертификата DER или открытого ключа (SPKI).
  */
 class PairingFingerprint private constructor(private val digest: ByteArray) {
 
@@ -26,7 +26,7 @@ class PairingFingerprint private constructor(private val digest: ByteArray) {
     companion object {
         private val HEX = Regex("^[0-9a-fA-F]{64}$")
 
-        /** 解析；空值返回 null（未提供指纹），格式错误抛出 [IllegalArgumentException]。 */
+        /** Разобрать; пусто — null (отпечатка нет), неверный формат — [IllegalArgumentException]. */
         fun parse(raw: String?): PairingFingerprint? {
             val text = raw?.trim().orEmpty()
             if (text.isEmpty()) return null
@@ -47,10 +47,10 @@ class PairingFingerprint private constructor(private val digest: ByteArray) {
 }
 
 /**
- * 只信任与配对指纹一致的服务器证书（类似 SSH 的 known_hosts）。
+ * Доверять только сертификату сервера с отпечатком из сопряжения (как known_hosts в SSH).
  *
- * 远程网关通常使用自签证书，系统 CA 校验无从谈起；二维码里的指纹就是信任根。
- * 证书不匹配时在 TLS 握手阶段失败——配对码根本不会被发送（审计 N-07）。
+ * У удалённого шлюза обычно самоподписанный сертификат, проверка по системным CA невозможна;
+ * корень доверия — отпечаток из QR. Несовпадение обрывает TLS-рукопожатие — код сопряжения не отправляется (аудит N-07).
  */
 class PinnedTrustManager(private val pin: PairingFingerprint) : X509TrustManager {
     override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {
@@ -67,7 +67,7 @@ class PinnedTrustManager(private val pin: PairingFingerprint) : X509TrustManager
 }
 
 object PairingTls {
-    /** 基于 [base] 派生一个只信任 [pin] 的客户端；主机名由指纹而非 CA 证明。 */
+    /** Клиент на основе [base], доверяющий только [pin]; имя хоста подтверждает отпечаток, а не CA. */
     fun pinnedClient(base: OkHttpClient, pin: PairingFingerprint): OkHttpClient {
         val trustManager = PinnedTrustManager(pin)
         val context = SSLContext.getInstance("TLS").apply {

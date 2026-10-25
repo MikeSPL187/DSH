@@ -25,22 +25,22 @@ import com.deepseek.dsh.core.bridge.BridgeRegistry
 import kotlinx.coroutines.flow.SharedFlow
 
 /**
- * 插件界面页：直接运行插件自己的**完整 Web 界面**。
+ * Страница интерфейса плагина: запускает **полный веб-интерфейс** самого плагина.
  *
- * 原生静态转译兜底已随 `plugin/mobile-ui` 一并移除——同一个 Host、同一份会话
- * cookie 下，插件自己的服务商列表、登录态、实时用量以及登录/登出这些运行时
- * 操作都在真实 Web 客户端里发生；不再维护一份「声明结构」的原生副本。
+ * Нативная статическая копия удалена вместе с `plugin/mobile-ui`: с тем же Host и тем же cookie
+ * сессии список сервисов плагина, вход, живое потребление, вход и выход —
+ * всё происходит в настоящем веб-клиенте; нативной копии «объявленной структуры» больше нет.
  *
- * 这是插件界面唯一的返回条：设置根页面在子页面打开时不再画顶层 Header。
+ * Это единственная шапка «Назад» интерфейса плагина: корень настроек свою шапку при этом не рисует.
  *
- * @param componentId `<package>#<id>` 形式的组件身份（Web 端用它定位 settings.section）。
- * @param title 页面标题（也作为 Web 客户端分区的候选标签）。
- * @param registry bridge 门面；为 null 时显示「bridge 未连接」。
- * @param onBack 返回上一级。
- * @param refreshEvents 插件请求刷新的组件 id 流（`client/refresh`），命中即重载 Web 页。
- * @param hostPort 本地 Host 的 loopback 端口。
- * @param hostToken Host 启动 token。
- * @param hostPortProvider 需要时再取一次 Host 端口：Host 异步就绪，组合时的值可能是 0。
+ * @param componentId компонент вида `<package>#<id>` (по нему веб-клиент находит settings.section).
+ * @param title заголовок страницы (и кандидат подписи раздела веб-клиента).
+ * @param registry мост; null — «Мост не подключён».
+ * @param onBack назад.
+ * @param refreshEvents id компонентов, которые плагин просит обновить (`client/refresh`); совпадение — перезагрузка.
+ * @param hostPort порт loopback локального Host.
+ * @param hostToken токен запуска Host.
+ * @param hostPortProvider взять порт Host заново: Host готовится асинхронно, при композиции может быть 0.
  */
 @Composable
 fun PluginComponentPane(
@@ -53,16 +53,16 @@ fun PluginComponentPane(
     hostPort: Int = 0,
     hostToken: String? = null,
     hostPortProvider: (() -> Int)? = null,
-    /** 原生页未接管的原因（伴侣未加载 / 未注册设置页 / id 不匹配）；null 表示没有原生候选。 */
+    /** Почему нативная страница не подхватила (компаньон не загружен / нет страницы настроек / id не совпал); null — нативной нет. */
     nativeFallbackReason: String? = null,
-    /** 作为设置页子内容嵌入时传 false：返回条由设置页顶层 Header 提供。 */
+    /** false — встроено в настройки: шапку «Назад» даёт корень настроек. */
     showHeader: Boolean = true,
 ) {
     var webReloadKey by remember { mutableIntStateOf(0) }
     var webLoading by remember { mutableStateOf(true) }
     var webFailed by remember { mutableStateOf<String?>(null) }
 
-    // Host 是异步就绪的：组合时端口可能是 0。等它出现后自动加载 Web 界面。
+    // Host готовится асинхронно: при композиции порт может быть 0. Веб-интерфейс загрузится, когда он появится.
     val availablePort: Int = hostPort.takeIf { it > 0 }
         ?: hostPortProvider?.invoke()?.takeIf { it > 0 }
         ?: 0
@@ -78,8 +78,8 @@ fun PluginComponentPane(
         }
     }
 
-    // 事件驱动刷新：插件在 Host 侧响应过回传后，bridge 排一条 client/refresh，
-    // 命中本组件就重载 Web 页让它取到最新状态。
+    // Обновление по событию: плагин ответил в Host, мост ставит client/refresh —
+    // если это наш компонент, страница перезагружается и получает свежее состояние.
     LaunchedEffect(refreshEvents, componentId) {
         refreshEvents?.collect { refreshed ->
             if (refreshed == componentId) {
@@ -144,8 +144,8 @@ fun PluginComponentPane(
                     port = livePortValue.takeIf { it > 0 } ?: availablePort,
                     token = hostToken,
                     reloadKey = webReloadKey,
-                    // Web 客户端同一个壳里走：用本地化 label 与注册 id 两个候选把
-                    // 它自己带到这个插件的 settings.section。
+                    // Внутри той же оболочки веб-клиента: по подписи на языке интерфейса и id регистрации
+                    // он сам переходит к settings.section этого плагина.
                     focusSettingsLabels = remember(componentId, title) {
                         listOf(title, componentId.substringAfter('#'))
                             .filter { it.isNotBlank() }

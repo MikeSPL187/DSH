@@ -19,7 +19,7 @@ class RemotePairingSecurityTest {
     private val certificate: X509Certificate = CertificateFactory.getInstance("X.509")
         .generateCertificate(PEM.byteInputStream()) as X509Certificate
 
-    /** 单连接的最小 HTTP 网关：读完请求后返回固定 JSON。 */
+    /** Минимальный HTTP-шлюз на одно соединение: читает запрос и отвечает фиксированным JSON. */
     private fun withGateway(body: String, block: (String) -> Unit) {
         val server = ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))
         val thread = Thread {

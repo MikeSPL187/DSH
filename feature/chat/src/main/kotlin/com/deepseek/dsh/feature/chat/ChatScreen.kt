@@ -79,10 +79,10 @@ enum class ReasoningLevel(val labelResId: Int) {
 }
 
 /**
- * 权限预设（对齐 ui-permission-presets 当前会话选择器）。
+ * Режим доступа (как выбор в текущей сессии ui-permission-presets).
  *
- * 内置四项：仅可查看 / 工作区内修改 / 完全权限 / 自动审查（实验，带 EXP 标记）。
- * 完全权限与自动审查需要通过带确认勾选的风险弹窗。
+ * Четыре встроенных: только просмотр / изменения в рабочей папке / полный доступ / автопроверка (эксперимент, метка EXP).
+ * Полный доступ и автопроверка включаются через окно риска с подтверждающей галочкой.
  */
 enum class PermissionPreset(
     val titleResId: Int,
@@ -114,7 +114,7 @@ enum class PermissionPreset(
     ),
 }
 
-/** 文本类斜杠命令的本地化名称（输入框 chip 用）；非文本命令返回 null。 */
+/** Название текстовой слэш-команды на языке интерфейса (для метки в поле ввода); не текстовая — null. */
 private fun commandLabelRes(token: String): Int? = when (token) {
     "goal" -> R.string.cmd_goal
     "feedback" -> R.string.cmd_feedback
@@ -123,7 +123,7 @@ private fun commandLabelRes(token: String): Int? = when (token) {
     else -> null
 }
 
-/** 文本类斜杠命令的参数提示（选中命令后的 placeholder）。 */
+/** Подсказка аргумента текстовой слэш-команды (placeholder после выбора команды). */
 private fun commandHintRes(token: String): Int? = when (token) {
     "goal" -> R.string.cmd_goal_hint
     "feedback" -> R.string.cmd_feedback_hint
@@ -133,11 +133,11 @@ private fun commandHintRes(token: String): Int? = when (token) {
 }
 
 /**
- * 主聊天页：信息结构 + 手机端（ChatGPT Android）尺度的输入区。
+ * Главный экран чата: ход агента и поле ввода.
  *
- * 输入卡片内自上而下是文本域与操作行；操作行自左向右为加号（命令菜单）、
- * 权限预设、弹性留白、模型与推理等级、发送/停止，与 `InputBar` 的
- * tools / trailing 两簇排布一致。
+ * В карточке ввода сверху текст, ниже строка действий: слева «+» (меню команд),
+ * режим доступа, отступ, модель и уровень рассуждений, справа «Отправить/Стоп» —
+ * две группы, как tools и trailing у `InputBar`.
  */
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -146,57 +146,57 @@ fun ModernChatScreen(
     messages: List<ChatMessage>,
     onSendMessage: (String) -> Unit,
     isSending: Boolean = false,
-    /** 当前会话正在流式输出的助手文本（重连基线 + live chunk）；空串表示没有。 */
+    /** Текст ответа, который печатается сейчас (база при переподключении + живые фрагменты); пусто — нет. */
     streamingText: String = "",
-    /** 当前会话正在流式输出的推理文本。 */
+    /** Рассуждение, которое печатается сейчас. */
     streamingReasoning: String = "",
-    /** 列表滚到顶部时请求更早的一页历史。 */
+    /** Список прокручен к началу — догрузить более раннюю историю. */
     onLoadOlder: () -> Unit = {},
-    /** 官方 `commands/list` 的斜杠命令（Host 注册的，动态显示在加号菜单）。 */
+    /** Слэш-команды Host (`commands/list`), появляются в меню «+». */
     hostCommands: List<com.deepseek.dsh.core.model.HostCommandInfo> = emptyList(),
-    /** 执行一条 Host 斜杠命令（commands/execute）。 */
+    /** Выполнить слэш-команду Host (commands/execute). */
     onHostCommand: (String) -> Unit = {},
-    /** 官方 `skills/list`：当前会话可调用的技能。 */
+    /** Навыки текущей сессии (`skills/list`). */
     skills: List<com.deepseek.dsh.core.model.SkillInfo> = emptyList(),
-    /** 打开加号菜单前刷新技能目录（冷读 skills/list）。 */
+    /** Перечитать навыки перед открытием меню «+». */
     onRefreshSkills: () -> Unit = {},
-    /** 直接读取技能目录（菜单打开时用返回值渲染，避免状态管道丢失）。 */
+    /** Прочитать навыки напрямую (меню рисует результат сразу, не дожидаясь состояния). */
     loadSkills: suspend () -> List<com.deepseek.dsh.core.model.SkillInfo> = { emptyList() },
-    /** 官方 `todos` 投影（当前会话待办）。 */
+    /** План агента (проекция `todos`). */
     todos: List<com.deepseek.dsh.core.model.TodoEntryInfo> = emptyList(),
-    /** 官方 `goal` 投影（当前会话目标）。 */
+    /** Цель сессии (проекция `goal`). */
     goal: com.deepseek.dsh.core.model.GoalInfo? = null,
-    /** 官方 `deliverables/presented` 的产物列表。 */
+    /** Файлы — результат хода (`deliverables/presented`). */
     deliverables: List<com.deepseek.dsh.core.protocol.PresentedFileInfo> = emptyList(),
-    /** 当前会话最近一轮的改动汇总（workspace/changes）。 */
+    /** Изменения файлов за последний ход (workspace/changes). */
     changes: com.deepseek.dsh.core.protocol.ChangesSummaryInfo? = null,
-    /** 官方 inbox 投影里的排队消息（运行中发送的消息）。 */
+    /** Очередь сообщений, отправленных во время хода (проекция inbox). */
     queuedMessages: List<com.deepseek.dsh.core.model.QueuedMessageInfo> = emptyList(),
-    /** 排队消息操作：kind = edit / remove / steer。 */
+    /** Действие с сообщением в очереди: kind = edit / remove / steer. */
     onQueueAction: (id: String, kind: String, text: String?) -> Unit = { _, _, _ -> },
-    /** 打开某个改动文件的 diff（下标是 summary.files 的原始下标）。 */
+    /** Diff изменённого файла (индекс — исходный индекс в summary.files). */
     onLoadChangeDiff: suspend (Int) -> com.deepseek.dsh.core.protocol.ChangesDiffInfo? = { null },
-    /** 点开一份产物（切到文件页并定位到该目录）。 */
+    /** Открыть результат (страница «Файлы» на его папке). */
     onOpenDeliverable: (com.deepseek.dsh.core.protocol.PresentedFileInfo) -> Unit = {},
     workspaceName: String = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.chat.R.string.chat_default_workspace),
-    /** 系统文件选择器选回的附件；由宿主负责复制进工作区后传回这里。 */
+    /** Вложения из системного выбора файлов; копирует их в рабочую папку вызывающий. */
     attachments: List<ChatAttachment> = emptyList(),
     onRemoveAttachment: (ChatAttachment) -> Unit = {},
-    /** 点击「文件」：打开系统文件选择器（图片/任意文件）。 */
+    /** «Файл»: открыть системный выбор файлов (картинки и любые файлы). */
     onPickAttachments: () -> Unit = {},
-    /** 会话级计划模式（横幅状态）；本地 placeholder 与发送文案随之切换。 */
+    /** Режим плана сессии; от него зависят placeholder и подпись отправки. */
     planMode: Boolean = false,
     onPlanModeChange: (Boolean) -> Unit = {},
-    /** 可切换的工作区名称，来自 Host 的工作区列表。 */
+    /** Рабочие папки для переключения (из списка Host). */
     workspaceNames: List<String> = emptyList(),
     onWorkspaceSelected: (String) -> Unit = {},
     onAddWorkspace: () -> Unit = {},
     onWorkspaceClick: () -> Unit = {},
     onAnswerUserQuestion: (callId: String, questionId: String, selected: String) -> Unit = { _, _, _ -> },
     selectedModel: String = "",
-    /** 当前模型 id（如 deepseek-account/deepseek-flash、kimi-for-coding），传给 dock 解析 provider。 */
+    /** id текущей модели (например, deepseek-account/deepseek-flash, kimi-for-coding) — по нему место дока определяет провайдера. */
     selectedModelId: String = "",
-    /** 原生落点要求切换模型/推理档位（如插件 fast-mode 按钮）。 */
+    /** Нативное место просит сменить модель или уровень (например, кнопка fast-mode плагина). */
     onNativeModelSelect: suspend (provider: String, model: String, reasoningEffort: String?) -> Result<Unit> =
         { _, _, _ -> Result.failure(IllegalStateException("Model switching is not supported")) },
     availableModels: List<String> = emptyList(),
@@ -204,7 +204,7 @@ fun ModernChatScreen(
     onModelSelected: (provider: String, modelId: String, name: String) -> Unit = { _, _, _ -> },
     selectedPermission: PermissionPreset = PermissionPreset.WORKSPACE_WRITE,
     agentPresetLabel: String = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.chat.R.string.chat_preset_standard_label),
-    /** 当前选中的预设 id（standard/cordis），用于菜单打勾。 */
+    /** id выбранного пресета (standard/cordis) — для галочки в меню. */
     agentPresetSelectedId: String = "standard",
     onAgentPresetSelected: (String) -> Unit = {},
     onPermissionSelected: (PermissionPreset) -> Unit = {},
@@ -215,10 +215,10 @@ fun ModernChatScreen(
     onReasoningLevelChange: (ReasoningLevel) -> Unit = {},
     onReasoningSelected: (ReasoningOption) -> Unit = {},
     stats: ComposerStats = ComposerStats(),
-    // 录音输入（官方录音输入插件的 composer activity）：麦克风按钮与录音条。
-    // Claude Code 模组横幅（官方 conversation.input.dock）。
+    // Голосовой ввод (плагин записи): кнопка микрофона и полоса записи.
+    // Полоса модов Claude Code (conversation.input.dock).
 
-    /** 思考内容翻译（官方 cot-translation 的 reasoning body）；null 表示未启用。 */
+    /** Перевод рассуждений (плагин cot-translation); null — выключен. */
 
 
     translateReasoning: (suspend (String) -> Result<String>)? = null,
@@ -273,8 +273,8 @@ fun ModernChatScreen(
     modifier: Modifier = Modifier
 ) {
     var inputText by remember { mutableStateOf("") }
-    // 语音转写结果插进草稿：官方 insertText 是在录前记下的光标处插入；
-    // 原生草稿是单一字符串，这里追加到末尾，同样可继续编辑后发送。
+    // Распознанный текст — в черновик: в веб-версии вставка идёт в позицию курсора до записи;
+    // здесь черновик — одна строка, текст добавляется в конец, его можно поправить перед отправкой.
     LaunchedEffect(voiceTranscript) {
         val transcript = voiceTranscript?.trim()
         if (!transcript.isNullOrEmpty()) {
@@ -292,14 +292,14 @@ fun ModernChatScreen(
     var trajectoryOpen by remember { mutableStateOf(false) }
     var actionMessage by remember { mutableStateOf<ChatMessage?>(null) }
     val localContext = LocalContext.current
-    // 技能目录随菜单打开现拉：工作区的 .dsh/skills 可能刚被改动。
+    // Навыки читаются при каждом открытии меню: .dsh/skills рабочей папки могли только что поменяться.
     val sheetSkills = remember { mutableStateOf(skills) }
     val sheetScope = rememberCoroutineScope()
     LaunchedEffect(skills) {
         if (skills.isNotEmpty()) sheetSkills.value = skills
     }
-    // 从加号菜单选中的斜杠命令：输入框内显示本地化 chip（如 /目标），
-    // placeholder 变成该命令的参数提示，发送时再还原成 Host 认识的 /goal。
+    // Слэш-команда из меню «+»: в поле — метка на языке интерфейса (например, /цель),
+    // placeholder — подсказка аргумента, при отправке — снова понятная Host /goal.
     var activeCommandToken by remember { mutableStateOf<String?>(null) }
     var toolDetail by remember { mutableStateOf<ToolDetailData?>(null) }
     var changeDiffIndex by remember { mutableStateOf<Int?>(null) }
@@ -356,10 +356,10 @@ fun ModernChatScreen(
             .lastOrNull { it.message.role == MessageRole.ASSISTANT }?.message?.messageId
             ?.takeIf { lastWork >= 0 && (chatRows[lastWork] as ChatRow.Work).done }
     }
-    // slot 贡献（fast-mode 等）通过同一入口切换当前会话模型/推理档位。
+    // Вклады в слоты (fast-mode и др.) меняют модель и уровень сессии через тот же вход.
     com.deepseek.dsh.plugin.nativehost.NativeHost.modelSelectHandler = onNativeModelSelect
 
-    // chatRows 会把思考/工具过程也拆成行，索引与 messages 不一致；按实际行数滚到底。
+    // chatRows делит рассуждения и инструменты на строки, индексы не совпадают с messages — прокрутка по числу строк.
     LaunchedEffect(chatRows.size, isThinking, approval?.eventId) {
         if (chatRows.isNotEmpty()) {
             // До самого низа: последний элемент может быть выше экрана (ход работы, ответ).
@@ -622,7 +622,7 @@ fun ModernChatScreen(
             .fillMaxSize()
             .background(com.deepseek.dsh.core.designsystem.Dsh.colors.bg)
     ) {
-        // conversation.view：插件可以在会话视图整体位置增强（官方默认内容为空占位）。
+        // conversation.view: плагины могут дополнять вид сессии целиком (по умолчанию пусто).
         com.deepseek.dsh.plugin.nativehost.OfficialSlot(
             slot = com.deepseek.dsh.plugin.nativesdk.slots.NativeSlot.CONVERSATION_VIEW,
             arrangement = com.deepseek.dsh.plugin.nativehost.SlotArrangement.BLOCK,
@@ -772,8 +772,8 @@ fun ModernChatScreen(
                         else ApproveCard(pendingApproval) { allowed -> decide(pendingApproval, allowed) }
                     }
                 }
-                // conversation.chat.flow / chat.node：原生插件在消息流末尾的落点
-                // （会话摘要卡、跟进建议等）。
+                // conversation.chat.flow / chat.node: места нативных плагинов в конце ленты
+                // (сводка сессии, предложения продолжить и т. п.).
                 item(key = "native_slot_chat_stream") {
                     com.deepseek.dsh.plugin.nativehost.NativeSlot(
                         slot = com.deepseek.dsh.plugin.nativesdk.slots.NativeSlot.CHAT_STREAM,
@@ -781,7 +781,7 @@ fun ModernChatScreen(
                         modifier = Modifier.padding(top = 8.dp),
                     )
                 }
-                // 官方 ui-deliverables：改动卡在产物卡之前（同一 turn 尾部）。
+                // Карточка изменений идёт перед карточкой результатов (в конце того же хода).
                 if (changes != null && changes!!.files.isNotEmpty() && finalAnswerId == null) {
                     item(key = "changed_files") {
                         ChangedFilesCard(
@@ -895,8 +895,8 @@ fun ModernChatScreen(
 
 
 /**
- * 预设 id → 本地化显示名；会话顶栏和输入栏共用。
- * @param presetId Host 预设标识（standard/cordis/minimal/ptc）。
+ * id пресета → название на языке интерфейса; общее для шапки сессии и поля ввода.
+ * @param presetId пресет Host (standard/cordis/minimal/ptc).
  */
 @Composable
 fun agentPresetLabel(presetId: String): String = stringResource(
@@ -926,18 +926,18 @@ private fun buildChatRows(messages: List<ChatMessage>, isThinking: Boolean): Lis
     val rows = mutableListOf<ChatRow>()
 
     /**
-     * 一个 turn = 一条用户消息 + 其后的 AI/工具消息。
+     * Ход = сообщение пользователя и следующие за ним сообщения агента и инструментов.
      *
-     * 完成头（TurnDone）紧跟在用户消息后、AI 内容前，且每个 turn 只出现一次；
-     * 不能在每条中间 AI 消息后插入，否则“已完成 + 分割线”会夹在回复中间。
+     * Шапка «Готово» (TurnDone) идёт сразу после сообщения пользователя, до ответа, один раз за ход;
+     * после каждого промежуточного ответа её ставить нельзя — «Готово» с чертой оказалось бы посреди ответа.
      */
     fun appendTurn(user: ChatMessage?, turn: List<ChatMessage>, closed: Boolean) {
         if (user != null) rows.add(ChatRow.Single(user))
         val workAt = rows.size
         val process = mutableListOf<ChatMessage>()
         var finalAnswer: ChatMessage? = null
-        // 官方只把「最后一个有内容的 assistant 消息」当最终回答，其余思考/中间回复
-        // 都属于本轮的 process，由完成头统一折叠。
+        // Итоговый ответ — последнее сообщение ассистента с содержимым; остальные рассуждения
+        // и промежуточные ответы — ход работы, его сворачивает шапка «Готово».
         val finalIndex = turn.indexOfLast { it.role == MessageRole.ASSISTANT && it.content.isNotBlank() }
         turn.forEachIndexed { index, message ->
             val sep = message.content.indexOf('\u0001')
@@ -985,8 +985,8 @@ private fun buildChatRows(messages: List<ChatMessage>, isThinking: Boolean): Lis
         while (end < messages.size && messages[end].role != MessageRole.USER) end++
         val turn = messages.subList(index + 1, end)
         val running = turn.any { it.role == MessageRole.TOOL && toolStatus(it) == "running" }
-        // 已有最终回答的轮次即使 running 状态短暂滞后，也要显示完成头；否则用户会
-        // 看到回复却永远等不到“已完成/用时”这一行。
+        // Если итоговый ответ уже есть, шапка «Готово» нужна, даже когда статус running ещё не сменился, —
+        // иначе пользователь видит ответ, но не строку «Готово / время».
         val answered = turn.any { it.role == MessageRole.ASSISTANT && it.content.isNotBlank() }
         val closed = user != null && (end < messages.size || answered || (!isThinking && !running))
         appendTurn(user, turn, closed)
@@ -1093,9 +1093,9 @@ private fun VoiceBar(seconds: Int, level: Float, busy: Boolean, onCancel: () -> 
 
 
 /**
- * composer trigger 药丸（模型 / 权限选择器）：
- * 28dp 高、R8、左 8dp / 右 4dp 内边距、4dp 间距、13sp/20 二级色标签、
- * 14dp 菜单/箭头图标，按压用 hover 填充且无 Material 涟漪。
+ * Капсула выбора в поле ввода (модель / доступ):
+ * высота 28dp, R8, отступы 8dp слева / 4dp справа, промежуток 4dp, подпись 13sp/20 вторичным цветом,
+ * значки меню и стрелки 14dp, нажатие — заливкой, без ряби Material.
  */
 
 

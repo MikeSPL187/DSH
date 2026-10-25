@@ -28,10 +28,10 @@ import androidx.compose.ui.unit.dp
 import com.deepseek.dsh.core.protocol.AttachmentImageRef
 
 /**
- * 消息里的图片缩略图（官方客户端把用户发的图渲染成圆角缩略图）。
+ * Миниатюры картинок в сообщении (скруглённые, как в веб-клиенте).
  *
- * 图片字节按需通过 [ChatServices.loadImage] 拉取并缓存；宽度受限、保持比例，
- * 多图横向排列。
+ * Байты загружаются по требованию через [ChatServices.loadImage] и кэшируются; ширина ограничена,
+ * пропорции сохраняются, несколько картинок — в ряд.
  */
 @Composable
 fun MessageImagesRow(

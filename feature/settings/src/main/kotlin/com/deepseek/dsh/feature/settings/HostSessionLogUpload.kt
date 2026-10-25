@@ -9,21 +9,21 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
- * Session log 上传开关的桥（官方 `ui-settings-session-log` 的 General 设置项）。
+ * Переключатель выгрузки журналов сессий (общая настройка `ui-settings-session-log`).
  *
- * Host 侧命名空间 `session-log-deepseek`，字段 `enabled`。显示状态来自
- * `settings/describe`，写入走 `settings/mutate`（带 revision 的 CAS）。宿主只在
- * 会话 effect 里调用一次 [wire]，设置页直接读写这里的状态。
+ * Пространство Host `session-log-deepseek`, поле `enabled`. Значение читается из
+ * `settings/describe`, запись — `settings/mutate` с revision. Приложение один раз вызывает
+ * [wire], как только Host доступен; настройки читают и пишут состояние здесь.
  */
 object HostSessionLogUpload {
-    /** null 表示还没读到（不渲染开关，避免闪一下默认值）。 */
+    /** null — ещё не прочитано (переключатель не рисуется, чтобы не мигнуть значением по умолчанию). */
     var enabled by mutableStateOf<Boolean?>(null)
         private set
 
     private var writer: ((Boolean) -> Unit)? = null
     private var reader: (() -> Unit)? = null
 
-    /** 宿主注入读取与写入能力。 */
+    /** Чтение и запись даёт приложение. */
     fun wire(repository: DshRepository, hostId: String, scope: CoroutineScope) {
         reader = {
             scope.launch {
@@ -39,12 +39,12 @@ object HostSessionLogUpload {
         reader?.invoke()
     }
 
-    /** 设置页首次出现时补一次读取。 */
+    /** Прочитать, когда настройки открылись впервые. */
     fun refresh() {
         reader?.invoke()
     }
 
-    /** 写入开关（写入后回读 Host 的真实值）。 */
+    /** Записать значение (затем перечитать фактическое значение Host). */
     fun set(value: Boolean) {
         writer?.invoke(value)
     }

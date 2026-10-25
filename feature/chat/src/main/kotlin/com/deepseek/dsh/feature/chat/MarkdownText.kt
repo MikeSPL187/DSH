@@ -38,11 +38,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * 极简 Markdown 渲染（官方 markdown 渲染器的移动端子集）。
+ * Компактный Markdown (мобильное подмножество).
  *
- * 支持标题（#~######）、无序/有序列表、代码块、表格、引用，以及行内的粗体、
- * 斜体、行内代码与链接文本。不引入第三方依赖，也不做 HTML 与嵌套列表——官方
- * 客户端里对话正文最常见的这几类块已经能正确显示，而不是把 `##`、`|` 当普通字符。
+ * Заголовки (#~######), маркированные и нумерованные списки, блоки кода, таблицы, цитаты; внутри строки —
+ * жирный, курсив, код и текст ссылок. Без сторонних библиотек, HTML и вложенных списков: этого
+ * хватает для типичных ответов, и `##` или `|` не показываются как обычные символы.
  */
 /** Текст ответа `.msg-ai`: Golos Text, межстрочный 1,6; размер — из темы Host (по умолчанию 16). */
 @Composable
@@ -149,7 +149,7 @@ private fun CodeBlock(code: String) {
     }
 }
 
-/** Markdown 的块级元素子集。 */
+/** Поддерживаемые блоки Markdown. */
 private sealed interface MarkdownBlock {
     data class Heading(val level: Int, val text: String) : MarkdownBlock
     data class Paragraph(val text: String) : MarkdownBlock
@@ -157,7 +157,7 @@ private sealed interface MarkdownBlock {
         val marker: String,
         val text: String,
         val depth: Int = 0,
-        /** 任务列表的勾选状态；null 表示普通列表项。 */
+        /** Отметка пункта задачи; null — обычный пункт списка. */
         val checked: Boolean? = null,
     ) : MarkdownBlock
     data class Code(val code: String) : MarkdownBlock
@@ -182,7 +182,7 @@ private val taskRegex = Regex("^\\[([ xX])]\\s+(.*)$")
 private val tableSeparatorRegex = Regex("^\\|?\\s*:?-{2,}:?\\s*(\\|\\s*:?-{2,}:?\\s*)*\\|?$")
 private val fenceRegex = Regex("^\\s*```(.*)$")
 
-/** 把 Markdown 文本切成块；未知块一律按段落处理，保证原文不丢。 */
+/** Разбить Markdown на блоки; незнакомое — абзацем, чтобы текст не пропал. */
 private fun parseMarkdownBlocks(text: String): List<MarkdownBlock> {
     val blocks = mutableListOf<MarkdownBlock>()
     val lines = text.replace("\r\n", "\n").split("\n")
@@ -243,7 +243,7 @@ private fun parseMarkdownBlocks(text: String): List<MarkdownBlock> {
                 val depth = (indent / 2).coerceIn(0, 3)
                 val rawMarker = match.groupValues[2]
                 var itemText = match.groupValues[3].trim()
-                // 任务列表：- [ ] / - [x]
+                // Список задач: - [ ] / - [x]
                 val task = taskRegex.find(itemText)
                 val checked = task?.let {
                     it.groupValues[1].equals("x", ignoreCase = true)
@@ -274,7 +274,7 @@ private val codeRegex = Regex("`([^`]+)`")
 private val linkRegex = Regex("\\[([^\\]]+)]\\(([^)]+)\\)")
 private val italicRegex = Regex("(?<!\\*)\\*([^*]+)\\*(?!\\*)")
 
-/** 行内样式：粗体、行内代码、链接文本、斜体。 */
+/** Строчные стили: жирный, код, текст ссылки, курсив. */
 @Composable
 private fun inlineMarkdown(source: String, color: Color): AnnotatedString = buildAnnotatedString {
     var rest = source

@@ -28,7 +28,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
-/** 一条轨迹记录（对齐官方 ui-trajectory 的一行）。 */
+/** Строка траектории (как строка ui-trajectory). */
 data class TrajectoryRow(
     val seq: Long,
     val kind: String,
@@ -42,10 +42,10 @@ data class TrajectoryRow(
 private val trajectoryJson = Json { ignoreUnknownKeys = true }
 
 /**
- * 从原始帧里解析出轨迹行：只保留真正有语义的会话事件。
+ * Строки траектории из сырых кадров: только события сессии со смыслом.
  *
- * follow 流有两种 item 帧：`{type:'item', value:{type:'snapshot', records:[…]}}`
- * 与 `{type:'item', value:{type:'event', event:{…}}}`，两者都要展开。
+ * В потоке follow два вида кадров item: `{type:'item', value:{type:'snapshot', records:[…]}}`
+ * и `{type:'item', value:{type:'event', event:{…}}}`, разворачиваются оба.
  */
 fun buildTrajectory(frames: List<SessionRawFrame>): List<TrajectoryRow> {
     val events = frames.flatMap { frame ->
@@ -67,14 +67,14 @@ fun buildTrajectory(frames: List<SessionRawFrame>): List<TrajectoryRow> {
         .sortedBy { it.seq }
 }
 
-/** 取消息文本摘要（user/assistant 事件的 data.message.content）。 */
+/** Краткий текст сообщения (data.message.content у событий user/assistant). */
 private fun textOfMessage(data: JsonObject?): String {
     val message = data?.get("message") as? JsonObject ?: return ""
     val content = message["content"] ?: return ""
     return content.toString().replace("\\n", " ").take(120)
 }
 
-/** 单个事件的轨迹行；形状异常时返回 null 而不是让面板崩溃。 */
+/** Строка для одного события; при неожиданной форме — null, панель не падает. */
 private fun trajectoryRow(event: JsonObject): TrajectoryRow? {
     val type = event["type"].textOrNull() ?: return null
     val seq = event["seq"].textOrNull()?.toLongOrNull() ?: return null
@@ -147,5 +147,5 @@ fun androidx.compose.foundation.layout.ColumnScope.TrajectoryBody() {
 
 private fun Modifier.offsetUp() = this.then(Modifier.padding(top = 0.dp))
 
-/** 安全取字符串：字段可能是对象/数组（如 turn/end 的 reason），不能直接 jsonPrimitive。 */
+/** Строка поля без исключений: поле может быть объектом или массивом (reason у turn/end), jsonPrimitive нельзя. */
 private fun JsonElement?.textOrNull(): String? = (this as? JsonPrimitive)?.contentOrNull

@@ -18,22 +18,22 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.put
 
 /**
- * 外观与字号：Host 的 `ui-theme` 设置。
+ * Тема и размер текста: настройка `ui-theme` в Host.
  *
- * 官方设置页把深浅色与字号存在 Host（`ui-theme.preference` / `fontSize`），
- * 这样手机与浏览器看同一个账号时显示一致。App 读这里的状态渲染主题，选择写回
- * Host；bridge 不可用时回落到跟随系统。
+ * Тема и размер шрифта хранятся в Host (`ui-theme.preference` / `fontSize`),
+ * поэтому телефон и браузер одного аккаунта выглядят одинаково. Приложение рисует тему по этому состоянию,
+ * выбор пишет в Host; без моста — как в системе.
  */
 object HostTheme {
-    /** `light` / `dark` / `system`；默认跟随系统。 */
+    /** `light` / `dark` / `system`; по умолчанию как в системе. */
     var preference by mutableStateOf("system")
         private set
 
-    /** 正文字号（Host `ui-theme.fontSize`）；null 表示还没读到。 */
+    /** Размер основного текста (`ui-theme.fontSize` Host); null — ещё не прочитан. */
     var fontSize by mutableStateOf<Int?>(null)
         private set
 
-    /** 最后一次读到的设置 revision，写回时作为 expectedRevision 的 CAS。 */
+    /** Последняя прочитанная revision настроек — expectedRevision при записи. */
     private var revision: Int = 0
 
     private var reader: (() -> Unit)? = null

@@ -15,8 +15,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 
 /**
- * v4.0 设计文档 §11.2 & §11.3:
- * 远程网关配对与多主机凭据管理器
+ * Сопряжение с удалённым шлюзом и учётные данные нескольких Host.
  */
 class RemotePairingManager(
     private val client: OkHttpClient = OkHttpClient()
@@ -38,12 +37,12 @@ class RemotePairingManager(
     }
 
     /**
-     * 执行配对。
+     * Выполнить сопряжение.
      *
-     * 安全约束：
-     * - 非回环地址必须是 HTTPS，配对码与设备令牌不走明文；
-     * - 二维码带指纹时，只信任与指纹一致的证书，不一致在握手阶段就失败（审计 N-07）；
-     * - 网关必须真的返回令牌，绝不自己编一个（审计 N-06）。
+     * Безопасность:
+     * - не loopback — только HTTPS, код сопряжения и токен устройства не идут открытым текстом;
+     * - если в QR есть отпечаток, доверяем только совпадающему сертификату, иначе отказ на рукопожатии (аудит N-07);
+     * - токен должен вернуть шлюз, сами мы его не придумываем (аудит N-06).
      */
     suspend fun executePairing(payload: PairPayload, deviceName: String): Result<HostDescriptor.Remote> = withContext(Dispatchers.IO) {
         try {
