@@ -52,3 +52,11 @@ internal fun ensureMissingPluginDir(context: android.content.Context, message: S
 
 
 /** App 侧记住的实验性 bundle 选择（profile 清单会被 Host 启动重置）。 */
+
+/** Открыть ссылку в браузере. Ссылки могут прийти от Host: только http(s), и без падения, если браузера нет. */
+internal fun openWebLink(context: android.content.Context, url: String) {
+    val uri = android.net.Uri.parse(url)
+    if (uri.scheme != "https" && uri.scheme != "http") return
+    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(intent) }
+}

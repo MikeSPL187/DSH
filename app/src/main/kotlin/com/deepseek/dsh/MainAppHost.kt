@@ -730,137 +730,13 @@ fun MainAppHost(
     }
     val availableModelNames = effectiveModelNames.distinct()
 
-    // 官方账号菜单的登录入口：浏览器 OAuth 为主，API Key 为备选（与官方 SignInDialog 一致）。
-    // Ссылки могут прийти от Host: открываем только http(s) и не падаем, если браузера нет.
-    val openUrl: (String) -> Unit = { url ->
-        val uri = android.net.Uri.parse(url)
-        if (uri.scheme == "https" || uri.scheme == "http") {
-            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
-                .apply { flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK }
-            runCatching { context.startActivity(intent) }
-        }
-    }
-
-    // 官方 account/watch：登录中/已存凭据/退出都由 Host 推送，整个登录流程不再轮询。
-    LaunchedEffect(ui.activeHostId) {
-        kotlinx.coroutines.coroutineScope {
-            launch {
-                dshRepository.hostAccountFlow.collect { view ->
-                    val pending = ui.signInPending
-                    when (view?.status) {
-                        "credential-stored" -> {
-                            ui.signInPending = false
-                            ui.signInOpenedUrl = null
-                            if (!oauthManager.accountFlow.value.isSignedIn) {
-                                val profile = dshRepository.getAccountProfile(ui.activeHostId).getOrNull()
-                                val balance = dshRepository.getAccountBalance(ui.activeHostId).getOrNull()
-                                oauthManager.applyHostAccount(profile, balance)
-                            }
-                        }
-                        "signed-out" -> {
-                            ui.signInPending = false
-                            if (oauthManager.accountFlow.value.isSignedIn) oauthManager.signOut()
-                        }
-                        else -> if (pending && view != null) {
-                            // Host 异步拿到平台授权链接后由 watch 推送，不需要 getState 轮询。
-                            val url = view.authorizeUrl
-                            if (!url.isNullOrBlank() && url != ui.signInOpenedUrl) {
-                                ui.signInOpenedUrl = url
-                                openUrl(url)
-                            }
-                            if (view.attemptPhase in setOf("failed", "expired", "cancelled")) {
-                                ui.signInPending = false
-                                ui.signInOpenedUrl = null
-                                android.widget.Toast.makeText(
-                                    context,
-                                    context.getString(R.string.login_incomplete),
-                                    android.widget.Toast.LENGTH_SHORT,
-                                ).show()
-                            }
-                        }
-                    }
-                }
-            }
-            launch {
-                // Host 明确报告 DeepSeek 会话过期：直接清掉本地登录态（API Key 保留）。
-                dshRepository.accountExpiredFlow.collect { oauthManager.signOut() }
-            }
-            launch {
-                // 模型需要重新登录账号：直接打开官方登录入口。
-                dshRepository.modelSignInRequiredFlow.collect { ui.showSignInDialog = true }
-            }
-        }
-    }
-
-    val hostSignOut: () -> Unit = {
-        scope.launch {
-            dshRepository.signOutAccount(ui.activeHostId)
-            oauthManager.signOut()
-        }
-    }
-
-    // 官方流程：Host 的 account/startSignIn 生成带本次 attempt 的授权链接，
-    // 链接与登录结果都由 account/watch 推送；这里只负责发起 + 兜底提示。
-    val beginHostSignIn: () -> Unit = {
-        scope.launch {
-            ui.signInPending = true
-            ui.signInOpenedUrl = null
-            val callbackOrigin = dshApplication.defaultClient.currentBaseUrl()
-            var view = dshRepository.startAccountSignIn(ui.activeHostId, callbackOrigin).getOrNull()
-            if (view == null) {
-                // Host 冷启动需要时间；等待就绪后再重试，而不是直接报错。
-                runCatching { runtimeManager.start(activeWorkspace.absolutePath) }
-                repeat(10) {
-                    kotlinx.coroutines.delay(2000)
-                    view = dshRepository.startAccountSignIn(
-                        ui.activeHostId,
-                        dshApplication.defaultClient.currentBaseUrl()
-                    ).getOrNull()
-                    if (view != null) return@repeat
-                }
-            }
-            if (view == null) {
-                ui.signInPending = false
-                android.widget.Toast.makeText(
-                    context,
-                    context.getString(R.string.login_failed_host),
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
-                return@launch
-            }
-            when {
-                view.status == "credential-stored" -> ui.signInPending = false
-                !view.authorizeUrl.isNullOrBlank() -> {
-                    ui.signInOpenedUrl = view.authorizeUrl
-                    openUrl(view.authorizeUrl!!)
-                }
-                else -> {
-                    // 链接由 watch 异步推送；30 秒还拿不到就提示失败。
-                    kotlinx.coroutines.delay(30_000)
-                    if (ui.signInPending && ui.signInOpenedUrl == null) {
-                        ui.signInPending = false
-                        android.widget.Toast.makeText(
-                            context,
-                            context.getString(R.string.login_failed_link),
-                            android.widget.Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-            }
-            if (ui.signInPending) {
-                // 授权页停留超时：watch 没有报成功/失败时提示一次。
-                kotlinx.coroutines.delay(10 * 60_000)
-                if (ui.signInPending) {
-                    ui.signInPending = false
-                    android.widget.Toast.makeText(
-                        context,
-                        context.getString(R.string.login_incomplete),
-                        android.widget.Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-        }
-    }
+    val openUrl: (String) -> Unit = { url -> openWebLink(context, url) }
+    val currentWorkspaceForAccount = androidx.compose.runtime.rememberUpdatedState(activeWorkspace)
+    val hostAccount = rememberHostAccount(
+        ui, dshRepository, oauthManager, runtimeManager, scope,
+        workspace = { currentWorkspaceForAccount.value },
+        baseUrl = { dshApplication.defaultClient.currentBaseUrl() },
+    )
 
     // 本地运行时启动后：把仓库客户端绑定到实际端口/token，并重新拉取全部 Host 数据。
     LaunchedEffect(status.phase, status.port, status.token) {
@@ -2412,7 +2288,7 @@ fun MainAppHost(
             },
             onSignIn = {
                 ui.showSignInDialog = false
-                beginHostSignIn()
+                hostAccount.signIn()
             },
             showApiKey = ui.showApiKeyDialog,
             apiKeyInput = ui.apiKeyInput,
