@@ -14,7 +14,7 @@ internal const val PLUGIN_SELECTION_PREFS = "dsh_plugin_selection"
 internal const val PLUGIN_SELECTION_KEY = "enabled_bundles"
 
 /**
- * Имя папки проекта по умолчанию на диске. Не переименовывать: по нему находятся уже
- * созданные папки пользователей; в интерфейсе показывается R.string.workspace_default.
+ * Имя папки проекта по умолчанию на диске; в интерфейсе показывается R.string.workspace_default.
+ * Папку со старым именем [LEGACY_DEFAULT_WORKSPACE_DIR_NAME] переносит [migrateDefaultWorkspace].
  */
-internal const val DEFAULT_WORKSPACE_DIR_NAME = "默认工作区"
+internal const val DEFAULT_WORKSPACE_DIR_NAME = "Default"

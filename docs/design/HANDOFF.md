@@ -39,7 +39,8 @@
 выбор модели — `ChatModelSelection`). Протокол разделён на клиентов по областям Host-API (`RemoteClient` —
 фасад), `DshRepository` — на области (`repository.plugins`, `.account`, `.tasks`, `.terminals`, `.commands`,
 `.approvals`, `.hostSettings`, `.speech`, `.translation`). Комментарии в коде — на русском.
-Проверка как в CI: `./gradlew test` (снимочные тесты экранов — только в debug-варианте).
+Папка проекта по умолчанию на диске — `Default` (решение владельца); старая `默认工作区` переносится при запуске
+вместе с папкой её сессий в Host (`DefaultWorkspaceMigration`). Проверка как в CI: `./gradlew test` (снимочные тесты экранов — только в debug-варианте).
 
 ## Окна и панели вне прототипа
 - Все окна приложения (`DshDialog`, `DshHeadlessModal`, `DshSheetPanel`) рисуются одним системным листом

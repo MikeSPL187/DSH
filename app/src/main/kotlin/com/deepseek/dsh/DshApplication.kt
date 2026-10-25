@@ -177,6 +177,8 @@ class DshApplication : Application() {
         // Host прогревается сразу при открытии (до Activity и Compose); в фоне не живёт.
         if (java.io.File(filesDir, "rootfs/etc/os-release").exists()) {
             val workspace = StorageAccess.workspaceRoot(this)
+            // До запуска Host: папка его сессий переименовывается вместе с папкой проекта.
+            runCatching { migrateDefaultWorkspace(workspace, java.io.File(filesDir, HOST_SESSIONS_DIR)) }
             applicationScope.launch(Dispatchers.IO) {
                 runCatching { runtimeManager.warmUp(workspace.absolutePath) }
             }

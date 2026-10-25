@@ -136,7 +136,7 @@ class ChatSender(
                     // Не-ASCII символы имени рабочей папки Host заменяет на ~XXXX.
                     java.io.File(
                         context.filesDir,
-                        "rootfs/root/.dsh/sessions/${workspaceSessionDirName(runtimeUi.activeWorkspaceName)}/$sid"
+                        "$HOST_SESSIONS_DIR/${workspaceSessionDirName(runtimeUi.activeWorkspaceName)}/$sid"
                     ).mkdirs()
                     ui.selectedSessionId = sid
                     createdSession = true

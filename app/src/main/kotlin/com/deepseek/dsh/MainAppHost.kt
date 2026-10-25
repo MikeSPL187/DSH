@@ -117,6 +117,7 @@ fun MainAppHost(
     // Доступ ко всем файлам выдаётся при первом запуске; рабочие папки — в общих Documents.
     val activeWorkspace = remember(workspaceChoiceKey) {
         externalWorkspaceDir.mkdirs()
+        migrateDefaultWorkspace(externalWorkspaceDir, java.io.File(context.filesDir, HOST_SESSIONS_DIR))
         java.io.File(externalWorkspaceDir, DEFAULT_WORKSPACE_DIR_NAME).mkdirs()
         externalWorkspaceDir
     }
