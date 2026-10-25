@@ -23,7 +23,7 @@ import com.deepseek.dsh.core.data.DshRepository
 import com.deepseek.dsh.core.designsystem.LocalCodeFontSize
 import com.deepseek.dsh.core.model.TerminalInfo
 import com.deepseek.dsh.core.protocol.TerminalConnection
-import com.deepseek.dsh.feature.settings.ui.rememberToast
+import com.deepseek.dsh.core.designsystem.kit.rememberToast
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json

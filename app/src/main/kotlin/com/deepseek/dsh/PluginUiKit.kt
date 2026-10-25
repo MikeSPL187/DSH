@@ -32,11 +32,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deepseek.dsh.core.designsystem.Dsh
 import com.deepseek.dsh.core.model.PluginSettingsDocument
-import com.deepseek.dsh.feature.settings.ui.BtnKind
-import com.deepseek.dsh.feature.settings.ui.GLabel
-import com.deepseek.dsh.feature.settings.ui.Gl
-import com.deepseek.dsh.feature.settings.ui.KBtn
-import com.deepseek.dsh.feature.settings.ui.SubNote
+import com.deepseek.dsh.core.designsystem.kit.BtnKind
+import com.deepseek.dsh.core.designsystem.kit.GLabel
+import com.deepseek.dsh.core.designsystem.kit.Gl
+import com.deepseek.dsh.core.designsystem.kit.KBtn
+import com.deepseek.dsh.core.designsystem.kit.SubNote
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive

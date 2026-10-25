@@ -295,7 +295,7 @@ class DshScreensSweepTest {
         tabs = tabs, activeId = active, model = model, status = status,
         subtitle = if (status == com.deepseek.dsh.TermStatus.Ready) "Debian 12 · ~/workspace" else if (status == com.deepseek.dsh.TermStatus.Connecting) "Подключение…" else "Нет подключения",
         connected = status == com.deepseek.dsh.TermStatus.Ready, writable = status == com.deepseek.dsh.TermStatus.Ready,
-        history = termHistory, fontSize = font, toast = com.deepseek.dsh.feature.settings.ui.rememberToast(), onBack = {},
+        history = termHistory, fontSize = font, toast = com.deepseek.dsh.core.designsystem.kit.rememberToast(), onBack = {},
         onFont = {}, onClear = {}, onSelectTab = {}, onAddTab = {}, onCloseTab = {}, onRun = {}, onStdin = {}, onRaw = {},
         onExplain = {}, onCopy = {}, onRetryStatus = {}, onResize = { _, _ -> },
     )

@@ -30,8 +30,8 @@ import androidx.compose.ui.unit.dp
 import com.deepseek.dsh.core.designsystem.Dsh
 import com.deepseek.dsh.core.designsystem.DshGlyphs
 import com.deepseek.dsh.feature.settings.logic.DshUserPrefs
-import com.deepseek.dsh.feature.settings.ui.BtnKind
-import com.deepseek.dsh.feature.settings.ui.KBtn
+import com.deepseek.dsh.core.designsystem.kit.BtnKind
+import com.deepseek.dsh.core.designsystem.kit.KBtn
 
 /**
  * «Вход по отпечатку» из «Настройки → Безопасность»: при запуске и после минуты в фоне

@@ -77,7 +77,7 @@ internal fun FirstRunOnboarding(
     }
 
     // «Восстановить из резервной копии»: та же копия, что делают Настройки (без ключей).
-    val toast = com.deepseek.dsh.feature.settings.ui.rememberToast()
+    val toast = com.deepseek.dsh.core.designsystem.kit.rememberToast()
     var restoring by remember { mutableStateOf(false) }
     val restoreLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.OpenDocument(),
@@ -158,7 +158,7 @@ internal fun FirstRunOnboarding(
             }
         },
     )
-    com.deepseek.dsh.feature.settings.ui.ToastHost(toast)
+    com.deepseek.dsh.core.designsystem.kit.ToastHost(toast)
     }
 }
 

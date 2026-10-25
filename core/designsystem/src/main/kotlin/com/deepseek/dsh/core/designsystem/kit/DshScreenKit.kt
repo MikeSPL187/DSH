@@ -1,5 +1,6 @@
-package com.deepseek.dsh.feature.settings.ui
+package com.deepseek.dsh.core.designsystem.kit
 
+import androidx.compose.ui.graphics.compositeOver
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -290,16 +291,16 @@ fun FsView(modifier: Modifier = Modifier, scroll: ScrollState = rememberScrollSt
     )
 }
 
-internal fun small(size: TextUnit = 12.5.sp, lh: TextUnit = 16.sp, weight: FontWeight = FontWeight.Normal) =
+fun small(size: TextUnit = 12.5.sp, lh: TextUnit = 16.sp, weight: FontWeight = FontWeight.Normal) =
     TextStyle(fontFamily = DshFonts.body, fontWeight = weight, fontSize = size, lineHeight = lh)
 
-internal fun body(size: TextUnit = 15.sp, lh: TextUnit = 19.5.sp, weight: FontWeight = FontWeight.Normal) =
+fun body(size: TextUnit = 15.sp, lh: TextUnit = 19.5.sp, weight: FontWeight = FontWeight.Normal) =
     TextStyle(fontFamily = DshFonts.body, fontWeight = weight, fontSize = size, lineHeight = lh)
 
-internal fun display(size: TextUnit, lh: TextUnit = size * 1.25f, weight: FontWeight = FontWeight.SemiBold) =
+fun display(size: TextUnit, lh: TextUnit = size * 1.25f, weight: FontWeight = FontWeight.SemiBold) =
     TextStyle(fontFamily = DshFonts.display, fontWeight = weight, fontSize = size, lineHeight = lh)
 
-internal fun mono(size: TextUnit = 13.5.sp, weight: FontWeight = FontWeight.Medium) =
+fun mono(size: TextUnit = 13.5.sp, weight: FontWeight = FontWeight.Medium) =
     TextStyle(fontFamily = DshFonts.mono, fontWeight = weight, fontSize = size, lineHeight = size * 1.3f)
 
 /** Подпись группы `.glabel`: 12, прописные, разрядка .06em, отступы 16 / 6 / 8. */
@@ -729,13 +730,8 @@ fun accentCardBrush(mix: Float = 0.4f): Brush {
     return Brush.linearGradient(listOf(soft, lerp(c.s1, soft, mix)), start = Offset.Zero, end = Offset.Infinite)
 }
 
-internal fun Color.compositeOver(bg: Color): Color {
-    val a = alpha
-    return Color(red * a + bg.red * (1 - a), green * a + bg.green * (1 - a), blue * a + bg.blue * (1 - a), 1f)
-}
-
 /** Смесь цветов, как `color-mix(in srgb, a p%, b)`. */
-internal fun mix(a: Color, p: Float, b: Color): Color = lerp(b, a, p)
+fun mix(a: Color, p: Float, b: Color): Color = lerp(b, a, p)
 
 // ---------- Тост ----------
 

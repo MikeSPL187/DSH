@@ -49,7 +49,7 @@ internal object VoiceInputPluginUi : PluginUi {
     override fun Section(hooks: PluginUiHooks) {
         val speech = hooks.speech
         if (speech == null) {
-            com.deepseek.dsh.feature.settings.ui.SubNote(stringResource(R.string.voice_unavailable), top = 0.dp)
+            com.deepseek.dsh.core.designsystem.kit.SubNote(stringResource(R.string.voice_unavailable), top = 0.dp)
             return
         }
         VoicePreparationSection(speech)
@@ -143,16 +143,16 @@ private fun VoicePreparationSection(speech: SpeechHooks) {
 
     val current = catalog
     if (current == null) {
-        com.deepseek.dsh.feature.settings.ui.SubNote(loadError ?: stringResource(R.string.voice_reading), top = 0.dp)
+        com.deepseek.dsh.core.designsystem.kit.SubNote(loadError ?: stringResource(R.string.voice_reading), top = 0.dp)
         return
     }
     val provider = current.selected
     if (provider == null) {
-        com.deepseek.dsh.feature.settings.ui.SubNote(stringResource(R.string.voice_unavailable), top = 0.dp)
+        com.deepseek.dsh.core.designsystem.kit.SubNote(stringResource(R.string.voice_unavailable), top = 0.dp)
         return
     }
 
-    com.deepseek.dsh.feature.settings.ui.GLabel(stringResource(R.string.voice_service))
+    com.deepseek.dsh.core.designsystem.kit.GLabel(stringResource(R.string.voice_service))
     ChoiceChipFlow(
         options = current.providers.map { item -> item.id to item.name },
         selected = provider.id,
@@ -165,11 +165,11 @@ private fun VoicePreparationSection(speech: SpeechHooks) {
             }
         },
     )
-    com.deepseek.dsh.feature.settings.ui.SubNote(
+    com.deepseek.dsh.core.designsystem.kit.SubNote(
         stringResource(if (provider.location == "host-local") R.string.voice_audio_local else R.string.voice_audio_cloud),
     )
 
-    com.deepseek.dsh.feature.settings.ui.GLabel(stringResource(R.string.voice_language))
+    com.deepseek.dsh.core.designsystem.kit.GLabel(stringResource(R.string.voice_language))
     ChoiceChipFlow(
         options = provider.languages.map { language -> language to speechLanguageName(language) },
         selected = current.language,
@@ -186,7 +186,7 @@ private fun VoicePreparationSection(speech: SpeechHooks) {
     // Карточка подготовки модели.
     val preparation = provider.preparation
     val phase = preparation?.phase ?: "unprepared"
-    com.deepseek.dsh.feature.settings.ui.StCard(Modifier.padding(top = 16.dp)) {
+    com.deepseek.dsh.core.designsystem.kit.StCard(Modifier.padding(top = 16.dp)) {
         Text(provider.name, style = com.deepseek.dsh.core.designsystem.Dsh.type.bodyMedium, color = c.t1)
         Text(
             speechPhaseLabel(phase),
@@ -212,7 +212,7 @@ private fun VoicePreparationSection(speech: SpeechHooks) {
             val completed = preparation.completedBytes
             if (total > 0 && completed != null) {
                 val fraction = (completed.toFloat() / total).coerceIn(0f, 1f)
-                com.deepseek.dsh.feature.settings.ui.Meter(
+                com.deepseek.dsh.core.designsystem.kit.Meter(
                     stringResource(R.string.voice_progress, completed / 1_000_000, total / 1_000_000, (fraction * 100).toInt()),
                     "${(fraction * 100).toInt()}%",
                     fraction,
@@ -249,7 +249,7 @@ private fun VoicePreparationSection(speech: SpeechHooks) {
         }
         Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (phase == "unprepared" || phase == "failed" || phase == "cancelled") {
-                com.deepseek.dsh.feature.settings.ui.KBtn(
+                com.deepseek.dsh.core.designsystem.kit.KBtn(
                     stringResource(if (phase == "unprepared") R.string.voice_download_prepare else R.string.voice_retry_prepare),
                     {
                         scope.launch {
@@ -259,11 +259,11 @@ private fun VoicePreparationSection(speech: SpeechHooks) {
                             busy = false
                         }
                     },
-                    kind = com.deepseek.dsh.feature.settings.ui.BtnKind.Primary, height = 44.dp, enabled = !busy, busy = busy,
+                    kind = com.deepseek.dsh.core.designsystem.kit.BtnKind.Primary, height = 44.dp, enabled = !busy, busy = busy,
                 )
             }
             if (phase in SPEECH_ACTIVE_PHASES) {
-                com.deepseek.dsh.feature.settings.ui.KBtn(
+                com.deepseek.dsh.core.designsystem.kit.KBtn(
                     stringResource(R.string.voice_cancel_prepare),
                     {
                         scope.launch {

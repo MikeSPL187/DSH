@@ -1,5 +1,7 @@
 package com.deepseek.dsh.feature.settings.ui
 
+import androidx.compose.ui.graphics.compositeOver
+import com.deepseek.dsh.core.designsystem.kit.*
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background

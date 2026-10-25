@@ -13,7 +13,7 @@ import com.deepseek.dsh.TermStatus
 import com.deepseek.dsh.TermTab
 import com.deepseek.dsh.TerminalScreen
 import com.deepseek.dsh.core.designsystem.DshTheme
-import com.deepseek.dsh.feature.settings.ui.rememberToast
+import com.deepseek.dsh.core.designsystem.kit.rememberToast
 import com.deepseek.dsh.terminal.Explain
 import com.deepseek.dsh.terminal.TermModel
 

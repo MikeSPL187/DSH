@@ -28,17 +28,17 @@ internal fun CompanionAvailableCard(
     onIgnore: () -> Unit,
 ) {
     // Карточка в стиле DSH: у установленного плагина есть нативная часть (APK) со своими экранами.
-    com.deepseek.dsh.feature.settings.ui.StCard(modifier.shadow(12.dp, RoundedCornerShape(22.dp))) {
+    com.deepseek.dsh.core.designsystem.kit.StCard(modifier.shadow(12.dp, RoundedCornerShape(22.dp))) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            com.deepseek.dsh.feature.settings.ui.Gic(com.deepseek.dsh.core.designsystem.DshGlyphs.Puzzle, com.deepseek.dsh.feature.settings.ui.Tone.Plain)
+            com.deepseek.dsh.core.designsystem.kit.Gic(com.deepseek.dsh.core.designsystem.DshGlyphs.Puzzle, com.deepseek.dsh.core.designsystem.kit.Tone.Plain)
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.companion_available_title, companion.name ?: companion.pluginId), style = com.deepseek.dsh.core.designsystem.Dsh.type.bodyMedium, color = com.deepseek.dsh.core.designsystem.Dsh.colors.t1)
                 Text(stringResource(R.string.companion_available_desc), style = com.deepseek.dsh.core.designsystem.Dsh.type.footnote, color = com.deepseek.dsh.core.designsystem.Dsh.colors.t3)
             }
         }
         Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            com.deepseek.dsh.feature.settings.ui.KBtn(stringResource(R.string.companion_ignore), onIgnore, Modifier.weight(1f))
-            com.deepseek.dsh.feature.settings.ui.KBtn(stringResource(R.string.companion_go_install), onGoInstall, Modifier.weight(1f), kind = com.deepseek.dsh.feature.settings.ui.BtnKind.Primary)
+            com.deepseek.dsh.core.designsystem.kit.KBtn(stringResource(R.string.companion_ignore), onIgnore, Modifier.weight(1f))
+            com.deepseek.dsh.core.designsystem.kit.KBtn(stringResource(R.string.companion_go_install), onGoInstall, Modifier.weight(1f), kind = com.deepseek.dsh.core.designsystem.kit.BtnKind.Primary)
         }
     }
 }

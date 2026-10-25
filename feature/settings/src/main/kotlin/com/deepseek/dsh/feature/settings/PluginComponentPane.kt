@@ -1,5 +1,6 @@
 package com.deepseek.dsh.feature.settings
 
+import com.deepseek.dsh.core.designsystem.kit.*
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
@@ -97,7 +98,7 @@ fun PluginComponentPane(
             webReloadKey += 1
         }
         if (showHeader) {
-            com.deepseek.dsh.feature.settings.ui.SBar(
+            com.deepseek.dsh.core.designsystem.kit.SBar(
                 title = title,
                 subtitle = androidx.compose.ui.res.stringResource(
                     when {
@@ -109,7 +110,7 @@ fun PluginComponentPane(
                 onBack = onBack,
                 backDescription = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_back),
             ) {
-                com.deepseek.dsh.feature.settings.ui.IconBtn(
+                com.deepseek.dsh.core.designsystem.kit.IconBtn(
                     com.deepseek.dsh.core.designsystem.DshGlyphs.Redo,
                     androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_refresh),
                     onClick = reload,
@@ -120,7 +121,7 @@ fun PluginComponentPane(
             // Компаньон установлен, но открылась веб-страница: показываем, на каком шаге не сошлось.
             Text(
                 text = nativeFallbackReason,
-                style = com.deepseek.dsh.feature.settings.ui.small(12.5.sp, 17.sp),
+                style = com.deepseek.dsh.core.designsystem.kit.small(12.5.sp, 17.sp),
                 color = c.danger,
                 maxLines = 2,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
@@ -134,7 +135,7 @@ fun PluginComponentPane(
                 .weight(1f),
         ) {
             if (registry == null) {
-                com.deepseek.dsh.feature.settings.ui.FsEmpty(
+                com.deepseek.dsh.core.designsystem.kit.FsEmpty(
                     androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_ui_unavailable),
                     androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_bridge_retry),
                 )
@@ -168,10 +169,10 @@ fun PluginComponentPane(
                     ) {
                         Text(
                             androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_full_ui_start_failed),
-                            style = com.deepseek.dsh.feature.settings.ui.body(15.sp, 20.sp, FontWeight.SemiBold), color = c.danger,
+                            style = com.deepseek.dsh.core.designsystem.kit.body(15.sp, 20.sp, FontWeight.SemiBold), color = c.danger,
                         )
-                        Text(reason.take(320), style = com.deepseek.dsh.feature.settings.ui.small(13.sp, 18.sp), color = c.t2, modifier = Modifier.padding(top = 4.dp))
-                        com.deepseek.dsh.feature.settings.ui.KBtn(
+                        Text(reason.take(320), style = com.deepseek.dsh.core.designsystem.kit.small(13.sp, 18.sp), color = c.t2, modifier = Modifier.padding(top = 4.dp))
+                        com.deepseek.dsh.core.designsystem.kit.KBtn(
                             androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_retry), reload, Modifier.padding(top = 12.dp),
                         )
                     }

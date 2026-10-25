@@ -38,7 +38,7 @@ import com.deepseek.dsh.feature.settings.ui.SettingsUi
 import com.deepseek.dsh.feature.settings.ui.StPage
 import com.deepseek.dsh.feature.settings.ui.StorageUsage
 import com.deepseek.dsh.feature.settings.ui.TrustedPluginRow
-import com.deepseek.dsh.feature.settings.ui.rememberToast
+import com.deepseek.dsh.core.designsystem.kit.rememberToast
 import com.deepseek.dsh.runtime.bridge.BridgePolicy
 import com.deepseek.dsh.runtime.host.RuntimePhase
 import com.deepseek.dsh.runtime.host.RuntimeStatus

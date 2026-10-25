@@ -194,7 +194,7 @@ internal fun DshAutomationRoute(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val app = context.applicationContext as DshApplication
-    val toast = com.deepseek.dsh.feature.settings.ui.rememberToast()
+    val toast = com.deepseek.dsh.core.designsystem.kit.rememberToast()
     val reasoning = com.deepseek.dsh.feature.chat.ReasoningLevel.entries.map { context.getString(it.labelResId) }
     androidx.compose.runtime.LaunchedEffect(Unit) { ScheduleBridge.refresh?.invoke() }
     val actions = object : com.deepseek.dsh.feature.settings.ui.AutomationActions {

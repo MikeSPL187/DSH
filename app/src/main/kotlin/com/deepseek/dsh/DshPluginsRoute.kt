@@ -37,7 +37,7 @@ import com.deepseek.dsh.feature.settings.ui.PluginsActions
 import com.deepseek.dsh.feature.settings.ui.PluginsHomeScreen
 import com.deepseek.dsh.feature.settings.ui.ToolMode
 import com.deepseek.dsh.feature.settings.ui.TrustCandidate
-import com.deepseek.dsh.feature.settings.ui.rememberToast
+import com.deepseek.dsh.core.designsystem.kit.rememberToast
 import com.deepseek.dsh.plugin.nativehost.InstalledNativePlugin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -380,7 +380,7 @@ internal fun normalizeSpec(link: String): String? {
     return null
 }
 
-private suspend fun installFromFile(context: Context, uri: Uri, d: PluginDeps, toast: com.deepseek.dsh.feature.settings.ui.ToastState) {
+private suspend fun installFromFile(context: Context, uri: Uri, d: PluginDeps, toast: com.deepseek.dsh.core.designsystem.kit.ToastState) {
     val name = runCatching {
         context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
     }.getOrNull().orEmpty().lowercase(Locale.ROOT)
@@ -466,7 +466,7 @@ internal fun PluginUiPage(
     androidx.compose.foundation.layout.Column(
         androidx.compose.ui.Modifier.fillMaxSizeBg(),
     ) {
-        com.deepseek.dsh.feature.settings.ui.SBar(title, null, onBack, backDescription = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.st_back))
+        com.deepseek.dsh.core.designsystem.kit.SBar(title, null, onBack, backDescription = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.st_back))
         androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.weight(1f)) {
             if (id.startsWith("apk:")) {
                 val pluginId = id.removePrefix("apk:")
