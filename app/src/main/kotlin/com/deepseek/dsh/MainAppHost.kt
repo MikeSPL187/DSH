@@ -158,10 +158,10 @@ fun MainAppHost(
     val slotPluginRpc: suspend (String, kotlinx.serialization.json.JsonObject) -> Result<String> =
         remember(ui.activeHostId) {
             { method, payload ->
-                val first = dshRepository.pluginRpc(ui.activeHostId, method, payload.toString())
+                val first = dshRepository.plugins.pluginRpc(ui.activeHostId, method, payload.toString())
                 val firstText = first.getOrNull() ?: first.exceptionOrNull()?.message
                 if (ensureMissingPluginDir(context, firstText)) {
-                    dshRepository.pluginRpc(ui.activeHostId, method, payload.toString())
+                    dshRepository.plugins.pluginRpc(ui.activeHostId, method, payload.toString())
                 } else {
                     first
                 }
@@ -241,7 +241,7 @@ fun MainAppHost(
         runtimeUi.wasSessionRunning = sessionRunningNow
     }
 
-    val catalogInfo by dshRepository.modelCatalogFlow.collectAsState()
+    val catalogInfo by dshRepository.hostSettings.modelCatalogFlow.collectAsState()
     val hostModels = remember(catalogInfo) { catalogInfo.groups.flatMap { it.models } }
     val hostModelNames = remember(hostModels) { hostModels.map { it.name } }
     val hostModelIdByName = remember(hostModels) { hostModels.associate { it.name to it.id } }
@@ -270,7 +270,7 @@ fun MainAppHost(
     )
 
     // Подписка на каталог: чтение StateFlow.value в composition не перерисовывает UI при изменениях.
-    val bridgeCatalogState by dshRepository.bridgePluginCatalogFlow.collectAsState()
+    val bridgeCatalogState by dshRepository.plugins.bridgePluginCatalogFlow.collectAsState()
     val voiceEnabled = remember(bridgeCatalogState) {
         bridgeCatalogState.bundles.any {
             it.name == VoiceInputPluginUi.bundle && it.enabled
@@ -327,9 +327,9 @@ fun MainAppHost(
             runner.statusFlow.first { it.phase == RuntimePhase.RUNNING }
             true
         } ?: false
-        runCatching { dshRepository.refreshBridgePluginCatalog() }
-        runCatching { dshRepository.refreshPluginInventory(ui.activeHostId) }
-        runCatching { dshRepository.refreshPluginSettingsPages() }
+        runCatching { dshRepository.plugins.refreshBridgePluginCatalog() }
+        runCatching { dshRepository.plugins.refreshPluginInventory(ui.activeHostId) }
+        runCatching { dshRepository.plugins.refreshPluginSettingsPages() }
         return finished
     }
 
@@ -409,27 +409,27 @@ fun MainAppHost(
     }
 
 
-    val builtInPluginsList by dshRepository.builtInPluginsFlow.collectAsState()
-    val pluginSnapshot by dshRepository.pluginSnapshotFlow.collectAsState()
-    val pluginManagerSnapshot by dshRepository.pluginManagerSnapshotFlow.collectAsState()
-    val pluginRows by dshRepository.pluginRowsFlow.collectAsState()
+    val builtInPluginsList by dshRepository.plugins.builtInPluginsFlow.collectAsState()
+    val pluginSnapshot by dshRepository.plugins.pluginSnapshotFlow.collectAsState()
+    val pluginManagerSnapshot by dshRepository.plugins.pluginManagerSnapshotFlow.collectAsState()
+    val pluginRows by dshRepository.plugins.pluginRowsFlow.collectAsState()
     // 插件页目录来自 bridge/v1：官方 slot 注册优先，Host 原生清单兜底。
-    val bridgePluginCatalog by dshRepository.bridgePluginCatalogFlow.collectAsState()
-    val bridgeWarnings by dshRepository.bridgeWarningsFlow.collectAsState()
+    val bridgePluginCatalog by dshRepository.plugins.bridgePluginCatalogFlow.collectAsState()
+    val bridgeWarnings by dshRepository.plugins.bridgeWarningsFlow.collectAsState()
     // 插件声明的 UI 入口（settings.section 等 slot 注册）：设置页按落点渲染。
-    val pluginSlotEntries by dshRepository.pluginSlotEntriesFlow.collectAsState()
-    val pluginSettingsPages by dshRepository.pluginSettingsPagesFlow.collectAsState()
+    val pluginSlotEntries by dshRepository.plugins.pluginSlotEntriesFlow.collectAsState()
+    val pluginSettingsPages by dshRepository.plugins.pluginSettingsPagesFlow.collectAsState()
     // Host 声明的行级/页面级设置位置：插件页的「内置插件配置」用它把官方设置页
     // 映射到真正的设置命名空间。
-    val pluginSlotSurfaces by dshRepository.pluginSlotSurfacesFlow.collectAsState()
+    val pluginSlotSurfaces by dshRepository.plugins.pluginSlotSurfacesFlow.collectAsState()
     // 官方/插件归属由后端决定（bridge 的 host-slots 归属），只在需要时读一次。
-    val officialModelNamespaces = dshRepository.officialSettingsNamespaces()
+    val officialModelNamespaces = dshRepository.plugins.officialSettingsNamespaces()
 
     // 已注册（可路由）的 provider：官方添加目录会排除它们，改由各自卡片配置。
 
-    val automationTasks by dshRepository.automationTasksFlow.collectAsState()
-    val teamTasks by dshRepository.teamTasksFlow.collectAsState()
-    val agentTeam by dshRepository.agentTeamFlow.collectAsState()
+    val automationTasks by dshRepository.tasks.automationTasksFlow.collectAsState()
+    val teamTasks by dshRepository.tasks.teamTasksFlow.collectAsState()
+    val agentTeam by dshRepository.tasks.agentTeamFlow.collectAsState()
     // 团队动作只在「智能体团队」profile 启用时出现（官方由插件注册 header action）。
     val agentTeamEnabled = remember(bridgePluginCatalog) {
         bridgeCatalogState.bundles.any {
@@ -439,7 +439,7 @@ fun MainAppHost(
     LaunchedEffect(ui.selectedSessionId, ui.activeHostId, agentTeamEnabled) {
         if (agentTeamEnabled) {
             runtimeUi.agentTeamLoading = true
-            dshRepository.refreshAgentTeam(ui.activeHostId, ui.selectedSessionId)
+            dshRepository.tasks.refreshAgentTeam(ui.activeHostId, ui.selectedSessionId)
             runtimeUi.agentTeamLoading = false
         }
     }
@@ -471,14 +471,14 @@ fun MainAppHost(
 
     LaunchedEffect(ui.activeHostId) {
         dshRepository.refreshSessions(ui.activeHostId)
-        dshRepository.refreshModelCatalog(ui.activeHostId)
-        dshRepository.refreshPluginInventory(ui.activeHostId)
+        dshRepository.hostSettings.refreshModelCatalog(ui.activeHostId)
+        dshRepository.plugins.refreshPluginInventory(ui.activeHostId)
         // bridge 目录与 Host 原生清单并行读取：前者带来官方 slot 与图形，
         // 后者是它不可用时的兜底，两者互不阻塞。
-        dshRepository.refreshBridgePluginCatalog()
-        dshRepository.refreshPluginSettingsPages()
-        dshRepository.refreshAutomationTasks(ui.activeHostId)
-        dshRepository.refreshTeamTasks(ui.activeHostId)
+        dshRepository.plugins.refreshBridgePluginCatalog()
+        dshRepository.plugins.refreshPluginSettingsPages()
+        dshRepository.tasks.refreshAutomationTasks(ui.activeHostId)
+        dshRepository.tasks.refreshTeamTasks(ui.activeHostId)
         // 这里不能订阅远程流：Host 还没绑定地址（占位 127.0.0.1:1）时开九个
         // WebSocket 只会全部连接失败。订阅放到 Host 就绪（port 非空）之后。
     }
@@ -528,7 +528,7 @@ fun MainAppHost(
      * Переключатель потом берёт фактическое состояние из обновлённого каталога.
      */
     suspend fun toggleBundleAwait(packageName: String, enabled: Boolean): Boolean {
-        val result = dshRepository.setBundleEnabled(ui.activeHostId, packageName, enabled)
+        val result = dshRepository.plugins.setBundleEnabled(ui.activeHostId, packageName, enabled)
         result.fold(
             onSuccess = { outcome ->
                 rememberBundleSelection(packageName, enabled)
@@ -548,9 +548,9 @@ fun MainAppHost(
                 ).show()
             },
         )
-        dshRepository.refreshBridgePluginCatalog()
-        dshRepository.refreshPluginInventory(ui.activeHostId)
-        dshRepository.refreshPluginSettingsPages()
+        dshRepository.plugins.refreshBridgePluginCatalog()
+        dshRepository.plugins.refreshPluginInventory(ui.activeHostId)
+        dshRepository.plugins.refreshPluginSettingsPages()
         return result.isSuccess
     }
 
@@ -577,7 +577,7 @@ fun MainAppHost(
     }
     val catalog by surfaceStore.catalogFlow.collectAsState()
     val accountState by oauthManager.accountFlow.collectAsState()
-    val pendingApprovalWaterfalls by dshRepository.pendingWaterfallApprovalsFlow.collectAsState()
+    val pendingApprovalWaterfalls by dshRepository.approvals.pendingWaterfallApprovalsFlow.collectAsState()
     // Текст из «Плагинов» («Спросить», «Создать с агентом») — в черновик новой сессии.
     LaunchedEffect(ui.pendingComposerText, ui.activePage) {
         val text = ui.pendingComposerText
@@ -587,15 +587,15 @@ fun MainAppHost(
         }
     }
     val sessionPreviews by remember(ui.activeHostId) { dshRepository.sessionPreviews(ui.activeHostId) }.collectAsState(initial = emptyMap())
-    val pendingQuestions by dshRepository.pendingQuestionsFlow.collectAsState()
+    val pendingQuestions by dshRepository.approvals.pendingQuestionsFlow.collectAsState()
     AgentWaitingNotificationsEffect(
         approvalIds = pendingApprovalWaterfalls.map { it.eventId },
         questionIds = pendingQuestions.map { it.eventId },
         notificationsEnabled = ui.currentAppSettings.notificationsEnabled,
     )
-    val hostJobs by dshRepository.jobsFlow.collectAsState()
-    val hostCommands by dshRepository.hostCommandsFlow.collectAsState()
-    val hostSkills by dshRepository.hostSkillsFlow.collectAsState()
+    val hostJobs by dshRepository.tasks.jobsFlow.collectAsState()
+    val hostCommands by dshRepository.commands.hostCommandsFlow.collectAsState()
+    val hostSkills by dshRepository.commands.hostSkillsFlow.collectAsState()
     val sessionTodos by dshRepository.todosFlow.collectAsState()
     val sessionGoal by dshRepository.goalFlow.collectAsState()
     val sessionDeliverables by dshRepository.deliverablesFlow.collectAsState()
@@ -614,8 +614,8 @@ fun MainAppHost(
     LaunchedEffect(ui.activeHostId, ui.selectedSessionId) {
         val sid = ui.selectedSessionId
         if (sid != null) {
-            runCatching { dshRepository.refreshHostCommands(ui.activeHostId, sid) }
-            runCatching { dshRepository.refreshHostSkills(ui.activeHostId, sid) }
+            runCatching { dshRepository.commands.refreshHostCommands(ui.activeHostId, sid) }
+            runCatching { dshRepository.commands.refreshHostSkills(ui.activeHostId, sid) }
         }
     }
     // Настройки Host (тема, пресет доступа, загрузка журналов, расписания) — как только Host доступен,
@@ -633,10 +633,10 @@ fun MainAppHost(
         // Host 未绑定时 baseUrl 还是占位 127.0.0.1:1，开流只会连接失败。
         val bound = runtimeUi.localHostBound || ui.currentAppSettings.remoteHostUrl.isNotBlank()
         if (sid != null && bound) {
-            dshRepository.watchJobs(ui.activeHostId, sid)
+            dshRepository.tasks.watchJobs(ui.activeHostId, sid)
             dshRepository.watchSession(ui.activeHostId, sid)
         }
-        else dshRepository.unwatchJobs()
+        else dshRepository.tasks.unwatchJobs()
     }
     val streamingText by dshRepository.streamingTextFlow.collectAsState()
     val streamingReasoning by dshRepository.streamingReasoningFlow.collectAsState()
@@ -652,8 +652,8 @@ fun MainAppHost(
             ).map { it.keyRef }.distinct()
             val refsJson = providerRefs.joinToString(prefix = "{\"refs\":[", postfix = "]}") { "\"$it\"" }
             runtimeUi.modelCredentialsRaw = dshRepository.rpcRaw(ui.activeHostId, "credentials/describe", refsJson).getOrNull()
-            dshRepository.refreshModelCatalog(ui.activeHostId)
-            dshRepository.refreshPluginInventory(ui.activeHostId)
+            dshRepository.hostSettings.refreshModelCatalog(ui.activeHostId)
+            dshRepository.plugins.refreshPluginInventory(ui.activeHostId)
         }
     }
     val dshApplication = context.applicationContext as DshApplication
@@ -693,8 +693,8 @@ fun MainAppHost(
             ).map { it.keyRef }.distinct()
             val refsJson = providerRefs.joinToString(prefix = "{\"refs\":[", postfix = "]}") { "\"$it\"" }
             runtimeUi.modelCredentialsRaw = dshRepository.rpcRaw(ui.activeHostId, "credentials/describe", refsJson).getOrNull()
-            dshRepository.refreshModelCatalog(ui.activeHostId)
-            dshRepository.refreshPluginInventory(ui.activeHostId)
+            dshRepository.hostSettings.refreshModelCatalog(ui.activeHostId)
+            dshRepository.plugins.refreshPluginInventory(ui.activeHostId)
             // Host 一就绪就主动读账号，且必须拿到一个明确的 signed-in /
             // signed-out 才标记 hydrated；读失败（Host 还没完全起来）继续重试，
             // 否则首屏会先显示“未登录”，一两秒后才跳成已登录。
@@ -704,15 +704,15 @@ fun MainAppHost(
                     val deadline = System.currentTimeMillis() + 4_000
                     while (System.currentTimeMillis() < deadline) {
                         val state = runCatching {
-                            dshRepository.getAccountState(ui.activeHostId).getOrNull()
+                            dshRepository.account.getAccountState(ui.activeHostId).getOrNull()
                         }.getOrNull()
                         if (state != null) {
                             if (state.status == "credential-stored") {
                                 val profile = runCatching {
-                                    dshRepository.getAccountProfile(ui.activeHostId).getOrNull()
+                                    dshRepository.account.getAccountProfile(ui.activeHostId).getOrNull()
                                 }.getOrNull()
                                 val balance = runCatching {
-                                    dshRepository.getAccountBalance(ui.activeHostId).getOrNull()
+                                    dshRepository.account.getAccountBalance(ui.activeHostId).getOrNull()
                                 }.getOrNull()
                                 oauthManager.applyHostAccount(profile, balance)
                             } else if (state.status == "signed-out" && oauthManager.accountFlow.value.isSignedIn) {
@@ -726,12 +726,12 @@ fun MainAppHost(
                 }
             }
             // 插件清单、bridge 目录、插件设置页都拿到后才算插件数据就绪。
-            dshRepository.refreshBridgePluginCatalog()
-            dshRepository.refreshPluginSettingsPages()
+            dshRepository.plugins.refreshBridgePluginCatalog()
+            dshRepository.plugins.refreshPluginSettingsPages()
             accountHydrationJob.await()
             runtimeUi.pluginsHydrated = true
-            dshRepository.refreshAutomationTasks(ui.activeHostId)
-            dshRepository.refreshTeamTasks(ui.activeHostId)
+            dshRepository.tasks.refreshAutomationTasks(ui.activeHostId)
+            dshRepository.tasks.refreshTeamTasks(ui.activeHostId)
             val baseUrl = dshApplication.defaultClient.currentBaseUrl()
             if (baseUrl.endsWith(":1")) {
                 android.util.Log.w("DSH", "Host not bound yet, skip remote streams: $baseUrl")
@@ -740,7 +740,7 @@ fun MainAppHost(
                 dshRepository.subscribeRemoteEvents(ui.activeHostId)
                 // App 显示语言同步给 Host：英文界面下 Host 返回的文案也用英文。
                 val appLanguage = context.resources.configuration.locales[0].language
-                dshRepository.syncHostLocale(ui.activeHostId, appLanguage)
+                dshRepository.hostSettings.syncHostLocale(ui.activeHostId)
             }
             // 账号态之后由 account/watch 持续推送；首屏已主动拉过一次。
         }
@@ -822,7 +822,7 @@ fun MainAppHost(
     // 以及重启 Host 让新代码加载。两者都只有 App 层能提供，因此注入给 runtime。
     DisposableEffect(ui.activeHostId, activeWorkspace.absolutePath) {
         HostRuntimeHolder.runningBridgeVersionProvider = {
-            runCatching { dshRepository.bridgePluginVersion(forceRefresh = true) }.getOrNull()
+            runCatching { dshRepository.plugins.bridgePluginVersion(forceRefresh = true) }.getOrNull()
         }
         HostRuntimeHolder.restartHost = {
             val stopped = runtimeManager.stop()
@@ -858,42 +858,42 @@ fun MainAppHost(
             // 桥对客户端 bundle 是增量扫描的：每轮只求值一个，结果累积。定时刷新让
             // 后续批次继续推进，扫描完成后不再产生新条目，刷新也就变成一次廉价读。
             if (ticks % 4 == 0) {
-                runCatching { dshRepository.refreshBridgePluginCatalog() }
+                runCatching { dshRepository.plugins.refreshBridgePluginCatalog() }
                 // 把用户打开过的实验性 bundle 补回 profile（清单会被启动重置）。
-                val catalog = dshRepository.bridgePluginCatalogFlow.value
+                val catalog = dshRepository.plugins.bridgePluginCatalogFlow.value
                 val missing = savedEnabledBundles().filter { name ->
                     name !in restoredBundles && catalog.bundles.none { it.name == name && it.enabled }
                 }
                 if (missing.isNotEmpty()) {
                     missing.forEach { name -> restoredBundles += name }
                     missing.forEach { name ->
-                        runCatching { dshRepository.setBundleEnabled(ui.activeHostId, name, true) }
+                        runCatching { dshRepository.plugins.setBundleEnabled(ui.activeHostId, name, true) }
                     }
-                    runCatching { dshRepository.refreshBridgePluginCatalog() }
-                    runCatching { dshRepository.refreshPluginInventory(ui.activeHostId) }
+                    runCatching { dshRepository.plugins.refreshBridgePluginCatalog() }
+                    runCatching { dshRepository.plugins.refreshPluginInventory(ui.activeHostId) }
                 }
             }
             // 插件界面的入口不能只依赖「Host 状态刚变成有端口」那一刻：Host 冷启动时
             // 首个 bridge 请求可能先于会话 cookie 就绪而失败，一次失败就会让设置里的
             // 「插件界面」整组消失。入口为空时用更短的周期重试，稳定后降低频率。
-            val entriesEmpty = dshRepository.pluginSlotEntriesFlow.value.isEmpty()
+            val entriesEmpty = dshRepository.plugins.pluginSlotEntriesFlow.value.isEmpty()
             val settingsRefreshEvery = if (entriesEmpty) 2 else 8
             if (ticks % settingsRefreshEvery == 0) {
-                runCatching { dshRepository.refreshPluginSettingsPages() }
+                runCatching { dshRepository.plugins.refreshPluginSettingsPages() }
             }
             // 团队面板的成员状态随工具调用变化，定时刷新投影（只读一次轻量读）。
             if (ticks % 4 == 0) {
-                val teamOn = dshRepository.bridgePluginCatalogFlow.value.bundles.any {
+                val teamOn = dshRepository.plugins.bridgePluginCatalogFlow.value.bundles.any {
                     it.name == AgentTeamPluginUi.BUNDLE && it.enabled
                 }
                 if (teamOn) {
-                    runCatching { dshRepository.refreshAgentTeam(ui.activeHostId, currentSessionForTeam) }
+                    runCatching { dshRepository.tasks.refreshAgentTeam(ui.activeHostId, currentSessionForTeam) }
                 }
             }
             runCatching {
-                val events = dshRepository.pendingPluginEvents()
+                val events = dshRepository.plugins.pendingPluginEvents()
                 // client/refresh 转成组件刷新信号；toast 用系统 Toast 呈现。
-                dshRepository.dispatchPluginEvents(events)
+                dshRepository.plugins.dispatchPluginEvents(events)
                 events.forEach { event ->
                     if (event.kind == "toast" && event.text.isNotBlank()) {
                         android.widget.Toast.makeText(context, event.text, android.widget.Toast.LENGTH_SHORT).show()
@@ -944,9 +944,9 @@ fun MainAppHost(
             onAllow = { always ->
                 // «Разрешать такие действия без вопроса» — то же правило, что в Плагины → инструменты.
                 if (always) com.deepseek.dsh.feature.settings.logic.ToolPolicy.set(toolName, "auto")
-                scope.launch { dshRepository.respondApprovalWaterfall(ui.activeHostId, waterfall.eventId, true) }
+                scope.launch { dshRepository.approvals.respondApprovalWaterfall(ui.activeHostId, waterfall.eventId, true) }
             },
-            onReject = { scope.launch { dshRepository.respondApprovalWaterfall(ui.activeHostId, waterfall.eventId, false) } },
+            onReject = { scope.launch { dshRepository.approvals.respondApprovalWaterfall(ui.activeHostId, waterfall.eventId, false) } },
             inspect = if (local) ({ paths -> inspectDeletion(layout.rootfsDir, workspacePath, paths) }) else null,
         )
     }
@@ -979,12 +979,12 @@ fun MainAppHost(
             questions = questions,
             onSubmit = { answers ->
                 scope.launch {
-                    dshRepository.respondUserQuestion(ui.activeHostId, waterfall.eventId, answers)
+                    dshRepository.approvals.respondUserQuestion(ui.activeHostId, waterfall.eventId, answers)
                 }
             },
             onDismiss = {
                 scope.launch {
-                    dshRepository.respondUserQuestion(
+                    dshRepository.approvals.respondUserQuestion(
                         ui.activeHostId,
                         waterfall.eventId,
                         "{\"answers\":[]}",
@@ -1231,7 +1231,7 @@ fun MainAppHost(
                                     val sid = ui.selectedSessionId
                                     if (sid != null) {
                                         scope.launch {
-                                            dshRepository.killJob(ui.activeHostId, sid, job.id)
+                                            dshRepository.tasks.killJob(ui.activeHostId, sid, job.id)
                                         }
                                     }
                                 },
@@ -1240,7 +1240,7 @@ fun MainAppHost(
                                     runtimeUi.jobOutputText = ""
                                     runtimeUi.jobOutputStatus = null
                                     scope.launch {
-                                        dshRepository.followJob(
+                                        dshRepository.tasks.followJob(
                                             ui.activeHostId,
                                             job.owner ?: ui.selectedSessionId,
                                             job.id,
@@ -1299,7 +1299,7 @@ fun MainAppHost(
                                     ui.selectedSessionId = memberSessionId
                                     ui.activePage = ActivePage.CHAT
                                     scope.launch {
-                                        dshRepository.refreshAgentTeam(ui.activeHostId, memberSessionId)
+                                        dshRepository.tasks.refreshAgentTeam(ui.activeHostId, memberSessionId)
                                     }
                                 },
                                 onMenuClick = { scope.launch { drawerState.open() } },
@@ -1492,13 +1492,13 @@ fun MainAppHost(
                                 loadSkills = {
                                     val sid = ui.selectedSessionId
                                     if (sid == null) emptyList()
-                                    else dshRepository.listSkills(ui.activeHostId, sid)
+                                    else dshRepository.commands.listSkills(ui.activeHostId, sid)
                                 },
                                 onRefreshSkills = {
                                     val sid = ui.selectedSessionId
                                     if (sid != null) {
                                         scope.launch {
-                                            runCatching { dshRepository.refreshHostSkills(ui.activeHostId, sid) }
+                                            runCatching { dshRepository.commands.refreshHostSkills(ui.activeHostId, sid) }
                                         }
                                     }
                                 },
@@ -1548,7 +1548,7 @@ fun MainAppHost(
                                     val sid = ui.selectedSessionId
                                     if (sid != null) {
                                         scope.launch {
-                                            val result = dshRepository.executeHostCommand(
+                                            val result = dshRepository.commands.executeHostCommand(
                                                 ui.activeHostId, sid, line,
                                             )
                                             val message = result?.text
@@ -1734,7 +1734,7 @@ fun MainAppHost(
                                 onVoiceTranscriptConsumed = { runtimeUi.voiceTranscript = null },
                                 translateReasoning = if (cotTranslationEnabled) {
                                     { text ->
-                                        dshRepository.cotTranslationTranslate(
+                                        dshRepository.translation.cotTranslationTranslate(
                                             ui.activeHostId,
                                             text,
                                             ui.selectedSessionId ?: "",
@@ -1783,10 +1783,10 @@ fun MainAppHost(
                                 rootfsDir = layout.rootfsDir,
                                 installCacheDir = layout.cacheDir,
                                 pins = { nativePlugins.trustStore.pins() },
-                                loadSettings = { ns -> dshRepository.pluginSettingsDocument(ns) },
-                                saveSettings = { ns, patch, revision -> dshRepository.updatePluginSettings(ns, patch, revision) },
-                                marketIndexes = { dshRepository.marketIndexes(ui.activeHostId) },
-                                marketSearch = { url, query -> dshRepository.marketSearch(ui.activeHostId, url, query) },
+                                loadSettings = { ns -> dshRepository.plugins.pluginSettingsDocument(ns) },
+                                saveSettings = { ns, patch, revision -> dshRepository.plugins.updatePluginSettings(ns, patch, revision) },
+                                marketIndexes = { dshRepository.plugins.marketIndexes(ui.activeHostId) },
+                                marketSearch = { url, query -> dshRepository.plugins.marketSearch(ui.activeHostId, url, query) },
                                 toggleBundle = { packageName, enabled -> toggleBundleAwait(packageName, enabled) },
                                 install = { spec ->
                                     installPluginWithProgress(
@@ -1804,12 +1804,12 @@ fun MainAppHost(
                                         runtimeUi.managedPluginPackages = runCatching { appPluginInstaller.managedPackages() }.getOrDefault(runtimeUi.managedPluginPackages)
                                         HostRuntimeHolder.restartHost?.invoke()
                                     } else {
-                                        dshRepository.uninstallPlugin(ui.activeHostId, name)
+                                        dshRepository.plugins.uninstallPlugin(ui.activeHostId, name)
                                         appPluginInstaller.stripRowMountName(name)
                                     }
-                                    dshRepository.refreshPluginInventory(ui.activeHostId)
-                                    dshRepository.refreshBridgePluginCatalog()
-                                    dshRepository.refreshPluginSettingsPages()
+                                    dshRepository.plugins.refreshPluginInventory(ui.activeHostId)
+                                    dshRepository.plugins.refreshBridgePluginCatalog()
+                                    dshRepository.plugins.refreshPluginSettingsPages()
                                 },
                                 uninstallApk = { pkg -> nativePlugins.requestApkUninstall(pkg) },
                                 onNativeChanged = { nativePlugins.rescan() },
@@ -1829,13 +1829,13 @@ fun MainAppHost(
                                 },
                                 onOpenSource = { dir -> ui.filesDir = dir; ui.activePage = ActivePage.FILES },
                                 onOpenPluginUi = { id -> ui.pluginUiOpen = id },
-                                loadCredential = { ref -> dshRepository.credentialStatus(ui.activeHostId, ref) },
-                                saveCredential = { ref, value -> dshRepository.setCredential(ui.activeHostId, ref, value) },
+                                loadCredential = { ref -> dshRepository.plugins.credentialStatus(ui.activeHostId, ref) },
+                                saveCredential = { ref, value -> dshRepository.plugins.setCredential(ui.activeHostId, ref, value) },
                                 speech = SpeechHooks(
-                                    catalog = { dshRepository.speechCatalog(ui.activeHostId) },
-                                    configure = { providerId, language -> dshRepository.speechConfigure(ui.activeHostId, providerId, language) },
-                                    prepare = { providerId, source -> dshRepository.speechPrepare(ui.activeHostId, providerId, source) },
-                                    cancelPrepare = { providerId -> dshRepository.speechCancelPrepare(ui.activeHostId, providerId) },
+                                    catalog = { dshRepository.speech.speechCatalog(ui.activeHostId) },
+                                    configure = { providerId, language -> dshRepository.speech.speechConfigure(ui.activeHostId, providerId, language) },
+                                    prepare = { providerId, source -> dshRepository.speech.speechPrepare(ui.activeHostId, providerId, source) },
+                                    cancelPrepare = { providerId -> dshRepository.speech.speechCancelPrepare(ui.activeHostId, providerId) },
                                 ),
                                 onClose = { ui.activePage = ActivePage.CHAT },
                             ),
@@ -1940,8 +1940,8 @@ fun MainAppHost(
                 title = bridgePluginCatalog.bundles.firstOrNull { it.name == id }?.title
                     ?: runtimeUi.nativePluginItems.firstOrNull { "apk:" + it.pluginId == id }?.name ?: id,
                 slotEntries = pluginSlotEntries,
-                registry = dshRepository.bridge(),
-                refresh = dshRepository.pluginComponentRefreshFlow,
+                registry = dshRepository.plugins.bridge(),
+                refresh = dshRepository.plugins.pluginComponentRefreshFlow,
                 hostPort = status.port ?: dshApplication.localHostPort,
                 hostToken = status.token ?: dshApplication.localHostToken,
                 hostPortProvider = { dshApplication.localHostPort.takeIf { it > 0 } ?: (status.port ?: 0) },

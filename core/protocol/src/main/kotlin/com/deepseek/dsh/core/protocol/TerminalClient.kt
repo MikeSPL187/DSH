@@ -3,7 +3,6 @@ package com.deepseek.dsh.core.protocol
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.put
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -17,45 +16,6 @@ internal class TerminalClient(private val conn: HostConnection) : TerminalApi {
     private val client get() = conn.client
     private val json get() = conn.json
     private val mediaTypeJson get() = conn.mediaTypeJson
-
-    /** `terminal/environment`. */
-    override suspend fun terminalEnvironment(
-        hostId: String,
-        sessionId: String,
-    ): RemoteResult<TerminalEnvironmentInfo> = withContext(kotlinx.coroutines.Dispatchers.IO) {
-        val payload = buildJsonObject {
-            put("type", "client-request")
-            put("rpcId", java.util.UUID.randomUUID().toString())
-            put("method", "terminal/environment")
-            put("payload", buildJsonObject { put("args", buildJsonObject { put("agentId", sessionId) }) })
-        }
-        try {
-            val request = Request.Builder()
-                .url("$baseUrl/api/terminal/environment")
-                .post(payload.toString().toRequestBody(mediaTypeJson))
-                .build()
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    return@use RemoteResult.Failure("dsh/terminal-env", "HTTP ${response.code}")
-                }
-                val root = json.parseToJsonElement(response.body?.string().orEmpty())
-                    as? kotlinx.serialization.json.JsonObject
-                val value = (root?.get("result") as? kotlinx.serialization.json.JsonObject)
-                    ?.get("value") as? kotlinx.serialization.json.JsonObject
-                    ?: return@use RemoteResult.Failure("dsh/terminal-env", "missing value")
-                RemoteResult.Success(
-                    TerminalEnvironmentInfo(
-                        cwd = (value["cwd"] as? kotlinx.serialization.json.JsonPrimitive)
-                            ?.contentOrNull.orEmpty(),
-                        maxCols = value["maxCols"]?.toString()?.trim('"')?.toIntOrNull() ?: 160,
-                        maxRows = value["maxRows"]?.toString()?.trim('"')?.toIntOrNull() ?: 48,
-                    ),
-                )
-            }
-        } catch (e: Exception) {
-            RemoteResult.Failure("dsh/terminal-env-network", e.message ?: "terminal env failed")
-        }
-    }
 
     /** Открыть (или переиспользовать) терминал и подключиться. */
     override suspend fun openTerminal(

@@ -159,14 +159,6 @@ internal class AccountClient(private val conn: HostConnection) : AccountApi {
         }
     }
 
-    override suspend fun signOutAccount(hostId: String): RemoteResult<Boolean> {
-        val args = buildJsonObject { put("client", accountClientMetadata()) }
-        return when (accountRpc("account/signOut", args)) {
-            is RemoteResult.Success -> RemoteResult.Success(true)
-            is RemoteResult.Failure -> RemoteResult.Success(false)
-        }
-    }
-
     override suspend fun getAccountProfile(hostId: String): RemoteResult<AccountProfileInfo?> {
         val args = buildJsonObject { put("client", accountClientMetadata()) }
         return when (val res = accountRpc("account/getProfile", args)) {

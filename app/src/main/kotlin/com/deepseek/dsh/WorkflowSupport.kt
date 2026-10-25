@@ -12,6 +12,6 @@ import com.deepseek.dsh.core.data.DshRepository
  */
 suspend fun ensureOfficialWorkflowEnabled(repository: DshRepository, hostId: String) {
     for (entryId in listOf("include:workflow-ptc", "include:tool-workflow")) {
-        repository.setPluginEnabled(hostId, entryId, true)
+        repository.plugins.setPluginEnabled(hostId, entryId, true)
     }
 }

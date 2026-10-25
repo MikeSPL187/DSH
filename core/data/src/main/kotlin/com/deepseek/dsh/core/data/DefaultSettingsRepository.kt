@@ -14,8 +14,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * @param secretCipher 远程 Host 令牌的字段级加密（审计 F-04/N-14）；null 时按旧行为明文存储，
- *   只用于测试。
+ * @param secretCipher шифрование токена удалённого Host (аудит F-04/N-14); null — хранить открыто,
+ *   только для тестов.
  */
 class DefaultSettingsRepository(
     private val dao: DshDao,
@@ -23,18 +23,18 @@ class DefaultSettingsRepository(
     private val secretCipher: SecretCipher? = null,
 ) : SettingsRepository {
 
-    /** 读出令牌：密文解密；旧版明文原样返回；解不开（密钥丢失）时视为未设置。 */
+    /** Прочитать токен: шифр расшифровывается, старый открытый текст — как есть; не расшифровать (ключ утерян) — токена нет. */
     private fun revealToken(stored: String): String =
         secretCipher?.decrypt(stored) ?: if (secretCipher == null) stored else ""
 
-    /** 写入令牌：加密失败时不落盘明文，宁可让用户重新输入。 */
+    /** Записать токен: если шифрование не удалось, открытый текст не сохраняется — пусть пользователь введёт снова. */
     private fun sealToken(plain: String): String {
         val cipher = secretCipher ?: return plain
         return runCatching { cipher.encrypt(plain) }.getOrDefault("")
     }
 
     init {
-        // 一次性迁移：旧版本把令牌明文写在 Room 里，读到后立刻加密写回。
+        // Разовая миграция: старые версии хранили токен открыто — шифруем при первом чтении.
         if (secretCipher != null) {
             scope.launch(Dispatchers.IO) {
                 runCatching {

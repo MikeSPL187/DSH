@@ -76,7 +76,7 @@ internal class PluginDeps(
     val onCreateWithAgent: () -> Unit,
     val onOpenSource: (java.io.File) -> Unit,
     val onOpenPluginUi: (String) -> Unit,
-    val loadCredential: suspend (String) -> com.deepseek.dsh.core.data.DshRepository.CredentialStatus?,
+    val loadCredential: suspend (String) -> com.deepseek.dsh.core.data.PluginsRepository.CredentialStatus?,
     val saveCredential: suspend (String, String) -> Boolean,
     val speech: SpeechHooks?,
     val onClose: () -> Unit,

@@ -27,13 +27,13 @@ object HostSessionLogUpload {
     fun wire(repository: DshRepository, hostId: String, scope: CoroutineScope) {
         reader = {
             scope.launch {
-                enabled = runCatching { repository.fetchSessionLogUploadEnabled(hostId) }.getOrNull()
+                enabled = runCatching { repository.hostSettings.fetchSessionLogUploadEnabled(hostId) }.getOrNull()
             }
         }
         writer = { value ->
             scope.launch {
-                runCatching { repository.setSessionLogUploadEnabled(hostId, value) }
-                enabled = runCatching { repository.fetchSessionLogUploadEnabled(hostId) }.getOrNull()
+                runCatching { repository.hostSettings.setSessionLogUploadEnabled(hostId, value) }
+                enabled = runCatching { repository.hostSettings.fetchSessionLogUploadEnabled(hostId) }.getOrNull()
             }
         }
         reader?.invoke()

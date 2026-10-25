@@ -23,19 +23,6 @@ internal class PluginsClient(private val conn: HostConnection) : PluginsApi {
     private val mediaTypeJson get() = conn.mediaTypeJson
     private suspend fun rpcRaw(hostId: String, method: String, argsJson: String) = conn.rpcRaw(hostId, method, argsJson)
 
-    override suspend fun getPluginInventory(
-        hostId: String
-    ): RemoteResult<List<BuiltInPluginInfo>> = withContext(kotlinx.coroutines.Dispatchers.IO) {
-        when (val snapshotRes = getPluginInventorySnapshot(hostId)) {
-            is RemoteResult.Success -> {
-                val all = (snapshotRes.data.agentPresets.flatMap { it.rows } + snapshotRes.data.entries)
-                    .distinctBy { it.packageName }
-                RemoteResult.Success(all)
-            }
-            is RemoteResult.Failure -> snapshotRes
-        }
-    }
-
     override suspend fun getPluginInventorySnapshot(
         hostId: String
     ): RemoteResult<PluginInventorySnapshotInfo> = withContext(kotlinx.coroutines.Dispatchers.IO) {

@@ -31,13 +31,13 @@ class HostAccount internal constructor(
             ui.signInPending = true
             ui.signInOpenedUrl = null
             val callbackOrigin = baseUrl()
-            var view = repository.startAccountSignIn(ui.activeHostId, callbackOrigin).getOrNull()
+            var view = repository.account.startAccountSignIn(ui.activeHostId, callbackOrigin).getOrNull()
             if (view == null) {
                 runCatching { runtimeManager.start(workspace().absolutePath) }
                 // Host поднимается не сразу: до 10 попыток раз в 2 с, первая удачная — последняя.
                 for (attempt in 1..10) {
                     kotlinx.coroutines.delay(2000)
-                    view = repository.startAccountSignIn(ui.activeHostId, baseUrl()).getOrNull()
+                    view = repository.account.startAccountSignIn(ui.activeHostId, baseUrl()).getOrNull()
                     if (view != null) break
                 }
             }
@@ -100,15 +100,15 @@ internal fun rememberHostAccount(
     LaunchedEffect(ui.activeHostId) {
         kotlinx.coroutines.coroutineScope {
             launch {
-                repository.hostAccountFlow.collect { view ->
+                repository.account.hostAccountFlow.collect { view ->
                     val pending = ui.signInPending
                     when (view?.status) {
                         "credential-stored" -> {
                             ui.signInPending = false
                             ui.signInOpenedUrl = null
                             if (!oauthManager.accountFlow.value.isSignedIn) {
-                                val profile = repository.getAccountProfile(ui.activeHostId).getOrNull()
-                                val balance = repository.getAccountBalance(ui.activeHostId).getOrNull()
+                                val profile = repository.account.getAccountProfile(ui.activeHostId).getOrNull()
+                                val balance = repository.account.getAccountBalance(ui.activeHostId).getOrNull()
                                 oauthManager.applyHostAccount(profile, balance)
                             }
                         }
@@ -138,11 +138,11 @@ internal fun rememberHostAccount(
             }
             launch {
                 // Host 明确报告 DeepSeek 会话过期：直接清掉本地登录态（API Key 保留）。
-                repository.accountExpiredFlow.collect { oauthManager.signOut() }
+                repository.account.accountExpiredFlow.collect { oauthManager.signOut() }
             }
             launch {
                 // 模型需要重新登录账号：直接打开官方登录入口。
-                repository.modelSignInRequiredFlow.collect { ui.showSignInDialog = true }
+                repository.account.modelSignInRequiredFlow.collect { ui.showSignInDialog = true }
             }
         }
     }

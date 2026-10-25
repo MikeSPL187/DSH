@@ -8,14 +8,14 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.longOrNull
 
 /**
- * 语音输入（`speech` Remote）的数据模型与解析。
+ * Модель и разбор голосового ввода (`speech`).
  *
- * 官方网页端的语音输入读 `remote.speech`：`catalog()` 给出识别服务、语言、
- * 准备状态；`configure/prepare/cancelPreparation` 改选择与模型准备。
- * 原生只用到这几项，字段名与 Host `SpeechCatalog` 对齐。
+ * `catalog()` даёт сервисы распознавания, языки и состояние подготовки;
+ * `configure/prepare/cancelPreparation` меняют выбор и готовят модель.
+ * Имена полей — как в `SpeechCatalog` Host.
  */
 
-/** 首次准备的工作量估算。 */
+/** Оценка первой подготовки. */
 data class SpeechSetupEstimate(
     val recommendedDiskBytes: Long,
     val expectedMemoryBytes: Long,
@@ -23,10 +23,10 @@ data class SpeechSetupEstimate(
     val maximumMinutes: Int,
 )
 
-/** 一个准备步骤（check/model/vad/verify/load）。 */
+/** Шаг подготовки (check/model/vad/verify/load). */
 data class SpeechStep(val kind: String, val status: String)
 
-/** 一个识别服务的模型准备状态。 */
+/** Состояние подготовки модели сервиса. */
 data class SpeechPreparation(
     /** checking / unprepared / downloading / verifying / loading / ready / standby / waking / failed / cancelled / cancelling。 */
     val phase: String,
@@ -34,11 +34,11 @@ data class SpeechPreparation(
     val steps: List<SpeechStep> = emptyList(),
     val completedBytes: Long? = null,
     val totalBytes: Long? = null,
-    /** 本次准备使用的下载来源。 */
+    /** Источник загрузки этой подготовки. */
     val source: String? = null,
 )
 
-/** 一个语音识别服务。 */
+/** Сервис распознавания речи. */
 data class SpeechProvider(
     val id: String,
     val name: String,
@@ -50,7 +50,7 @@ data class SpeechProvider(
     val preparation: SpeechPreparation?,
 )
 
-/** `speech/catalog` 的结果。 */
+/** Ответ `speech/catalog`. */
 data class SpeechCatalog(
     val providers: List<SpeechProvider>,
     val providerId: String,
@@ -58,12 +58,12 @@ data class SpeechCatalog(
     val maxAudioBytes: Long,
     val maxDurationSeconds: Int,
 ) {
-    /** 当前选中的服务。 */
+    /** Выбранный сервис. */
     val selected: SpeechProvider?
         get() = providers.firstOrNull { it.id == providerId } ?: providers.firstOrNull()
 }
 
-/** 解析 `speech/catalog` 的 `value`。 */
+/** Разбор `value` из `speech/catalog`. */
 internal fun parseSpeechCatalog(value: JsonElement?): SpeechCatalog? {
     val root = value as? JsonObject ?: return null
     val providers = (root["providers"] as? JsonArray).orEmpty().mapNotNull { element ->

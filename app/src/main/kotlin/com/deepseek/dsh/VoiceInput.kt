@@ -67,7 +67,7 @@ class VoiceInput internal constructor(
 
     private suspend fun transcribe(wav: ByteArray) {
         val host = hostId()
-        val catalog = repository.speechCatalog(host).getOrNull()
+        val catalog = repository.speech.speechCatalog(host).getOrNull()
         val provider = catalog?.selected
         if (catalog == null || provider == null) {
             runtimeUi.voiceError = context.getString(R.string.voice_service_unavailable)
@@ -80,7 +80,7 @@ class VoiceInput internal constructor(
             return
         }
         val encoded = android.util.Base64.encodeToString(wav, android.util.Base64.NO_WRAP)
-        repository.speechTranscribe(host, provider.id, catalog.language, encoded).fold(
+        repository.speech.speechTranscribe(host, provider.id, catalog.language, encoded).fold(
             onSuccess = { text ->
                 if (text.isBlank()) {
                     runtimeUi.voiceError = context.getString(R.string.voice_no_speech)

@@ -87,7 +87,7 @@ object ToolCallLog {
 
 /**
  * Режимы инструментов: `auto` — разрешать без вопроса, `ask` — спрашивать, `off` — отклонять.
- * Применяются к запросам одобрения Host (см. DshRepository.approvalPolicy).
+ * Применяются к запросам одобрения Host (см. DshRepository.approvals.approvalPolicy).
  * Опасные действия (удаление, команды вне проекта) всегда спрашиваются — это решает вызывающий.
  */
 object ToolPolicy {

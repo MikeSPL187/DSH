@@ -109,12 +109,12 @@ fun DshTerminalRoute(
     LaunchedEffect(hostId, sessionId, loadSerial) {
         val sid = sessionId ?: return@LaunchedEffect
         listFailed = false
-        shells = runCatching { repository.listTerminalShells(hostId, sid) }.getOrDefault(emptyList())
-        var list = runCatching { repository.listTerminals(hostId, sid) }.getOrDefault(emptyList())
+        shells = runCatching { repository.terminals.listTerminalShells(hostId, sid) }.getOrDefault(emptyList())
+        var list = runCatching { repository.terminals.listTerminals(hostId, sid) }.getOrDefault(emptyList())
         if (list.isEmpty()) {
             val id = activeId ?: "main"
-            repository.createTerminal(hostId, sid, id, bashPath(), size.first, size.second)
-            list = runCatching { repository.listTerminals(hostId, sid) }.getOrDefault(emptyList())
+            repository.terminals.createTerminal(hostId, sid, id, bashPath(), size.first, size.second)
+            list = runCatching { repository.terminals.listTerminals(hostId, sid) }.getOrDefault(emptyList())
         }
         if (list.isEmpty()) { listFailed = true; return@LaunchedEffect }
         tabs = list
@@ -127,7 +127,7 @@ fun DshTerminalRoute(
         LaunchedEffect(t.id, reopen[t.id] ?: 0) {
             val model = TerminalHub.model(hostId, sessionId, t.id)
             closed.remove(t.id); failed.remove(t.id)
-            val conn = repository.openTerminal(hostId, sessionId, size.first, size.second, t.id)
+            val conn = repository.terminals.openTerminal(hostId, sessionId, size.first, size.second, t.id)
             if (conn == null) { failed[t.id] = true; return@LaunchedEffect }
             conns[t.id] = conn
             try {
@@ -202,8 +202,8 @@ fun DshTerminalRoute(
         onAddTab = {
             if (sid != null) scope.launch {
                 val id = "term-" + System.currentTimeMillis()
-                val made = repository.createTerminal(hostId, sid, id, bashPath(), size.first, size.second)
-                tabs = runCatching { repository.listTerminals(hostId, sid) }.getOrDefault(tabs)
+                val made = repository.terminals.createTerminal(hostId, sid, id, bashPath(), size.first, size.second)
+                tabs = runCatching { repository.terminals.listTerminals(hostId, sid) }.getOrDefault(tabs)
                 if (made != null) {
                     activeId = made.id; TerminalHub.setActive(hostId, sid, made.id)
                     toast.show(context.getString(R.string.tm_add_toast, made.shellName.ifBlank { "bash" }))
@@ -212,7 +212,7 @@ fun DshTerminalRoute(
         },
         onCloseTab = { id ->
             if (sid != null) scope.launch {
-                repository.closeTerminal(hostId, sid, id)
+                repository.terminals.closeTerminal(hostId, sid, id)
                 conns[id]?.close()
                 TerminalHub.drop(hostId, sid, id)
                 if (activeId == id) activeId = null
@@ -244,7 +244,7 @@ fun DshTerminalRoute(
             when {
                 a == null || listFailed -> loadSerial++
                 closed[a.id] == true && sid != null -> scope.launch {
-                    repository.createTerminal(hostId, sid, a.id, bashPath(), size.first, size.second)
+                    repository.terminals.createTerminal(hostId, sid, a.id, bashPath(), size.first, size.second)
                     TerminalHub.model(hostId, sid, a.id).reset()
                     reopen[a.id] = (reopen[a.id] ?: 0) + 1
                 }

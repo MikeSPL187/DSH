@@ -9,36 +9,36 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.longOrNull
 
 /**
- * 插件市场的数据模型与解析。
+ * Модель и разбор магазина плагинов.
  *
- * 官方「发现」页读的是 Host 的 `pluginMarket` Remote（`listIndexes` / `search` /
- * `setIndexes`），索引格式由 `@deepseek-ai/dsh-plugin-market-index` 定义。这里只
- * 保留原生列表/详情真正要用的字段，其余字段原样忽略。
+ * Страница «Обзор» читает `pluginMarket` Host (`listIndexes` / `search` /
+ * `setIndexes`); формат индекса задаёт `@deepseek-ai/dsh-plugin-market-index`. Здесь только
+ * поля, нужные списку и карточке плагина, остальные пропускаются.
  */
 
-/** 一个索引源的摘要。 */
+/** Источник индекса. */
 data class MarketIndexSummary(
     val url: String,
-    /** 最近一次成功读取的市场标题；失败或未读时为 null。 */
+    /** Название магазина из последнего удачного чтения; null — не читали или ошибка. */
     val title: String?,
-    /** 最近一次读取失败的原因。 */
+    /** Причина последней ошибки чтения. */
     val error: String?,
 )
 
-/** 一个可安装版本。 */
+/** Версия для установки. */
 data class MarketVersion(
     val version: String,
-    /** 交给安装器的 spec（npm 为 `name@version`，git 为 `git+...`）。 */
+    /** Spec для установщика (npm — `name@version`, git — `git+...`). */
     val spec: String,
     val registry: String?,
-    /** 发布时间（Unix 秒）。 */
+    /** Время публикации (Unix, секунды). */
     val publishTimestamp: Long,
     val compatible: Boolean,
-    /** 不兼容时要求的 DSH 版本范围。 */
+    /** Нужный диапазон версий DSH, если текущая не подходит. */
     val requirement: String?,
 )
 
-/** 市场里的一条插件。 */
+/** Плагин в магазине. */
 data class MarketEntry(
     val name: String,
     val title: String,
@@ -51,23 +51,23 @@ data class MarketEntry(
     /** `not-installed` / `installed` / `update-available` / `different-version` / `provided`。 */
     val installationStatus: String,
 ) {
-    /** 列表里展示的版本：默认版本，否则第一个。 */
+    /** Версия для списка: по умолчанию, иначе первая. */
     val presentedVersion: MarketVersion?
         get() = versions.firstOrNull { it.version == defaultVersion } ?: versions.firstOrNull()
 }
 
-/** 一页搜索结果。 */
+/** Страница результатов поиска. */
 data class MarketListing(
     val url: String,
     val title: String?,
     val entries: List<MarketEntry>,
     val total: Int,
     val nextOffset: Int?,
-    /** 回答这一页的文档时间；翻页时用它钉住同一份文档。 */
+    /** Время документа, из которого эта страница: по нему листают тот же документ. */
     val fetchedAt: Long,
 )
 
-/** 解析 `plugin-market/listIndexes` 的 `value`。 */
+/** Разбор `value` из `plugin-market/listIndexes`. */
 internal fun parseMarketIndexes(value: JsonElement?): List<MarketIndexSummary> {
     val array = value as? JsonArray ?: return emptyList()
     return array.mapNotNull { element ->
@@ -81,7 +81,7 @@ internal fun parseMarketIndexes(value: JsonElement?): List<MarketIndexSummary> {
     }
 }
 
-/** 解析 `plugin-market/search` 的 `value`（可能为空：索引尚未读取成功时没有数据）。 */
+/** Разбор `value` из `plugin-market/search` (пусто, пока индекс не прочитан). */
 internal fun parseMarketSearch(value: JsonElement?): MarketListing? {
     val obj = value as? JsonObject ?: return null
     val url = obj.string("url") ?: return null

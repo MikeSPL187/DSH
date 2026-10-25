@@ -1,7 +1,7 @@
 package com.deepseek.dsh
 
 import androidx.compose.runtime.Composable
-import com.deepseek.dsh.core.data.DshRepository
+import com.deepseek.dsh.core.data.PluginsRepository
 import com.deepseek.dsh.core.model.PluginSettingsDocument
 import kotlinx.serialization.json.JsonObject
 
@@ -17,7 +17,7 @@ internal data class PluginUiHooks(
     /** 回写一个设置命名空间（带 revision，冲突时拒绝覆盖）。 */
     val saveDocument: suspend (String, JsonObject, Int) -> Boolean,
     /** 读取一个凭据引用的状态（不返回值，只回已配置/可写）。 */
-    val loadCredential: suspend (String) -> DshRepository.CredentialStatus?,
+    val loadCredential: suspend (String) -> PluginsRepository.CredentialStatus?,
     /** 写入一个凭据引用。 */
     val saveCredential: suspend (String, String) -> Boolean,
     /** 语音识别的 Host `speech` 接口；语音插件之外为 null。 */

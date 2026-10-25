@@ -13,7 +13,7 @@ app                      сборка приложения: MainActivity, MainAp
  │                        Настройки), runtime (первый запуск и экраны запуска), hosts (логика сопряжения)
  ├─ plugin:*             плагины: native-host (APK-компаньоны), surface (панели Host), runtime-web (веб-островки)
  ├─ runtime:*            host — Linux (rootfs), процесс Host, git, бэкап; bridge — мост к Host
- ├─ core:data            DshRepository (вся работа с Host и Room), настройки
+ ├─ core:data            DshRepository и области (плагины, аккаунт, задачи…), Room, настройки
  ├─ core:protocol        RemoteClient (HTTP/WS к Host) — фасад клиентов по областям, вход, соединение
  ├─ core:bridge          bridge/v1: каталог плагинов, слоты
  ├─ core:designsystem    токены «Фарфор»/«Графит», иконки, компоненты, листы, kit (каркас экранов)
@@ -73,14 +73,32 @@ tooling:*                проверка контракта с Host и гене
 интерфейсы клиентам (`by`) и меняет адрес Host. Новый вызов Host добавляется в интерфейс своей
 области и в её клиент — остальные файлы не трогаются.
 
+## Данные (`core:data`)
+
+`DshRepository` ведёт сессии, сообщения, рабочие папки и открытую сессию и разводит события
+Host по областям. Области — отдельные классы, доступные свойствами репозитория:
+
+| Свойство | Класс | Что делает |
+|---|---|---|
+| `plugins` | `PluginsRepository` | инвентарь, мост `bridge/v1`, слоты, настройки и секреты плагинов, магазин, установка |
+| `account` | `AccountRepository` | аккаунт DeepSeek: состояние, профиль, баланс, бонусы |
+| `tasks` | `TasksRepository` | команда агента, задачи, расписания, фоновые процессы |
+| `terminals` | `TerminalRepository` | терминалы сессии |
+| `commands` | `CommandsRepository` | слэш-команды и навыки |
+| `approvals` | `ApprovalsRepository` | одобрения и вопросы агента, режимы инструментов |
+| `hostSettings` | `HostSettingsRepository` | каталог моделей, язык Host, выгрузка журналов |
+| `speech`, `translation` | `SpeechRepository`, `TranslationRepository` | распознавание речи, перевод рассуждений |
+
+Общие вызовы и разбор ответа `{result:{ok,value}}` — `HostCalls`; разбор проекций Host
+(`workspace/follow`, `todos`, `goal`, `inbox`) — чистые функции в `HostProjections.kt` с тестами.
+
 ## Что дальше (по пользе)
 
 1. **Страница чата** (≈400 строк в `MainAppHost`): перенести оставшиеся данные сессии (сообщения,
    задачи, цель, очередь, изменения) в `ChatServices` — тогда `MainAppHost` станет чистой навигацией.
-2. **`DshRepository` (2500 строк)**: разделить по областям так же, как протокол.
-3. **Удалённый Host**: клиент работает с одним адресом. Чтобы подключать компьютер, нужно
+2. **Удалённый Host**: клиент работает с одним адресом. Чтобы подключать компьютер, нужно
    хранить хосты (токен — в Keystore), переключать `RemoteClient` на адрес хоста с пиннингом TLS
    (`PairingTls`), затем включить `SettingsUi.remoteHostsSupported`.
-4. **Тесты UI-логики** в `feature:chat`, `feature:runtime` и `core:designsystem` — сейчас там
+3. **Тесты UI-логики** в `feature:chat`, `feature:runtime` и `core:designsystem` — сейчас там
    нет модульных тестов, проверка идёт снимками в `app` (`DshScreensSweepTest`, `ScreensGalleryTest`).
-5. Комментарии в старом коде частично на китайском — переводить при правке соответствующего места.
+4. Комментарии в старом коде частично на китайском — переводить при правке соответствующего места.

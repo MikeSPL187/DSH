@@ -9,16 +9,16 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.longOrNull
 
 /**
- * Claude Code 模组横幅的数据模型。
+ * Модель полосы модов Claude Code.
  *
- * 官方 `client-ui-claude-code-mods` 把 Host 下发的序列化节点树（只允许
- * `Box`/`Text`/`Button`）画成一条横幅：`Text` 的颜色/粗体/暗淡/斜体/下划线，
- * `Box` 的方向/边框/内边距/间距，`Button` 的标签、热键、禁用与 actionId。
+ * `client-ui-claude-code-mods` рисует присланное Host дерево узлов (только
+ * `Box`/`Text`/`Button`) полосой: у `Text` — цвет, жирный, приглушённый, курсив, подчёркивание;
+ * у `Box` — направление, рамка, отступы, промежутки; у `Button` — подпись, клавиша, выключенность и actionId.
  */
 
-/** 横幅里的一个节点。 */
+/** Узел полосы. */
 sealed interface BandNode {
-    /** 文本节点。 */
+    /** Текст. */
     data class Text(
         val text: String,
         val color: String? = null,
@@ -28,7 +28,7 @@ sealed interface BandNode {
         val underline: Boolean = false,
     ) : BandNode
 
-    /** 布局容器。 */
+    /** Контейнер раскладки. */
     data class Box(
         val row: Boolean = false,
         val border: Boolean = false,
@@ -37,7 +37,7 @@ sealed interface BandNode {
         val children: List<BandNode> = emptyList(),
     ) : BandNode
 
-    /** 可点击按钮。 */
+    /** Кнопка. */
     data class Button(
         val label: String,
         val hotkey: String? = null,
@@ -46,13 +46,13 @@ sealed interface BandNode {
     ) : BandNode
 }
 
-/** 一次重绘的快照（generation 用于按钮回调的过期判断）。 */
+/** Снимок одной перерисовки (по generation Host отбрасывает нажатия устаревших кнопок). */
 data class ClaudeCodeBandSnapshot(
     val generation: Long,
     val root: BandNode?,
 )
 
-/** 解析 `SurfaceSnapshot`：`{ generation, tree }`。 */
+/** Разбор `SurfaceSnapshot`: `{ generation, tree }`. */
 internal fun parseBandSnapshot(value: JsonElement?): ClaudeCodeBandSnapshot? {
     val obj = value as? JsonObject ?: return null
     val generation = (obj["generation"] as? JsonPrimitive)?.longOrNull ?: 0L
@@ -63,7 +63,7 @@ internal fun parseBandSnapshot(value: JsonElement?): ClaudeCodeBandSnapshot? {
     )
 }
 
-/** 解析一个节点；未知节点按文本降级，保持内容可见。 */
+/** Разбор узла; незнакомый узел показывается как текст, чтобы содержимое не пропало. */
 internal fun parseBandNode(element: JsonElement?): BandNode? {
     when (element) {
         null -> return null

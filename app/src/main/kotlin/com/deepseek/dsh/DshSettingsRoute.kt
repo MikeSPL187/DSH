@@ -308,7 +308,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
 
         override suspend fun deleteKey(): Boolean {
             val provider = providers.firstOrNull(::isDeepSeek)
-            if (provider != null) d.repository.unsetCredential(hostId, provider.keyRef)
+            if (provider != null) d.repository.plugins.unsetCredential(hostId, provider.keyRef)
             ApiKeyVault.delete(DEEPSEEK_VAULT_REF)
             withContext(Dispatchers.IO) { BalanceLedger.clear(context) }
             d.oauthManager.signInWithApiKey("")

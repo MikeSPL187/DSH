@@ -332,6 +332,6 @@ private suspend fun applyKey(
     }
     runtimeUi.modelProvidersRaw = providersRaw
     runtimeUi.modelSettingsRaw = dshRepository.rpcRaw(ui.activeHostId, "settings/describe", "{}").getOrNull()
-    dshRepository.refreshModelCatalog(ui.activeHostId)
+    dshRepository.hostSettings.refreshModelCatalog(ui.activeHostId)
     if (key.provider == OnboardingProvider.DEEPSEEK) oauthManager.signInWithApiKey(key.key)
 }

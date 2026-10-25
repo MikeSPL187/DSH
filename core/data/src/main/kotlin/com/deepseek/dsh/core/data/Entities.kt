@@ -4,7 +4,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 /**
- * v4.0 设计文档 §13.1 Room 客户端本地缓存实体规范
+ * Таблицы локального кэша Room.
  */
 
 @Entity(tableName = "sessions", primaryKeys = ["hostId", "sessionId"])

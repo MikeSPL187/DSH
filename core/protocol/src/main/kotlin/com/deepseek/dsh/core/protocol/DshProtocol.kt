@@ -4,7 +4,6 @@ import com.deepseek.dsh.core.model.AccountBalanceInfo
 import com.deepseek.dsh.core.model.AccountProfileInfo
 import com.deepseek.dsh.core.model.AccountViewInfo
 import com.deepseek.dsh.core.model.AutomationTaskItem
-import com.deepseek.dsh.core.model.BuiltInPluginInfo
 import com.deepseek.dsh.core.model.ChatMessage
 import com.deepseek.dsh.core.model.ComposerStats
 import com.deepseek.dsh.core.model.ModelCatalogInfo
@@ -167,13 +166,6 @@ interface TerminalConnection {
     fun close()
 }
 
-/** Окружение терминала (`terminal/environment`). */
-data class TerminalEnvironmentInfo(
-    val cwd: String,
-    val maxCols: Int,
-    val maxRows: Int,
-)
-
 /** Один результат из `deliverables/presented`. */
 data class PresentedFileInfo(
     val path: String,
@@ -218,8 +210,6 @@ interface AccountApi {
 
     suspend fun startAccountSignIn(hostId: String, callbackOrigin: String): RemoteResult<AccountViewInfo>
 
-    suspend fun signOutAccount(hostId: String): RemoteResult<Boolean>
-
     suspend fun getAccountProfile(hostId: String): RemoteResult<AccountProfileInfo?>
 
     suspend fun getAccountBalance(hostId: String): RemoteResult<AccountBalanceInfo>
@@ -227,8 +217,6 @@ interface AccountApi {
 
 /** Плагины Host: инвентарь, менеджер, строки, установка, включение, RPC плагина. */
 interface PluginsApi {
-    suspend fun getPluginInventory(hostId: String): RemoteResult<List<BuiltInPluginInfo>>
-
     suspend fun getPluginInventorySnapshot(hostId: String): RemoteResult<PluginInventorySnapshotInfo>
 
     suspend fun getPluginManagerSnapshot(hostId: String): RemoteResult<PluginManagerSnapshot>
@@ -266,12 +254,6 @@ interface PluginsApi {
 /** Настройки Host и каталог моделей (`settings/...`, `llm/...`). */
 interface SettingsApi {
     suspend fun getModelCatalog(hostId: String): RemoteResult<ModelCatalogInfo>
-
-    suspend fun openSettingsDocument(hostId: String): RemoteResult<Boolean>
-
-    suspend fun getRemoteSettings(hostId: String): RemoteResult<Map<String, String>>
-
-    suspend fun updateRemoteSettings(hostId: String, ns: String, patchJson: String): RemoteResult<Boolean>
 }
 
 /** Команда агента и задачи: команда сессии, общие задачи, автоматизации Host. */
@@ -301,12 +283,6 @@ interface JobsApi {
 
 /** Терминалы Host (`terminal/...`): окружение, открытие PTY, закрытие. */
 interface TerminalApi {
-    /** `terminal/environment`: текущая папка и предельный размер. */
-    suspend fun terminalEnvironment(
-        hostId: String,
-        sessionId: String,
-    ): RemoteResult<TerminalEnvironmentInfo>
-
     /** Открыть (или переиспользовать) терминал и подключиться; возвращает подключение для ввода. */
     suspend fun openTerminal(
         hostId: String,
@@ -390,8 +366,6 @@ interface SessionsApi {
     suspend fun listSessions(hostId: String): RemoteResult<List<SessionInfo>>
 
     suspend fun createSession(hostId: String, title: String, workspacePath: String?, agentPreset: String? = null): RemoteResult<SessionInfo>
-
-    suspend fun deleteSession(hostId: String, sessionId: String): RemoteResult<Boolean>
 
     suspend fun selectModel(hostId: String, sessionId: String, modelId: String, provider: String? = null, reasoningEffort: String? = null): RemoteResult<Boolean>
 

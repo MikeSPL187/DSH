@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 @Composable
 internal fun ToolPolicyEffect(repository: DshRepository) {
     LaunchedEffect(repository) {
-        repository.approvalPolicy = { w ->
+        repository.approvals.approvalPolicy = { w ->
             val tool = (w.request["toolName"] as? kotlinx.serialization.json.JsonPrimitive)?.content
             val args = w.request["args"]?.toString() ?: w.request["arguments"]?.toString()
             when {
@@ -23,7 +23,7 @@ internal fun ToolPolicyEffect(repository: DshRepository) {
             }
         }
         launch {
-            repository.approvalOutcomes.collect { (w, approved, byUser) ->
+            repository.approvals.approvalOutcomes.collect { (w, approved, byUser) ->
                 val tool = (w.request["toolName"] as? kotlinx.serialization.json.JsonPrimitive)?.content ?: return@collect
                 com.deepseek.dsh.feature.settings.logic.ToolCallLog.approval(tool, approved, byUser)
             }

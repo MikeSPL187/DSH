@@ -52,7 +52,7 @@ internal fun refreshModelProviderData(
             providersRaw,
             settingsRaw,
             null,
-            repository.officialSettingsNamespaces(),
+            repository.plugins.officialSettingsNamespaces(),
         ).map { it.keyRef }.distinct()
         val refsJson = providerRefs.joinToString(prefix = "{\"refs\":[", postfix = "]}") { "\"$it\"" }
         onCredentialsRaw(repository.rpcRaw(hostId, "credentials/describe", refsJson).getOrNull())
@@ -129,7 +129,7 @@ internal fun saveModelProvider(
         onSettingsRaw(repository.rpcRaw(hostId, "settings/describe", "{}").getOrNull())
         val refsJson = "{\"refs\":[\"${provider.keyRef}\"]}"
         onCredentialsRaw(repository.rpcRaw(hostId, "credentials/describe", refsJson).getOrNull())
-        repository.refreshModelCatalog(hostId)
+        repository.hostSettings.refreshModelCatalog(hostId)
     }
 }
 
@@ -149,7 +149,7 @@ internal fun rememberAppLanguage(
         selection = next
         AppLanguage.apply(context, next)
         scope.launch {
-            repository.syncHostLocale(hostId, AppLanguage.effectiveTag(context))
+            repository.hostSettings.syncHostLocale(hostId)
         }
     }
     return selection to change
@@ -175,7 +175,7 @@ internal suspend fun installPluginWithProgress(
     onProgress(0.02f, context.getString(R.string.plugins_install_preparing))
     val hostRes = kotlinx.coroutines.coroutineScope {
         val progressJob = launch {
-            repository.installProgressFlow.collect { progress ->
+            repository.plugins.installProgressFlow.collect { progress ->
                 if (progress == null) return@collect
                 val label = when (progress.phase) {
                     "installing" -> if (progress.total > 1) {
@@ -198,7 +198,7 @@ internal suspend fun installPluginWithProgress(
             }
         }
         try {
-            repository.installPlugin(hostId, pkgName)
+            repository.plugins.installPlugin(hostId, pkgName)
         } finally {
             progressJob.cancel()
         }
@@ -228,13 +228,13 @@ internal suspend fun installPluginWithProgress(
                 kotlinx.coroutines.delay(1_200)
             }
             onManagedPackages(runCatching { installer.managedPackages() }.getOrDefault(emptySet()))
-            repository.refreshPluginInventory(hostId)
-            repository.refreshBridgePluginCatalog()
-            repository.refreshPluginSettingsPages()
+            repository.plugins.refreshPluginInventory(hostId)
+            repository.plugins.refreshBridgePluginCatalog()
+            repository.plugins.refreshPluginSettingsPages()
             // 反向联动：这个 JS 插件有原生伴侣 APK 的话，提示可装。
             runCatching {
                 val pkg = installed.substringAfterLast('/').substringBefore('@').ifBlank { installed }
-                val companion = repository.bridge()?.nativeCompanionFor(pkg)
+                val companion = repository.plugins.bridge()?.nativeCompanionFor(pkg)
                 if (companion is com.deepseek.dsh.core.bridge.BridgeResult.Success &&
                     companion.value != null
                 ) {

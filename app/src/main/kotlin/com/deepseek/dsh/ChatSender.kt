@@ -42,7 +42,7 @@ class ChatSender(
         if (handledAsCommand) {
             val sid = commandSession!!
             scope.launch {
-                val result = repository.executeHostCommand(
+                val result = repository.commands.executeHostCommand(
                     ui.activeHostId, sid, commandLine,
                 )
                 if (result != null) {

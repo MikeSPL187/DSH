@@ -105,7 +105,7 @@ class MainActivity : ComponentActivity() {
                 val nativeTheme = com.deepseek.dsh.plugin.nativehost.rememberPluginTheme()
                 val nativeHost = com.deepseek.dsh.plugin.nativehost.rememberNativeHostApi(
                     dispatcher = { componentId, event, payload ->
-                        app.dshRepository.bridge()?.dispatchUiEvent(componentId, event, payload)
+                        app.dshRepository.plugins.bridge()?.dispatchUiEvent(componentId, event, payload)
                     },
                 )
                 androidx.compose.runtime.CompositionLocalProvider(

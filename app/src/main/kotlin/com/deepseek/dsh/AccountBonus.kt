@@ -46,7 +46,7 @@ fun AccountBonusHost(
     val scope = rememberCoroutineScope()
     LaunchedEffect(hostId, hostBound) {
         if (!hostBound) return@LaunchedEffect
-        val result = runCatching { repository.fetchUnnotifiedBonuses(hostId) }.getOrNull()
+        val result = runCatching { repository.account.fetchUnnotifiedBonuses(hostId) }.getOrNull()
         if (result != null) {
             accountId = result.first
             bonuses = result.second
@@ -60,7 +60,7 @@ fun AccountBonusHost(
         bonuses = emptyList()
         if (id != null) {
             scope.launch {
-                pending.forEach { bonus -> runCatching { repository.ackBonusNotified(hostId, id, bonus.orderId) } }
+                pending.forEach { bonus -> runCatching { repository.account.ackBonusNotified(hostId, id, bonus.orderId) } }
             }
         }
     }

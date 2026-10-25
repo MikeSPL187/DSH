@@ -158,31 +158,6 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
         }
     }
 
-    override suspend fun deleteSession(hostId: String, sessionId: String): RemoteResult<Boolean> = withContext(kotlinx.coroutines.Dispatchers.IO) {
-        val payload = buildJsonObject {
-            put("type", "client-request")
-            put("method", "session/cancel")
-            put("payload", buildJsonObject {
-                put("args", buildJsonObject {
-                    put("sessionId", sessionId)
-                })
-            })
-        }.toString()
-
-        val request = Request.Builder()
-            .url("$baseUrl/api")
-            .post(payload.toRequestBody(mediaTypeJson))
-            .build()
-
-        try {
-            client.newCall(request).execute().use { response ->
-                RemoteResult.Success(response.isSuccessful)
-            }
-        } catch (e: Exception) {
-            RemoteResult.Success(true)
-        }
-    }
-
     override suspend fun selectModel(
         hostId: String,
         sessionId: String,

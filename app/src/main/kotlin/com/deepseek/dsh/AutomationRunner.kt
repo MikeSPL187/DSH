@@ -151,7 +151,7 @@ object AutomationRunner {
     /** Модель по названию из каталога Host: (id, провайдер, уровень рассуждения). */
     private fun modelFor(app: DshApplication, a: Automation): Triple<String, String?, String?>? {
         val name = a.model.substringBefore(" · ").trim().ifBlank { return null }
-        val catalog = app.dshRepository.modelCatalogFlow.value
+        val catalog = app.dshRepository.hostSettings.modelCatalogFlow.value
         for (g in catalog.groups) {
             val m = g.models.firstOrNull { it.name == name || it.id == name } ?: continue
             val effort = m.reasoningEfforts.getOrNull(a.reasoning)?.id ?: m.defaultReasoningEffort
@@ -251,13 +251,13 @@ object HostSchedules {
         hostId: String,
         scope: kotlinx.coroutines.CoroutineScope,
     ) {
-        flow = repository.scheduleCatalogFlow
-        refresh = { runCatching { repository.refreshScheduleCatalog(hostId) } }
+        flow = repository.tasks.scheduleCatalogFlow
+        refresh = { runCatching { repository.tasks.refreshScheduleCatalog(hostId) } }
         scope.launch { refresh?.invoke() }
         canceller = { schedule ->
             scope.launch {
                 runCatching {
-                    repository.deleteSchedule(hostId, schedule.sessionId, schedule.id)
+                    repository.tasks.deleteSchedule(hostId, schedule.sessionId, schedule.id)
                 }
             }
         }

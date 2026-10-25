@@ -115,7 +115,7 @@ class DshApplication : Application() {
         defaultClient.updateBaseUrl(baseUrl)
         // bridge 与 Remote API 共用同一个回环地址与会话 CookieJar；先绑地址，
         // 再换 token，这样 bridge 的第一次请求就带着已建立的会话。
-        dshRepository.bindBridge(baseUrl, com.deepseek.dsh.core.bridge.BridgeRegistry(baseUrl, okHttpClient))
+        dshRepository.plugins.bindBridge(com.deepseek.dsh.core.bridge.BridgeRegistry(baseUrl, okHttpClient))
         if (!token.isNullOrBlank()) {
             val res = defaultClient.authenticate(baseUrl, token)
             // 同步认证状态到 Android 系统 CookieManager，供 WebView / WebIslandContainer 使用
