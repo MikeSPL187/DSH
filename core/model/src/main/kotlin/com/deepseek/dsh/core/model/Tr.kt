@@ -13,10 +13,7 @@ object Tr {
     @Volatile
     var language: () -> String = { Locale.getDefault().language }
 
-    fun t(en: String, ru: String, zh: String): String =
-        when (runCatching(language).getOrDefault("en")) {
-            "ru" -> ru
-            "zh" -> zh
-            else -> en
-        }
+    /** Языки приложения — русский и английский; любой другой получает английский. */
+    fun t(en: String, ru: String): String =
+        if (runCatching(language).getOrDefault("en") == "ru") ru else en
 }

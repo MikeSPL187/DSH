@@ -193,16 +193,16 @@ object BridgePluginCatalog {
  */
 private fun hintFor(failure: BridgeResult.Failure): String = when (failure.code) {
     BridgeErrorCode.TRANSPORT_UNREACHABLE ->
-        com.deepseek.dsh.core.model.Tr.t("Host is not ready: cannot reach the local runtime. Wait or restart the runtime.", "Host не готов: нет связи с локальной средой. Подождите или перезапустите среду.", "Host 未就绪：无法连接本地运行时。请稍候或重启运行环境。")
+        com.deepseek.dsh.core.model.Tr.t("Host is not ready: cannot reach the local runtime. Wait or restart the runtime.", "Host не готов: нет связи с локальной средой. Подождите или перезапустите среду.")
     BridgeErrorCode.PROVIDER_UNKNOWN ->
-        com.deepseek.dsh.core.model.Tr.t("The Host has no bridge route: the compatibility plugin is not installed. Open Settings → Update and tap Update plugin.", "У Host нет маршрута bridge: плагин совместимости не установлен. Откройте «Настройки → Обновление» и нажмите «Обновить плагин».", "Host 上没有 bridge 路由：兼容层插件未安装。请在「设置 → 更新」中点击「更新插件」。")
+        com.deepseek.dsh.core.model.Tr.t("The Host has no bridge route: the compatibility plugin is not installed. Open Settings → Update and tap Update plugin.", "У Host нет маршрута bridge: плагин совместимости не установлен. Откройте «Настройки → Обновление» и нажмите «Обновить плагин».")
     BridgeErrorCode.TRANSPORT_DECODE_FAILED ->
-        com.deepseek.dsh.core.model.Tr.t("Cannot parse the Host bridge response (${failure.message}). The plugin may need an update.", "Не удалось разобрать ответ bridge от Host (${failure.message}). Возможно, плагин нужно обновить.", "Host 的 bridge 响应无法解析（${failure.message}）。插件可能需要更新。")
+        com.deepseek.dsh.core.model.Tr.t("Cannot parse the Host bridge response (${failure.message}). The plugin may need an update.", "Не удалось разобрать ответ bridge от Host (${failure.message}). Возможно, плагин нужно обновить.")
     BridgeErrorCode.AUTH_REQUIRED ->
-        com.deepseek.dsh.core.model.Tr.t("The Host rejected the request: no session. Sign in again or restart the runtime.", "Host отклонил запрос: сессия не установлена. Войдите снова или перезапустите среду.", "Host 拒绝了本次请求：会话未建立。请重新登录或重启运行时。")
+        com.deepseek.dsh.core.model.Tr.t("The Host rejected the request: no session. Sign in again or restart the runtime.", "Host отклонил запрос: сессия не установлена. Войдите снова или перезапустите среду.")
     BridgeErrorCode.PROVIDER_VERSION_MISMATCH ->
-        com.deepseek.dsh.core.model.Tr.t("Plugin protocol version does not match the client (${failure.message}). Update the plugin in Settings → Update.", "Версия протокола плагина не совпадает с клиентом (${failure.message}). Обновите плагин в «Настройки → Обновление».", "插件协议版本与客户端不匹配（${failure.message}）。请在「设置 → 更新」中更新插件。")
-    else -> com.deepseek.dsh.core.model.Tr.t("bridge unavailable: ${failure.message}", "bridge недоступен: ${failure.message}", "bridge 不可用：${failure.message}")
+        com.deepseek.dsh.core.model.Tr.t("Plugin protocol version does not match the client (${failure.message}). Update the plugin in Settings → Update.", "Версия протокола плагина не совпадает с клиентом (${failure.message}). Обновите плагин в «Настройки → Обновление».")
+    else -> com.deepseek.dsh.core.model.Tr.t("bridge unavailable: ${failure.message}", "bridge недоступен: ${failure.message}")
 }
 
 enum class BridgePluginCatalogSource {

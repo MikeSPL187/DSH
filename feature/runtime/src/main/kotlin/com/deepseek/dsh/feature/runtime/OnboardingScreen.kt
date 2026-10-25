@@ -151,7 +151,7 @@ data class LinuxInstall(
 )
 
 /** Языки интерфейса в переключателе сверху: тег и самоназвание. */
-private val Languages = listOf("ru" to "Русский", "en" to "English", "zh" to "中文")
+private val Languages = listOf("ru" to "Русский", "en" to "English")
 
 /**
  * Первый запуск DSH — точная копия экрана `#onboard` из прототипа:

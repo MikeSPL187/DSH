@@ -30,7 +30,7 @@ sealed interface HostDescriptor {
     @Serializable
     data class Local(
         override val id: String = "local-host",
-        override val name: String = "本机 Linux 运行时",
+        override val name: String = "Local Linux runtime",
         val port: Int? = null,
         val token: String? = null
     ) : HostDescriptor {
@@ -543,18 +543,6 @@ data class PluginSlotEntry(
  */
 val PluginSlotEntry.isThirdPartyPlugin: Boolean
     get() = module != null && !module.startsWith("@deepseek-ai/")
-
-/** 原生落点 id 到中文名，用于尚未实现的位置。 */
-val PLACEMENT_LABELS: Map<String, String> = mapOf(
-    "settings.page" to "设置",
-    "plugins.item" to "插件列表",
-    "plugins.row.config" to "插件配置",
-    "drawer" to "侧边栏",
-    "conversation" to "对话",
-    "tool.card" to "工具卡片",
-    "toast" to "提示",
-    "other" to "其他位置",
-)
 
 /** 官方 inbox 投影里一条待发消息（下一轮队列）。 */
 data class QueuedMessageInfo(

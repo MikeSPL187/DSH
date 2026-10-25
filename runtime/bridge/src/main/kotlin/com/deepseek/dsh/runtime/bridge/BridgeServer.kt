@@ -234,7 +234,7 @@ class BridgeServer(
                 }
 
                 BridgeMethod.SHOW_NOTIFICATION.methodName -> {
-                    val title = (request.params as? JsonObject)?.get("title")?.jsonPrimitive?.content ?: com.deepseek.dsh.core.model.Tr.t("DSH notice", "Уведомление DSH", "DSH 提示")
+                    val title = (request.params as? JsonObject)?.get("title")?.jsonPrimitive?.content ?: com.deepseek.dsh.core.model.Tr.t("DSH notice", "Уведомление DSH")
                     val content = (request.params as? JsonObject)?.get("content")?.jsonPrimitive?.content ?: ""
                     showNotification(title, content)
                     val res = buildJsonObject { put("success", true) }
@@ -248,7 +248,7 @@ class BridgeServer(
                         putExtra(Intent.EXTRA_TEXT, text)
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK
                     }
-                    context.startActivity(Intent.createChooser(intent, com.deepseek.dsh.core.model.Tr.t("Share", "Поделиться", "分享")).apply {
+                    context.startActivity(Intent.createChooser(intent, com.deepseek.dsh.core.model.Tr.t("Share", "Поделиться")).apply {
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK
                     })
                     val res = buildJsonObject { put("success", true) }
@@ -416,7 +416,7 @@ class BridgeServer(
         val channelId = "dsh_bridge_notify"
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, com.deepseek.dsh.core.model.Tr.t("DSH device notifications", "Уведомления DSH", "DSH 设备通知"), NotificationManager.IMPORTANCE_DEFAULT)
+            val channel = NotificationChannel(channelId, com.deepseek.dsh.core.model.Tr.t("DSH device notifications", "Уведомления DSH"), NotificationManager.IMPORTANCE_DEFAULT)
             nm.createNotificationChannel(channel)
         }
         val notification = NotificationCompat.Builder(context, channelId)

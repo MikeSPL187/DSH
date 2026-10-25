@@ -134,13 +134,13 @@ private fun parseVersion(element: JsonElement): MarketVersion? {
     )
 }
 
-/** 一个 `LocalizedText`（字符串或 `{en, zh, ...}`）取中文优先的展示文本。 */
+/** `LocalizedText` (строка или `{en, ru, …}`): язык приложения, иначе английский, иначе первое непустое. */
 internal fun localized(element: JsonElement?): String? {
     when (element) {
         null -> return null
         is JsonPrimitive -> return element.contentOrNull?.takeIf { it.isNotBlank() }
         is JsonObject -> {
-            for (key in listOf("zh", "zh-CN", "zh-Hans", "en")) {
+            for (key in listOf(java.util.Locale.getDefault().language, "en")) {
                 val text = element.string(key)?.takeIf { it.isNotBlank() }
                 if (text != null) return text
             }

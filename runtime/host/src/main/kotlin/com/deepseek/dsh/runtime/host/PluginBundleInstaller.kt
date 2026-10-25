@@ -166,10 +166,10 @@ class PluginBundleInstaller(
                 copyTreeLimited(source, incoming, budget = null)
             }
             if (target.exists() && !target.renameTo(backup)) {
-                error(com.deepseek.dsh.core.model.Tr.t("Cannot back up installed $name", "Не удалось сделать резервную копию $name", "无法备份已安装的 $name"))
+                error(com.deepseek.dsh.core.model.Tr.t("Cannot back up installed $name", "Не удалось сделать резервную копию $name"))
             }
             if (!incoming.renameTo(target)) {
-                error(com.deepseek.dsh.core.model.Tr.t("Cannot move $name into place", "Не удалось переместить $name на место", "无法把 $name 移动到位"))
+                error(com.deepseek.dsh.core.model.Tr.t("Cannot move $name into place", "Не удалось переместить $name на место"))
             }
             swapped = true
             afterSwap()
@@ -272,10 +272,10 @@ class PluginBundleInstaller(
      */
     suspend fun uninstall(packageName: String): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
-            require(PluginInstallSpec.isValidPackageName(packageName)) { com.deepseek.dsh.core.model.Tr.t("Invalid plugin package name: $packageName", "Недопустимое имя пакета плагина: $packageName", "插件包名不合法：$packageName") }
+            require(PluginInstallSpec.isValidPackageName(packageName)) { com.deepseek.dsh.core.model.Tr.t("Invalid plugin package name: $packageName", "Недопустимое имя пакета плагина: $packageName") }
             val target = safeChild(nodeModules, packageName)
             if (target.exists() && !SafeFiles.deleteTree(target)) {
-                error(com.deepseek.dsh.core.model.Tr.t("Failed to delete plugin directory: $packageName", "Не удалось удалить папку плагина: $packageName", "删除插件目录失败：$packageName"))
+                error(com.deepseek.dsh.core.model.Tr.t("Failed to delete plugin directory: $packageName", "Не удалось удалить папку плагина: $packageName"))
             }
             val patchFile = webAppPatchFile()
             if (patchFile.isFile) {
@@ -471,7 +471,7 @@ class PluginBundleInstaller(
     ): List<String> {
         if (manifest.dependencies.isEmpty()) return emptyList()
         if (depth > MAX_DEPENDENCY_DEPTH) {
-            return listOf("${manifest.name ?: packageDir.name} (" + com.deepseek.dsh.core.model.Tr.t("dependency depth exceeds $MAX_DEPENDENCY_DEPTH", "глубина зависимостей больше $MAX_DEPENDENCY_DEPTH", "依赖层级超过 $MAX_DEPENDENCY_DEPTH") + ")")
+            return listOf("${manifest.name ?: packageDir.name} (" + com.deepseek.dsh.core.model.Tr.t("dependency depth exceeds $MAX_DEPENDENCY_DEPTH", "глубина зависимостей больше $MAX_DEPENDENCY_DEPTH") + ")")
         }
         val failures = mutableListOf<String>()
         val dependencies = manifest.dependencies
@@ -479,7 +479,7 @@ class PluginBundleInstaller(
         for ((name, range) in dependencies) {
             index += 1
             if (!PluginInstallSpec.isValidPackageName(name)) {
-                failures.add("$name (" + com.deepseek.dsh.core.model.Tr.t("invalid package name", "недопустимое имя пакета", "包名不合法") + ")")
+                failures.add("$name (" + com.deepseek.dsh.core.model.Tr.t("invalid package name", "недопустимое имя пакета") + ")")
                 continue
             }
             if (File(packageDir, "node_modules/$name").isDirectory) continue
@@ -591,7 +591,7 @@ class PluginBundleInstaller(
                 output.write(text.toByteArray())
                 output.fd.sync()
             }
-            if (!tmp.renameTo(file)) error(com.deepseek.dsh.core.model.Tr.t("Cannot write ${file.name}", "Не удалось записать ${file.name}", "无法写入 ${file.name}"))
+            if (!tmp.renameTo(file)) error(com.deepseek.dsh.core.model.Tr.t("Cannot write ${file.name}", "Не удалось записать ${file.name}"))
         } finally {
             tmp.delete()
         }
@@ -614,7 +614,7 @@ class PluginBundleInstaller(
             .build()
         http.newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw IllegalStateException("HTTP ${response.code}：$url")
-            val body = response.body ?: throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Empty response: $url", "Пустой ответ: $url", "空响应：$url"))
+            val body = response.body ?: throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Empty response: $url", "Пустой ответ: $url"))
             val buffer = java.io.ByteArrayOutputStream()
             body.byteStream().use { input ->
                 val chunk = ByteArray(DEFAULT_BUFFER_SIZE)
@@ -767,11 +767,11 @@ class PluginBundleInstaller(
     private fun safeChild(root: File, relative: String): File {
         val normalized = relative.replace('\\', '/')
         if (normalized.startsWith("/") || normalized.split('/').any { it == ".." } || normalized.contains('\u0000')) {
-            throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Archive path escapes the root: $relative", "Путь в архиве выходит за пределы папки: $relative", "归档含越界路径：$relative"))
+            throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Archive path escapes the root: $relative", "Путь в архиве выходит за пределы папки: $relative"))
         }
         val file = File(root, normalized)
         if (!file.canonicalFile.toPath().startsWith(root.canonicalFile.toPath())) {
-            throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Archive path escapes the target directory: $relative", "Путь в архиве выходит за целевую папку: $relative", "归档路径逃出目标目录：$relative"))
+            throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Archive path escapes the target directory: $relative", "Путь в архиве выходит за целевую папку: $relative"))
         }
         return file
     }

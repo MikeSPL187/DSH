@@ -76,19 +76,19 @@ internal object BridgePluginArchive {
                 val entry = zip.nextEntry ?: break
                 entryCount += 1
                 if (entryCount > MAX_ENTRIES) {
-                    throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive has more than $MAX_ENTRIES entries", "В архиве больше $MAX_ENTRIES записей", "归档条目数超过 $MAX_ENTRIES"))
+                    throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive has more than $MAX_ENTRIES entries", "В архиве больше $MAX_ENTRIES записей"))
                 }
                 val name = entry.name
                 if (name.isBlank() || name.contains('\u0000')) {
-                    throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive contains an invalid entry name", "В архиве недопустимое имя записи", "归档含非法条目名"))
+                    throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive contains an invalid entry name", "В архиве недопустимое имя записи"))
                 }
                 val prefix = rootPrefix ?: run {
                     val detected = name.substringBefore('/', missingDelimiterValue = "")
-                    if (detected.isBlank()) throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive has no top-level directory: $name", "В архиве нет корневой папки: $name", "归档缺少顶层目录：$name"))
+                    if (detected.isBlank()) throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive has no top-level directory: $name", "В архиве нет корневой папки: $name"))
                     (detected + "/").also { rootPrefix = it }
                 }
                 if (!name.startsWith(prefix)) {
-                    throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive has an entry outside the top-level directory: $name", "В архиве запись вне корневой папки: $name", "归档含顶层目录之外的条目：$name"))
+                    throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive has an entry outside the top-level directory: $name", "В архиве запись вне корневой папки: $name"))
                 }
                 val relative = name.removePrefix(prefix).trimEnd('/')
                 if (relative.isBlank()) {
@@ -102,7 +102,7 @@ internal object BridgePluginArchive {
                     continue
                 }
                 if (entry.size > MAX_UNCOMPRESSED_BYTES) {
-                    throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive entry is too large: $relative", "Слишком большая запись архива: $relative", "归档条目过大：$relative"))
+                    throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive entry is too large: $relative", "Слишком большая запись архива: $relative"))
                 }
                 target.parentFile?.mkdirs()
                 val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
@@ -112,7 +112,7 @@ internal object BridgePluginArchive {
                         if (read <= 0) break
                         writtenBytes += read
                         if (writtenBytes > MAX_UNCOMPRESSED_BYTES) {
-                            throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Unpacked size exceeds $MAX_UNCOMPRESSED_BYTES bytes", "После распаковки больше $MAX_UNCOMPRESSED_BYTES байт", "解压后体积超过 $MAX_UNCOMPRESSED_BYTES 字节"))
+                            throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Unpacked size exceeds $MAX_UNCOMPRESSED_BYTES bytes", "После распаковки больше $MAX_UNCOMPRESSED_BYTES байт"))
                         }
                         output.write(buffer, 0, read)
                     }
@@ -123,22 +123,22 @@ internal object BridgePluginArchive {
         }
 
         val manifestText = manifest
-            ?: throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive has no $MANIFEST_FILE", "В архиве нет $MANIFEST_FILE", "归档里没有 $MANIFEST_FILE"))
+            ?: throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive has no $MANIFEST_FILE", "В архиве нет $MANIFEST_FILE"))
         val parsed = runCatching {
             json.decodeFromString(ArchiveManifest.serializer(), manifestText)
         }.getOrElse { error ->
-            throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Cannot parse $MANIFEST_FILE: ${error.message}", "Не удалось разобрать $MANIFEST_FILE: ${error.message}", "$MANIFEST_FILE 无法解析：${error.message}"))
+            throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Cannot parse $MANIFEST_FILE: ${error.message}", "Не удалось разобрать $MANIFEST_FILE: ${error.message}"))
         }
         if (parsed.name != expectedPackage) {
-            throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Package mismatch: archive is ${parsed.name}, expected $expectedPackage", "Имя пакета не совпадает: в архиве ${parsed.name}, ожидалось $expectedPackage", "包名不匹配：归档是 ${parsed.name}，期望 $expectedPackage"))
+            throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Package mismatch: archive is ${parsed.name}, expected $expectedPackage", "Имя пакета не совпадает: в архиве ${parsed.name}, ожидалось $expectedPackage"))
         }
         if (parsed.version != expectedVersion) {
-            throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Version mismatch: archive is ${parsed.version}, expected $expectedVersion", "Версия не совпадает: в архиве ${parsed.version}, ожидалась $expectedVersion", "版本不匹配：归档是 ${parsed.version}，期望 $expectedVersion"))
+            throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Version mismatch: archive is ${parsed.version}, expected $expectedVersion", "Версия не совпадает: в архиве ${parsed.version}, ожидалась $expectedVersion"))
         }
         val main = parsed.main.ifBlank { "lib/index.js" }.normalizeArchivePath()
         val patch = (parsed.dsh?.bundle?.patch
-            ?: throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Plugin does not declare dsh.bundle.patch", "Плагин не объявляет dsh.bundle.patch", "插件没有声明 dsh.bundle.patch"))).normalizeArchivePath()
-        requireFile(canonicalRoot, main, com.deepseek.dsh.core.model.Tr.t("entry", "точка входа", "入口"))
+            ?: throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Plugin does not declare dsh.bundle.patch", "Плагин не объявляет dsh.bundle.patch"))).normalizeArchivePath()
+        requireFile(canonicalRoot, main, com.deepseek.dsh.core.model.Tr.t("entry", "точка входа"))
         requireFile(canonicalRoot, patch, "bundle patch")
         return Contents(
             packageName = parsed.name,
@@ -152,30 +152,30 @@ internal object BridgePluginArchive {
     /** 把归档内的相对路径映射成目标文件，并拒绝任何越界路径。 */
     private fun safeTarget(root: File, relative: String): File {
         if (relative.startsWith('/') || relative.startsWith('\\')) {
-            throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive contains an absolute path: $relative", "В архиве абсолютный путь: $relative", "归档含绝对路径：$relative"))
+            throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive contains an absolute path: $relative", "В архиве абсолютный путь: $relative"))
         }
         val segments = relative.split('/')
         if (segments.any { it == ".." || it == "." || it.isEmpty() }) {
-            throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive path escapes the root: $relative", "Путь в архиве выходит за пределы папки: $relative", "归档含越界路径：$relative"))
+            throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive path escapes the root: $relative", "Путь в архиве выходит за пределы папки: $relative"))
         }
         if (relative.contains('\\')) {
-            throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive contains an invalid path separator: $relative", "В архиве недопустимый разделитель пути: $relative", "归档含非法路径分隔符：$relative"))
+            throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive contains an invalid path separator: $relative", "В архиве недопустимый разделитель пути: $relative"))
         }
         val target = File(root, relative)
         val canonical = runCatching { target.canonicalFile }.getOrElse {
-            throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Cannot resolve archive path: $relative", "Не удалось разобрать путь в архиве: $relative", "归档路径无法解析：$relative"))
+            throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Cannot resolve archive path: $relative", "Не удалось разобрать путь в архиве: $relative"))
         }
         if (canonical != root && !canonical.toPath().startsWith(root.toPath())) {
-            throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive path escapes the target directory: $relative", "Путь в архиве выходит за целевую папку: $relative", "归档路径逃出目标目录：$relative"))
+            throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive path escapes the target directory: $relative", "Путь в архиве выходит за целевую папку: $relative"))
         }
         return target
     }
 
     /** 要求归档里确实存在某个文件；清单里的路径同样不许逃出包目录。 */
     private fun requireFile(root: File, relative: String, label: String) {
-        if (relative.isBlank()) throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Plugin has no $label path", "У плагина не указан путь: $label", "插件缺少$label 路径"))
+        if (relative.isBlank()) throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Plugin has no $label path", "У плагина не указан путь: $label"))
         val file = safeTarget(root, relative)
-        if (!file.isFile) throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Plugin is missing $label: $relative", "У плагина отсутствует $label: $relative", "插件缺少$label：$relative"))
+        if (!file.isFile) throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Plugin is missing $label: $relative", "У плагина отсутствует $label: $relative"))
     }
 
     /** 清单里的路径可能带 `./` 前缀，统一成包内相对路径。 */

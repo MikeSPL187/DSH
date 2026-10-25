@@ -18,10 +18,10 @@ import java.util.zip.ZipOutputStream
  * 「包名/版本/入口不一致就拒绝、路径不许逃出目标目录」这几条安全边界。
  */
 class BridgePluginArchiveTest {
-    // Сообщения проверяются по китайскому тексту: фиксируем язык, а не берём локаль машины.
+    // Сообщения проверяются по английскому тексту: фиксируем язык, а не берём локаль машины.
     @org.junit.Before
     fun pinLanguage() {
-        com.deepseek.dsh.core.model.Tr.language = { "zh" }
+        com.deepseek.dsh.core.model.Tr.language = { "en" }
     }
 
 
@@ -66,7 +66,7 @@ class BridgePluginArchiveTest {
             val error = assertThrows(IllegalArgumentException::class.java) {
                 BridgePluginArchive.extract(archive.inputStream(), destination, packageName, "1.1.0")
             }
-            assertTrue(error.message.orEmpty().contains("版本不匹配"))
+            assertTrue(error.message.orEmpty().contains("Version mismatch"))
         } finally {
             destination.deleteRecursively()
         }
@@ -84,7 +84,7 @@ class BridgePluginArchiveTest {
             val error = assertThrows(IllegalArgumentException::class.java) {
                 BridgePluginArchive.extract(archive.inputStream(), destination, packageName, "1.1.0")
             }
-            assertTrue(error.message.orEmpty().contains("包名不匹配"))
+            assertTrue(error.message.orEmpty().contains("Package mismatch"))
         } finally {
             destination.deleteRecursively()
         }
@@ -140,7 +140,7 @@ class BridgePluginArchiveTest {
             val error = assertThrows(IllegalArgumentException::class.java) {
                 BridgePluginArchive.extract(archive.inputStream(), destination, packageName, "1.1.0")
             }
-            assertTrue(error.message.orEmpty().contains("越界"))
+            assertTrue(error.message.orEmpty().contains("escapes the root"))
         } finally {
             destination.deleteRecursively()
         }

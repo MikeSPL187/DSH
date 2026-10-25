@@ -72,7 +72,7 @@ internal fun FirstRunOnboarding(
 
     val language = remember {
         AppLanguage.selection(context).takeIf { it != "system" }
-            ?: java.util.Locale.getDefault().language.takeIf { it in setOf("ru", "en", "zh") }
+            ?: java.util.Locale.getDefault().language.takeIf { it in setOf("ru", "en") }
             ?: "en"
     }
 

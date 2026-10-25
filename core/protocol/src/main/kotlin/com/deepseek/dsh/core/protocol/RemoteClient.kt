@@ -69,7 +69,7 @@ class RemoteClient(
 
     private fun accountClientMetadata(): kotlinx.serialization.json.JsonObject = buildJsonObject {
         put("version", "4.0.0")
-        put("locale", "zh-CN")
+        put("locale", "en-US")
         put(
             "timezoneOffsetSeconds",
             java.util.TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 1000,
@@ -229,7 +229,7 @@ class RemoteClient(
                 if (!response.isSuccessful) {
                     return@withContext RemoteResult.Failure(
                         "dsh/session/create-failed",
-                        com.deepseek.dsh.core.model.Tr.t("Host returned an error: HTTP ${response.code}", "Host вернул ошибку: HTTP ${response.code}", "Host 返回错误: HTTP ${response.code}")
+                        com.deepseek.dsh.core.model.Tr.t("Host returned an error: HTTP ${response.code}", "Host вернул ошибку: HTTP ${response.code}")
                     )
                 }
                 val bodyStr = response.body?.string() ?: ""
@@ -258,7 +258,7 @@ class RemoteClient(
         } catch (e: Exception) {
             RemoteResult.Failure(
                 "dsh/session/create-error",
-                e.message ?: com.deepseek.dsh.core.model.Tr.t("Cannot reach the Host; session was not created", "Нет связи с Host: сессия не создана", "无法连接到 Host，创建会话失败")
+                e.message ?: com.deepseek.dsh.core.model.Tr.t("Cannot reach the Host; session was not created", "Нет связи с Host: сессия не создана")
             )
         }
     }
@@ -633,7 +633,7 @@ class RemoteClient(
                         AgentTeamMember(
                             id = id,
                             name = (obj["name"] as? kotlinx.serialization.json.JsonPrimitive)
-                                ?.contentOrNull ?: com.deepseek.dsh.core.model.Tr.t("Member", "Участник", "成员"),
+                                ?.contentOrNull ?: com.deepseek.dsh.core.model.Tr.t("Member", "Участник"),
                             role = (obj["role"] as? kotlinx.serialization.json.JsonPrimitive)
                                 ?.contentOrNull ?: "teammate",
                             phase = (obj["phase"] as? kotlinx.serialization.json.JsonPrimitive)
@@ -655,7 +655,7 @@ class RemoteClient(
                                 .mapNotNull { (it as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull }
                         AgentTeamTask(
                             id = id,
-                            subject = text("subject") ?: com.deepseek.dsh.core.model.Tr.t("Task", "Задача", "任务"),
+                            subject = text("subject") ?: com.deepseek.dsh.core.model.Tr.t("Task", "Задача"),
                             description = text("description").orEmpty(),
                             status = text("status") ?: "pending",
                             ownerName = text("ownerName"),
@@ -859,7 +859,7 @@ class RemoteClient(
                                     ?: localizedJsonText(meta?.get("name"))
                                     ?: moduleName.substringAfterLast("/")
                                 val description = localizedJsonText(meta?.get("description"))
-                                    ?: com.deepseek.dsh.core.model.Tr.t("Global system plugins", "Глобальные системные плагины", "系统全局插件")
+                                    ?: com.deepseek.dsh.core.model.Tr.t("Global system plugins", "Глобальные системные плагины")
                                 val enabled = item["enabled"]?.toString()?.toBooleanStrictOrNull() ?: true
                                 val phase = item["fiberPhase"]?.toString()?.trim('"') ?: "active"
                                 BuiltInPluginInfo(
@@ -890,7 +890,7 @@ class RemoteClient(
                                             ?: localizedJsonText(rMeta?.get("name"))
                                             ?: mod.substringAfterLast("/")
                                         val desc = localizedJsonText(rMeta?.get("description"))
-                                            ?: com.deepseek.dsh.core.model.Tr.t("Composed per session by the agent preset", "Собирается для каждой сессии пресетом агента", "由 Agent 预设按会话组成")
+                                            ?: com.deepseek.dsh.core.model.Tr.t("Composed per session by the agent preset", "Собирается для каждой сессии пресетом агента")
                                         val enabled = rowItem["enabled"]?.toString()?.toBooleanStrictOrNull() ?: true
                                         val phase = rowItem["fiberPhase"]?.toString()?.trim('"') ?: "active"
                                         val cond = rowItem["condition"]?.toString()?.trim('"')
@@ -1152,7 +1152,7 @@ class RemoteClient(
                             ?: errorObj?.get("message")?.toString()?.trim('"')
                                 ?.takeIf { it.isNotBlank() }
                             ?: errorObj?.get("code")?.toString()?.trim('"')
-                            ?: com.deepseek.dsh.core.model.Tr.t("Installation failed", "Установка не удалась", "安装失败")
+                            ?: com.deepseek.dsh.core.model.Tr.t("Installation failed", "Установка не удалась")
                         RemoteResult.Failure("dsh/plugin/install-failed", diag)
                     } else {
                         RemoteResult.Success(true)
@@ -1162,7 +1162,7 @@ class RemoteClient(
                 }
             }
         } catch (e: Exception) {
-            RemoteResult.Failure("dsh/plugin/install-error", e.message ?: com.deepseek.dsh.core.model.Tr.t("Network error while installing the plugin", "Сетевая ошибка при установке плагина", "安装插件网络异常"))
+            RemoteResult.Failure("dsh/plugin/install-error", e.message ?: com.deepseek.dsh.core.model.Tr.t("Network error while installing the plugin", "Сетевая ошибка при установке плагина"))
         }
     }
 
@@ -1195,7 +1195,7 @@ class RemoteClient(
                 }
             }
         } catch (e: Exception) {
-            RemoteResult.Failure("dsh/plugin/uninstall-error", e.message ?: com.deepseek.dsh.core.model.Tr.t("Network error while removing the plugin", "Сетевая ошибка при удалении плагина", "卸载插件网络异常"))
+            RemoteResult.Failure("dsh/plugin/uninstall-error", e.message ?: com.deepseek.dsh.core.model.Tr.t("Network error while removing the plugin", "Сетевая ошибка при удалении плагина"))
         }
     }
 
@@ -1265,7 +1265,7 @@ class RemoteClient(
                 )
             }
         } catch (error: Exception) {
-            RemoteResult.Failure("dsh/plugin/set-enabled-error", error.message ?: com.deepseek.dsh.core.model.Tr.t("Network error", "Сетевая ошибка", "网络异常"))
+            RemoteResult.Failure("dsh/plugin/set-enabled-error", error.message ?: com.deepseek.dsh.core.model.Tr.t("Network error", "Сетевая ошибка"))
         }
     }
 
@@ -1454,10 +1454,10 @@ class RemoteClient(
                         val list = items.mapNotNull { item ->
                             if (item is kotlinx.serialization.json.JsonObject) {
                                 val id = item["id"]?.toString()?.trim('"') ?: return@mapNotNull null
-                                val title = item["title"]?.toString()?.trim('"') ?: com.deepseek.dsh.core.model.Tr.t("Scheduled automation", "Автоматическая задача по расписанию", "自动化定时任务")
+                                val title = item["title"]?.toString()?.trim('"') ?: com.deepseek.dsh.core.model.Tr.t("Scheduled automation", "Автоматическая задача по расписанию")
                                 val prompt = item["prompt"]?.toString()?.trim('"') ?: ""
                                 val status = item["status"]?.toString()?.trim('"') ?: "active"
-                                val timing = item["at"]?.toString() ?: item["cron"]?.toString() ?: item["every_seconds"]?.toString() ?: com.deepseek.dsh.core.model.Tr.t("Runs on schedule", "По расписанию", "按计划执行")
+                                val timing = item["at"]?.toString() ?: item["cron"]?.toString() ?: item["every_seconds"]?.toString() ?: com.deepseek.dsh.core.model.Tr.t("Runs on schedule", "По расписанию")
                                 AutomationTaskItem(
                                     id = id,
                                     title = title,
@@ -1507,7 +1507,7 @@ class RemoteClient(
                         val list = items.mapNotNull { item ->
                             if (item is kotlinx.serialization.json.JsonObject) {
                                 val id = item["id"]?.toString()?.trim('"') ?: return@mapNotNull null
-                                val subject = item["subject"]?.toString()?.trim('"') ?: item["title"]?.toString()?.trim('"') ?: com.deepseek.dsh.core.model.Tr.t("Task", "Задача", "任务")
+                                val subject = item["subject"]?.toString()?.trim('"') ?: item["title"]?.toString()?.trim('"') ?: com.deepseek.dsh.core.model.Tr.t("Task", "Задача")
                                 val description = item["description"]?.toString()?.trim('"') ?: ""
                                 val status = item["status"]?.toString()?.trim('"') ?: "pending"
                                 val owner = item["ownerName"]?.toString()?.trim('"')
@@ -2062,7 +2062,7 @@ class RemoteClient(
                     val full = buildString {
                         append("⚠️ ")
                         append(message)
-                        if (!code.isNullOrBlank()) append("\n\n" + com.deepseek.dsh.core.model.Tr.t("Error code: ", "Код ошибки: ", "错误码：")).append(code)
+                        if (!code.isNullOrBlank()) append("\n\n" + com.deepseek.dsh.core.model.Tr.t("Error code: ", "Код ошибки: ")).append(code)
                     }
                     emitDurableMessage(
                         sessionId = sessionId,
@@ -3223,11 +3223,11 @@ class RemoteClient(
     override fun subscribeEvents(hostId: String): Flow<RemoteEvent> = eventBus
 }
 
-/** 官方 meta.title/description 可能是 {en, zh} 本地化对象；优先中文。 */
+/** meta.title/description может быть объектом {en, zh, …}: берём язык приложения, иначе английский. */
 private fun localizedJsonText(element: kotlinx.serialization.json.JsonElement?): String? = when (element) {
     is kotlinx.serialization.json.JsonPrimitive -> element.content
     is kotlinx.serialization.json.JsonObject -> {
-        listOf("zh", "zh-CN", "en").firstNotNullOfOrNull { key ->
+        listOf(java.util.Locale.getDefault().language, "en").firstNotNullOfOrNull { key ->
             (element[key] as? kotlinx.serialization.json.JsonPrimitive)?.content
         }
     }

@@ -9,7 +9,8 @@ import android.os.LocaleList
  * App 界面语言：由用户在「设置 → 通用 → 语言」里选择，选择同时写给 Host。
  *
  * - `system` 跟随系统；
- * - `zh` / `en` / `ru` 是 App 的 per-app locale；Host 只支持 zh/en，`ru` 同步为 `en`。
+ * - `en` / `ru` — языки приложения (per-app locale); Host получает `en`.
+ *   Сохранённый ранее `zh` больше не поддерживается и читается как `system`.
  *
  * 写入走平台的 per-app locale（Android 13+），系统会重建 Activity，资源随之切换。
  * Android 8–12 没有 per-app locale：此前那里切换语言毫无效果。现在在
@@ -19,9 +20,9 @@ import android.os.LocaleList
 object AppLanguage {
     private const val PREFS = "app_locale"
     private const val KEY = "selection"
-    private val SUPPORTED = setOf("system", "zh", "en", "ru")
+    private val SUPPORTED = setOf("system", "en", "ru")
 
-    /** 用户选择的原始值：`system` / `zh` / `en` / `ru`。 */
+    /** Выбор пользователя: `system` / `en` / `ru`. */
     fun selection(context: Context): String =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, "system")
             ?.takeIf { it in SUPPORTED } ?: "system"

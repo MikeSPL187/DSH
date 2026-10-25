@@ -11,10 +11,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class NativePageRegistryTest {
-    // Сообщения проверяются по китайскому тексту: фиксируем язык, а не берём локаль машины.
+    // Сообщения проверяются по английскому тексту: фиксируем язык, а не берём локаль машины.
     @org.junit.Before
     fun pinLanguage() {
-        com.deepseek.dsh.core.model.Tr.language = { "zh" }
+        com.deepseek.dsh.core.model.Tr.language = { "en" }
     }
 
     private val page = TestPage("subscriptions")
@@ -114,7 +114,7 @@ class NativePageRegistryTest {
             allowSinglePageFallback = false,
         )
         assertNull(match.page)
-        assertTrue(match.reason.orEmpty().contains("已注册"))
+        assertTrue(match.reason.orEmpty().contains("registered"))
     }
 
     @Test
@@ -125,7 +125,7 @@ class NativePageRegistryTest {
             registrations = listOf(subscription.copy(pages = emptyList())),
         )
         assertNull(match.page)
-        assertTrue(match.reason.orEmpty().contains("没有注册页面"))
+        assertTrue(match.reason.orEmpty().contains("registered no pages"))
     }
 
     @Test

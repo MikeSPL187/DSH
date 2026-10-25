@@ -65,7 +65,7 @@ object UpdateCenter {
                 }
                 try {
                     if (connection.responseCode !in 200..299) {
-                        error(com.deepseek.dsh.core.model.Tr.t("GitHub returned HTTP ${connection.responseCode}", "GitHub вернул HTTP ${connection.responseCode}", "GitHub 返回 HTTP ${connection.responseCode}"))
+                        error(com.deepseek.dsh.core.model.Tr.t("GitHub returned HTTP ${connection.responseCode}", "GitHub вернул HTTP ${connection.responseCode}"))
                     }
                     val root = org.json.JSONArray(connection.inputStream.bufferedReader().readText())
                     // 只把 Android 应用自身的 release 当作更新来源；rootfs-* 等资产版本忽略。
@@ -77,7 +77,7 @@ object UpdateCenter {
                     }.firstOrNull() ?: return@withContext null
                     val tag = release.optString("tag_name")
                         .removePrefix("android-v").removePrefix("app-v")
-                    if (tag.isBlank()) error(com.deepseek.dsh.core.model.Tr.t("Release has no version", "В релизе нет номера версии", "Release 缺少版本号"))
+                    if (tag.isBlank()) error(com.deepseek.dsh.core.model.Tr.t("Release has no version", "В релизе нет номера версии"))
                     DshUpdateInfo(
                         tag = tag,
                         name = release.optString("name").ifBlank { release.optString("tag_name") },
@@ -91,7 +91,7 @@ object UpdateCenter {
             checked = true
             if (info != null) _update.value = info
         } catch (t: Throwable) {
-            _error.value = t.message ?: com.deepseek.dsh.core.model.Tr.t("Update check failed", "Не удалось проверить обновления", "检查更新失败")
+            _error.value = t.message ?: com.deepseek.dsh.core.model.Tr.t("Update check failed", "Не удалось проверить обновления")
         } finally {
             _checking.value = false
         }

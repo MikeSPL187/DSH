@@ -80,7 +80,7 @@ class RootfsManifestSource(
             }
             android.util.Log.w(
                 TAG,
-                "忽略 DSH 版本不兼容的 rootfs 清单: ${remote.runtimeVersion}（期望 dsh${expectedDsh ?: "?"}）",
+                "Ignoring rootfs manifest for an incompatible DSH: ${remote.runtimeVersion} (expected dsh${expectedDsh ?: "?"})",
             )
         }
         // 网络失败或远端不兼容：退回上一次成功的兼容缓存。

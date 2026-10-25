@@ -305,7 +305,7 @@ class RootfsInstaller(
             journal.parentFile?.mkdirs()
             SafeFiles.writeAtomically(journal, manifest.runtimeVersion)
             if (layout.rootfsDir.exists() && !layout.rootfsDir.renameTo(previous)) {
-                throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Cannot back up the old rootfs", "Не удалось сохранить старый rootfs", "无法备份旧 rootfs"))
+                throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Cannot back up the old rootfs", "Не удалось сохранить старый rootfs"))
             }
             swapped = true
             if (!source.renameTo(layout.rootfsDir)) {
@@ -352,7 +352,7 @@ class RootfsInstaller(
 
             onProgress(InstallProgress(HostStrings.get(R.string.rt_selfcheck, "Checking the runtime toolchain…"), 0.95f))
             val toolchain = verifyToolchainIntegrity()
-            if (toolchain.isFailure) throw toolchain.exceptionOrNull() ?: IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Toolchain self-check failed", "Самопроверка инструментов не прошла", "工具链自检失败"))
+            if (toolchain.isFailure) throw toolchain.exceptionOrNull() ?: IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Toolchain self-check failed", "Самопроверка инструментов не прошла"))
 
             SafeFiles.writeAtomically(
                 markerFile(),
@@ -421,7 +421,7 @@ class RootfsInstaller(
                 if (!response.isSuccessful) {
                     return Result.failure(IllegalStateException(HostStrings.get(R.string.rt_http_failed, "rootfs download failed: HTTP %1\$d", response.code)))
                 }
-                val body = response.body ?: return Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("rootfs download response is empty", "Пустой ответ при загрузке rootfs", "rootfs 下载响应为空")))
+                val body = response.body ?: return Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("rootfs download response is empty", "Пустой ответ при загрузке rootfs")))
                 val total = body.contentLength()
                 body.byteStream().use { input ->
                     FileOutputStream(part).use { output ->
@@ -437,7 +437,7 @@ class RootfsInstaller(
                 }
             }
             if (part.renameTo(target)) Result.success(Unit)
-            else Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Failed to save the downloaded rootfs", "Не удалось сохранить загруженный rootfs", "rootfs 下载文件落盘失败")))
+            else Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Failed to save the downloaded rootfs", "Не удалось сохранить загруженный rootfs")))
         } catch (e: Exception) {
             part.delete()
             Result.failure(e)
@@ -463,7 +463,7 @@ class RootfsInstaller(
                         val target = File(destination, name)
                         val canonicalDest = destination.canonicalPath + File.separator
                         if (!target.canonicalPath.startsWith(canonicalDest)) {
-                            throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("rootfs archive contains an invalid path: $name", "Архив rootfs содержит недопустимый путь: $name", "rootfs 归档包含非法路径: $name"))
+                            throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("rootfs archive contains an invalid path: $name", "Архив rootfs содержит недопустимый путь: $name"))
                         }
                         when {
                             entry.isDirectory -> target.mkdirs()
@@ -472,7 +472,7 @@ class RootfsInstaller(
                                 // 相对目标不得经 `..` 逃出 rootfs；App 侧所有树操作都不跟随链接
                                 // （见 SafeFiles），所以绝对目标不会被 Android 侧误用。
                                 if (!isSafeSymlinkTarget(name, entry.linkName)) {
-                                    throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("rootfs archive contains an escaping symlink: $name -> ${entry.linkName}", "Архив rootfs содержит выходящую наружу ссылку: $name -> ${entry.linkName}", "rootfs 归档包含越界符号链接: $name -> ${entry.linkName}"))
+                                    throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("rootfs archive contains an escaping symlink: $name -> ${entry.linkName}", "Архив rootfs содержит выходящую наружу ссылку: $name -> ${entry.linkName}"))
                                 }
                                 target.parentFile?.mkdirs()
                                 Files.deleteIfExists(target.toPath())
@@ -485,7 +485,7 @@ class RootfsInstaller(
                                     .joinToString("/")
                                 val linkSource = File(destination, linkName)
                                 if (!linkSource.canonicalPath.startsWith(canonicalDest)) {
-                                    throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("rootfs archive contains an escaping hard link: $name -> ${entry.linkName}", "Архив rootfs содержит выходящую наружу жёсткую ссылку: $name -> ${entry.linkName}", "rootfs 归档包含越界硬链接: $name -> ${entry.linkName}"))
+                                    throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("rootfs archive contains an escaping hard link: $name -> ${entry.linkName}", "Архив rootfs содержит выходящую наружу жёсткую ссылку: $name -> ${entry.linkName}"))
                                 }
                                 if (linkSource.isFile) {
                                     target.parentFile?.mkdirs()
@@ -555,7 +555,7 @@ class RootfsInstaller(
         )
         for (dir in requiredDirs) {
             if (!dir.exists()) {
-                return Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Missing core runtime directory: ${dir.name}", "Нет основной папки среды: ${dir.name}", "缺少核心运行时目录: ${dir.name}")))
+                return Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Missing core runtime directory: ${dir.name}", "Нет основной папки среды: ${dir.name}")))
             }
         }
         return Result.success(Unit)

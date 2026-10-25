@@ -598,7 +598,7 @@ private fun LookPage(ui: SettingsUi, a: SettingsActions, toast: ToastState) {
             }
         }
         GLabel(stringResource(R.string.st_language))
-        val langs = listOf("ru" to "Русский", "en" to "English", "zh" to "中文")
+        val langs = listOf("ru" to "Русский", "en" to "English")
         val instant = stringResource(R.string.st_lang_instant)
         StChips(langs.map { it.second }, langs.indexOfFirst { it.first == ui.language }, { i -> a.setLanguage(langs[i].first); if (langs[i].first != ui.language) toast.show(instant) })
         GLabel(stringResource(R.string.st_code_size))

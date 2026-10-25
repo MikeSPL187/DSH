@@ -57,7 +57,7 @@ class DeepSeekOAuthManager {
             isSignedIn = true,
             profile = DeepSeekUserProfile(
                 id = profile?.id ?: "deepseek-account",
-                name = profile?.name ?: com.deepseek.dsh.core.model.Tr.t("Signed in to DeepSeek", "Вход в DeepSeek выполнен", "已登录 DeepSeek"),
+                name = profile?.name ?: com.deepseek.dsh.core.model.Tr.t("Signed in to DeepSeek", "Вход в DeepSeek выполнен"),
                 contact = profile?.contact,
                 avatarUrl = profile?.avatarUrl,
             ),

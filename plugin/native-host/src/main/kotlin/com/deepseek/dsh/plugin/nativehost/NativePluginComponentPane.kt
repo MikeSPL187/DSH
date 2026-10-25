@@ -51,7 +51,7 @@ fun NativePluginComponentPane(
         if (host == null) null else NativePageHost(
             componentId = componentId,
             delegate = host,
-            pluginRpc = pluginRpc ?: { _, _ -> Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Host RPC is not connected", "Host RPC не подключён", "Host RPC 未连接"))) },
+            pluginRpc = pluginRpc ?: { _, _ -> Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Host RPC is not connected", "Host RPC не подключён"))) },
             dispatch = dispatchEvent ?: { _, _, _ -> },
         )
     }

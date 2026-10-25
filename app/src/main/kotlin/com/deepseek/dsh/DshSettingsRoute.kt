@@ -222,7 +222,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         clipboard = clipboard,
         workspaceShared = sharedWs,
         theme = ThemeBridge.preference,
-        language = language.takeIf { it in setOf("ru", "en", "zh") } ?: Locale.getDefault().language,
+        language = language.takeIf { it in setOf("ru", "en") } ?: Locale.getDefault().language,
         codeSize = DshUserPrefs.codeSize,
         haptics = DshUserPrefs.haptics,
         hostRunning = running,

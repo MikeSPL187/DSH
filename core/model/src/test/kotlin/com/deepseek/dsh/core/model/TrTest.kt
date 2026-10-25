@@ -15,16 +15,16 @@ class TrTest {
     @Test
     fun picksTextForInterfaceLanguage() {
         Tr.language = { "ru" }
-        assertEquals("Сетевая ошибка", Tr.t("Network error", "Сетевая ошибка", "网络异常"))
+        assertEquals("Сетевая ошибка", Tr.t("Network error", "Сетевая ошибка"))
         Tr.language = { "zh" }
-        assertEquals("网络异常", Tr.t("Network error", "Сетевая ошибка", "网络异常"))
+        assertEquals("Network error", Tr.t("Network error", "Сетевая ошибка"))
         Tr.language = { "de" }
-        assertEquals("Network error", Tr.t("Network error", "Сетевая ошибка", "网络异常"))
+        assertEquals("Network error", Tr.t("Network error", "Сетевая ошибка"))
     }
 
     @Test
     fun brokenLanguageProviderFallsBackToEnglish() {
         Tr.language = { error("no context") }
-        assertEquals("Network error", Tr.t("Network error", "Сетевая ошибка", "网络异常"))
+        assertEquals("Network error", Tr.t("Network error", "Сетевая ошибка"))
     }
 }

@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="chat_default_workspace">默认工作区</string>
-    <string name="chat_preset_standard_label">标准模式</string>
-    <string name="chat_run_failed">运行失败</string>
-    <string name="chat_voice_recognizing">识别中…</string>
-    <string name="chat_voice_stop_recognize">停止并识别</string>
-</resources>
