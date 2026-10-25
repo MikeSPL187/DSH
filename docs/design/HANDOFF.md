@@ -31,6 +31,12 @@
 8. ~~«Восстановить из резервной копии» в первом запуске~~ — готово: выбор файла → `restoreUserDataBackup` (Host на время останавливается, если работал), тост с числом файлов и напоминанием, что ключ API нужно ввести заново.
 9. ~~Действия на экране «Изменения»~~ — готово, как в прототипе: «Проверить с агентом» открывает новую сессию и сразу отправляет запрос (`ui.pendingAutoSend`); «Сообщение коммита» — приложение само пишет его по diff через DeepSeek (`ai/CommitMessageWriter`) и копирует, тост «Скопировано: «…»»; «Спросить» о файле — вопрос в черновике и файл во вложениях. Короткие запросы приложения к DeepSeek — общий `ai/DeepSeekQuick` (им же пользуется «Объяснить» в терминале).
 
+## Архитектура
+Слои, модули, правила и план — в `docs/ARCHITECTURE.md`. Кратко: `MainAppHost` разобран на части
+(`StartupGate`, `AppDrawer`, `ChatSender`, `HostAccount`, `VoiceInput`, `NativePluginsController`,
+`ToolPolicyEffect`, `WorkspaceOps`/`WorkspaceDialogs`), каркас экранов перенесён в
+`core.designsystem.kit`, `DshTopBar` = `SBar`. Следующий шаг — своё состояние у страницы чата.
+
 ## Окна и панели вне прототипа
 - Все окна приложения (`DshDialog`, `DshHeadlessModal`, `DshSheetPanel`) рисуются одним системным листом
   `DshModalSheet` (core/designsystem/DshPanels.kt): затемнение, карточка снизу r34, «ручка», пружина, смахивание.

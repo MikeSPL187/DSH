@@ -17,14 +17,12 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.selectable
@@ -32,7 +30,6 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBackIos
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -70,8 +67,8 @@ fun Modifier.pressScale(interaction: MutableInteractionSource, pressed: Float = 
 }
 
 /**
- * Шапка вложенного экрана: «Назад», заголовок с подписью и действия справа.
- * Заголовок без подписи стоит по центру кнопки «Назад».
+ * Шапка вложенного экрана — та же `.sbar` прототипа, что [com.deepseek.dsh.core.designsystem.kit.SBar]:
+ * «Назад», заголовок с подписью и действия справа.
  */
 @Composable
 fun DshTopBar(
@@ -81,36 +78,7 @@ fun DshTopBar(
     onBack: (() -> Unit)? = null,
     backDescription: String = "Назад",
     actions: @Composable RowScope.() -> Unit = {},
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
-            .padding(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
-            .heightIn(min = 52.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (onBack != null) {
-            DshIconButton(Icons.AutoMirrored.Rounded.ArrowBackIos, backDescription, onClick = onBack)
-        } else {
-            Spacer(Modifier.width(12.dp))
-        }
-        Column(Modifier.weight(1f).padding(start = 2.dp)) {
-            Text(
-                title,
-                style = Dsh.type.navTitle,
-                color = Dsh.colors.t1,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.semantics { heading() },
-            )
-            if (!subtitle.isNullOrEmpty()) {
-                Text(subtitle, style = Dsh.type.footnote, color = Dsh.colors.t3, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-        }
-        actions()
-    }
-}
+) = com.deepseek.dsh.core.designsystem.kit.SBar(title, subtitle, onBack, modifier, backDescription, actions = actions)
 
 /** Круглая кнопка-иконка 44 dp. */
 @Composable
