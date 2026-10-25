@@ -57,7 +57,7 @@ class HostAccount internal constructor(
                     openWebLink(context, view.authorizeUrl!!)
                 }
                 else -> {
-                    // 链接由 watch 异步推送；30 秒还拿不到就提示失败。
+                    // Ссылку присылает watch; нет её 30 секунд — сообщаем об ошибке.
                     kotlinx.coroutines.delay(30_000)
                     if (ui.signInPending && ui.signInOpenedUrl == null) {
                         ui.signInPending = false
@@ -70,7 +70,7 @@ class HostAccount internal constructor(
                 }
             }
             if (ui.signInPending) {
-                // 授权页停留超时：watch 没有报成功/失败时提示一次。
+                // Слишком долго на странице входа: watch не сообщил ни успеха, ни ошибки — сказать один раз.
                 kotlinx.coroutines.delay(10 * 60_000)
                 if (ui.signInPending) {
                     ui.signInPending = false
@@ -117,7 +117,7 @@ internal fun rememberHostAccount(
                             if (oauthManager.accountFlow.value.isSignedIn) oauthManager.signOut()
                         }
                         else -> if (pending && view != null) {
-                            // Host 异步拿到平台授权链接后由 watch 推送，不需要 getState 轮询。
+                            // Ссылку на вход Host получает асинхронно и присылает через watch — опрос getState не нужен.
                             val url = view.authorizeUrl
                             if (!url.isNullOrBlank() && url != ui.signInOpenedUrl) {
                                 ui.signInOpenedUrl = url
@@ -137,11 +137,11 @@ internal fun rememberHostAccount(
                 }
             }
             launch {
-                // Host 明确报告 DeepSeek 会话过期：直接清掉本地登录态（API Key 保留）。
+                // Host сообщил, что сессия DeepSeek истекла: сбросить вход (API-ключ остаётся).
                 repository.account.accountExpiredFlow.collect { oauthManager.signOut() }
             }
             launch {
-                // 模型需要重新登录账号：直接打开官方登录入口。
+                // Модели нужен повторный вход: сразу открыть вход.
                 repository.account.modelSignInRequiredFlow.collect { ui.showSignInDialog = true }
             }
         }

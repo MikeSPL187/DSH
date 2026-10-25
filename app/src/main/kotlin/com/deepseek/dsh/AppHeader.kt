@@ -43,7 +43,7 @@ fun PageBackBar(
     )
 }
 
-/** 子页面顶栏标题；与抽屉里的条目文案保持一致。 */
+/** Заголовок вложенной страницы; совпадает с пунктом меню. */
 @Composable
 internal fun pageTitleOf(page: ActivePage): String = when (page) {
     ActivePage.PLUGINS -> stringResource(R.string.page_plugins)
@@ -98,19 +98,19 @@ fun ModernTopAppBar(
     scrolled: Boolean = false,
     onNew: () -> Unit = {},
     teamTasks: List<com.deepseek.dsh.core.model.TeamTaskItem> = emptyList(),
-    /** 当前会话的后台任务（官方 job/list）；非空时显示任务按钮。 */
+    /** Фоновые процессы сессии (job/list); если есть — кнопка задач. */
     hostJobs: List<com.deepseek.dsh.core.protocol.HostJobInfo> = emptyList(),
     onKillJob: (com.deepseek.dsh.core.protocol.HostJobInfo) -> Unit = {},
     onOpenJobOutput: (com.deepseek.dsh.core.protocol.HostJobInfo) -> Unit = {},
-    /** 当前会话的团队成员投影（官方 header 的团队动作数据）。 */
+    /** Команда текущей сессии (данные действия команды в шапке). */
     agentTeam: com.deepseek.dsh.core.model.AgentTeamSummary? = null,
-    /** 团队投影第一次读取中（浮层显示「正在加载团队…」）。 */
+    /** Команда читается впервые (панель показывает «Загрузка команды…»). */
     agentTeamLoading: Boolean = false,
-    /** 「智能体团队」插件是否启用；启用才显示团队动作。 */
+    /** Включён ли плагин «Команда агентов»; только тогда есть действие команды. */
     teamEnabled: Boolean = false,
     currentSessionId: String? = null,
     onOpenMember: (String) -> Unit = {},
-    /** 「开发者工具」插件是否启用；启用才显示会话数据诊断入口。 */
+    /** Включён ли плагин «Инструменты разработчика»; только тогда есть диагностика сессии. */
     inspectorEnabled: Boolean = false,
     onOpenInspector: () -> Unit = {},
     /** Панели нативных плагинов; null — ни один плагин их не добавил. */

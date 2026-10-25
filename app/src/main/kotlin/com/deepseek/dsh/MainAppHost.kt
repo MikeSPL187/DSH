@@ -63,7 +63,7 @@ fun MainAppHost(
     layout: RuntimeLayout,
     dshRepository: com.deepseek.dsh.core.data.DshRepository,
     settingsRepository: com.deepseek.dsh.core.data.DefaultSettingsRepository,
-    /** 原生伴侣插件重扫信号（onResume 递增）；卸载/安装后回前台即重扫。 */
+    /** Сигнал пересканировать APK-компаньоны (растёт в onResume): после установки или удаления. */
     nativePluginRescanFlow: kotlinx.coroutines.flow.StateFlow<Int> =
         kotlinx.coroutines.flow.MutableStateFlow(0),
 ) {
@@ -79,9 +79,6 @@ fun MainAppHost(
     val drawerState = drawerUi.drawer
     val scope = rememberCoroutineScope()
 
-    // 插件详情页打开时，顶栏返回/系统返回先退回插件列表，而不是直接离开插件页。
-    // 「原生插件」tab 的列表：NativePluginDiscovery 扫描系统里已装的伴侣 APK。
-    // 进入插件页时扫一次；卸载/安装由 PackageManager 广播驱动重扫（见 onResume）。
     val updateInfo by com.deepseek.dsh.feature.settings.UpdateCenter.update.collectAsState()
     val currentVersion = remember {
         com.deepseek.dsh.feature.settings.UpdateCenter.currentVersion(context)
@@ -117,7 +114,7 @@ fun MainAppHost(
             legacyStoragePermissionLauncher.launch(StorageAccess.legacyPermissions)
         }
     }
-    // 首次启动已强制授予所有文件访问权限，工作区固定为公有 Documents，无需再迁移/回退。
+    // Доступ ко всем файлам выдаётся при первом запуске; рабочие папки — в общих Documents.
     val activeWorkspace = remember(workspaceChoiceKey) {
         externalWorkspaceDir.mkdirs()
         java.io.File(externalWorkspaceDir, DEFAULT_WORKSPACE_DIR_NAME).mkdirs()
@@ -138,9 +135,9 @@ fun MainAppHost(
         }
     }
 
-    // UI 一开始就预热 Host，和引导/登录并行，避免用户点击登录时才冷启动。
+    // Host прогревается сразу, параллельно с первым запуском и входом, а не по первому действию.
     LaunchedEffect(Unit) {
-        // 首次安装等 rootfs 准备完成后再启动；之后每次重新打开 App 立即启动 Host。
+        // При первой установке — после подготовки Linux; дальше Host стартует при каждом открытии.
         if (java.io.File(context.filesDir, "rootfs/etc/os-release").exists()) {
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 runCatching { runtimeManager.warmUp(activeWorkspace.absolutePath) }
@@ -152,8 +149,8 @@ fun MainAppHost(
             com.deepseek.dsh.core.model.HostDescriptor.Local()
         )
     }
-    // slot 贡献（composer dock 等）与整页原生页面共用同一个 pluginRpc；在这里
-    // 注入给 NativeHost，NativeSlotHost 会把基础 host 升级成 PluginRpcHost。
+    // Вклады плагинов в слоты и нативные страницы используют один pluginRpc: он передаётся
+    // в NativeHost, и NativeSlotHost превращает базовый host в PluginRpcHost.
     val slotPluginRpc: suspend (String, kotlinx.serialization.json.JsonObject) -> Result<String> =
         remember(ui.activeHostId) {
             { method, payload ->
@@ -173,13 +170,12 @@ fun MainAppHost(
 
     val pendingMessages = remember { androidx.compose.runtime.mutableStateListOf<ChatMessage>() }
 
-    // 计划模式：横幅状态；placeholder 与发送文案在 ChatScreen 内切换。
-    // 不按会话 id 重置——首个 prompt 会创建会话并改变 ui.selectedSessionId，
-    // 按 id 重置会让刚开启的计划模式在第一次发送后神秘关闭。
+    // Режим плана не сбрасывается по id сессии: первый prompt создаёт сессию и меняет
+    // ui.selectedSessionId — сброс по id выключал бы план сразу после первой отправки.
 
-    // 系统文件选择器选回的附件（已复制进当前工作区 attachments/）。
+    // Вложения из системного выбора файлов (уже скопированы в attachments/ рабочей папки).
     val chatAttachments = remember { androidx.compose.runtime.mutableStateListOf<com.deepseek.dsh.feature.chat.ChatAttachment>() }
-    // 切换会话时清空待发附件，避免附件串到另一个会话。
+    // При смене сессии неотправленные вложения очищаются, чтобы не уйти в другую сессию.
     LaunchedEffect(ui.selectedSessionId) { chatAttachments.clear() }
     val liveSessionIds by dshRepository.liveSessionIdsFlow.collectAsState()
     val runningSessionIds by dshRepository.runningSessionIdsFlow.collectAsState()
@@ -187,7 +183,7 @@ fun MainAppHost(
     LaunchedEffect(ui.selectedSessionId) { dshRepository.markSessionViewed(ui.selectedSessionId) }
 
     LaunchedEffect(sessions, liveSessionIds) {
-        // 每次打开 App：自动进入最近更新的会话，而不是停留在空白新会话页。
+        // При открытии приложения — последняя обновлённая сессия, а не пустая новая.
         if (!runtimeUi.didInitialResume && sessions.isNotEmpty()) {
             runtimeUi.didInitialResume = true
             val candidates = sessions.filter { !it.archived }.ifEmpty { sessions }
@@ -203,12 +199,12 @@ fun MainAppHost(
     val repoMessages by dshRepository.getMessages(ui.activeHostId, ui.selectedSessionId ?: "")
         .collectAsState(initial = emptyList())
     val messages = remember(repoMessages, pendingMessages.toList()) {
-        // Host 回显 user/message 与本地乐观气泡可能同时存在：按内容去重，
-        // 避免同一条发送出现两个气泡。
+        // Эхо user/message от Host и мгновенный пузырь могут быть одновременно:
+        // дубли по содержимому убираются.
         val echoed = repoMessages.filter { it.role == MessageRole.USER }.takeLast(16)
         repoMessages + pendingMessages.filter { pending ->
-            // 同内容且时间接近（60s）才算同一条回显；避免把用户重复发送的
-            // 同一条文字误判成回显而吞掉。
+            // Эхом считается тот же текст в пределах 60 с — повторную отправку
+            // того же текста пользователем не глотаем.
             echoed.none { real ->
                 real.content.trim() == pending.content.trim() &&
                     kotlin.math.abs(real.createdAt - pending.createdAt) < 60_000
@@ -217,7 +213,7 @@ fun MainAppHost(
     }
 
 
-    // 会话完成通知：运行中的会话从 running 变为结束时提醒。
+    // Уведомление о завершении: сессия перешла из «идёт ход» в «готово».
     // Ход, закончившийся ошибкой («⚠️ …»), уведомляет по настройке «Ошибки»
     // (раньше она только сохранялась), обычный — по «Завершение ответа».
     val sessionRunningNow = ui.selectedSessionId != null && ui.selectedSessionId in runningSessionIds
@@ -245,7 +241,7 @@ fun MainAppHost(
     val hostModelNames = remember(hostModels) { hostModels.map { it.name } }
     val hostModelIdByName = remember(hostModels) { hostModels.associate { it.name to it.id } }
 
-    // Host 冷启动需要先拉起 proot/DSH，模型目录返回前用上次缓存让菜单立刻可用。
+    // Host стартует не сразу (proot, DSH): до ответа каталога меню моделей берёт кэш.
     val cachedModels = remember { ModelCatalogCacheState(readCachedModelCatalog(context)) }
     LaunchedEffect(catalogInfo.groups) {
         if (catalogInfo.groups.isNotEmpty()) {
@@ -253,9 +249,9 @@ fun MainAppHost(
             writeCachedModelGroups(context, catalogInfo.groups)
         }
     }
-    // 模型目录改为事件驱动（对齐官方 model picker）：`$events` 里的
-    // llm/adapters-updated、settings/document-updated、credentials/*-updated
-    // 会触发 DshRepository 重新拉目录，这里不再轮询。
+    // Каталог обновляется по событиям Host (`$events`: llm/adapters-updated,
+    // settings/document-updated, credentials/*-updated) —
+    // DshRepository перечитывает его сам — опроса здесь нет.
     LaunchedEffect(hostModels) {
         if (hostModels.isNotEmpty()) {
             cachedModels.names = hostModels.map { it.name }
@@ -274,16 +270,16 @@ fun MainAppHost(
     }
     NotificationPermissionEffect(ui.currentAppSettings.notificationsEnabled)
     val voice = rememberVoiceInput(runtimeUi, dshRepository, { ui.activeHostId }, scope)
-    // 思考内容翻译（官方 cot-translation 的 reasoning body）：插件启用时给
-    // ReasoningCard 提供「查看译文/查看原文」能力。
+    // Перевод рассуждений (плагин cot-translation): при включённом плагине
+    // у рассуждения появляется «Показать перевод / оригинал».
     val cotTranslationEnabled = remember(bridgeCatalogState) {
         bridgeCatalogState.bundles.any {
             it.name == CotTranslationPluginUi.bundle && it.enabled
         }
     }
 
-    // Claude Code 模组横幅：官方在 conversation.input.dock 画一条 Host 下发的
-    // 动态横幅；只有 Claude Code 子智能体插件启用且当前会话存在时订阅。
+    // Полоса модов Claude Code над полем ввода: подписка, только если плагин
+    // субагентов Claude Code включён и сессия открыта.
     val claudeCodeModsEnabled = remember(bridgeCatalogState) {
         bridgeCatalogState.bundles.any {
             it.name == com.deepseek.dsh.feature.chat.ClaudeCodeModsPluginUi.BUNDLE && it.enabled
@@ -297,7 +293,7 @@ fun MainAppHost(
         }
     }
 
-    // 会话数据诊断（开发者工具）：只读展示当前会话收到的原始帧。
+    // Диагностика сессии (инструменты разработчика): сырые кадры сессии, только чтение.
     val sessionInspectorEnabled = remember(bridgeCatalogState) {
         bridgeCatalogState.bundles.any {
             it.name == SessionInspectorPluginUi.BUNDLE && it.enabled
@@ -310,10 +306,10 @@ fun MainAppHost(
         }
     }
     /**
-     * 启停实验性插件后真正让新代码生效：官方要求重启 Host 时自动重启并等到
-     * RUNNING，再把 bridge 目录 / 插件清单 / 设置页重新拉一遍，使对应的功能与
-     * UI（智能体团队、语音输入、终端、诊断、翻译、插件市场…）立刻出现，而不是
-     * 停在「请重启」对话框里。
+     * Чтобы включённый или выключенный экспериментальный плагин заработал: если Host просит
+     * перезапуск — перезапустить и дождаться RUNNING, затем перечитать каталог моста, плагины и
+     * страницы настроек. Тогда нужные функции (команда агентов, голос, терминал, диагностика,
+     * перевод, магазин плагинов) появляются сразу, без окна «Перезапустите».
      */
     suspend fun restartHostForPluginChange(): Boolean {
         val restart = HostRuntimeHolder.restartHost?.invoke() ?: return false
@@ -329,7 +325,7 @@ fun MainAppHost(
         return finished
     }
 
-    /** Host `restartReason` → 官方「请重启 DSH 使更改生效」的具体说明。 */
+    /** `restartReason` Host → пояснение к «Перезапустите DSH, чтобы применить изменения». */
     fun restartReasonText(reason: String?): String = when (reason) {
         "package-moved" ->
             context.getString(R.string.restart_reason_package_moved)
@@ -339,7 +335,7 @@ fun MainAppHost(
         "module-comparison" -> context.getString(R.string.restart_reason_module_comparison)
         else -> context.getString(R.string.restart_reason_generic)
     }
-    // 启停插件后 Host 若要求重启或带提示，按官方做法明确告诉用户。
+    // Если после переключения плагина Host просит перезапуск или прислал замечания — сказать об этом.
     ui.pluginChangeNotice?.let { lines ->
         val c = com.deepseek.dsh.core.designsystem.Dsh.colors
         val closeNotice = {
@@ -398,24 +394,24 @@ fun MainAppHost(
     val pluginSnapshot by dshRepository.plugins.pluginSnapshotFlow.collectAsState()
     val pluginManagerSnapshot by dshRepository.plugins.pluginManagerSnapshotFlow.collectAsState()
     val pluginRows by dshRepository.plugins.pluginRowsFlow.collectAsState()
-    // 插件页目录来自 bridge/v1：官方 slot 注册优先，Host 原生清单兜底。
+    // Каталог страницы плагинов — из bridge/v1 (регистрации слотов), запас — список Host.
     val bridgePluginCatalog by dshRepository.plugins.bridgePluginCatalogFlow.collectAsState()
     val bridgeWarnings by dshRepository.plugins.bridgeWarningsFlow.collectAsState()
-    // 插件声明的 UI 入口（settings.section 等 slot 注册）：设置页按落点渲染。
+    // Точки входа плагинов (слоты settings.section и др.): настройки рисуют их на своих местах.
     val pluginSlotEntries by dshRepository.plugins.pluginSlotEntriesFlow.collectAsState()
     val pluginSettingsPages by dshRepository.plugins.pluginSettingsPagesFlow.collectAsState()
-    // Host 声明的行级/页面级设置位置：插件页的「内置插件配置」用它把官方设置页
-    // 映射到真正的设置命名空间。
+    // Места настроек, объявленные Host: «Настройки встроенных плагинов» связывают
+    // официальные страницы с настоящими пространствами настроек.
     val pluginSlotSurfaces by dshRepository.plugins.pluginSlotSurfacesFlow.collectAsState()
-    // 官方/插件归属由后端决定（bridge 的 host-slots 归属），只在需要时读一次。
+    // Кто официальный, а кто плагин — решает Host (принадлежность host-slots моста).
     val officialModelNamespaces = dshRepository.plugins.officialSettingsNamespaces()
 
-    // 已注册（可路由）的 provider：官方添加目录会排除它们，改由各自卡片配置。
+    // Зарегистрированные провайдеры: в каталоге «Добавить» их нет, они настраиваются своими карточками.
 
     val automationTasks by dshRepository.tasks.automationTasksFlow.collectAsState()
     val teamTasks by dshRepository.tasks.teamTasksFlow.collectAsState()
     val agentTeam by dshRepository.tasks.agentTeamFlow.collectAsState()
-    // 团队动作只在「智能体团队」profile 启用时出现（官方由插件注册 header action）。
+    // Действия команды — только при включённом профиле «Команда агентов».
     val agentTeamEnabled = remember(bridgePluginCatalog) {
         bridgeCatalogState.bundles.any {
             it.name == AgentTeamPluginUi.BUNDLE && it.enabled
@@ -434,7 +430,7 @@ fun MainAppHost(
         }
     }
 
-    // 运行中定期刷新底部统计（tok/s、缓存命中、上下文占用），结束后再刷新一次落定。
+    // Во время хода статистика внизу (ток/с, кэш, контекст) обновляется; после — ещё раз, итоговая.
     LaunchedEffect(ui.activeHostId, ui.selectedSessionId, sessionRunningNow) {
         val sid = ui.selectedSessionId ?: return@LaunchedEffect
         if (sessionRunningNow) {
@@ -450,30 +446,30 @@ fun MainAppHost(
         }
     }
 
-    // bridge 插件更新的「运行中版本」来源与「重启 Host」动作由 App 层注入：
-    // runtime 模块不认识数据层，而重启需要当前工作区路径，只有这里知道。
-    // 真正的安装（下载 tag 归档、解压进 rootfs）由 HostRuntimeManager 完成。
+    // «Работающую версию» bridge-плагина и перезапуск Host даёт слой приложения:
+    // модуль runtime не знает слоя данных, а путь рабочей папки известен только здесь.
+    // Сама установка (скачать архив тега, распаковать в rootfs) — в HostRuntimeManager.
 
     LaunchedEffect(ui.activeHostId) {
         dshRepository.refreshSessions(ui.activeHostId)
         dshRepository.hostSettings.refreshModelCatalog(ui.activeHostId)
         dshRepository.plugins.refreshPluginInventory(ui.activeHostId)
-        // bridge 目录与 Host 原生清单并行读取：前者带来官方 slot 与图形，
-        // 后者是它不可用时的兜底，两者互不阻塞。
+        // Каталог моста и список Host читаются параллельно: первый даёт слоты и значки,
+        // второй — запас, если моста нет.
         dshRepository.plugins.refreshBridgePluginCatalog()
         dshRepository.plugins.refreshPluginSettingsPages()
         dshRepository.tasks.refreshAutomationTasks(ui.activeHostId)
         dshRepository.tasks.refreshTeamTasks(ui.activeHostId)
-        // 这里不能订阅远程流：Host 还没绑定地址（占位 127.0.0.1:1）时开九个
-        // WebSocket 只会全部连接失败。订阅放到 Host 就绪（port 非空）之后。
+        // Потоки Host здесь не открываются: пока адрес не привязан (заглушка 127.0.0.1:1),
+        // девять WebSocket просто не подключатся. Подписка — после готовности Host (есть порт).
     }
 
     val backupAndDiag = remember {
         com.deepseek.dsh.runtime.host.RuntimeBackupAndDiagnostics(layout)
     }
-    // 「添加插件」的 App 侧兜底安装器：Host 内的 pnpm 在 proot 下拿不到
-    // rename/unlink/mkdtemp（ENOSYS），所以 Host 安装失败后由 App 自己下载、
-    // 解压、装依赖并挂到 profile 的 patch 层。
+    // Установщик плагинов на стороне приложения: pnpm в Host под proot не может
+    // rename/unlink/mkdtemp (ENOSYS), поэтому после ошибки Host приложение само скачивает,
+    // распаковывает, ставит зависимости и подключает пакет к слою patch профиля.
     val appPluginInstaller = remember(layout) {
         com.deepseek.dsh.runtime.host.PluginBundleInstaller(
             context,
@@ -481,20 +477,20 @@ fun MainAppHost(
             workspaceDir = { activeWorkspace },
         )
     }
-    // App 安装器挂过的包名：用来区分「随安装自带」的官方插件和用户后来装的。
+    // Пакеты, поставленные установщиком приложения: так официальные «из коробки» отличаются от поставленных пользователем.
     LaunchedEffect(appPluginInstaller) {
         runtimeUi.managedPluginPackages = runCatching { appPluginInstaller.managedPackages() }
             .getOrDefault(emptySet())
     }
 
     /**
-     * 记住用户通过 App 打开/关闭过的实验性 bundle。
+     * Запомнить экспериментальный bundle, включённый или выключенный через приложение.
      *
-     * Device 上的 profile 清单在 Host 启动时会被重建为模板（实测：写入的
-     * `dsh.profile.bundles` 在下次启动后消失），因此不能只依赖 profile；
-     * 这里留一份本地选择，Host 起来后补回去。
-     * @param name bundle 包名。
-     * @param enabled 打开还是关闭。
+     * Профиль на устройстве пересоздаётся из шаблона при каждом запуске Host (проверено:
+     * записанный `dsh.profile.bundles` пропадает), поэтому выбор хранится и локально
+     * и возвращается в профиль после запуска Host.
+     * @param name имя пакета bundle.
+     * @param enabled включён или выключен.
      */
     fun rememberBundleSelection(name: String, enabled: Boolean) {
         val prefs = context.getSharedPreferences(PLUGIN_SELECTION_PREFS, android.content.Context.MODE_PRIVATE)
@@ -503,7 +499,7 @@ fun MainAppHost(
         prefs.edit().putStringSet(PLUGIN_SELECTION_KEY, current).apply()
     }
 
-    /** 用户打开过的实验性 bundle 包名。 */
+    /** Экспериментальные bundle, которые пользователь включил. */
     fun savedEnabledBundles(): Set<String> =
         context.getSharedPreferences(PLUGIN_SELECTION_PREFS, android.content.Context.MODE_PRIVATE)
             .getStringSet(PLUGIN_SELECTION_KEY, emptySet())?.toSet() ?: emptySet()
@@ -540,7 +536,7 @@ fun MainAppHost(
     }
 
 
-    // 「有任务时保持后台运行」交给前台服务在划掉最近任务时判断。
+    // «Работать в фоне, пока есть задачи» решает фоновая служба, когда приложение смахивают.
     LaunchedEffect(ui.currentAppSettings.keepAliveOnTask) {
         com.deepseek.dsh.runtime.host.HostService.setKeepAliveOnTaskRemoved(
             context,
@@ -554,7 +550,7 @@ fun MainAppHost(
 
     IdleHostStopEffect(runtimeManager, runner, persistedSettings.idleStopMinutes, runningSessionIds.isNotEmpty(), activeWorkspace)
 
-    // 官方 workflow 工具在手机 profile 默认关闭：用官方 API 打开，保持与桌面一致。
+    // Инструменты workflow в профиле телефона по умолчанию выключены: включаем через API, как на компьютере.
     LaunchedEffect(ui.activeHostId, status.phase) {
         if (status.phase == RuntimePhase.RUNNING) {
             ensureOfficialWorkflowEnabled(dshRepository, ui.activeHostId)
@@ -579,16 +575,14 @@ fun MainAppHost(
         notificationsEnabled = ui.currentAppSettings.notificationsEnabled,
     )
     val hostJobs by dshRepository.tasks.jobsFlow.collectAsState()
-    // 终端页状态：屏幕缓冲（去 ANSI）、状态行、可写标志。
-    // Host 客户端是否已绑定到真实地址（决定能否开远程流）。
-    // 未读奖励提示（官方 account/getUnnotifiedBonuses）；无奖励时什么都不渲染。
+    // Непоказанные бонусы аккаунта (account/getUnnotifiedBonuses); без бонусов ничего не рисуется.
     AccountBonusHost(
         repository = dshRepository,
         hostId = ui.activeHostId,
         hostBound = runtimeUi.localHostBound,
     )
 
-    // 斜杠命令目录跟着会话走；commands/change 事件也会触发刷新。
+    // Слэш-команды — по открытой сессии; событие commands/change тоже обновляет список.
     LaunchedEffect(ui.activeHostId, ui.selectedSessionId) {
         val sid = ui.selectedSessionId
         if (sid != null) {
@@ -608,7 +602,7 @@ fun MainAppHost(
     // Фоновые задачи и поток открытой сессии (follow: снимок досылает историю и результаты).
     LaunchedEffect(ui.activeHostId, ui.selectedSessionId, runtimeUi.localHostBound) {
         val sid = ui.selectedSessionId
-        // Host 未绑定时 baseUrl 还是占位 127.0.0.1:1，开流只会连接失败。
+        // Пока Host не привязан, адрес — заглушка 127.0.0.1:1, потоки не подключатся.
         val bound = runtimeUi.localHostBound || ui.currentAppSettings.remoteHostUrl.isNotBlank()
         if (sid != null && bound) {
             dshRepository.tasks.watchJobs(ui.activeHostId, sid)
@@ -633,7 +627,7 @@ fun MainAppHost(
     }
     val dshApplication = context.applicationContext as DshApplication
 
-    // Host 目录优先；Host 冷启动期间用上次缓存立即渲染，避免“请选择模型”闪烁。
+    // Сначала каталог Host; пока Host запускается — кэш, чтобы не мигало «Выберите модель».
     val effectiveModelNames = remember(hostModelNames, cachedModels.names) {
         if (hostModelNames.isNotEmpty()) hostModelNames else cachedModels.names
     }
@@ -653,7 +647,7 @@ fun MainAppHost(
         baseUrl = { dshApplication.defaultClient.currentBaseUrl() },
     )
 
-    // 本地运行时启动后：把仓库客户端绑定到实际端口/token，并重新拉取全部 Host 数据。
+    // Локальный Host запущен: клиент привязывается к его порту и токену, все данные Host перечитываются.
     LaunchedEffect(status.phase, status.port, status.token) {
         val port = status.port
         if (port != null) {
@@ -670,10 +664,10 @@ fun MainAppHost(
             runtimeUi.modelCredentialsRaw = dshRepository.rpcRaw(ui.activeHostId, "credentials/describe", refsJson).getOrNull()
             dshRepository.hostSettings.refreshModelCatalog(ui.activeHostId)
             dshRepository.plugins.refreshPluginInventory(ui.activeHostId)
-            // Host 一就绪就主动读账号，且必须拿到一个明确的 signed-in /
-            // signed-out 才标记 hydrated；读失败（Host 还没完全起来）继续重试，
-            // 否则首屏会先显示“未登录”，一两秒后才跳成已登录。
-            // 与插件目录并行：两者互不依赖，串行只会把启动时间相加。
+            // Как только Host готов, читаем аккаунт и отмечаем hydrated только по ясному
+            // signed-in или signed-out; ошибка чтения (Host ещё поднимается) — повтор,
+            // иначе первый экран мигнул бы «Не вошли» перед «Вошли».
+            // Параллельно с каталогом плагинов: они независимы, последовательно — дольше запуск.
             val accountHydrationJob = async {
                 if (!runtimeUi.accountHydrated) {
                     val deadline = System.currentTimeMillis() + 4_000
@@ -700,7 +694,7 @@ fun MainAppHost(
                     }
                 }
             }
-            // 插件清单、bridge 目录、插件设置页都拿到后才算插件数据就绪。
+            // Данные плагинов готовы, когда есть список, каталог моста и страницы настроек.
             dshRepository.plugins.refreshBridgePluginCatalog()
             dshRepository.plugins.refreshPluginSettingsPages()
             accountHydrationJob.await()
@@ -713,11 +707,11 @@ fun MainAppHost(
             } else {
                 runtimeUi.localHostBound = true
                 dshRepository.subscribeRemoteEvents(ui.activeHostId)
-                // App 显示语言同步给 Host：英文界面下 Host 返回的文案也用英文。
+                // Язык Host (английский; Host не знает русского).
                 val appLanguage = context.resources.configuration.locales[0].language
                 dshRepository.hostSettings.syncHostLocale(ui.activeHostId)
             }
-            // 账号态之后由 account/watch 持续推送；首屏已主动拉过一次。
+            // Дальше состояние аккаунта приходит по account/watch; первый раз прочитано выше.
         }
     }
 
@@ -744,7 +738,7 @@ fun MainAppHost(
         return
     }
 
-    // 文件夹名保持固定（用于磁盘路径），界面上按当前语言显示。
+    // Имя папки на диске постоянное, на экране — на языке интерфейса.
     val defaultWorkspaceLabel = stringResource(R.string.workspace_default)
     fun workspaceLabelOf(name: String) = if (name == DEFAULT_WORKSPACE_DIR_NAME) defaultWorkspaceLabel else name
     val currentWorkspace = androidx.compose.runtime.rememberUpdatedState(activeWorkspace)
@@ -753,12 +747,12 @@ fun MainAppHost(
     }
     val activeWorkspaceFolderPath = java.io.File(activeWorkspace, runtimeUi.activeWorkspaceName).absolutePath
 
-    // 真正的系统文件选择器（SAF）：可多选图片/任意文件，复制进当前工作区后
-    // 在输入卡片显示；发送时以 @<工作区路径> 附在消息开头。
+    // Системный выбор файлов (SAF): несколько картинок или любых файлов копируются в
+    // рабочую папку и показываются в поле ввода; при отправке — ссылкой @<путь> в начале сообщения.
     fun importAttachments(uris: List<android.net.Uri>) {
         if (uris.isNotEmpty()) {
             val workspaceDir = java.io.File(activeWorkspace, runtimeUi.activeWorkspaceName)
-            // 大文件复制放 IO 线程，避免卡住输入法/界面。
+            // Большие файлы копируются в потоке IO, чтобы не тормозили клавиатура и интерфейс.
             scope.launch {
                 val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                     com.deepseek.dsh.AttachmentImporter.import(context, workspaceDir, uris)
@@ -792,10 +786,9 @@ fun MainAppHost(
         androidx.activity.result.contract.ActivityResultContracts.TakePicture(),
     ) { ok -> cameraUri?.takeIf { ok }?.let { importAttachments(listOf(it)) } }
     val hasCamera = remember { context.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_CAMERA_ANY) }
-    // job/follow 输出窗：目标任务、聚合输出、结算状态行。
 
-    // bridge 插件更新后需要两件事：读到「正在运行」的版本（bridge manifest），
-    // 以及重启 Host 让新代码加载。两者都只有 App 层能提供，因此注入给 runtime。
+    // После обновления bridge-плагина нужно знать работающую версию (manifest моста)
+    // и перезапустить Host с новым кодом. Это есть только у приложения — передаём в runtime.
     DisposableEffect(ui.activeHostId, activeWorkspace.absolutePath) {
         HostRuntimeHolder.runningBridgeVersionProvider = {
             runCatching { dshRepository.plugins.bridgePluginVersion(forceRefresh = true) }.getOrNull()
@@ -813,12 +806,12 @@ fun MainAppHost(
             HostRuntimeHolder.restartHost = null
         }
     }
-    // 插件瞬态消息：Host 排队、客户端轮询取走，用系统 Toast 呈现。
-    // 没有事件通道时这段是空转，取不到消息也不会打扰任何东西。
-    // profile 清单每次 Host 启动会被重置，这个集合保证每个 App 会话里每个
-    // bundle 只补一次，避免反复触发 Host 重载。
+    // Короткие сообщения плагинов: Host копит, клиент забирает опросом и показывает Toast.
+    // Без канала событий цикл ничего не делает и никому не мешает.
+    // Профиль сбрасывается при каждом запуске Host: набор гарантирует, что каждый bundle
+    // возвращается один раз за сеанс приложения и Host не перезагружается снова и снова.
     val restoredBundles = remember { mutableSetOf<String>() }
-    // 轮询协程只启动一次，用 latest-value 快照读当前会话，避免拿到旧值。
+    // Цикл опроса запускается один раз и читает текущую сессию через latest-value, без устаревших значений.
     val currentSessionForTeam by androidx.compose.runtime.rememberUpdatedState(ui.selectedSessionId)
     LaunchedEffect(Unit) {
         var ticks = 0
@@ -831,11 +824,11 @@ fun MainAppHost(
                 runner.statusFlow.value.phase != RuntimePhase.RUNNING
             ) continue
             ticks += 1
-            // 桥对客户端 bundle 是增量扫描的：每轮只求值一个，结果累积。定时刷新让
-            // 后续批次继续推进，扫描完成后不再产生新条目，刷新也就变成一次廉价读。
+            // Мост сканирует клиентские bundle постепенно: за раз — один, результат копится.
+            // Периодическое обновление двигает сканирование; после конца это дешёвое чтение.
             if (ticks % 4 == 0) {
                 runCatching { dshRepository.plugins.refreshBridgePluginCatalog() }
-                // 把用户打开过的实验性 bundle 补回 profile（清单会被启动重置）。
+                // Вернуть в профиль включённые пользователем экспериментальные bundle (профиль сбрасывается).
                 val catalog = dshRepository.plugins.bridgePluginCatalogFlow.value
                 val missing = savedEnabledBundles().filter { name ->
                     name !in restoredBundles && catalog.bundles.none { it.name == name && it.enabled }
@@ -849,15 +842,15 @@ fun MainAppHost(
                     runCatching { dshRepository.plugins.refreshPluginInventory(ui.activeHostId) }
                 }
             }
-            // 插件界面的入口不能只依赖「Host 状态刚变成有端口」那一刻：Host 冷启动时
-            // 首个 bridge 请求可能先于会话 cookie 就绪而失败，一次失败就会让设置里的
-            // 「插件界面」整组消失。入口为空时用更短的周期重试，稳定后降低频率。
+            // Точки входа плагинов не зависят от одного мгновения «у Host появился порт»: при холодном
+            // старте первый запрос моста может опередить cookie сессии и упасть, и группа «Интерфейс
+            // плагинов» в настройках пропала бы. Пока точек входа нет — повтор чаще, потом реже.
             val entriesEmpty = dshRepository.plugins.pluginSlotEntriesFlow.value.isEmpty()
             val settingsRefreshEvery = if (entriesEmpty) 2 else 8
             if (ticks % settingsRefreshEvery == 0) {
                 runCatching { dshRepository.plugins.refreshPluginSettingsPages() }
             }
-            // 团队面板的成员状态随工具调用变化，定时刷新投影（只读一次轻量读）。
+            // Состояние участников команды меняется с вызовами инструментов — периодическое лёгкое чтение.
             if (ticks % 4 == 0) {
                 val teamOn = dshRepository.plugins.bridgePluginCatalogFlow.value.bundles.any {
                     it.name == AgentTeamPluginUi.BUNDLE && it.enabled
@@ -868,7 +861,7 @@ fun MainAppHost(
             }
             runCatching {
                 val events = dshRepository.plugins.pendingPluginEvents()
-                // client/refresh 转成组件刷新信号；toast 用系统 Toast 呈现。
+                // client/refresh — в сигнал перерисовки компонента; тосты — системный Toast.
                 dshRepository.plugins.dispatchPluginEvents(events)
                 events.forEach { event ->
                     if (event.kind == "toast" && event.text.isNotBlank()) {
@@ -946,7 +939,7 @@ fun MainAppHost(
         }
     }
 
-    // 官方 user-questions/request：原生回答弹窗（选项 / 自定义回答）。
+    // user-questions/request: нативное окно ответа (варианты или свой ответ).
     pendingQuestions.firstOrNull()?.let { waterfall ->
         val questions = waterfall.request["questions"]
             as? kotlinx.serialization.json.JsonArray
@@ -970,7 +963,7 @@ fun MainAppHost(
         )
     }
 
-    // job/follow 输出窗。
+    // Вывод фонового процесса (job/follow).
     runtimeUi.jobOutputTarget?.let { job ->
         JobOutputDialog(
             job = job,
@@ -1016,7 +1009,7 @@ fun MainAppHost(
 
 
 
-    // 文件面板内容：FILES 页与聊天右侧栏复用同一份列表与回调。
+    // Содержимое страницы «Файлы».
     val projectDir = java.io.File(activeWorkspaceFolderPath)
     val filesGit = remember(activeWorkspace, runtimeUi.activeWorkspaceName) {
         WorkspaceFilesGit(com.deepseek.dsh.runtime.host.WorkspaceGit(layout, activeWorkspace), runtimeUi.activeWorkspaceName)
@@ -1080,7 +1073,7 @@ fun MainAppHost(
         )
     }
 
-    // 插件注册到右侧栏的标签：App 只放容器，标签与内容都由插件贡献。
+    // Вкладки, которые плагины регистрируют в панели: приложение даёт только контейнер.
     val rightPanePluginTabs = com.deepseek.dsh.plugin.nativehost.nativeRightPaneTabs()
     val rightPaneGuideEntries = com.deepseek.dsh.plugin.nativehost.nativeGuideEntries()
     var pluginPanesOpen by remember { mutableStateOf(false) }
@@ -1088,10 +1081,10 @@ fun MainAppHost(
     val workspaceFolders = remember(
         sessions, ui.selectedSessionId, activeWorkspace, runtimeUi.workspaceRevision, hostWorkspaces,
     ) {
-        // 根目录 DSH-Workspace 本身不是工作区，只展示其子文件夹。
+        // Корень DSH-Workspace сам не рабочая папка — показываются только его подпапки.
         val workspaceDirs = workspaceManager.listWorkspaceDirectories(activeWorkspace)
             .filter { it.absolutePath != activeWorkspace.absolutePath }
-        // Host 的 workspace/follow 投影决定顺序与显示名；没有投影时退回本地目录名。
+        // Порядок и названия — из проекции workspace/follow Host; без неё — имена папок на диске.
         val hostByPath = hostWorkspaces.associateBy { it.path }
         val orderedDirs = workspaceDirs.sortedBy { dir ->
             hostWorkspaces.indexOfFirst { it.path == dir.absolutePath }
@@ -1139,13 +1132,13 @@ fun MainAppHost(
         }
     }
 
-    // 终端页跟随官方插件行：Host 的 Loader 里 `@deepseek-ai/dsh-api-terminal-controller`
-    // 启用时才出现。这与官方插件页里那一行的开关是同一个事实源，客户端不加设置项。
+    // Терминал появляется, только когда в Host включён плагин терминала —
+    // тот же переключатель, что на странице плагинов; своей настройки у клиента нет.
     val terminalSupported = remember(bridgePluginCatalog) {
-        // 官方终端的开关是可选 bundle「持久终端」(@deepseek-ai/dsh-experimental-terminal-
-        // bundle)：它默认关闭，用户在插件页打开后才安装/启用终端。之前按
-        // terminal-controller 行判断，而该行属于基础 bundle 且默认启用，导致移动端
-        // 默认就露出终端页/标签（电脑版没有）。
+        // Переключатель терминала — необязательный bundle «Постоянный терминал» (@deepseek-ai/dsh-experimental-terminal-
+        // bundle): по умолчанию выключен, включается на странице плагинов. Раньше проверялась
+        // строка terminal-controller — она из базового bundle и включена всегда, поэтому
+        // терминал показывался по умолчанию (на компьютере его нет).
         bridgePluginCatalog.bundles.any { bundle ->
             bundle.name == "@deepseek-ai/dsh-experimental-terminal-bundle" && bundle.enabled
         }
@@ -1178,8 +1171,7 @@ fun MainAppHost(
                 )
             },
         ) {
-            // 对话页使用完整顶栏；设置页自带标题栏（不再叠加）；其余全屏页只保留返回条，
-            // 避免出现双 header。
+            // У чата полная шапка; у страниц со своим заголовком второй шапки нет.
             // Вложенные страницы «Плагинов», «Автоматизации» и «Настроек» закрывает их собственный стек.
             BackHandler(enabled = ui.activePage != ActivePage.CHAT) { ui.activePage = ActivePage.CHAT }
             // Шапка чата живёт внутри экрана чата: под листами она уменьшается вместе с ним.
@@ -1280,7 +1272,7 @@ fun MainAppHost(
                                 },
                                 onMenuClick = { scope.launch { drawerState.open() } },
                             )
-                    // conversation.session.header.corner：поверх шапки в правом верхнем углу.
+                    // conversation.session.header.corner: поверх шапки в правом верхнем углу.
                     com.deepseek.dsh.plugin.nativehost.OfficialSlot(
                         slot = com.deepseek.dsh.plugin.nativesdk.slots.NativeSlot.SESSION_HEADER_CORNER,
                         modifier = Modifier
@@ -1294,9 +1286,9 @@ fun MainAppHost(
             val pageHasOwnHeader = chatPage || ui.activePage == ActivePage.SETTINGS || ui.activePage == ActivePage.FILES ||
                 ui.activePage == ActivePage.PLUGINS || ui.activePage == ActivePage.AUTOMATION || ui.activePage == ActivePage.TERMINAL
             Scaffold(
-                // 内容区不再让 Scaffold 自动消费系统栏/IME：聊天页自己按
-                // WindowInsets.ime 动态留白，其它页在下面补 navigationBars，
-                // 避免「窗口已 resize + Scaffold 又加一次 IME 内边距」的双重上移。
+                // Scaffold не забирает отступы системных панелей и клавиатуры: чат сам отступает
+                // по WindowInsets.ime, остальным страницам ниже добавляется navigationBars —
+                // иначе окно с resize и отступ Scaffold подняли бы содержимое дважды.
                 contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
                 topBar = {
                     androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxWidth()) {
@@ -1322,8 +1314,8 @@ fun MainAppHost(
                             else Modifier.navigationBarsPadding()
                         )
                 ) {
-                    // 更新提示属于页面内容，不属于顶栏：放进内容区顶部，随内容滚动，
-                    // 不再压住页面自己的标题栏。
+                    // Уведомление об обновлении — часть содержимого, а не шапки: вверху страницы,
+                    // прокручивается вместе с ней и не закрывает заголовок.
                     Column(modifier = Modifier.fillMaxSize()) {
                         if (runtimeUi.rootfsUpdateAvailable && !runtimeUi.rootfsUpdateBannerDismissed) {
                             RootfsUpdateBanner(
@@ -1501,7 +1493,7 @@ fun MainAppHost(
         }
         }
 
-        // 插件 Surface Sheet 呈现 (v4.0 §7.5)
+        // Лист поверхности плагина.
         ui.activeSheetSurface?.let { item ->
             SurfaceSheet(
                 item = item,
@@ -1511,7 +1503,7 @@ fun MainAppHost(
             )
         }
 
-        // 插件单例悬浮窗 (v4.0 §7.7)
+        // Плавающее окно плагина (одно на плагин).
         ui.activeOverlaySurface?.let { item ->
             PluginOverlayContainer(
                 item = item,
@@ -1521,7 +1513,7 @@ fun MainAppHost(
             )
         }
 
-        // 反向联动：刚装的 JS 插件有原生伴侣时，底部提示可去商店装原生界面。
+        // Обратная связь: у только что поставленного JS-плагина есть нативный компаньон — подсказка установить его.
         ui.nativeCompanionAvailable?.let { companion ->
             CompanionAvailableCard(
                 companion = companion,

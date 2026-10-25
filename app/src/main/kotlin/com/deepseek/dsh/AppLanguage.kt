@@ -6,16 +6,16 @@ import android.os.Build
 import android.os.LocaleList
 
 /**
- * App 界面语言：由用户在「设置 → 通用 → 语言」里选择，选择同时写给 Host。
+ * Язык интерфейса: выбирается в «Настройки → Язык»; Host всегда на английском.
  *
- * - `system` 跟随系统；
+ * - `system` — как в системе;
  * - `en` / `ru` — языки приложения (per-app locale); Host получает `en`.
  *   Сохранённый ранее `zh` больше не поддерживается и читается как `system`.
  *
- * 写入走平台的 per-app locale（Android 13+），系统会重建 Activity，资源随之切换。
- * Android 8–12 没有 per-app locale：此前那里切换语言毫无效果。现在在
- * [wrap]（Application/Activity 的 attachBaseContext）里套用所选语言，
- * 切换时同步更新应用资源并重建 Activity。
+ * Запись — через язык приложения платформы (Android 13+), система пересоздаёт Activity.
+ * В Android 8–12 языка приложения нет: раньше переключение там ничего не делало. Теперь
+ * язык применяется в [wrap] (attachBaseContext у Application и Activity),
+ * а при переключении обновляются ресурсы и пересоздаётся Activity.
  */
 object AppLanguage {
     private const val PREFS = "app_locale"
@@ -27,7 +27,7 @@ object AppLanguage {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, "system")
             ?.takeIf { it in SUPPORTED } ?: "system"
 
-    /** 生效的语言标签（BCP-47），用于 Host 语言同步。 */
+    /** Действующий язык (BCP-47). */
     fun effectiveTag(context: Context): String {
         val selection = selection(context)
         if (selection != "system") return selection
@@ -35,16 +35,16 @@ object AppLanguage {
     }
 
     /**
-     * 启动时套用已保存的选择（幂等）。Android 8–12 上语言已在 [wrap] 中生效：
-     * 这里不能走 [applyLegacy]，否则 onCreate → recreate → onCreate 无限循环
-     * （在 Android 8 模拟器上表现为黑屏、主线程满载）。
+     * Применить сохранённый выбор при запуске (повторный вызов безопасен). В Android 8–12 язык
+     * уже применён в [wrap]: [applyLegacy] здесь вызвал бы бесконечный цикл
+     * onCreate → recreate → onCreate (на эмуляторе Android 8 — чёрный экран и загруженный поток).
      */
     fun applySaved(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
         apply(context, selection(context))
     }
 
-    /** 套用一次选择：更新 per-app locale 并持久化。 */
+    /** Применить выбор: язык приложения и сохранение. */
     fun apply(context: Context, selection: String) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit().putString(KEY, selection).apply()

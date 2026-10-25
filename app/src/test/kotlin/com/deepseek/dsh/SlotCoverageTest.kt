@@ -8,10 +8,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 官方 slot 覆盖闸门：新增官方 slot 却忘记映射/显式降级时，这里必须失败。
+ * Контроль покрытия слотов: добавили официальный слот и забыли сопоставить или явно отказаться — тест падает.
  *
- * 数据来源：`DshSlotRegistry` 的常量（官方 slot 清单）+ `NativeSlotMapping`
- * 的显式映射表。测试不依赖界面，因此能在 UI 实现之前拦住遗漏。
+ * Источник: константы `DshSlotRegistry` (список официальных слотов) и явная таблица
+ * `NativeSlotMapping`. Тест не зависит от интерфейса и ловит пропуск до его реализации.
  */
 class SlotCoverageTest {
 
@@ -35,7 +35,7 @@ class SlotCoverageTest {
         val uncovered = official - mapped - unsupported
 
         assertTrue(
-            "官方 slot 未映射也未显式标记不支持：$uncovered",
+            "Официальный слот не сопоставлен и не отмечен как неподдерживаемый: $uncovered",
             uncovered.isEmpty(),
         )
     }
@@ -46,7 +46,7 @@ class SlotCoverageTest {
         val extra = NativeSlotMapping.allOfficialSlots - official
 
         assertTrue(
-            "NativeSlotMapping 引用了 DshSlotRegistry 不存在的 slot：$extra",
+            "NativeSlotMapping ссылается на слот, которого нет в DshSlotRegistry: $extra",
             extra.isEmpty(),
         )
     }
@@ -56,6 +56,6 @@ class SlotCoverageTest {
         val overlap = NativeSlotMapping.officialToNativeSlot.keys intersect
             NativeSlotMapping.explicitlyUnsupported
 
-        assertEquals("同一 slot 不能既映射又不支持：$overlap", emptySet<String>(), overlap)
+        assertEquals("Слот не может быть одновременно сопоставлен и не поддерживаться: $overlap", emptySet<String>(), overlap)
     }
 }

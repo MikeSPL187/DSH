@@ -6,8 +6,8 @@ import java.io.File
 
 
 /**
- * Host 会话目录名：`--workspace-<escaped>--`，非 ASCII 码点转义为 `~XXXX`。
- * 与 Host 实际落盘规则一致，用于在 Android 侧预建会话目录。
+ * Имя папки сессии в Host: `--workspace-<escaped>--`, не-ASCII символы — `~XXXX`.
+ * Совпадает с правилом Host: по нему приложение заранее создаёт папку сессии.
  */
 internal fun workspaceSessionDirName(workspaceName: String): String {
     val escaped = buildString {
@@ -24,10 +24,10 @@ internal fun workspaceSessionDirName(workspaceName: String): String {
 }
 
 /**
- * 通用插件目录自愈：插件在 proot 里第一次 mkdir 可能失败（ENOENT/ENOSYS），
- * 从错误里取出它要创建的目录，用 App 进程创建后重试一次。
+ * Самовосстановление папок плагинов: первый mkdir плагина под proot может упасть
+ * (ENOENT/ENOSYS) — берём нужную папку из текста ошибки, создаём её и повторяем один раз.
  *
- * 不按插件名适配：只接受 rootfs 内的 `.dsh/` 路径，任何插件都适用。
+ * Без привязки к плагину: принимаются только пути `.dsh/` внутри rootfs.
  */
 internal fun ensureMissingPluginDir(context: android.content.Context, message: String?): Boolean {
     if (message.isNullOrBlank()) return false
@@ -39,7 +39,7 @@ internal fun ensureMissingPluginDir(context: android.content.Context, message: S
 }
 
 
-/** App 侧记住的实验性 bundle 选择（profile 清单会被 Host 启动重置）。 */
+/** Выбор экспериментальных bundle на стороне приложения (Host сбрасывает профиль при запуске). */
 
 /** Открыть ссылку в браузере. Ссылки могут прийти от Host: только http(s), и без падения, если браузера нет. */
 internal fun openWebLink(context: android.content.Context, url: String) {

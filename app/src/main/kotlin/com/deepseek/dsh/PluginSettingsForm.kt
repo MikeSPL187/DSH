@@ -18,18 +18,18 @@ internal data class FormNode(
     val dict: List<Pair<String, FormNode>>,
     val list: List<FormNode>,
     val inner: FormNode?,
-    /** `const` 节点的取值。 */
+    /** Значение узла `const`. */
     val constValue: JsonElement?,
 )
 
-/** 解析一份 Host 投影出来的表单 schema；不可解析时返回 null。 */
+/** Разбор схемы формы из проекции Host; null — не разобрать. */
 internal fun parseSettingsForm(schema: JsonObject): FormNode? {
     val refs = schema["refs"] as? JsonObject
     val rootUid = (schema["uid"] as? JsonPrimitive)?.contentOrNull?.toIntOrNull()
     if (refs != null && rootUid != null) {
         return resolveFormNode(rootUid, refs, 0)
     }
-    // 没有 uid/refs 的文档本身就是节点（字段直接内联）。
+    // Документ без uid/refs сам является узлом (поля встроены).
     return inlineFormNode(schema, 0)
 }
 

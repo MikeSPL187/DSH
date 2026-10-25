@@ -10,7 +10,7 @@ import kotlinx.serialization.json.JsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** 右侧栏插件标签 API 的纯函数部分：过滤、排序、稳定 key。 */
+/** Чистые функции API вкладок плагинов в панели: фильтр, порядок, стабильный ключ. */
 class RightPaneTabTest {
 
     private class FakeContribution(

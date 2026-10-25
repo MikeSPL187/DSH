@@ -43,27 +43,27 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 
-/** 插件原生 UI 里一个字段的控件形态。 */
+/** Вид элемента управления поля в нативном интерфейсе плагина. */
 internal enum class PluginFieldKind {
-    /** 单行文本。 */
+    /** Строка текста. */
     TEXT,
 
-    /** 数字。 */
+    /** Число. */
     NUMBER,
 
-    /** 几个固定选项（官方页面里的下拉/单选）。 */
+    /** Несколько фиксированных вариантов. */
     CHOICE,
 }
 
 /**
- * 插件原生 UI 的一个字段。
+ * Поле нативного интерфейса плагина.
  *
- * @param key 设置文档里的字段名（官方 `Config` schema 的键）。
- * @param label 中文标签，取自官方 locale。
- * @param hint 官方页面里的说明文字，可为空。
- * @param kind 控件形态。
- * @param choices CHOICE 的候选项：值 → 显示文案。
- * @param group 小节标题；只有同一小节的第一项需要写。
+ * @param key имя поля в документе настроек (ключ схемы `Config`).
+ * @param label подпись.
+ * @param hint пояснение, может быть пустым.
+ * @param kind вид элемента.
+ * @param choices варианты для CHOICE: значение → подпись.
+ * @param group заголовок раздела; нужен только у первого поля раздела.
  */
 internal data class PluginField(
     val key: String,

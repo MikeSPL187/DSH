@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.deepseek.dsh.core.bridge.BridgeNativeCompanion
 import kotlinx.serialization.json.JsonObject
 
-/** 「可安装原生伴侣」的底部提示卡。 */
+/** Подсказка снизу «Можно установить нативный компаньон». */
 @Composable
 internal fun CompanionAvailableCard(
     companion: BridgeNativeCompanion,
@@ -43,7 +43,7 @@ internal fun CompanionAvailableCard(
     }
 }
 
-/** 插件整岛 Web UI 与 companion 原生浮层。 */
+/** Веб-интерфейс плагина во весь экран и нативные окна компаньонов. */
 @Composable
 internal fun PluginIslandOverlays() {
     if (com.deepseek.dsh.plugin.nativesdk.slots.SlotRegistry
@@ -71,7 +71,7 @@ internal fun PluginIslandOverlays() {
     }
 }
 
-/** 登录 / API Key 两个对话框。 */
+/** Окна входа и API-ключа. */
 @Composable
 internal fun SignInDialogs(
     showSignIn: Boolean,

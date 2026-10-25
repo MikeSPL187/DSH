@@ -10,18 +10,18 @@ import com.deepseek.dsh.core.model.AppSettings
 import com.deepseek.dsh.core.model.SurfaceItem
 
 /**
- * 主界面里「纯 UI 状态」的集合：对话框、浮层、插件页导航等。
+ * Чисто интерфейсное состояние главного экрана: окна, плавающие панели, навигация плагинов.
  *
- * 这些状态不属于业务数据，只是哪个弹窗开着/哪个浮层是当前项。把它们收在这里，
- * [MainAppHost] 的方法体不用为每个状态各占一个捕获，页面也能只拿 holder 而不是
- * 一长串回调。
+ * Это не данные, а то, какое окно открыто и какая панель текущая. Собранные здесь,
+ * они не требуют от [MainAppHost] захвата на каждое состояние, а страницы получают
+ * держатель вместо длинного списка колбэков.
  */
 class AppUiState(
     initialSettings: AppSettings,
     initialWorkspace: java.io.File,
     initialAllFilesAccess: Boolean,
 ) {
-    // 页面路由与会话选择
+    // Навигация и выбор сессии
     var activePage by mutableStateOf(ActivePage.CHAT)
     var activeHostId by mutableStateOf("local-host")
     var selectedSessionId by mutableStateOf<String?>(null)
@@ -44,7 +44,7 @@ class AppUiState(
     var pluginRestartRunning by mutableStateOf(false)
     var pluginRestartError by mutableStateOf<String?>(null)
 
-    /** 聊天页的右侧栏是否展开，以及当前标签与预览文件。 */
+    /** Боковая панель чата: открыта ли, текущая вкладка и файл для просмотра. */
     var sessionInspectorOpen by mutableStateOf(false)
     var pendingAgentPreset by mutableStateOf<String?>(null)
     /** Запрос, который чат отправит сам, как только откроется (новая сессия). */
@@ -55,7 +55,7 @@ class AppUiState(
     var pluginUiOpen by mutableStateOf<String?>(null)
 }
 
-/** 构造 UI 状态；初始值来自已持久化的设置、当前工作区与权限状态。 */
+/** Создать состояние; начальные значения — из сохранённых настроек, рабочей папки и разрешений. */
 @Composable
 fun rememberAppUiState(
     initialSettings: AppSettings,

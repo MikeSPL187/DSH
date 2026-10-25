@@ -15,7 +15,7 @@ import com.deepseek.dsh.runtime.host.HostRuntimeManager
 import java.io.File
 
 class MainActivity : ComponentActivity() {
-    /** 使用 app-specific 外部目录，proot/Android 11+ 才能稳定读写（不受 MANAGE_EXTERNAL_STORAGE 限制）。 */
+    /** Внешняя папка приложения: proot на Android 11+ надёжно читает и пишет её (без MANAGE_EXTERNAL_STORAGE). */
     private val visibleWorkspaceDir: File by lazy {
         StorageAccess.workspaceRoot(this)
     }
@@ -29,7 +29,7 @@ class MainActivity : ComponentActivity() {
     private val deepseekOAuthManager = com.deepseek.dsh.core.protocol.DeepSeekOAuthManager()
     private lateinit var workspaceManager: WorkspaceManager
 
-    /** 原生伴侣插件重扫信号：onResume 时递增，组合里据此重扫（卸载/安装即更新）。 */
+    /** Сигнал пересканировать APK-компаньоны: растёт в onResume (после установки или удаления). */
     private val nativePluginRescanFlow = kotlinx.coroutines.flow.MutableStateFlow(0)
     private var nativePackageReceiver: android.content.BroadcastReceiver? = null
 
@@ -58,9 +58,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // 统一走 edge-to-edge：键盘只通过 WindowInsets.ime 报告，系统不再 resize
-        // 窗口。否则部分 ROM（如 MIUI）既 resize 又报告 IME inset，聊天页的
-        // composer 会被抬高两次、离键盘很远。老系统上 enableEdgeToEdge 会做兼容。
+        // Всегда edge-to-edge: клавиатура приходит только через WindowInsets.ime, окно система
+        // не сжимает. Иначе некоторые прошивки (например, MIUI) и сжимают, и сообщают отступ IME —
+        // поле ввода чата поднималось дважды. На старых системах enableEdgeToEdge совместим.
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
 
         workspaceManager = WorkspaceManager(
@@ -85,22 +85,22 @@ class MainActivity : ComponentActivity() {
             androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED,
         )
 
-        // 先套用用户选过的界面语言，再组合界面，避免首帧用错语言。
+        // Сначала язык интерфейса, потом интерфейс — чтобы первый кадр был на нужном языке.
         AppLanguage.applySaved(this)
 
-        // 初始状态不预置任何插件；插件列表完全由 Host/用户安装产生。
+        // Плагинов заранее нет: список — только из Host и установок пользователя.
         setContent {
             val app = application as DshApplication
-            // 深浅色跟随 Host 的 ui-theme 设置（同一账号与浏览器一致），
-            // 未连接 Host 时回落到系统。
+            // Светлая или тёмная тема — по настройке ui-theme в Host (та же, что в браузере),
+            // без Host — как в системе.
             val effectiveDark = when (com.deepseek.dsh.feature.settings.HostTheme.preference) {
                 "dark" -> true
                 "light" -> false
                 else -> androidx.compose.foundation.isSystemInDarkTheme()
             }
-            // 原生插件宿主与主题快照必须在 DshTheme 内部创建：插件页/落点读的
-            // PluginTheme 由 MaterialTheme + dshPanelColors 映射而来，放在主题外层
-            // 会永远拿到浅色 token（深色插件页文字看不清的根因）。
+            // Хост нативных плагинов и снимок темы создаются внутри DshTheme: PluginTheme
+            // строится из MaterialTheme и цветов панели, и снаружи темы всегда получал бы
+            // светлые токены (из-за этого текст тёмных страниц плагинов был нечитаем).
             DshTheme(darkTheme = effectiveDark) {
                 val nativeTheme = com.deepseek.dsh.plugin.nativehost.rememberPluginTheme()
                 val nativeHost = com.deepseek.dsh.plugin.nativehost.rememberNativeHostApi(
@@ -118,7 +118,7 @@ class MainActivity : ComponentActivity() {
                     androidx.compose.ui.platform.LocalHapticFeedback provides
                         (if (com.deepseek.dsh.feature.settings.logic.DshUserPrefs.haptics) androidx.compose.ui.platform.LocalHapticFeedback.current else SilentHaptics),
                 ) {
-                    // 系统栏图标跟随应用深浅色：深色引导页需要浅色状态栏图标。
+                    // Значки системных панелей — по теме приложения: тёмному экрану нужны светлые.
                     androidx.compose.runtime.SideEffect {
                         androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
                             isAppearanceLightStatusBars = !effectiveDark
@@ -137,7 +137,7 @@ class MainActivity : ComponentActivity() {
                         settingsRepository = app.settingsRepository,
                         nativePluginRescanFlow = nativePluginRescanFlow,
                     )
-                    // bridge 插件落后时在启动后弹窗提醒；rootfs 可选更新只在设置页出现。
+                    // Отстающий bridge-плагин — окно после запуска; необязательное обновление rootfs — только в настройках.
                     BridgeUpdatePrompt()
                     BiometricGate()
                 }

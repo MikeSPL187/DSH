@@ -237,15 +237,15 @@ private fun scheduleText(context: Context, s: com.deepseek.dsh.core.model.Schedu
  * Список — `schedule/catalog`, отмена — `schedule/delete`.
  */
 object HostSchedules {
-    /** 计划任务目录的实时数据源（取消后会自动跟着刷新）。 */
+    /** Расписания Host как поток (после отмены обновляется сам). */
     var flow: kotlinx.coroutines.flow.StateFlow<List<ScheduleInfo>>? = null
         private set
 
-    /** 进入页面时主动拉一次（Host 侧新提醒不会推给客户端）。 */
+    /** Прочитать при входе на страницу (о новых напоминаниях Host клиенту не сообщает). */
     var refresh: (suspend () -> Unit)? = null
         private set
 
-    /** 宿主在会话 effect 里调用一次即可，避免把 lambda 内联进 MainAppHost。 */
+    /** Вызывается один раз из эффекта сессии в MainAppHost. */
     fun wire(
         repository: com.deepseek.dsh.core.data.DshRepository,
         hostId: String,

@@ -36,11 +36,11 @@ internal fun StartupGate(
 ): Boolean {
     val context = LocalContext.current
     /**
-     * 只在镜像**必需**重装时才在启动时提示。
+     * Подсказка при запуске — только если образ **обязательно** нужно переустановить.
      *
-     * 比较交给 `rootfsUpdateKind`：它按段比版本，只有 rootfs 段或 dsh 段变化才
-     * 返回 MANDATORY。插件落后不在这里处理 —— 那是设置页的职责，且可以就地升级，
-     * 不该在启动时打断用户。
+     * Сравнивает `rootfsUpdateKind` по частям версии: MANDATORY — только при смене части rootfs
+     * или dsh. Отстающие плагины — дело настроек: их можно обновить на месте,
+     * прерывать запуск ради них не нужно.
      */
     LaunchedEffect(runtimeUi.rootfsReady) {
         if (runtimeUi.rootfsReady != true) return@LaunchedEffect
@@ -93,8 +93,8 @@ internal fun StartupGate(
             runtimeUi.rootfsReady = true
             return@LaunchedEffect
         }
-        // 旧版 rootfs 仍完整可用时不要自动覆盖：只在**必需**重装时提示，
-        // 且由用户确认；插件落后不拦启动（在设置页就地升级）。
+        // Рабочий старый rootfs сам не перезаписывается: подсказка — только при **обязательной**
+        // переустановке и с подтверждением; отстающие плагины запуск не держат (обновляются в настройках).
         val installedVersion = runtimeManager.installedRootfsVersion()
         val availableVersion = runtimeManager.availableRootfsVersion()
         val rootfsFilesPresent = java.io.File(context.filesDir, "rootfs/etc/os-release").isFile ||
@@ -122,7 +122,7 @@ internal fun StartupGate(
         if (result.isSuccess) runtimeUi.rootfsReady = true
     }
 
-    // rootfs 就绪后再拉起本地 Host，避免在未安装时产生启动错误。
+    // Локальный Host — только после готовности rootfs, иначе ошибка запуска без установки.
     LaunchedEffect(runtimeUi.rootfsReady, ui.hasAllFilesAccess) {
         // На первом запуске Host ждёт выбора папки: он монтирует её в контейнер.
         if (runtimeUi.rootfsReady == true && ui.hasAllFilesAccess &&
@@ -150,7 +150,7 @@ internal fun StartupGate(
         return false
     }
 
-    // 首次进入必须先授予「所有文件访问权限」，否则不能进入引导/主界面。
+    // При первом входе нужен «Доступ ко всем файлам», без него дальше нельзя.
     if (!runtimeUi.showOnboarding && !ui.hasAllFilesAccess) {
         val gateActivity = androidx.activity.compose.LocalActivity.current
         com.deepseek.dsh.feature.runtime.StorageAccessScreen(
@@ -165,9 +165,9 @@ internal fun StartupGate(
         return false
     }
 
-    // 已安装后的每次重新打开：等 Host 真正就绪（markReady / RUNNING）再进 UI。
-    // 不能只看 endpoint/port：DSH 打印 Web URL 前端口可能已经监听，此时模型、
-    // 插件与会话接口还没准备好，提前进主界面会看到空状态或“未就绪”报错。
+    // При каждом следующем открытии — ждём настоящей готовности Host (markReady / RUNNING).
+    // Порта мало: DSH слушает порт ещё до того, как напечатает Web URL, а модели,
+    // плагины и сессии ещё не готовы — главный экран был бы пустым или с «Не готово».
     LaunchedEffect(runtimeUi.rootfsReady, runtimeUi.hostRetryKey, ui.hasAllFilesAccess) {
         if (runtimeUi.rootfsReady != true || !ui.hasAllFilesAccess) return@LaunchedEffect
         val startedAt = System.currentTimeMillis()
@@ -232,8 +232,8 @@ internal fun StartupGate(
                     }
                 }
             },
-            // Host 起不来时仍允许进入应用：设置 → 移动运行时 有完整日志，
-            // 也可以在那里导出脱敏诊断包。
+            // Даже если Host не запустился, войти можно: в «Настройки → Linux» полный журнал
+            // и выгрузка диагностики без секретов.
             onContinue = {
                 runtimeUi.hostProgressReady = true
                 StartupGateMemory.passed = true
@@ -242,9 +242,9 @@ internal fun StartupGate(
         return false
     }
 
-    // Host 端口就绪不等于数据就绪：账号与插件目录还要一次 RPC。首屏先停在
-    // 加载页，最多等 6 秒；拿到账号结果与插件快照后再放行，避免打开后界面
-    // 先空几秒再跳变。
+    // Порт готов — не значит данные готовы: аккаунт и каталог плагинов — ещё по RPC. Первый
+    // экран ждёт на загрузке до 6 секунд, пока не придут аккаунт и снимок плагинов, —
+    // иначе интерфейс несколько секунд пуст и потом перескакивает.
     var startupHydrated by remember { mutableStateOf(false) }
     LaunchedEffect(runtimeUi.hostProgressReady, status.port, runtimeUi.accountHydrated, runtimeUi.pluginsHydrated, pluginsReady) {
         if (!runtimeUi.hostProgressReady) {

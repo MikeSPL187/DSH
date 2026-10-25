@@ -8,15 +8,15 @@ import android.widget.Toast
 import com.deepseek.dsh.core.data.DshRepository
 
 /**
- * 下载当前会话日志并保存到系统 Download 目录（官方 `/api/session.export`）。
+ * Скачать журнал текущей сессии и сохранить в Download (`/api/session.export`).
  *
- * 放在独立文件里，是为了让 `MainAppHost` 只保留一行桥接赋值——它是接近 ART
- * verifier 上限的巨型 composable，所有上下文逻辑都不应该内联进去。
+ * Отдельный файл — чтобы в `MainAppHost` осталась одна строка: логике
+ * с context не место в корневой функции интерфейса.
  *
- * @param context 用于 ContentResolver 与 Toast。
- * @param repository 数据层，负责带鉴权地 GET 导出路由。
- * @param hostId 当前 Host。
- * @param sessionId 要导出的会话。
+ * @param context для ContentResolver и тоста.
+ * @param repository слой данных: скачивание с авторизацией.
+ * @param hostId текущий Host.
+ * @param sessionId сессия для выгрузки.
  */
 suspend fun performSessionExport(
     context: Context,
@@ -43,7 +43,7 @@ suspend fun performSessionExport(
     ).show()
 }
 
-/** 通过 MediaStore 写入 Download 目录；返回是否成功拿到 uri。 */
+/** Запись в Download через MediaStore; true — uri получен. */
 private fun saveZip(context: Context, sessionId: String, bytes: ByteArray): Boolean {
     val name = "dsh-session-" + sessionId.replace(Regex("[^A-Za-z0-9_-]"), "_") + ".zip"
     if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {

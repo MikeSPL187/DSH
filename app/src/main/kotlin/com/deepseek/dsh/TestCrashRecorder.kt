@@ -8,10 +8,10 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * 只在 debug（测试）构建里启用：未捕获异常时把堆栈和本进程最近的 logcat 写到
- * `Documents/DSH-Test-Logs/`，测试者没有电脑/adb 也能在手机文件管理器里找到并转发。
+ * Только в debug (тестовой) сборке: при необработанном исключении стек и свежий logcat процесса
+ * пишутся в `Documents/DSH-Test-Logs/` — тестировщик найдёт их в файловом менеджере без компьютера и adb.
  *
- * 写入前会抹掉 `token=`、`Bearer` 和 `sk-` 样式的密钥；release 构建完全不安装。
+ * Перед записью вычищаются `token=`, `Bearer` и ключи вида `sk-`; в release не ставится.
  */
 internal object TestCrashRecorder {
 

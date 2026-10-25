@@ -42,23 +42,23 @@ import java.util.Locale
 import java.util.TimeZone
 
 /**
- * 「开发者工具」插件的原生界面：调试面板。
+ * Нативный интерфейс плагина «Инструменты разработчика»: панель отладки.
  *
- * 官方有两块：`experimental-inspector` 在 `shell.bottom` 嵌 Chrome DevTools，
- * `experimental-session-inspector` 在会话右侧栏展示原始日志/聊天分组。手机
- * 没有右侧栏与快捷键，所以合并成会话头部的调试入口 + 全屏面板，里面两个页签：
- * 「原始数据」= 当前会话收到的原始帧，`NodeJS 诊断` = 同一个 DevTools 前端。
+ * Их два: `experimental-inspector` встраивает Chrome DevTools в `shell.bottom`,
+ * `experimental-session-inspector` показывает сырой журнал в боковой панели сессии. На телефоне
+ * нет боковой панели и сочетаний клавиш — это вход в шапке сессии и полноэкранная панель с двумя вкладками:
+ * «Сырые данные» — кадры текущей сессии, «Диагностика NodeJS» — тот же фронтенд DevTools.
  */
 internal object SessionInspectorPluginUi {
-    /** 启用这个 profile bundle 后才会出现调试入口（含 inspector + session-inspector）。 */
+    /** Profile bundle, при котором появляется вход в отладку (inspector + session-inspector). */
     const val BUNDLE = "@deepseek-ai/dsh-experimental-inspector-profile"
 
     /**
-     * 调试面板。
+     * Панель отладки.
      *
-     * @param frames 当前会话的原始帧（最新在后）。
-     * @param sessionId 会话 id；为空时提示先打开会话。
-     * @param onDismiss 关闭面板。
+     * @param frames сырые кадры текущей сессии (новые в конце).
+     * @param sessionId id сессии; пусто — подсказка сначала открыть сессию.
+     * @param onDismiss закрыть панель.
      */
     @Composable
     fun Overlay(
@@ -118,7 +118,7 @@ internal object SessionInspectorPluginUi {
     }
 }
 
-/** 原始数据页签：序号 / 类型 / UTC 时间 / 数据，带类型关键词过滤。 */
+/** Вкладка сырых данных: номер, тип, время UTC, данные; фильтр по типу. */
 @Composable
 private fun RawDataContent(frames: List<SessionRawFrame>, sessionId: String?) {
     val colors = LocalDshPanelColors.current
@@ -246,7 +246,7 @@ private fun RawDataContent(frames: List<SessionRawFrame>, sessionId: String?) {
     }
 }
 
-/** 小胶囊（关闭等动作）。 */
+/** Маленькая капсула (закрыть и т. п.). */
 @Composable
 private fun InspectorChip(text: String, onClick: () -> Unit) {
     val colors = LocalDshPanelColors.current
@@ -262,7 +262,7 @@ private fun InspectorChip(text: String, onClick: () -> Unit) {
     }
 }
 
-/** 调试面板的页签。 */
+/** Вкладки панели отладки. */
 @Composable
 private fun InspectorTab(text: String, selected: Boolean, onClick: () -> Unit) {
     val colors = LocalDshPanelColors.current
@@ -287,11 +287,11 @@ private fun InspectorTab(text: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 /**
- * 全屏调试面板的宿主入口：把 Dialog 包装留在本文件，`MainAppHost` 只保留一行调用。
+ * Вход в полноэкранную панель отладки: обёртка Dialog — здесь, в `MainAppHost` одна строка.
  *
- * @param frames 当前会话原始帧。
- * @param sessionId 当前会话 id。
- * @param onDismiss 关闭面板。
+ * @param frames сырые кадры текущей сессии.
+ * @param sessionId id текущей сессии.
+ * @param onDismiss закрыть панель.
  */
 @Composable
 fun SessionInspectorOverlayDialog(

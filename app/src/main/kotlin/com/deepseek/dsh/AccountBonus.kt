@@ -29,11 +29,11 @@ import com.deepseek.dsh.core.data.DshRepository
 import com.deepseek.dsh.core.model.AccountBonusInfo
 
 /**
- * 未读奖励提示（官方 `account/getUnnotifiedBonuses`）。
+ * Непоказанные бонусы аккаунта (`account/getUnnotifiedBonuses`).
  *
- * 官方 Web 客户端在打开时查询未展示的奖励并弹窗；这里同逻辑：首次组合时拉一次，
- * 有奖励就展示，点「知道了」逐条 `ackBonusNotified`。逻辑放在独立 composable，
- * `MainAppHost` 只留一行调用。
+ * Как в веб-клиенте: при первом показе бонусы читаются один раз и показываются окном,
+ * «Понятно» отмечает каждый через `ackBonusNotified`. Отдельный composable —
+ * в `MainAppHost` остаётся одна строка.
  */
 @Composable
 fun AccountBonusHost(

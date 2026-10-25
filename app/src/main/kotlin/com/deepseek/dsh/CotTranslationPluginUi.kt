@@ -4,15 +4,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 
 /**
- * 「思考过程机器翻译」插件的原生界面。
+ * Нативный интерфейс плагина «Машинный перевод рассуждений».
  *
- * 官方客户端里，这个插件贡献两块 UI：`plugins.bundle.config` 的翻译偏好面板，
- * 以及展开思考内容时把译文/原文切换画在 `conversation.chat.reasoning.body`
- * 里。这里先实现偏好面板（官方 `TranslationPreferencesForm`）：翻译服务 +
- * 目标语言，保存写 `cot-translation` 命名空间。
+ * Плагин даёт два места: панель настроек перевода (`plugins.bundle.config`)
+ * и переключатель перевод/оригинал в развёрнутом рассуждении (`conversation.chat.reasoning.body`).
+ * Здесь панель настроек (`TranslationPreferencesForm`): сервис перевода и
+ * язык, сохранение в пространство `cot-translation`.
  *
- * 文案逐条取自 `packages/experimental/client-ui-cot-translation/src/client/locales.ts`
- * 的 `zh` 字典（provider/paidNotice/privacy/targetLanguage/targetLanguageHint）。
+ * Тексты взяты из `packages/experimental/client-ui-cot-translation/src/client/locales.ts`
+ * (provider/paidNotice/privacy/targetLanguage/targetLanguageHint).
  */
 internal object CotTranslationPluginUi : PluginUi {
     override val bundle: String = "@deepseek-ai/dsh-experimental-cot-translation-bundle"

@@ -34,15 +34,15 @@ import com.deepseek.dsh.core.designsystem.LocalDshPanelColors
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
 /**
- * 「开发者工具」里的 NodeJS 诊断（Chrome DevTools）。
+ * Диагностика NodeJS (Chrome DevTools) в «Инструментах разработчика».
  *
- * 官方 `experimental-inspector` 把 chrome-devtools-frontend 放进 `shell.bottom`
- * 的 iframe，并通过 Host 代理 CDP。原生侧没有可移植的等价物，所以按官方同样
- * 的做法：用 WebView 载入同一个 DevTools 前端（Host 的
- * `/inspector/devtools/devtools_app.html`），并把会话 cookie 同步给 WebView。
+ * Плагин `experimental-inspector` встраивает chrome-devtools-frontend в iframe `shell.bottom`
+ * и проксирует CDP через Host. Нативного аналога нет, поэтому так же:
+ * WebView загружает тот же фронтенд DevTools (у Host —
+ * `/inspector/devtools/devtools_app.html`), cookie сессии передаются в WebView.
  *
- * 入口与官方一致：不是插件详情页，而是调试面板（会话数据诊断）里的一个页签；
- * 手机没有 Ctrl/Cmd+Shift+. 的底部面板快捷键。
+ * Вход — вкладка в панели отладки (диагностика сессии), а не страница плагина:
+ * на телефоне нет нижней панели по Ctrl/Cmd+Shift+.
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -100,7 +100,7 @@ internal fun NodeJsDevToolsPane() {
                             settings.allowFileAccess = false
                             settings.allowContentAccess = false
                             webViewClient = WebViewClient()
-                            // Host 的调试路由走会话 cookie；把 App 的 cookie jar 内容同步给 WebView。
+                            // Отладочные маршруты Host — по cookie сессии; переносим cookie приложения в WebView.
                             runCatching {
                                 @Suppress("UNUSED_VARIABLE")
                                 val ignored = token

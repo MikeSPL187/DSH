@@ -42,25 +42,25 @@ import com.deepseek.dsh.core.model.AgentTeamSummary
 import com.deepseek.dsh.core.model.TeamTaskItem
 
 /**
- * 「智能体团队」插件的原生界面。
+ * Нативный интерфейс плагина «Команда агентов».
  *
- * 官方客户端在会话头部注册一个 `conversation.session.header.actions` 动作，
- * 点开是成员名单 + 共享任务看板的浮层；数据来自当前会话的 `agentTeam` 投影
- * （不是另一套 RPC）。这里按同样的数据与交互做原生版，文案取自官方
- * `experimental/client-ui-agent-team/src/client/locales.ts` 的 zh 字典。
+ * Плагин добавляет в шапку сессии действие `conversation.session.header.actions`:
+ * по нему открывается состав команды и общая доска задач; данные — проекция `agentTeam`
+ * текущей сессии (отдельного RPC нет). Здесь те же данные и действия, оформленные
+ * системным листом.
  */
 internal object AgentTeamPluginUi {
-    /** 启用后才会出现团队动作的 profile bundle。 */
+    /** Profile bundle, при котором появляется действие команды. */
     const val BUNDLE = "@deepseek-ai/dsh-experimental-agent-team-profile"
 
-    /** 团队图标的 path，取自 Material 的 group 图形（24dp 视口）。 */
+    /** Контур значка команды (фигура group из Material, поле 24dp). */
     private const val USERS_PATH =
         "M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 " +
             "2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5" +
             "c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5" +
             "c0-2.33-4.67-3.5-7-3.5z"
 
-    /** 会话头部的团队动作图标。 */
+    /** Значок действия команды в шапке сессии. */
     val usersIcon: ImageVector by lazy {
         val nodes = androidx.compose.ui.graphics.vector.PathParser()
             .parsePathString(USERS_PATH)
@@ -75,11 +75,11 @@ internal object AgentTeamPluginUi {
     }
 
     /**
-     * 会话头部的团队动作。
+     * Действие команды в шапке сессии.
      *
-     * @param memberCount 成员数（>1 时显示小徽标，与官方 count badge 一致）。
-     * @param running 是否有成员在运行。
-     * @param onClick 点开/收起面板。
+     * @param memberCount число участников (больше одного — значок со счётчиком).
+     * @param running кто-то из участников работает.
+     * @param onClick открыть или закрыть панель.
      */
     @Composable
     fun HeaderAction(memberCount: Int, running: Boolean, onClick: () -> Unit) {

@@ -10,7 +10,7 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-/** 解析后的一道问题。 */
+/** Разобранный вопрос. */
 private data class ParsedQuestion(
     val id: String,
     val text: String,
@@ -20,10 +20,10 @@ private data class ParsedQuestion(
 )
 
 /**
- * 官方 `user-questions/request` 的原生回答弹窗。
+ * Нативное окно ответа на `user-questions/request`.
  *
- * 结果按 `{answers:[{id,selected:[label],custom?}]}` 回给 Host，与官方
- * `AskUserQuestionAnswer` 一致。
+ * Ответ уходит в Host как `{answers:[{id,selected:[label],custom?}]}` —
+ * формат `AskUserQuestionAnswer`.
  */
 @Composable
 fun UserQuestionDialog(

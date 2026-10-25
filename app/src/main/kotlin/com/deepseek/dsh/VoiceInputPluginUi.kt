@@ -21,12 +21,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * 语音识别相关调用（Host `speech` Remote）。
+ * Вызовы распознавания речи (`speech` Host).
  *
- * @param catalog 读目录：服务、语言、准备状态。
- * @param configure 保存服务/语言选择。
- * @param prepare 开始准备（下载/校验/加载模型）。
- * @param cancelPrepare 取消准备。
+ * @param catalog каталог: сервисы, языки, состояние подготовки.
+ * @param configure сохранить сервис и язык.
+ * @param prepare начать подготовку (скачать, проверить, загрузить модель).
+ * @param cancelPrepare отменить подготовку.
  */
 data class SpeechHooks(
     val catalog: suspend () -> Result<SpeechCatalog>,
@@ -36,11 +36,11 @@ data class SpeechHooks(
 )
 
 /**
- * 「录音输入」插件的原生界面（官方 `plugins.bundle.config` 的 VoicePreparation）。
+ * Нативный интерфейс плагина «Голосовой ввод» (подготовка модели).
  *
- * 这里是模型准备卡片：识别服务、识别语言、下载来源、准备进度与失败原因。
- * 文案取自官方 `experimental/client-ui-voice-input/src/client/locales.ts` 的
- * zh 字典；输入区的麦克风是另一块（composer activity），后续单独实现。
+ * Карточка подготовки: сервис и язык распознавания, источник загрузки, ход и причина ошибки.
+ * Тексты — из `experimental/client-ui-voice-input/src/client/locales.ts`;
+ * микрофон в поле ввода — отдельная часть.
  */
 internal object VoiceInputPluginUi : PluginUi {
     override val bundle: String = "@deepseek-ai/dsh-experimental-voice-input-bundle"
@@ -56,7 +56,7 @@ internal object VoiceInputPluginUi : PluginUi {
     }
 }
 
-/** 语言代码 → 官方显示名。 */
+/** Код языка → название. */
 @Composable
 private fun speechLanguageName(code: String): String = when (code) {
     "auto" -> stringResource(R.string.voice_lang_auto)
@@ -102,7 +102,7 @@ private fun speechPhaseLabel(phase: String): String = when (phase) {
     else -> stringResource(R.string.voice_phase_unprepared)
 }
 
-/** 下载来源 → 官方显示名。 */
+/** Источник загрузки → название. */
 @Composable
 private fun sourceLabel(source: String): String = when (source) {
     "https://huggingface.co" -> "Hugging Face"
@@ -110,7 +110,7 @@ private fun sourceLabel(source: String): String = when (source) {
     else -> source
 }
 
-/** 这些阶段的准备还在推进，需要轮询目录刷新进度。 */
+/** На этих этапах подготовка идёт — каталог опрашивается ради прогресса. */
 private val SPEECH_ACTIVE_PHASES = setOf(
     "checking", "downloading", "verifying", "loading", "waking", "cancelling", "preparing",
 )

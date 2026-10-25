@@ -8,14 +8,14 @@ import com.deepseek.dsh.core.model.ModelProviderGroup
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
-/** 上次读到的模型目录缓存（冷启动时先让模型菜单可用）。 */
+/** Кэш последнего каталога моделей (меню моделей доступно сразу при холодном старте). */
 data class CachedModelCatalog(
     val groups: List<ModelProviderGroup>,
     val names: List<String>,
     val ids: List<String>,
 )
 
-/** 模型目录缓存的可观察状态；读写都集中在这里，主 Composable 不再持有三段状态。 */
+/** Наблюдаемое состояние кэша каталога моделей; чтение и запись — только здесь. */
 class ModelCatalogCacheState(initial: CachedModelCatalog) {
     var groups by mutableStateOf(initial.groups)
     var names by mutableStateOf(initial.names)
@@ -24,7 +24,7 @@ class ModelCatalogCacheState(initial: CachedModelCatalog) {
 
 private const val PREFS = "dsh_model_catalog_cache"
 
-/** 从 SharedPreferences 读一次缓存；损坏的数据退化为空。 */
+/** Прочитать кэш из SharedPreferences один раз; повреждённые данные — пусто. */
 fun readCachedModelCatalog(context: Context): CachedModelCatalog {
     val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     val groups = runCatching {
@@ -40,7 +40,7 @@ fun readCachedModelCatalog(context: Context): CachedModelCatalog {
     return CachedModelCatalog(groups, names, ids)
 }
 
-/** 写回 provider 分组缓存。 */
+/** Записать кэш групп провайдеров. */
 fun writeCachedModelGroups(context: Context, groups: List<ModelProviderGroup>) {
     runCatching {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(
@@ -50,7 +50,7 @@ fun writeCachedModelGroups(context: Context, groups: List<ModelProviderGroup>) {
     }
 }
 
-/** 写回模型名/ID 缓存。 */
+/** Записать кэш названий и id моделей. */
 fun writeCachedModelNames(context: Context, names: List<String>, ids: List<String>) {
     context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
         .putString("names", names.joinToString("\u0001"))
