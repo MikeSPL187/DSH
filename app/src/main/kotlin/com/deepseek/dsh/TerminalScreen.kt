@@ -351,13 +351,15 @@ private fun TermOutput(
         val cols = with(density) { ((maxWidth - 28.dp).toPx() / charW).toInt().coerceIn(20, 300) }
         val rows = with(density) { (maxHeight.toPx() / (fontSize.sp.toPx() * 1.6f)).toInt().coerceIn(5, 200) }
         LaunchedEffect(cols, rows) { onResize(cols, rows) }
-        // Новый вывод — к низу, если читатель и так был внизу.
+        // Новый вывод и открытая клавиатура — к низу, если читатель и так был внизу.
+        var atEnd by remember { mutableStateOf(true) }
+        LaunchedEffect(list) {
+            snapshotFlow { list.isScrollInProgress to list.canScrollForward }.collect { (scrolling, more) -> if (scrolling) atEnd = !more }
+        }
         val tail = blocks.lastOrNull()
-        LaunchedEffect(blocks.size, tail?.version, tail?.explain?.text, tail?.folded) {
-            if (blocks.isEmpty()) return@LaunchedEffect
-            val info = list.layoutInfo
-            val nearEnd = info.visibleItemsInfo.lastOrNull()?.let { it.index >= info.totalItemsCount - 2 } ?: true
-            if (nearEnd) list.animateScrollToItem(list.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1, Int.MAX_VALUE / 2)
+        LaunchedEffect(blocks.size, tail?.version, tail?.explain?.text, tail?.folded, maxHeight) {
+            if (blocks.isEmpty() || !atEnd) return@LaunchedEffect
+            list.scrollToItem(list.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1, Int.MAX_VALUE / 2)
         }
         if (blocks.isEmpty()) {
             TermPlaceholder(status, onRetryStatus)

@@ -51,6 +51,11 @@ ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.grad
 - Эмулятор в облачном контейнере ставится вручную (нет `sdkmanager`): `emulator-linux_x64-16428233.zip` и
   `sys-img/google_apis/x86-26_r16.zip` с dl.google.com в `/home/user/android-sdk`, AVD `dsh26` — руками
   (`~/.android/avd/dsh26.ini` + `config.ini`); запускать через `setsid nohup`, холодная загрузка ~4 мин.
+- Экран без Linux на эмуляторе (только debug-сборка): `app/src/debug/.../ScreenPreviewActivity.kt`,
+  `adb shell am start -n com.dsh.mobile.debug/com.deepseek.dsh.debug.ScreenPreviewActivity --ez dark true --es state main`
+  (`state`: main / empty / connecting). Вводить текст лучше `input keyevent` по одной клавише:
+  `input text` на эмуляторе без KVM теряет символы.
+- Моноширинный текст в приложении ~2 % уже прототипа: Android округляет ширину символа до целого пикселя (хинтинг).
 - Снимки терминала прототипа: Playwright, кадры main/top/explain/gradle/busy/stopped/ctrl/font/empty
   при высоте телефона (360×740, 390×844, 412×915).
 - Обход экранов Настроек/Плагинов/Автоматизации/Терминала: `app/src/test/.../ui/DshScreensSweepTest.kt` → `app/build/ui-sweep/`.
