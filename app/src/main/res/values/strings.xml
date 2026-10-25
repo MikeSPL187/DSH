@@ -2,19 +2,8 @@
 <resources>
     <string name="app_name">DSH</string>
     <string name="workspace_default">Default Workspace</string>
-    <string name="channel_runtime_name">DSH Host Runtime</string>
-    <string name="channel_runtime_desc">Keep local Linux user-space container and DSH Agent running in background</string>
-    <string name="channel_notify_name">DSH Device Notifications</string>
 
     <!-- Navigation Titles -->
-    <string name="nav_chat">Chat</string>
-    <string name="nav_sessions">Sessions</string>
-    <string name="nav_files">Files</string>
-    <string name="nav_hosts">Hosts</string>
-    <string name="nav_settings">Settings</string>
-    <string name="nav_runtime">Runtime</string>
-    <string name="nav_new_session">New Session</string>
-    <string name="session_new">New Session</string>
     <string name="page_plugins">Plugins</string>
     <string name="page_automation">Automation tasks</string>
     <string name="page_files">Files</string>
@@ -22,33 +11,14 @@
     <string name="page_runtime">Runtime</string>
     <string name="page_settings">Settings</string>
     <string name="drawer_default_user">DeepSeek User</string>
-    <string name="account_official_tag">DeepSeek Official</string>
-    <string name="account_unauth_tag">Not verified</string>
 
     <!-- Landing / Onboarding is owned by feature/runtime (onboarding copy) -->
 
 
     <!-- Welcome & Chat Screen (Aligned with dsh-upstream copy) -->
-    <string name="chat_welcome_title">Into the Unknown</string>
-    <string name="chat_welcome_desc">Describe what you want to build, / commands, @ files or sessions</string>
-    <string name="chip_init_workspace">New Workspace</string>
-    <string name="chip_organize_docs">Organize Documents</string>
-    <string name="chip_automation">Schedule Tasks</string>
-    <string name="chip_run_cli">Run CLI Commands</string>
-    <string name="chat_input_placeholder">Message or run a task, / commands, @ files or sessions</string>
     <string name="chat_input_placeholder_plan">describe your task to generate plan</string>
     <string name="chat_thinking">Deep-diving…</string>
-    <string name="chat_thinking_for">Deep-diving for %1$s ···</string>
-    <string name="tool_executed_summary">Executed tools in local environment</string>
-    <string name="action_copy">Copy</string>
     <string name="action_retry">Retry</string>
-    <string name="action_like">Like</string>
-    <string name="action_dislike">Dislike</string>
-    <string name="action_share">Share</string>
-    <string name="action_stop">Stop generating</string>
-    <string name="action_send">Send message</string>
-    <string name="action_input_commands">Add files or run commands</string>
-    <string name="tag_local_processing">Local Container</string>
 
     <!-- Permission Presets & Modes (aligned with ui-permission-presets) -->
     <string name="perm_read_only">Read Only</string>
@@ -68,38 +38,18 @@
     <string name="perm_auto_confirm_desc">Auto review runs without a sandbox. Before every native tool call and PTC inner call, the same model as the current agent reviews whether to allow it; you approve or reject each call it denies. This feature is experimental, can falsely allow or deny actions, and uses additional tokens.</string>
     <string name="perm_auto_confirm_acknowledge">I understand these risks and want to continue</string>
     <string name="perm_auto_confirm_enable">Enable Auto review</string>
-    <string name="mode_plan">Plan Mode</string>
-    <string name="mode_plan_desc">Enter or leave plan mode</string>
 
     <!-- Model & Effort menu (aligned with ui-model-selection) -->
-    <string name="model_v3_title">DeepSeek-V3</string>
-    <string name="model_v3_desc">Fast, capable reasoning and day-to-day coding</string>
-    <string name="model_r1_title">DeepSeek-R1</string>
-    <string name="model_r1_desc">Deep reasoning mode for complex logic and math</string>
-    <string name="model_menu_aria">Model and reasoning effort</string>
     <string name="model_menu_model">Model</string>
-    <string name="model_menu_effort">Effort</string>
-    <string name="effort_provider_default">Default</string>
-    <string name="model_search_placeholder">Search models…</string>
-    <string name="model_empty">No models available</string>
-    <string name="effort_empty">The current model offers no reasoning effort.</string>
     <string name="reasoning_fast">Fast</string>
     <string name="reasoning_deep_think">DeepThink</string>
     <string name="reasoning_max">Max Reasoning</string>
 
     <!-- Composer plus menu (aligned with ui-commands / ui-input-trigger) -->
-    <string name="cmd_section_add">Add</string>
-    <string name="cmd_section_commands">Commands</string>
-    <string name="cmd_file">File</string>
-    <string name="cmd_file_desc">Add files or images to this message</string>
     <string name="cmd_goal">Goal</string>
-    <string name="cmd_goal_desc">Set or view the goal for a long-running task</string>
-    <string name="cmd_plan">Plan</string>
-    <string name="cmd_plan_desc">Enter or leave plan mode</string>
     <string name="cmd_feedback">Feedback</string>
     <string name="cmd_feedback_desc">Record feedback about this session</string>
     <string name="cmd_compact">Compact</string>
-    <string name="cmd_compact_desc">Compact older conversation history</string>
     <string name="cmd_permission">Permission</string>
     <string name="cmd_permission_desc">Switch the permission preset (sandbox mode + approval policy)</string>
     <string name="cmd_model">Model</string>
@@ -108,39 +58,12 @@
     <string name="cmd_export_desc">Download this Session log as a ZIP archive</string>
     <string name="action_cancel">Cancel</string>
     <string name="row_rename">Rename</string>
-    <string name="row_fork">Fork session</string>
-    <string name="row_pin">Pin session</string>
-    <string name="row_unpin">Unpin session</string>
-    <string name="row_archive">Archive session</string>
-    <string name="row_unarchive">Unarchive session</string>
-    <string name="row_session_id">Copy Session ID</string>
 
     <!-- Composer Dock -->
-    <string name="stat_tok_per_sec">%1$.1f tok/s</string>
-    <string name="stat_context_cache">Context %1$d%% · Cache hit %2$d%%</string>
-    <string name="stat_cache_hit">Cache hit %1$d%%</string>
-    <string name="stat_context_aria">%1$d%% of context used</string>
 
     <!-- Drawer & Account Menu (Aligned with ui-settings-account / AccountMenu.tsx) -->
-    <string name="drawer_account_tag">Official OAuth</string>
-    <string name="drawer_account_menu_more">More</string>
-    <string name="drawer_account_settings">Settings</string>
-    <string name="drawer_account_contact">Contact Us</string>
-    <string name="drawer_account_feedback">Feedback</string>
-    <string name="drawer_account_signout">Sign Out</string>
-    <string name="drawer_account_signin">Sign In with Official Account</string>
-    <string name="drawer_nav_plugins">Plugins</string>
-    <string name="drawer_nav_schedule">Automation tasks</string>
-    <string name="drawer_nav_hosts">Remote Host Control</string>
-    <string name="drawer_nav_surface">Built-in Surface Adapter</string>
-    <string name="drawer_nav_settings">Preferences &amp; Settings</string>
-    <string name="drawer_section_project">Project &amp; Workspace</string>
-    <string name="drawer_section_history">History Sessions</string>
-    <string name="action_search">Search sessions</string>
 
     <!-- Plugins Screen -->
-    <string name="plugins_title">Plugins</string>
-    <string name="plugins_store_back">Back</string>
     <string name="host_startup_failed">Local Host failed to start</string>
     <string name="host_startup_log_title">Recent output</string>
     <string name="host_startup_copy">Copy diagnostics</string>
@@ -192,8 +115,6 @@
     <string name="inspector_type">Type</string>
     <string name="inspector_time_utc">Time (UTC)</string>
     <string name="inspector_data">Data</string>
-    <string name="market_sources_title">Sources</string>
-    <string name="market_sources_desc">The plugin marketplace is provided as an index URL. Discover browses the indexes listed here.</string>
     <string name="voice_unavailable">Voice settings are unavailable.</string>
     <string name="voice_reading">Reading voice settings…</string>
     <string name="voice_service">Recognition service</string>
@@ -261,9 +182,6 @@
     <string name="onboarding_key_title">Add an API key to get started</string>
     <string name="onboarding_key_desc">Configure an official DeepSeek model to begin.</string>
     <string name="onboarding_key_placeholder">Enter API key</string>
-    <string name="runtime_preparing">Preparing local Linux runtime</string>
-    <string name="runtime_prepare_desc">The first start downloads and extracts the rootfs before setup can continue.</string>
-    <string name="runtime_prepare_failed">Preparation failed: %1$s</string>
     <string name="runtime_install_reset">Install / reset rootfs</string>
     <string name="runtime_installing">Installing…</string>
     <string name="runtime_update_title">Runtime update</string>
@@ -298,7 +216,6 @@
     <string name="plugin_toggle_failed">%1$s failed: Host is not responding</string>
     <string name="plugin_enable">Enable</string>
     <string name="plugin_disable">Disable</string>
-    <string name="new_paired_remote_host">New paired remote host</string>
     <string name="companion_available_title">“%1$s” has a native UI</string>
     <string name="companion_available_desc">Open Plugins → Plugin Store to install it</string>
     <string name="companion_go_install">Install</string>
@@ -309,8 +226,6 @@
     <string name="runtime_update_available">Runtime update available</string>
     <string name="action_update">Update</string>
     <string name="dismiss_reminder">Dismiss reminder</string>
-    <string name="mode_fast">Fast</string>
-    <string name="mode_deep_thinking">Deep thinking</string>
     <string name="session_diagnostics">Session data diagnostics</string>
     <string name="restart_dsh_hint">Restart DSH to apply this change.</string>
     <string name="finished_section">Finished %1$d</string>
@@ -320,36 +235,19 @@
     <string name="restart_reason_unmanaged_plugin">This change affects an unmanaged plugin; restart DSH to apply it.</string>
     <string name="restart_reason_module_comparison">Plugin modules must be reloaded and compared; restart DSH to apply it.</string>
     <string name="restart_reason_generic">Restart DSH to apply this change.</string>
-    <string name="plugin_operation_failed">Failed: %1$s</string>
     <string name="plugins_install_progress_title">Installing plugin</string>
     <string name="plugins_install_preparing">Preparing install…</string>
     <string name="plugins_install_success">Installed: %1$s</string>
     <string name="plugins_install_restarting">Installed. Restarting Host to load it…</string>
-    <string name="plugins_install_failed_retry">Install failed. Check the message and try again.</string>
     <string name="plugins_install_fallback">Host install unavailable; installing on this device…</string>
     <string name="plugins_install_restart_failed">Plugin files were written, but Host restart failed: %1$s</string>
     <string name="settings_loading">Reading settings…</string>
     <string name="settings_saving">Saving…</string>
     <string name="settings_save">Save</string>
-    <string name="settings_blank_unchanged">Leave blank to keep unchanged</string>
-    <string name="settings_not_ready">This plugin’s settings are not ready yet.</string>
     <string name="settings_saved">Saved</string>
     <string name="settings_unsaved_changes">Unsaved changes</string>
     <string name="settings_number_required">Enter a number: %1$s</string>
     <string name="settings_deployment_rejected">This deployment did not accept these values; they were kept for editing.</string>
-    <string name="settings_plugin_not_loaded">This plugin is not loaded right now, so it cannot be configured.</string>
-    <string name="settings_credential_ref_missing">Credential reference not found; cannot save the key.</string>
-    <string name="settings_credential_env_locked">This key is provided by the deployment environment and cannot be changed here.</string>
-    <string name="settings_credential_rejected">Host did not accept this key.</string>
-    <string name="settings_subagent_models_note">Edit the Agent’s selectable model list in the web settings page. Authorized models are preserved.</string>
-    <string name="settings_web_search_toggle">Enable the new Web Search API</string>
-    <string name="settings_web_search_toggle_hint">Off by default; searches use DeepSeek Messages.</string>
-    <string name="settings_credential_configured">Key configured.</string>
-    <string name="settings_credential_missing">No key configured.</string>
-    <string name="settings_credential_locked_hint">This key is provided by the deployment environment or account and cannot be edited here.</string>
-    <string name="settings_credential_file_hint">Not written to settings files. Leave blank to keep the current key.</string>
-    <string name="settings_credential_replace">Configured; enter a new value to replace</string>
-    <string name="settings_credential_input">Enter key</string>
     <string name="cot_service">Translation service</string>
     <string name="cot_provider_account">DeepSeek Flash · Account (paid)</string>
     <string name="cot_provider_official">DeepSeek Flash · Official API (paid)</string>
@@ -359,26 +257,12 @@
     <string name="cot_billing_note">Each uncached fragment sends one paid DeepSeek Flash request through the selected account or official API credential; re-expanding reuses saved translations, while changing the service, language, source or request settings may send new paid requests.</string>
     <string name="cot_free_note">Bing and Google Translate need no extra login or API key, but anonymous endpoints may reject or rate-limit requests.</string>
     <string name="cot_unavailable">Translation settings are unavailable.</string>
-    <string name="plugin_dialog_title">Add Plugin</string>
-    <string name="plugin_dialog_desc">Enter plugin npm package name (e.g. dsh-subscription-oauth), as following dsh plugin add in documentation.</string>
-    <string name="plugin_dialog_hint">e.g. dsh-subscription-oauth</string>
-    <string name="plugin_dialog_source">Source: Official npm / Mirrors</string>
-    <string name="action_fill_example">Fill Example</string>
-    <string name="action_install">Install</string>
     <string name="action_close">Close</string>
     <string name="action_save">Save</string>
     <string name="action_create">Create</string>
     <string name="action_delete">Delete</string>
-    <string name="action_open">Open</string>
-    <string name="action_open_overlay">Float</string>
-    <string name="action_try">Try</string>
-    <string name="plugin_install_submitted">Submitted install task to local Host: %1$s</string>
 
     <!-- Files Screen -->
-    <string name="files_title">Workspace Files (Shared Directory)</string>
-    <string name="files_subtitle">Mounted to container: /workspace | %1$s</string>
-    <string name="files_empty">Workspace is empty. Files produced by Agent will appear here directly.</string>
-    <string name="files_folder">Folder</string>
 
     <!-- Hosts Screen -->
     <string name="hosts_title">Hosts &amp; Connections</string>
@@ -398,37 +282,22 @@
     <string name="runtime_token">Token: %1$s</string>
     <string name="action_start_container">Start DSH Container</string>
     <string name="action_stop_container">Stop DSH Container</string>
-    <string name="automation_tab_active">Enabled</string>
-    <string name="automation_tab_ended">Ended</string>
-    <string name="automation_banner">Tasks created in a session will appear here</string>
-    <string name="automation_search_placeholder">Search scheduled tasks</string>
-    <string name="automation_empty_ended">No ended scheduled tasks</string>
-    <string name="automation_empty_all">No scheduled tasks yet. Tasks created in a session will appear here</string>
-    <string name="automation_empty_none">No matching scheduled tasks</string>
-    <string name="automation_new">New Scheduled Task</string>
     <string name="plan_prompt_prefix">[Plan mode] Please first output an implementation plan (step-by-step changes) and wait for my confirmation before executing:\n\n</string>
     <string name="attachment_copy_failed">Could not copy %1$s</string>
     <string name="session_fork_failed">Fork failed</string>
     <string name="approval_request_title">Approval required</string>
-    <string name="approval_allow_once">Allow once</string>
-    <string name="approval_reject">Reject</string>
     <string name="question_request_title">Answer required</string>
-    <string name="question_submit">Submit</string>
-    <string name="question_custom_placeholder">Type an answer</string>
 <string name="plugins_install_state_installing">Installing %1$s (%2$d/%3$d)</string>
 <string name="plugins_install_state_applying">Applying changes</string>
 <string name="plugins_install_state_cancelling">Cancelling</string>
 <string name="jobs_empty">No background jobs</string>
 <string name="jobs_kill">Stop</string>
 <string name="jobs_output_empty">No output yet</string>
-<string name="jobs_section">Background jobs</string>
-<string name="jobs_killed">Stopped</string>
 <string name="cmd_unknown">Command failed</string>
 <string name="session_export_saved">Session log saved to Downloads</string>
     <string name="session_export_failed">Could not export the session log</string>
 <string name="account_bonus_title">Reward received</string>
     <string name="account_bonus_ok">Got it</string>
-    <string name="right_sidebar_title">Panel</string>
     <string name="right_sidebar_tab_files">Files</string>
     <string name="right_sidebar_tab_document">Document</string>
     <string name="right_sidebar_tab_plan">Plan</string>
@@ -436,11 +305,9 @@
     <string name="model_switch_failed">Model switch failed: %1$s</string>
     <string name="right_sidebar_tab_terminal">Terminal</string>
     <string name="right_sidebar_tab_schedule">Tasks</string>
-    <string name="right_sidebar_tab_plugins">Plugins</string>
     <string name="header_agents_count">%1$d agents</string>
     <string name="header_jobs_running">%1$d background jobs running</string>
     <string name="header_jobs_idle">%1$d background jobs</string>
-    <string name="right_sidebar_plugins_hint">Native plugin contributions registered for the right pane appear here.</string>
     <string name="right_sidebar_tab_browser">Browser</string>
     <string name="right_sidebar_up">Up</string>
     <string name="right_sidebar_import">Import</string>
@@ -454,7 +321,6 @@
     <string name="right_sidebar_browser_unavailable">The desktop browser pane is not part of the mobile app; use Terminal or open links externally.</string>
     <string name="plugin_toggle_restarting">Restarting Host to apply the plugin…</string>
     <string name="onboarding_key_failed">Could not save the API key. Check it and try again.</string>
-    <string name="model_effort_unavailable">This model has no configurable reasoning level</string>
     <string name="right_sidebar_tab_guide">Start</string>
     <string name="right_guide_files_title">Workspace files</string>
     <string name="right_guide_files_desc">Browse files in the session workspace</string>
@@ -462,17 +328,9 @@
     <string name="right_guide_terminal_desc">Run commands in the session workspace</string>
     <string name="right_guide_browser_title">Browser</string>
     <string name="right_guide_browser_desc">Browse the web</string>
-    <string name="agent_presets_create_hint">New chat opened in Creation mode. Describe the preset you want.</string>
     <string name="right_guide_plugin_desc">Open plugin page</string>
     <string name="host_loading_data">Loading account and plugins…</string>
     <string name="plugin_status_needs_approval">Needs approval</string>
-    <string name="native_trust_title">Allow native plugin?</string>
-    <string name="native_trust_title_changed">Native plugin identity changed</string>
-    <string name="native_trust_changed_warning">This plugin ID was previously approved for a different package or signing certificate. It may have been replaced by another app. Allow only if you just installed an update from a source you trust.</string>
-    <string name="native_trust_desc">Native plugins run inside DSH with all of its permissions and can read your workspace, tokens and settings. Allow only plugins from developers you trust.</string>
-    <string name="native_trust_identity">Plugin: %1$s\nPackage: %2$s\nCertificate SHA-256:\n%3$s</string>
-    <string name="native_trust_js_package">Allowing will also install the paired Host plugin: %1$s</string>
-    <string name="native_trust_allow">Allow</string>
     <string name="native_trust_deny">Not now</string>
     <string name="remote_pairing_title">Pair a remote Host</string>
     <string name="remote_pairing_desc">Paste the pairing code shown by the gateway (QR content). The connection is verified against the certificate fingerprint in the code before the pairing code is sent.</string>

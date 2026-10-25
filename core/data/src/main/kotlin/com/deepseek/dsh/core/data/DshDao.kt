@@ -45,6 +45,13 @@ interface DshDao {
     // 会话顺序以墙钟时间为准：用户消息由 App 本地入库（seq=0），AI 消息带 Host
     // 事件 seq；若先按 seq 排，所有用户气泡会被排到 AI 回复之前。createdAt 是
     // 两端共享的时间轴，seq 只作为同一毫秒内的稳定兜底。
+    /** Последний ответ агента в каждой сессии Host — подпись строки в меню. */
+    @Query(
+        "SELECT m.sessionId AS sessionId, m.contentJson AS content FROM messages m WHERE m.hostId = :hostId AND m.role = 'ASSISTANT' " +
+            "AND m.createdAt = (SELECT MAX(x.createdAt) FROM messages x WHERE x.hostId = m.hostId AND x.sessionId = m.sessionId AND x.role = 'ASSISTANT')",
+    )
+    fun lastAssistantMessages(hostId: String): Flow<List<SessionPreviewRow>>
+
     @Query("SELECT * FROM messages WHERE hostId = :hostId AND sessionId = :sessionId ORDER BY createdAt ASC, seq ASC, messageId ASC")
     fun getMessages(hostId: String, sessionId: String): Flow<List<MessageEntity>>
 
@@ -58,3 +65,5 @@ interface DshDao {
     suspend fun insertSurfaces(surfaces: List<SurfaceCatalogEntity>)
 }
 
+/** Сессия и текст её последнего ответа. */
+data class SessionPreviewRow(val sessionId: String, val content: String?)

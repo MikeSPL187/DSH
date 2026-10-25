@@ -16,16 +16,17 @@
 | Файлы | `feature/files/.../FilesScreen.kt`, `FilesModel.kt`; git: `runtime/host/.../WorkspaceGit.kt`, адаптер `app/.../WorkspaceFilesGit.kt` | всё по `#screen-files`; «агент» в подписях не пишем — не знаем, кто менял |
 | Плагины, Автоматизация, Настройки | `feature/settings/.../ui/` (`DshScreenKit.kt` — общий каркас экранов: шапка, группы, листы, тосты), связки `app/.../DshPluginsRoute.kt`, `AutomationRunner.kt`, `DshSettingsRoute.kt` | ключ API в Keystore (`ApiKeyVault`), видны только 4 последних символа; автоматизации — своя логика на JobScheduler (`AutomationStore`); вход по отпечатку — `BiometricGate.kt`. Невозможное (нет логики у Host) скрыто по решению владельца |
 | Терминал | `app/.../TerminalScreen.kt` (экран), `app/.../terminal/TermEngine.kt` (поток PTY → блоки), `TerminalRoute.kt` (связка с Host, вкладки, история), `TermExplainer.kt` («Объяснить» через DeepSeek) | блоки с кодом и временем — по меткам bash: при открытии вкладки приложение тихо ставит `PROMPT_COMMAND`, печатающий `OSC 133;D;код;папка;HOME` (решение владельца). Без bash — блоки без кода. «Объяснить» — ответ модели прямо в блоке (решение владельца), строка `FIX:` → кнопка. Полноэкранные программы (vim, top) показываются без раскладки экрана. Тест на записи настоящего bash: `TermEngineTest` |
-| Чат (частично), меню, лист одобрения | `feature/chat/...ChatScreen.kt`, `ApprovalSheet.kt`, `feature/sessions/...ModernNavigationDrawerContent.kt` | сделаны до правила «точь-в-точь» — ПЕРЕПРОВЕРИТЬ по прототипу и доделать |
+| Чат | `feature/chat/...`: `ChatKit.kt` (шапка, главный экран, док, поле ввода, «нет сети»), `ChatThread.kt` (ход работы агента, шаги, инструменты, лог), `ChatApproval.kt` (одобрение `.approve`, `.ask`, `.decide`, `#screen-danger`), `ChatSheets.kt` (листы модели, «+», доступа, риска, вопрос агента), `ChangedFiles.kt`, `PresentedFiles.kt`, `QueuedMessages.kt`, `WorkflowRuns.kt`, `Trajectory.kt`, `MarkdownText.kt`; связка в `MainAppHost` (`chatApproval`, `ApprovalInspect.kt` — размеры и свободное место для удаления) | функции приложения, которых нет в прототипе (пресеты, слэш-команды, план, цель/задачи, очередь, результаты, workflow, голос), — в стиле системы (решение владельца); имя в приветствии — из профиля, «шаг N из M» — из todos. Пока одобрение ждёт на другом экране — плашка сверху |
+| Меню | `feature/sessions/.../DshDrawer.kt` (`DshPushDrawer` — чат уезжает вправо и уменьшается, `DshDrawerContent`, листы `ProjectSheetBody` и `SessionSheetBody`) | подпись строки — первая строка последнего ответа агента (`DshRepository.sessionPreviews`), «Ждёт вашего решения» — по ожидающим одобрениям, «Агент работает» — по идущим сессиям. Нажатие на проект и долгое нажатие на сессию открывают листы в стиле системы (в прототипе их нет): выбор/добавление/переименование/порядок/удаление проекта; переименовать, закрепить, продолжить в новой сессии, архив. Свайп от левого края открывает |
 
 ## Осталось (по порядку)
 1. ~~Терминал~~ — готово.
-2. **Чат** (решения владельца: функции приложения, которых нет в прототипе — пресеты, слэш-команды и навыки,
+2. ~~Чат~~ — готово (решения владельца: функции приложения, которых нет в прототипе — пресеты, слэш-команды и навыки,
    режим плана, очередь, задачи/цель, выданные файлы, workflow, голос, полоса Claude Code — оставить, но в стиле
    системы (листы «+», модели, карточки хода работы); имя в приветствии — из профиля аккаунта, «шаг N из M» — из todos) — сверить с прототипом главный экран, ход работы агента, док «Файлы/Терминал», лист «+» (вложения), лист модели, «нет сети», опасное действие (`#screen-danger`), одобрение.
-3. **Меню** (`#drawer`) — сверить.
+3. ~~Меню~~ — готово.
 4–6. ~~Плагины, Автоматизация, Настройки~~ — готово (влито из `claude/redesign-settings`).
-   Хвосты: `LocalCodeFontSize` (размер кода из Настроек) пока читает только терминал; `ui.pendingComposerText` (подстановка в черновик из Автоматизации/Плагинов) чат ещё не забирает — подключить при переносе Чата.
+   Хвосты закрыты: `LocalCodeFontSize` читают терминал и блоки кода в чате; `ui.pendingComposerText` попадает в черновик чата.
 7. Старые экраны запуска: `HostStartupSplash`, `StoragePermissionGate` (в app) — перевести в систему.
 8. «Восстановить из резервной копии» (шаг 0 онбординга) — логика уже есть (`RuntimeBackupAndDiagnostics.restoreUserDataBackup`, используется в Настройках), осталось подключить к онбордингу (сейчас `onRestoreBackup = null`).
 9. Действия «Проверить с агентом» / «Сообщение коммита» / «Спросить» сейчас подставляют текст в черновик чата (через `runtimeUi.voiceTranscript`), а не отправляют сразу — как в прототипе можно отправлять сразу.
@@ -55,7 +56,7 @@ ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.grad
   (`~/.android/avd/dsh26.ini` + `config.ini`); запускать через `setsid nohup`, холодная загрузка ~4 мин.
 - Экран без Linux на эмуляторе (только debug-сборка): `app/src/debug/.../ScreenPreviewActivity.kt`,
   `adb shell am start -n com.dsh.mobile.debug/com.deepseek.dsh.debug.ScreenPreviewActivity --ez dark true --es state main`
-  (`state`: main / empty / connecting). Вводить текст лучше `input keyevent` по одной клавише:
+  (`state`: терминал — main / empty / connecting; чат — chat-home / chat-approve / chat-danger, меню — chat-drawer, в чате кнопка меню открывает его). Вводить текст лучше `input keyevent` по одной клавише:
   `input text` на эмуляторе без KVM теряет символы.
 - Моноширинный текст в приложении ~2 % уже прототипа: Android округляет ширину символа до целого пикселя (хинтинг).
 - Снимки терминала прототипа: Playwright, кадры main/top/explain/gradle/busy/stopped/ctrl/font/empty

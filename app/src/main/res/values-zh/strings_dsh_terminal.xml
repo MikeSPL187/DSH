@@ -39,5 +39,4 @@
 从 help 或 ls 开始。</string>
     <string name="tm_tab_close">关闭标签页</string>
     <string name="tm_tab_close_sub">Shell 进程将被结束</string>
-    <string name="tm_ctrl_c">^C</string>
 </resources>

@@ -39,5 +39,4 @@
 Start with help or ls.</string>
     <string name="tm_tab_close">Close tab</string>
     <string name="tm_tab_close_sub">The shell process will be stopped</string>
-    <string name="tm_ctrl_c">^C</string>
 </resources>

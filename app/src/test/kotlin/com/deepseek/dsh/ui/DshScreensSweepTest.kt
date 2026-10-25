@@ -419,4 +419,55 @@ class DshScreensSweepTest {
             ),
         ),
     )
+
+    private fun at(day: Int, h: Int, m: Int): Long = java.util.Calendar.getInstance().apply {
+        add(java.util.Calendar.DAY_OF_YEAR, -day); set(java.util.Calendar.HOUR_OF_DAY, h); set(java.util.Calendar.MINUTE, m)
+    }.timeInMillis
+
+    /** Сессии из прототипа (`#drawer`). */
+    private fun drawerSessions(): List<com.deepseek.dsh.feature.sessions.DrawerSession> {
+        val monday = java.util.Calendar.getInstance().apply {
+            add(java.util.Calendar.DAY_OF_YEAR, -3); set(java.util.Calendar.HOUR_OF_DAY, 12)
+        }.timeInMillis
+        fun s(id: String, title: String, time: Long, preview: String? = null, running: Boolean = false, waiting: Boolean = false, pinned: Boolean = false) =
+            com.deepseek.dsh.feature.sessions.DrawerSession(
+                id, title, if (running) "сейчас" else com.deepseek.dsh.feature.sessions.drawerTime(time), time,
+                running = running, waiting = waiting, pinned = pinned, preview = preview,
+            )
+        return listOf(
+            s("p1", "Архитектура плагинов", monday, "Схема загрузки и проверки подписи", pinned = true),
+            s("s1", "Сборка падает после обновления Compose", at(0, 11, 2), running = true),
+            s("s2", "Скрипт резервного копирования", at(0, 10, 52), waiting = true),
+            s("s3", "Разбор протокола bridge", at(0, 9, 20), "Ответ: JSON-RPC поверх loopback"),
+            s("s4", "Тесты для semver", at(1, 18, 4), "Добавлено 12 тестов, все проходят"),
+            s("s5", "Почему не приходят уведомления", at(1, 9, 12), "Причина в канале уведомлений"),
+        )
+    }
+
+    @Composable
+    private fun drawer(list: List<com.deepseek.dsh.feature.sessions.DrawerSession> = drawerSessions(), query: String = "") {
+        val state = androidx.compose.runtime.remember { com.deepseek.dsh.feature.sessions.DshDrawerState().apply { open() } }
+        com.deepseek.dsh.feature.sessions.DshPushDrawer(
+            state,
+            drawer = {
+                com.deepseek.dsh.feature.sessions.DshDrawerContent(
+                    hostLive = true, project = "DSH-Workspace", projectLetter = "D", onProject = {},
+                    sessions = list, selectedId = "s1", onSelect = {}, onSessionMenu = {}, onNew = {},
+                    query = query, onQuery = {}, searchHits = emptyList(), pluginsOn = 3, automationsOn = 2,
+                    onPlugins = {}, onAutomation = {}, userName = "Михаил", footerSub = "Настройки · свой ключ DeepSeek", onSettings = {},
+                )
+            },
+        ) { chatHome() }
+    }
+
+    @Test
+    fun menu() = sweep(
+        matrix(
+            listOf(
+                "chat-drawer" to @Composable { drawer() },
+                "chat-drawer-empty" to @Composable { drawer(emptyList()) },
+                "chat-drawer-search" to @Composable { drawer(query = "сборка") },
+            ),
+        ),
+    )
 }

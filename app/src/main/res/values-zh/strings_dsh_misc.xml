@@ -2,4 +2,8 @@
 <!-- Прочее приложения (плашки). ru / en / zh. -->
 <resources>
     <string name="approval_waiting_banner">智能体在等待你的决定 · 打开</string>
+    <string name="drawer_untitled_session">未命名</string>
+    <string name="drawer_foot_key">设置 · 自有 DeepSeek 密钥</string>
+    <string name="drawer_foot_nokey">设置 · 尚未设置密钥</string>
+    <string name="drawer_now">现在</string>
 </resources>

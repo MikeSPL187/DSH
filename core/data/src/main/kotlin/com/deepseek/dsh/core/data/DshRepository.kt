@@ -2076,6 +2076,17 @@ class DshRepository(
         }
     }
 
+    /** Первая строка последнего ответа агента по каждой сессии, без разметки Markdown. */
+    fun sessionPreviews(hostId: String): Flow<Map<String, String>> =
+        dao.lastAssistantMessages(hostId).map { rows ->
+            rows.mapNotNull { row ->
+                val line = row.content.orEmpty().lineSequence()
+                    .map { it.replace(Regex("[*_`#>]+"), "").replace(Regex("\\[([^\\]]*)]\\([^)]*\\)"), "$1").trim() }
+                    .firstOrNull { it.isNotEmpty() && !it.startsWith("```") }
+                line?.let { row.sessionId to it.take(120) }
+            }.toMap()
+        }
+
     fun getMessages(hostId: String, sessionId: String): Flow<List<ChatMessage>> {
         return dao.getMessages(hostId, sessionId).map { entities ->
             val cleaned = entities.filterNot { entity ->

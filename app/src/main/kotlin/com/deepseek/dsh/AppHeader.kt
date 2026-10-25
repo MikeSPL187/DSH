@@ -84,7 +84,6 @@ import com.deepseek.dsh.core.model.SurfaceKind
 import com.deepseek.dsh.feature.chat.ModernChatScreen
 import com.deepseek.dsh.feature.files.FilesScreen
 import com.deepseek.dsh.feature.files.WorkspaceManager
-import com.deepseek.dsh.feature.sessions.ModernNavigationDrawerContent
 import com.deepseek.dsh.plugin.surface.PluginOverlayContainer
 import com.deepseek.dsh.plugin.surface.SurfaceCatalogStore
 import com.deepseek.dsh.plugin.surface.SurfaceSheet

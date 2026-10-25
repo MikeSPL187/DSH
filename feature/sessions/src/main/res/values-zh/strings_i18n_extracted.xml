@@ -1,28 +1,3 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="drawer_default_user_name">DeepSeek 用户</string>
-    <string name="drawer_unverified">未认证</string>
-    <string name="drawer_search_sessions_hint">搜索会话名称</string>
-    <string name="drawer_close_search">关闭搜索</string>
-    <string name="drawer_search">搜索</string>
-    <string name="drawer_view_options">视图选项</string>
-    <string name="drawer_new_workspace">新建工作区</string>
-    <string name="drawer_unarchive">取消归档</string>
-    <string name="drawer_archive_session">归档会话</string>
-    <string name="drawer_new_version">新版本</string>
-    <string name="drawer_group_by">分组方式</string>
-    <string name="drawer_group_workspace">按工作区</string>
-    <string name="drawer_group_tree">按工作区树</string>
-    <string name="drawer_group_single">单列表</string>
-    <string name="drawer_sort_by">排序方式</string>
-    <string name="drawer_sort_manual">手动排序</string>
-    <string name="drawer_sort_recent">最近更新</string>
-    <string name="drawer_filter_sessions">筛选会话</string>
-    <string name="drawer_filter_hide_archived">隐藏已归档</string>
-    <string name="drawer_filter_all">全部对话（显示已归档）</string>
-    <string name="drawer_filter_only_archived">仅显示已归档</string>
-    <string name="drawer_rename">重命名</string>
-    <string name="drawer_delete_workspace">删除工作区</string>
-    <string name="sessions_empty_hint">暂无会话，请点击创建或等待连接</string>
-    <string name="a11y_pinned">已置顶</string>
 </resources>

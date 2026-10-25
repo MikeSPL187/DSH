@@ -12,9 +12,6 @@ import com.deepseek.dsh.feature.files.FileItem
 import com.deepseek.dsh.feature.files.FilesScreen
 import com.deepseek.dsh.feature.hosts.HostsScreen
 import com.deepseek.dsh.feature.runtime.OnboardingScreen
-import com.deepseek.dsh.feature.sessions.ModernNavigationDrawerContent
-import com.deepseek.dsh.feature.sessions.SessionDisplayItem
-import com.deepseek.dsh.feature.sessions.WorkspaceFolder
 import androidx.compose.ui.test.performClick
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
@@ -48,40 +45,6 @@ class ScreensGalleryTest {
         compose.setContent { DshTheme(darkTheme = dark) { content() } }
         compose.mainClock.advanceTimeBy(1_500)
         ScreenShots.capture(compose, name, compose.activity)
-    }
-
-    private val sessions = listOf(
-        SessionDisplayItem("s1", "Рефакторинг установщика плагинов", "5 мин", isRunning = true),
-        SessionDisplayItem("s2", "Аудит безопасности APK", "2 ч", pinned = true),
-        SessionDisplayItem("s3", "Старый эксперимент", "3 д", archived = true),
-    )
-
-    @Test
-    fun drawer() = render("20_drawer") {
-        ModernNavigationDrawerContent(
-            workspaces = listOf(
-                WorkspaceFolder("w1", "DSH-Workspace", sessions = sessions),
-                WorkspaceFolder("w2", "проект-андроид"),
-            ),
-            selectedSessionId = "s1",
-            onSelectSession = {},
-            onNewChatClick = {},
-            onNavigatePlugins = {},
-            onNavigateFiles = {},
-            updateVersion = "1.0.7",
-        )
-    }
-
-    @Test
-    fun drawerDark() = render("21_drawer_dark", dark = true) {
-        ModernNavigationDrawerContent(
-            workspaces = listOf(WorkspaceFolder("w1", "DSH-Workspace", sessions = sessions)),
-            selectedSessionId = "s2",
-            onSelectSession = {},
-            onNewChatClick = {},
-            onNavigatePlugins = {},
-            onNavigateFiles = {},
-        )
     }
 
     /** Проект как в прототипе: папки, файлы и два незакоммиченных изменения. */

@@ -1,28 +1,3 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="drawer_default_user_name">Пользователь DeepSeek</string>
-    <string name="drawer_unverified">Не подтверждён</string>
-    <string name="drawer_search_sessions_hint">Поиск по названию сессии</string>
-    <string name="drawer_close_search">Закрыть поиск</string>
-    <string name="drawer_search">Поиск</string>
-    <string name="drawer_view_options">Параметры вида</string>
-    <string name="drawer_new_workspace">Новая рабочая папка</string>
-    <string name="drawer_unarchive">Вернуть из архива</string>
-    <string name="drawer_archive_session">Архивировать сессию</string>
-    <string name="drawer_new_version">Новая версия</string>
-    <string name="drawer_group_by">Группировка</string>
-    <string name="drawer_group_workspace">По рабочим папкам</string>
-    <string name="drawer_group_tree">Деревом рабочих папок</string>
-    <string name="drawer_group_single">Единым списком</string>
-    <string name="drawer_sort_by">Сортировка</string>
-    <string name="drawer_sort_manual">Вручную</string>
-    <string name="drawer_sort_recent">По дате обновления</string>
-    <string name="drawer_filter_sessions">Фильтр сессий</string>
-    <string name="drawer_filter_hide_archived">Скрыть архивные</string>
-    <string name="drawer_filter_all">Все разговоры (с архивными)</string>
-    <string name="drawer_filter_only_archived">Только архивные</string>
-    <string name="drawer_rename">Переименовать</string>
-    <string name="drawer_delete_workspace">Удалить рабочую папку</string>
-    <string name="sessions_empty_hint">Сессий пока нет. Создайте новую или дождитесь подключения.</string>
-    <string name="a11y_pinned">Закреплено</string>
 </resources>

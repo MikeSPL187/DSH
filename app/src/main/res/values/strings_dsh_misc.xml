@@ -2,4 +2,8 @@
 <!-- Прочее приложения (плашки). ru / en / zh. -->
 <resources>
     <string name="approval_waiting_banner">The agent is waiting for you · Open</string>
+    <string name="drawer_untitled_session">Untitled</string>
+    <string name="drawer_foot_key">Settings · own DeepSeek key</string>
+    <string name="drawer_foot_nokey">Settings · no key yet</string>
+    <string name="drawer_now">now</string>
 </resources>

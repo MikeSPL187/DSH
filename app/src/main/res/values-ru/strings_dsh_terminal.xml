@@ -39,5 +39,4 @@
 Начните с help или ls.</string>
     <string name="tm_tab_close">Закрыть вкладку</string>
     <string name="tm_tab_close_sub">Процесс оболочки будет остановлен</string>
-    <string name="tm_ctrl_c">^C</string>
 </resources>

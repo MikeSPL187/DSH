@@ -1,5 +1,9 @@
 package com.deepseek.dsh.debug
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import com.deepseek.dsh.feature.sessions.ProjectSheetBody
+import com.deepseek.dsh.feature.sessions.SessionSheetBody
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -28,7 +32,7 @@ class ScreenPreviewActivity : ComponentActivity() {
         val state = intent.getStringExtra("state") ?: "main"
         setContent {
             DshTheme(darkTheme = dark) {
-                if (state.startsWith("chat")) { ChatPreview(state); return@DshTheme }
+                if (state.startsWith("chat")) { DrawerPreview(state); return@DshTheme }
                 val model = remember { sample(state) }
                 val history = remember { androidx.compose.runtime.mutableStateListOf("git status", "./gradlew :app:assembleDebug", "adb devices") }
                 var font = remember { androidx.compose.runtime.mutableFloatStateOf(12.5f) }
@@ -75,7 +79,36 @@ class ScreenPreviewActivity : ComponentActivity() {
 
     /** Чат на данных прототипа: главный, ход работы, правка, удаление. */
     @androidx.compose.runtime.Composable
-    private fun ChatPreview(state: String) {
+    private fun DrawerPreview(state: String) {
+        val drawer = remember { com.deepseek.dsh.feature.sessions.DshDrawerState().apply { if (state == "chat-drawer") open() } }
+        var sheet by remember { androidx.compose.runtime.mutableStateOf<(@androidx.compose.runtime.Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit)?>(null) }
+        var query by remember { androidx.compose.runtime.mutableStateOf("") }
+        val now = System.currentTimeMillis()
+        val sessions = remember {
+            listOf(
+                com.deepseek.dsh.feature.sessions.DrawerSession("p1", "Архитектура плагинов", "пн", now - 3 * 86_400_000L, pinned = true, preview = "Схема загрузки и проверки подписи"),
+                com.deepseek.dsh.feature.sessions.DrawerSession("s1", "Сборка падает после обновления Compose", "сейчас", now, running = true),
+                com.deepseek.dsh.feature.sessions.DrawerSession("s2", "Скрипт резервного копирования", com.deepseek.dsh.feature.sessions.drawerTime(now - 600_000), now - 600_000, waiting = true),
+                com.deepseek.dsh.feature.sessions.DrawerSession("s3", "Разбор протокола bridge", com.deepseek.dsh.feature.sessions.drawerTime(now - 3_600_000), now - 3_600_000, preview = "Ответ: JSON-RPC поверх loopback"),
+            )
+        }
+        val projects = listOf(com.deepseek.dsh.feature.sessions.WorkspaceFolder("w1", "DSH-Workspace"), com.deepseek.dsh.feature.sessions.WorkspaceFolder("w2", "android-app"))
+        com.deepseek.dsh.core.designsystem.DshSheetScaffold(sheet, { sheet = null }) {
+            com.deepseek.dsh.feature.sessions.DshPushDrawer(drawer, drawer = {
+                com.deepseek.dsh.feature.sessions.DshDrawerContent(
+                    hostLive = true, project = "DSH-Workspace", projectLetter = "D",
+                    onProject = { sheet = { ProjectSheetBody(projects, "DSH-Workspace", { it }, { sheet = null }, { sheet = null }, { sheet = null }, { _, _ -> sheet = null }, { sheet = null }) } },
+                    sessions = sessions, selectedId = "s1", onSelect = { drawer.close() },
+                    onSessionMenu = { item -> sheet = { SessionSheetBody(item, { sheet = null }, { sheet = null }, { sheet = null }, { sheet = null }) } },
+                    onNew = { drawer.close() }, query = query, onQuery = { query = it }, searchHits = emptyList(), pluginsOn = 3, automationsOn = 2,
+                    onPlugins = {}, onAutomation = {}, userName = "Михаил", footerSub = "Настройки · свой ключ DeepSeek", onSettings = {},
+                )
+            }) { ChatPreview(state) { drawer.open() } }
+        }
+    }
+
+    @androidx.compose.runtime.Composable
+    private fun ChatPreview(state: String, onMenu: () -> Unit) {
         val t0 = System.currentTimeMillis() - 70_000
         fun msg(id: String, role: com.deepseek.dsh.core.model.MessageRole, content: String, at: Long) = com.deepseek.dsh.core.model.ChatMessage("h", "s", id, role, content, createdAt = at)
         fun tool(id: String, name: String, status: String, body: String, args: String, at: Long) =
@@ -97,7 +130,7 @@ class ScreenPreviewActivity : ComponentActivity() {
         com.deepseek.dsh.feature.chat.ModernChatScreen(
             messages = messages, onSendMessage = {}, isThinking = state != "chat-home", isSending = state != "chat-home",
             approval = approval, sessionTitle = "Скрипт резервного копирования",
-            topBar = { sc -> com.deepseek.dsh.ModernTopAppBar(title = if (state == "chat-home") "" else "Сборка падает после обновления Compose", workspace = "DSH-Workspace", scrolled = sc, onMenuClick = { finish() }) },
+            topBar = { sc -> com.deepseek.dsh.ModernTopAppBar(title = if (state == "chat-home") "" else "Сборка падает после обновления Compose", workspace = "DSH-Workspace", scrolled = sc, onMenuClick = onMenu) },
             userName = "Михаил", resume = if (state == "chat-home") com.deepseek.dsh.feature.chat.ChatResume("s1", "Сборка падает после обновления Compose") else null,
             filesBadge = 2, onOpenTerminal = {}, voiceEnabled = true, selectedModel = "DeepSeek V4", availableModels = listOf("DeepSeek V4"),
         )
