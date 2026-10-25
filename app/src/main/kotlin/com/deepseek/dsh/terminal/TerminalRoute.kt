@@ -42,6 +42,10 @@ object TerminalHub {
     fun model(host: String, sid: String, id: String): TermModel = models.getOrPut("$host/$sid/$id") { TermModel(id) }
     fun drop(host: String, sid: String, id: String) { models.remove("$host/$sid/$id") }
     fun active(host: String, sid: String): String? = lastActive["$host/$sid"]
+
+    /** Последняя команда с ошибкой во вкладках сессии — для «Вывод терминала» в чате. */
+    fun lastFailed(host: String, sid: String): TermBlock? = models.filterKeys { it.startsWith("$host/$sid/") }.values
+        .flatMap { it.blocks }.filter { it.state == BlockState.Err }.maxByOrNull { it.startedAt }
     fun setActive(host: String, sid: String, id: String) { lastActive["$host/$sid"] = id }
 }
 

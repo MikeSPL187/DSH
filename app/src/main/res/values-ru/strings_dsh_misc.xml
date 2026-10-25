@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Прочее приложения (плашки). ru / en / zh. -->
+<resources>
+    <string name="approval_waiting_banner">Агент ждёт вашего решения · Открыть</string>
+</resources>

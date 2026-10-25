@@ -57,7 +57,7 @@ class DshScreensSweepTest {
 
     private class Frame(val width: Int, val dark: Boolean, val name: String, val content: @Composable () -> Unit) {
         /** Листы снимаем в высоту телефона: их место — у нижнего края экрана. */
-        val height: Int get() = if (name.startsWith("term") || name.contains("sheet") || name.endsWith("-add") || name.endsWith("-trust")) (if (width == 360) 740 else if (width == 390) 844 else 915) else 2400
+        val height: Int get() = if (name.startsWith("term") || name.startsWith("chat") || name.contains("sheet") || name.endsWith("-add") || name.endsWith("-trust")) (if (width == 360) 740 else if (width == 390) 844 else 915) else 2400
     }
 
     /** Отрисовать по очереди каждый кадр в окне [w]×2400 и сохранить его, обрезав пустой низ. */
@@ -313,6 +313,109 @@ class DshScreensSweepTest {
                 "term-connecting" to @Composable { term(null, com.deepseek.dsh.TermStatus.Connecting, tabs = emptyList()) },
                 "term-nosession" to @Composable { term(null, com.deepseek.dsh.TermStatus.NoSession, tabs = emptyList()) },
                 "term-closed" to @Composable { term(androidx.compose.runtime.remember { bashModel() }, com.deepseek.dsh.TermStatus.Closed) },
+            ),
+        ),
+    )
+
+    // ---------- Чат ----------
+
+    @Composable
+    private fun chatTop(scrolled: Boolean) = com.deepseek.dsh.ModernTopAppBar(title = "", workspace = "DSH-Workspace", scrolled = scrolled, onMenuClick = {})
+
+    private fun msg(id: String, role: com.deepseek.dsh.core.model.MessageRole, content: String, at: Long) =
+        com.deepseek.dsh.core.model.ChatMessage("h", "s", id, role, content, createdAt = at)
+
+    private fun tool(id: String, name: String, status: String, body: String, args: String, at: Long) =
+        msg("tool_$id", com.deepseek.dsh.core.model.MessageRole.TOOL, "\u0002TOOL\u0002$id\u0002$name\u0002$status\u0002$body\u0002$args", at)
+
+    /** Запрос из прототипа: чтение, сборка с ошибкой; готово — с ответом. */
+    private fun agentMessages(done: Boolean): List<com.deepseek.dsh.core.model.ChatMessage> {
+        val t0 = 1_700_000_000_000L
+        val log = "> Configure project :app\n> Task :app:preBuild UP-TO-DATE\n> Task :app:compileDebugKotlin\ne: This version (1.7.3) of the Compose Compiler\n   requires Kotlin 2.0.21 but you appear to be using 2.0.0\nBUILD FAILED in 12s"
+        val list = mutableListOf(
+            msg("u1", com.deepseek.dsh.core.model.MessageRole.USER, "Сборка падает после обновления Compose. Найди причину и исправь.", t0),
+            tool("c1", "read", "ok", "...", "{\"path\":\"app/build.gradle.kts, gradle/libs.versions.toml\"}", t0 + 1_000),
+            tool("c2", "bash", "error", log, "{\"command\":\"./gradlew :app:assembleDebug\"}", t0 + 14_000),
+        )
+        if (done) {
+            list += tool("c3", "edit", "ok", "ok", "{\"path\":\"gradle/libs.versions.toml\"}", t0 + 20_000)
+            list += tool("c4", "bash", "ok", "> Task :app:compileDebugKotlin\n> Task :app:packageDebug\nBUILD SUCCESSFUL in 41s", "{\"command\":\"./gradlew :app:assembleDebug\"}", t0 + 62_000)
+            list += msg("a1", com.deepseek.dsh.core.model.MessageRole.ASSISTANT, "Причина — несовместимые версии: компилятор Compose 1.7.3 требует Kotlin 2.0.21, а в проекте стоял 2.0.0. Я обновил версию в `gradle/libs.versions.toml` и пересобрал проект — сборка проходит.", t0 + 64_000)
+        }
+        return list
+    }
+
+    private val approveEdit = com.deepseek.dsh.feature.chat.ChatApproval(
+        eventId = "e1", toolName = "edit", callId = "c9",
+        reason = "Версия Kotlin не подходит компилятору Compose. Агент изменит одну строку.",
+        args = "{\"file_path\":\"gradle/libs.versions.toml\",\"old_string\":\"kotlin = \\\"2.0.0\\\"\",\"new_string\":\"kotlin = \\\"2.0.21\\\"\"}",
+        onAllow = {}, onReject = {},
+    )
+
+    private val approveDelete = com.deepseek.dsh.feature.chat.ChatApproval(
+        eventId = "e2", toolName = "bash", callId = "c9",
+        reason = "Для ночного архива не хватает 1,2 ГБ. Эти файлы занимают больше всего места и пересоздаются при сборке.",
+        args = "{\"command\":\"rm -rf build/ ~/.gradle/caches\"}",
+        onAllow = {}, onReject = {},
+        inspect = { paths ->
+            com.deepseek.dsh.feature.chat.DangerInfo(
+                listOf(
+                    com.deepseek.dsh.feature.chat.DangerTarget(paths[0], 327_155_712, false),
+                    com.deepseek.dsh.feature.chat.DangerTarget(paths[1], 1_180_696_576, true),
+                ),
+                966_367_641,
+            )
+        },
+    )
+
+    @Composable
+    private fun chatAgent(done: Boolean, approval: com.deepseek.dsh.feature.chat.ChatApproval? = null, online: Boolean = true) = com.deepseek.dsh.feature.chat.ModernChatScreen(
+        messages = agentMessages(done), onSendMessage = {}, isThinking = !done, isSending = !done, approval = approval, online = online,
+        sessionTitle = "Скрипт резервного копирования",
+        topBar = { com.deepseek.dsh.ModernTopAppBar(title = "Сборка падает после обновления Compose", workspace = "DSH-Workspace", scrolled = it, onMenuClick = {}) },
+        filesBadge = 2, onOpenTerminal = {}, voiceEnabled = true,
+        selectedModel = "DeepSeek V4", availableModels = listOf("DeepSeek V4"),
+    )
+
+    private val models = listOf(
+        com.deepseek.dsh.core.model.ModelProviderGroup(
+            "deepseek-official", "DeepSeek",
+            listOf(
+                com.deepseek.dsh.core.model.ModelItem("deepseek-v4", "DeepSeek V4", "Основная модель: код, тексты, анализ."),
+                com.deepseek.dsh.core.model.ModelItem("custom", "Свой провайдер", "Любой OpenAI-совместимый API по вашему ключу."),
+            ),
+        ),
+    )
+
+    private val efforts = listOf(
+        com.deepseek.dsh.feature.chat.ReasoningOption("low", "Низкий", "Отвечает почти сразу. Для простых вопросов, коротких правок и команд."),
+        com.deepseek.dsh.feature.chat.ReasoningOption("high", "Высокий", "Рассуждает перед ответом. Лучший выбор для большинства задач с кодом."),
+        com.deepseek.dsh.feature.chat.ReasoningOption("max", "Макс.", "Самый глубокий анализ: сложная отладка, архитектура, большие изменения. Медленнее и дороже."),
+    )
+
+    @Composable
+    private fun chatHome(sheet: String? = null) = com.deepseek.dsh.feature.chat.ModernChatScreen(
+        initialSheet = sheet, modelGroups = models, online = true, defaultModelId = "deepseek-v4", reasoningOptions = efforts, selectedReasoningId = "high",
+        terminalContext = com.deepseek.dsh.feature.chat.ChatTerminalContext("adb devices", 127, "bash: adb: команда не найдена"), onTakePhoto = {},
+        messages = emptyList(), onSendMessage = {}, topBar = { chatTop(it) }, userName = "Михаил",
+        resume = com.deepseek.dsh.feature.chat.ChatResume("s1", "Сборка падает после обновления Compose", 3, 5),
+        filesBadge = 2, onOpenTerminal = {}, voiceEnabled = true,
+        selectedModel = "DeepSeek V4", availableModels = listOf("DeepSeek V4"),
+    )
+
+    @Test
+    fun chat() = sweep(
+        matrix(
+            listOf(
+                "chat-home" to @Composable { chatHome() },
+                "chat-agent" to @Composable { chatAgent(done = false) },
+                "chat-done" to @Composable { chatAgent(done = true) },
+                "chat-approve" to @Composable { chatAgent(done = false, approval = approveEdit) },
+                "chat-danger" to @Composable { chatAgent(done = false, approval = approveDelete) },
+                "chat-offline" to @Composable { chatAgent(done = false, online = false) },
+                "chat-model" to @Composable { chatHome(sheet = "model") },
+                "chat-plus" to @Composable { chatHome(sheet = "plus") },
+                "chat-perm" to @Composable { chatHome(sheet = "permission") },
             ),
         ),
     )

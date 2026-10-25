@@ -284,7 +284,13 @@ internal fun RootfsUpdateBanner(
 @Composable
 fun ModernTopAppBar(
     title: String,
-    showModeCapsule: Boolean = false,
+    /** Папка проекта под названием (`.title span`). */
+    workspace: String? = null,
+    /** Host на связи — зелёная точка у папки. */
+    live: Boolean = true,
+    /** Лента прокручена — «стекло» и линия под шапкой. */
+    scrolled: Boolean = false,
+    onNew: () -> Unit = {},
     teamTasks: List<com.deepseek.dsh.core.model.TeamTaskItem> = emptyList(),
     /** 当前会话的后台任务（官方 job/list）；非空时显示任务按钮。 */
     hostJobs: List<com.deepseek.dsh.core.protocol.HostJobInfo> = emptyList(),
@@ -306,144 +312,29 @@ fun ModernTopAppBar(
     rightPaneOpen: Boolean = false,
     onMenuClick: () -> Unit
 ) {
-    val barColors = com.deepseek.dsh.core.designsystem.dshPanelColors()
-    val members = remember(teamTasks) {
-        buildList {
-            add("lead" to teamTasks.any { it.ownerName == "lead" && it.status == "in_progress" })
-            teamTasks.mapNotNull { it.ownerName }
-                .filter { it != "lead" }
-                .distinct()
-                .forEach { name ->
-                    add(name to teamTasks.any { it.ownerName == name && it.status == "in_progress" })
-                }
-        }
-    }
-    val runningTasks = teamTasks.count { it.status == "in_progress" }
+    val c = com.deepseek.dsh.core.designsystem.Dsh.colors
     var teamPanelOpen by remember { mutableStateOf(false) }
     var jobsPanelOpen by remember { mutableStateOf(false) }
     val teamMemberCount = agentTeam?.members?.size ?: 0
     val teamRunning = agentTeam?.members?.any { it.phase == "active" || it.phase == "provisioning" } == true
     Box(modifier = Modifier.fillMaxWidth()) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
+        com.deepseek.dsh.feature.chat.ChatTopBar(
+            title = title,
+            workspace = workspace,
+            live = live,
+            scrolled = scrolled,
+            onMenu = onMenuClick,
+            onNew = onNew,
         ) {
-            // 左侧汉堡菜单圆形按键
-            Surface(
-                shape = CircleShape,
-                color = barColors.bgModulePlatform,
-                onClick = onMenuClick,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = DshIcons.PanelLeftOutline,
-                        contentDescription = stringResource(R.string.a11y_open_menu),
-                        tint = barColors.labelPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            if (showModeCapsule) {
-                // 中间切换胶囊 (参考截图 2: 快速 / 进阶)
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier.height(34.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(3.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            modifier = Modifier.height(28.dp)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.mode_fast),
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
-                            )
-                        }
-                        Text(
-                            text = stringResource(R.string.mode_deep_thinking),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.outline,
-                            modifier = Modifier.padding(horizontal = 10.dp)
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.weight(1f))
-            } else {
-                Text(
-                    text = title,
-                    color = barColors.labelPrimary,
-                    fontSize = 16.sp,
-                    lineHeight = 24.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+            // Дополнительные действия сессии — те же круглые кнопки шапки.
+            if (onToggleRightPane != null) {
+                com.deepseek.dsh.feature.chat.ChatIconBtn(
+                    com.deepseek.dsh.core.designsystem.DshGlyphs.Book, stringResource(R.string.a11y_right_sidebar),
+                    tint = if (rightPaneOpen) c.accent else c.t1, onClick = onToggleRightPane,
                 )
             }
-
-            // 动作区：标题右边的按钮统一放进可横向滚动的一行。
-            Row(
-                modifier = Modifier
-                    .horizontalScroll(rememberScrollState())
-                    .padding(start = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-
-            if (onToggleRightPane != null) {
-                Surface(
-                    shape = CircleShape,
-                    color = if (rightPaneOpen) barColors.bgModulePlatform else androidx.compose.ui.graphics.Color.Transparent,
-                    onClick = onToggleRightPane,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = DshIcons.PanelLeftOutline,
-                            contentDescription = stringResource(R.string.a11y_right_sidebar),
-                            tint = barColors.labelPrimary,
-                            modifier = Modifier
-                                .size(18.dp)
-                                .rotate(180f)
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-            }
-
-            // 团队动作：官方由「智能体团队」插件注册到
-            // conversation.session.header.actions；启用时在标题右侧。
             if (inspectorEnabled) {
-                Box(
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(barColors.bgModulePlatform)
-                        .clickable(onClick = onOpenInspector)
-                        .padding(horizontal = 10.dp, vertical = 7.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    androidx.compose.material3.Icon(
-                        imageVector = androidx.compose.material.icons.Icons.Filled.BugReport,
-                        contentDescription = stringResource(R.string.session_diagnostics),
-                        tint = barColors.labelPrimary,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
+                com.deepseek.dsh.feature.chat.ChatIconBtn(com.deepseek.dsh.core.designsystem.DshGlyphs.Bug, stringResource(R.string.session_diagnostics), onClick = onOpenInspector)
             }
             if (teamEnabled) {
                 AgentTeamPluginUi.HeaderAction(
@@ -452,57 +343,25 @@ fun ModernTopAppBar(
                     onClick = { teamPanelOpen = !teamPanelOpen },
                 )
             }
-            // 后台任务：官方 JobListAction 的触发按钮（点 + 数量文案 + 状态点 + chevron）。
+            // Фоновые задачи сессии (job/list): число и точка «идёт».
             if (hostJobs.isNotEmpty()) {
-                val jobsRunning = hostJobs.any { it.status == "running" || it.status == "stopping" }
                 val liveCount = hostJobs.count { it.status == "running" || it.status == "stopping" }
-                val countLabel = if (jobsRunning) {
-                    stringResource(R.string.header_jobs_running, liveCount)
-                } else {
-                    stringResource(R.string.header_jobs_idle, hostJobs.size)
-                }
+                val label = if (liveCount > 0) stringResource(R.string.header_jobs_running, liveCount) else stringResource(R.string.header_jobs_idle, hostJobs.size)
                 Box(
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(barColors.bgModulePlatform)
-                        .clickable { jobsPanelOpen = !jobsPanelOpen }
-                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                    Modifier.height(44.dp).clip(CircleShape).clickable { jobsPanelOpen = !jobsPanelOpen },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (jobsRunning) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(barColors.labelPrimary),
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                        }
-                        Text(
-                            text = countLabel,
-                            fontSize = 12.sp,
-                            color = barColors.labelPrimary,
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = if (jobsPanelOpen) "\u25B4" else "\u25BE",
-                            fontSize = 10.sp,
-                            color = barColors.labelSecondary,
-                        )
+                    Row(
+                        Modifier.height(32.dp).clip(CircleShape).background(c.s2).padding(horizontal = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        if (liveCount > 0) Box(Modifier.size(6.dp).clip(CircleShape).background(c.accent))
+                        Text(label, style = com.deepseek.dsh.feature.chat.ckBody(12.5.sp), color = c.t1, maxLines = 1)
                     }
                 }
             }
-            }
         }
-        // header 的 0.5dp border-l3 分隔线
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(0.5.dp)
-                .background(barColors.borderL3)
-        )
-    }
         // 团队面板：官方是锚定在标题动作下方的浮层；用 Popup 实现「点外部关闭」。
         if (teamPanelOpen) {
             androidx.compose.ui.window.Popup(

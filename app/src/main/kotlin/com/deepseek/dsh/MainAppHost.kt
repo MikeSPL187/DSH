@@ -1,5 +1,6 @@
 package com.deepseek.dsh
 
+import androidx.compose.ui.draw.shadow
 import com.deepseek.dsh.core.designsystem.DshIcons
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.contentOrNull
@@ -1530,9 +1531,7 @@ fun MainAppHost(
 
     // 真正的系统文件选择器（SAF）：可多选图片/任意文件，复制进当前工作区后
     // 在输入卡片显示；发送时以 @<工作区路径> 附在消息开头。
-    val attachmentPickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.OpenMultipleDocuments(),
-    ) { uris: List<android.net.Uri> ->
+    fun importAttachments(uris: List<android.net.Uri>) {
         if (uris.isNotEmpty()) {
             val workspaceDir = java.io.File(activeWorkspace, runtimeUi.activeWorkspaceName)
             // 大文件复制放 IO 线程，避免卡住输入法/界面。
@@ -1556,6 +1555,19 @@ fun MainAppHost(
             }
         }
     }
+    val attachmentPickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenMultipleDocuments(),
+    ) { uris: List<android.net.Uri> -> importAttachments(uris) }
+    // Фото — системный выбор (Android сам показывает недавние), без доступа ко всей галерее.
+    val photoPickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.PickMultipleVisualMedia(),
+    ) { uris: List<android.net.Uri> -> importAttachments(uris) }
+    // Камера: снимок во временный файл приложения, затем в папку проекта, как любое вложение.
+    var cameraUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    val cameraLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.TakePicture(),
+    ) { ok -> cameraUri?.takeIf { ok }?.let { importAttachments(listOf(it)) } }
+    val hasCamera = remember { context.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_CAMERA_ANY) }
     // job/follow 输出窗：目标任务、聚合输出、结算状态行。
 
     // bridge 插件更新后需要两件事：读到「正在运行」的版本（bridge manifest），
@@ -1768,37 +1780,56 @@ fun MainAppHost(
         )
     }
 
-    // 官方 approval/request waterfall：实时弹窗，允许一次 / 拒绝直接回 `$events/result`。
-    pendingApprovalWaterfalls.firstOrNull()?.let { waterfall ->
-        val toolName = (waterfall.request["toolName"]
-            as? kotlinx.serialization.json.JsonPrimitive)?.content.orEmpty().ifBlank { "tool" }
-        val reason = (waterfall.request["reason"]
-            as? kotlinx.serialization.json.JsonPrimitive)?.content
-        fun answer(approved: Boolean) {
-            scope.launch {
-                dshRepository.respondApprovalWaterfall(ui.activeHostId, waterfall.eventId, approved)
-            }
-        }
-        val callId = (waterfall.request["callId"] as? kotlinx.serialization.json.JsonPrimitive)?.content
+    // Запрос агента на действие (approval/request): в чате — карточкой в ходе работы или экраном удаления.
+    val chatApproval: com.deepseek.dsh.feature.chat.ChatApproval? = pendingApprovalWaterfalls.firstOrNull()?.let { waterfall ->
+        fun str(k: String) = (waterfall.request[k] as? kotlinx.serialization.json.JsonPrimitive)?.content
+        val toolName = str("toolName").orEmpty().ifBlank { "tool" }
         // Причина на языке интерфейса, если Host прислал перевод.
         val localizedReason = (waterfall.request["displayReason"] as? kotlinx.serialization.json.JsonObject)?.let { map ->
             val lang = java.util.Locale.getDefault().language
             ((map[lang] ?: map["en"]) as? kotlinx.serialization.json.JsonPrimitive)?.content
-        } ?: reason
+        } ?: str("reason")
+        val callId = str("callId")
         // Аргументы вызова — из сообщения инструмента с тем же callId.
         val callArgs = remember(callId, messages) {
             if (callId.isNullOrBlank()) null else messages.lastOrNull { m ->
                 m.role == com.deepseek.dsh.core.model.MessageRole.TOOL && m.content.split(2.toChar()).getOrNull(2) == callId
             }?.content?.split(2.toChar())?.getOrNull(6)
         }
-        androidx.compose.runtime.key(waterfall.eventId) {
-            com.deepseek.dsh.feature.chat.ApprovalSheet(
-                toolName = toolName,
-                reason = localizedReason,
-                args = callArgs,
-                onAllow = { answer(true) },
-                onReject = { answer(false) },
-            )
+        val local = ui.activeHostId == com.deepseek.dsh.core.model.HostDescriptor.Local().id
+        val workspacePath = sessions.find { it.sessionId == ui.selectedSessionId }?.workspacePath ?: activeWorkspace.path
+        com.deepseek.dsh.feature.chat.ChatApproval(
+            eventId = waterfall.eventId,
+            toolName = toolName,
+            reason = localizedReason,
+            args = callArgs,
+            callId = callId,
+            onAllow = { always ->
+                // «Разрешать такие действия без вопроса» — то же правило, что в Плагины → инструменты.
+                if (always) com.deepseek.dsh.feature.settings.logic.ToolPolicy.set(toolName, "auto")
+                scope.launch { dshRepository.respondApprovalWaterfall(ui.activeHostId, waterfall.eventId, true) }
+            },
+            onReject = { scope.launch { dshRepository.respondApprovalWaterfall(ui.activeHostId, waterfall.eventId, false) } },
+            inspect = if (local) ({ paths -> inspectDeletion(layout.rootfsDir, workspacePath, paths) }) else null,
+        )
+    }
+
+    // Агент ждёт решения, а открыт другой экран — плашка внизу ведёт в чат.
+    if (chatApproval != null && ui.activePage != ActivePage.CHAT) {
+        androidx.compose.ui.window.Popup(alignment = androidx.compose.ui.Alignment.BottomCenter) {
+            val c = com.deepseek.dsh.core.designsystem.Dsh.colors
+            val shape = androidx.compose.foundation.shape.CircleShape
+            Row(
+                Modifier.navigationBarsPadding().padding(bottom = 16.dp)
+                    .then(Modifier.shadow(14.dp, shape)).clip(shape).background(c.t1)
+                    .clickable { ui.activePage = ActivePage.CHAT }
+                    .padding(start = 16.dp, end = 18.dp, top = 12.dp, bottom = 12.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp),
+            ) {
+                Box(Modifier.size(8.dp).clip(shape).background(c.warn))
+                Text(stringResource(R.string.approval_waiting_banner), color = c.bg, style = com.deepseek.dsh.feature.chat.ckBody(14.sp))
+            }
         }
     }
 
@@ -2275,26 +2306,24 @@ fun MainAppHost(
             BackHandler(enabled = ui.rightDrawerOpen) {
                 ui.rightDrawerOpen = false
             }
-            val chatPage = ui.activePage == ActivePage.CHAT
-            val pageHasOwnHeader = ui.activePage == ActivePage.SETTINGS || ui.activePage == ActivePage.FILES ||
-                ui.activePage == ActivePage.PLUGINS || ui.activePage == ActivePage.AUTOMATION || ui.activePage == ActivePage.TERMINAL
-            Scaffold(
-                // 内容区不再让 Scaffold 自动消费系统栏/IME：聊天页自己按
-                // WindowInsets.ime 动态留白，其它页在下面补 navigationBars，
-                // 避免「窗口已 resize + Scaffold 又加一次 IME 内边距」的双重上移。
-                contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
-                topBar = {
-                    androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxWidth()) {
-                        Column {
-                        when {
-                            chatPage -> ModernTopAppBar(
+            // Шапка чата живёт внутри экрана чата: под листами она уменьшается вместе с ним.
+            val chatTopBar: @Composable (Boolean) -> Unit = { scrolled ->
+                androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxWidth()) {
+                            ModernTopAppBar(
+                                workspace = runtimeUi.activeWorkspaceName,
+                                live = status.phase == RuntimePhase.RUNNING || ui.activeHostId != com.deepseek.dsh.core.model.HostDescriptor.Local().id,
+                                scrolled = scrolled,
+                                onNew = {
+                                    // Новая сессия создаётся на Host только с первым сообщением.
+                                    ui.selectedSessionId = null
+                                    ui.activePage = ActivePage.CHAT
+                                },
                                 title = if (messages.isEmpty()) {
                                     ""
                                 } else {
                                     sessions.find { it.sessionId == ui.selectedSessionId }?.title
                                         ?: stringResource(R.string.app_name)
                                 },
-                                showModeCapsule = false,
                                 onToggleRightPane = {
                                     // 每次打开都从 guide 开始；终端是 guide 里的一枚胶囊，
                                     // 不是抽屉的默认页面。
@@ -2381,23 +2410,35 @@ fun MainAppHost(
                                 },
                                 onMenuClick = { scope.launch { drawerState.open() } },
                             )
+                    // conversation.session.header.corner：поверх шапки в правом верхнем углу.
+                    com.deepseek.dsh.plugin.nativehost.OfficialSlot(
+                        slot = com.deepseek.dsh.plugin.nativesdk.slots.NativeSlot.SESSION_HEADER_CORNER,
+                        modifier = Modifier
+                            .align(androidx.compose.ui.Alignment.TopEnd)
+                            .statusBarsPadding()
+                            .padding(top = 8.dp, end = 12.dp),
+                    ) {}
+                }
+            }
+            val chatPage = ui.activePage == ActivePage.CHAT
+            val pageHasOwnHeader = chatPage || ui.activePage == ActivePage.SETTINGS || ui.activePage == ActivePage.FILES ||
+                ui.activePage == ActivePage.PLUGINS || ui.activePage == ActivePage.AUTOMATION || ui.activePage == ActivePage.TERMINAL
+            Scaffold(
+                // 内容区不再让 Scaffold 自动消费系统栏/IME：聊天页自己按
+                // WindowInsets.ime 动态留白，其它页在下面补 navigationBars，
+                // 避免「窗口已 resize + Scaffold 又加一次 IME 内边距」的双重上移。
+                contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
+                topBar = {
+                    androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxWidth()) {
+                        Column {
+                        when {
+                            chatPage -> Unit
 
                             !pageHasOwnHeader -> PageBackBar(
                                 title = pageTitleOf(ui.activePage),
                                 onBack = { ui.activePage = ActivePage.CHAT },
                             )
                         }
-                        }
-                        // conversation.session.header.corner：真正叠在标题栏右上角，
-                        // 不再作为一行掉到标题栏下面。
-                        if (chatPage) {
-                            com.deepseek.dsh.plugin.nativehost.OfficialSlot(
-                                slot = com.deepseek.dsh.plugin.nativesdk.slots.NativeSlot.SESSION_HEADER_CORNER,
-                                modifier = Modifier
-                                    .align(androidx.compose.ui.Alignment.TopEnd)
-                                    .statusBarsPadding()
-                                    .padding(top = 8.dp, end = 12.dp),
-                            ) {}
                         }
                     }
                 }
@@ -2491,7 +2532,7 @@ fun MainAppHost(
                             }
                             val currentModelMeta = currentProviderGroup?.models?.firstOrNull { it.name == currentModel }
                             val backendEfforts = currentModelMeta?.reasoningEfforts?.map { effort ->
-                                com.deepseek.dsh.feature.chat.ReasoningOption(effort.id, effort.name)
+                                com.deepseek.dsh.feature.chat.ReasoningOption(effort.id, effort.name, effort.description)
                             } ?: emptyList()
                             var selectedReasoningId by remember(currentModel) {
                                 mutableStateOf(
@@ -2519,6 +2560,19 @@ fun MainAppHost(
                             }
 
                             ModernChatScreen(
+                                topBar = chatTopBar,
+                                userName = accountState.profile?.name,
+                                resume = sessions
+                                    .filter { it.sessionId in runningSessionIds && it.sessionId != ui.selectedSessionId }
+                                    .maxByOrNull { it.updatedAt }
+                                    ?.let { com.deepseek.dsh.feature.chat.ChatResume(it.sessionId, it.title) },
+                                onResume = { r -> ui.selectedSessionId = r.sessionId },
+                                filesBadge = sessionChanges?.files?.size ?: 0,
+                                onOpenFiles = { ui.activePage = ActivePage.FILES },
+                                onOpenTerminal = if (terminalSupported) ({ ui.activePage = ActivePage.TERMINAL }) else null,
+                                approval = chatApproval,
+                                defaultModelId = catalogInfo.defaultModel.ifBlank { null },
+                                sessionTitle = sessions.find { it.sessionId == ui.selectedSessionId }?.title,
                                 messages = messages,
                                 streamingText = streamingText,
                                 streamingReasoning = streamingReasoning,
@@ -2948,6 +3002,21 @@ fun MainAppHost(
                                 onPickAttachments = {
                                     // SAF 选择器：任意类型文件 + 图片；图片走同一通道。
                                     attachmentPickerLauncher.launch(arrayOf("*/*"))
+                                },
+                                onPickPhotos = {
+                                    photoPickerLauncher.launch(androidx.activity.result.PickVisualMediaRequest(androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                },
+                                onTakePhoto = if (hasCamera) ({
+                                    val dir = java.io.File(context.cacheDir, "camera").apply { mkdirs() }
+                                    val file = java.io.File(dir, "photo-" + System.currentTimeMillis() + ".jpg")
+                                    val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
+                                    cameraUri = uri
+                                    cameraLauncher.launch(uri)
+                                }) else null,
+                                terminalContext = (ui.selectedSessionId ?: sessions.firstOrNull()?.sessionId)?.let { sid ->
+                                    com.deepseek.dsh.terminal.TerminalHub.lastFailed(ui.activeHostId, sid)?.let { b ->
+                                        com.deepseek.dsh.feature.chat.ChatTerminalContext(b.cmd, b.code, b.out.plain())
+                                    }
                                 },
                                 planMode = runtimeUi.chatPlanMode,
                                 onPlanModeChange = { enabled -> runtimeUi.chatPlanMode = enabled },

@@ -336,32 +336,6 @@ class ScreensGalleryTest {
     fun chatAgentWorkDark() = renderAgent("14_chat_agent_dark", dark = true)
 
     @Test
-    fun approvalWrite() = render("15_approval_write") {
-        com.deepseek.dsh.feature.chat.ModernChatScreen(messages = agentTurn.take(2), onSendMessage = {})
-        SheetPreview {
-            com.deepseek.dsh.feature.chat.ApprovalSheetContent(
-            toolName = "edit_file",
-            reason = "Версия Kotlin не подходит компилятору Compose. Агент изменит одну строку.",
-            args = "{\"path\":\"gradle/libs.versions.toml\"}",
-            onAllow = {}, onReject = {},
-            )
-        }
-    }
-
-    @Test
-    fun approvalDestructive() = render("16_approval_danger", dark = true) {
-        com.deepseek.dsh.feature.chat.ModernChatScreen(messages = agentTurn.take(2), onSendMessage = {})
-        SheetPreview {
-            com.deepseek.dsh.feature.chat.ApprovalSheetContent(
-            toolName = "bash",
-            reason = "Для ночного архива не хватает 1,2 ГБ. Это самые крупные файлы, которые пересоздаются сборкой.",
-            args = "{\"command\":\"rm -rf build/ ~/.gradle/caches\"}",
-            onAllow = {}, onReject = {},
-            )
-        }
-    }
-
-    @Test
     fun chatConversationDark() = render("12_chat_dark", dark = true) {
         com.deepseek.dsh.feature.chat.ModernChatScreen(
             messages = listOf(msg("m1", com.deepseek.dsh.core.model.MessageRole.USER, "Привет! Что умеешь?")),
