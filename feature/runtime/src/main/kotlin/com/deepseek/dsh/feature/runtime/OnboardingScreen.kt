@@ -1122,22 +1122,7 @@ private fun Modifier.outerRing(color: Color, radius: Dp, width: Dp = 4.dp): Modi
 
 /** `.spin-w`: кольцо с прорезью, оборот за 0,8 с. */
 @Composable
-private fun Spinner(size: Dp, stroke: Dp, color: Color) {
-    val t = rememberInfiniteTransition(label = "spin")
-    val angle by t.animateFloat(0f, 360f, infiniteRepeatable(tween(800, easing = LinearEasing), RepeatMode.Restart), label = "spin-a")
-    Canvas(Modifier.size(size).graphicsLayer { rotationZ = angle }) {
-        val w = stroke.toPx()
-        drawArc(
-            color = color,
-            startAngle = 0f,
-            sweepAngle = 270f,
-            useCenter = false,
-            topLeft = Offset(w / 2, w / 2),
-            size = androidx.compose.ui.geometry.Size(this.size.width - w, this.size.height - w),
-            style = Stroke(width = w, cap = StrokeCap.Butt),
-        )
-    }
-}
+private fun Spinner(size: Dp, stroke: Dp, color: Color) { com.deepseek.dsh.core.designsystem.DshSpinner(color, size, stroke, round = false) }
 
 // ---------------------------------------------------------------------------
 // Экраны запуска (в прототипе отдельно не нарисованы — собраны из частей первого запуска)

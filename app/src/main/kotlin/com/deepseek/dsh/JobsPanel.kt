@@ -75,12 +75,7 @@ fun JobsPanel(
             ) {
                 Box(Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(c.s1), contentAlignment = Alignment.Center) {
                     if (running) {
-                        val spin = rememberInfiniteTransition(label = "job")
-                        val angle by spin.animateFloat(0f, 360f, infiniteRepeatable(tween(800, easing = LinearEasing)), label = "job-a")
-                        Canvas(Modifier.size(16.dp).graphicsLayer { rotationZ = angle }) {
-                            val w = 2.dp.toPx()
-                            drawArc(c.accent, 0f, 270f, false, topLeft = Offset(w / 2, w / 2), size = Size(size.width - w, size.height - w), style = Stroke(w))
-                        }
+                        com.deepseek.dsh.core.designsystem.DshSpinner(c.accent, 16.dp)
                     } else {
                         val dot = when (job.status) {
                             "completed" -> c.ok

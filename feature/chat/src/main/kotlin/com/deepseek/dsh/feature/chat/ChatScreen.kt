@@ -736,17 +736,9 @@ fun ModernChatScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    androidx.compose.material3.CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    com.deepseek.dsh.core.designsystem.DshSpinner(com.deepseek.dsh.core.designsystem.Dsh.colors.accent, 22.dp)
                     Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = stringResource(R.string.chat_creating_session),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
+                    Text(stringResource(R.string.chat_creating_session), style = ckBody(13.5.sp, 18.sp), color = com.deepseek.dsh.core.designsystem.Dsh.colors.t3)
                 }
             }
         } else {

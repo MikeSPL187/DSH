@@ -708,14 +708,7 @@ fun KBtn(
 
 /** Вращающийся круг `.spin-w`. */
 @Composable
-fun Spinner(color: Color, size: Dp = 16.dp, stroke: Dp = 2.dp) {
-    val t = rememberInfiniteTransition(label = "spin")
-    val deg by t.animateFloat(0f, 360f, infiniteRepeatable(tween(800, easing = LinearEasing), RepeatMode.Restart), label = "deg")
-    Canvas(Modifier.size(size).graphicsLayer { rotationZ = deg }) {
-        val w = stroke.toPx()
-        drawArc(color, 0f, 270f, false, topLeft = Offset(w / 2, w / 2), size = androidx.compose.ui.geometry.Size(this.size.width - w, this.size.height - w), style = Stroke(w, cap = StrokeCap.Round))
-    }
-}
+fun Spinner(color: Color, size: Dp = 16.dp, stroke: Dp = 2.dp) { com.deepseek.dsh.core.designsystem.DshSpinner(color, size, stroke) }
 
 // ---------- Буквенная иконка плагина ----------
 

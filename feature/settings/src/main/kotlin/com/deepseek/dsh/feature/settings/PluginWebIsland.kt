@@ -1,5 +1,6 @@
 package com.deepseek.dsh.feature.settings
 
+import androidx.compose.ui.unit.sp
 import android.annotation.SuppressLint
 import android.widget.FrameLayout
 import androidx.compose.foundation.layout.Box
@@ -55,8 +56,8 @@ fun PluginWebIsland(
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(
                 text = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pwi_host_not_running),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = com.deepseek.dsh.feature.settings.ui.body(14.5.sp, 21.sp),
+                color = com.deepseek.dsh.core.designsystem.Dsh.colors.t3,
                 modifier = Modifier.padding(24.dp),
             )
         }

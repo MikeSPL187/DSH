@@ -1,5 +1,8 @@
 package com.deepseek.dsh.feature.settings
 
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -97,56 +100,38 @@ fun PluginComponentPane(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
+        val c = com.deepseek.dsh.core.designsystem.Dsh.colors
+        val reload = {
+            webFailed = null
+            webLoading = true
+            webReloadKey += 1
+        }
         if (showHeader) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            com.deepseek.dsh.feature.settings.ui.SBar(
+                title = title,
+                subtitle = androidx.compose.ui.res.stringResource(
+                    when {
+                        registry == null -> com.deepseek.dsh.feature.settings.R.string.pcp_bridge_disconnected
+                        webFailed != null -> com.deepseek.dsh.feature.settings.R.string.pcp_full_ui_failed
+                        else -> com.deepseek.dsh.feature.settings.R.string.pcp_full_ui_web
+                    },
+                ),
+                onBack = onBack,
+                backDescription = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_back),
             ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_back),
-                        tint = MaterialTheme.colorScheme.onBackground,
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.onBackground,
-                    )
-                    Text(
-                        text = when {
-                            registry == null -> androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_bridge_disconnected)
-                            webFailed != null -> androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_full_ui_failed)
-                            else -> androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_full_ui_web)
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                IconButton(onClick = {
-                    webFailed = null
-                    webLoading = true
-                    webReloadKey += 1
-                }) {
-                    Icon(
-                        imageVector = Icons.Filled.Refresh,
-                        contentDescription = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_refresh),
-                        tint = MaterialTheme.colorScheme.onBackground,
-                    )
-                }
+                com.deepseek.dsh.feature.settings.ui.IconBtn(
+                    com.deepseek.dsh.core.designsystem.DshGlyphs.Redo,
+                    androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_refresh),
+                    onClick = reload,
+                )
             }
         }
         if (nativeFallbackReason != null) {
-            // 装过伴生 APK 却仍走 Web UI 时，必须让用户看到是哪一步没对上：
-            // 伴侣没加载、没注册设置页，还是注册的 id 与分区 id 不一致。
+            // Компаньон установлен, но открылась веб-страница: показываем, на каком шаге не сошлось.
             Text(
                 text = nativeFallbackReason,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
+                style = com.deepseek.dsh.feature.settings.ui.small(12.5.sp, 17.sp),
+                color = c.danger,
                 maxLines = 2,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
@@ -159,22 +144,10 @@ fun PluginComponentPane(
                 .weight(1f),
         ) {
             if (registry == null) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                ) {
-                    Text(
-                        text = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_ui_unavailable),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onBackground,
-                    )
-                    Text(
-                        text = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_bridge_retry),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                com.deepseek.dsh.feature.settings.ui.FsEmpty(
+                    androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_ui_unavailable),
+                    androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_bridge_retry),
+                )
             } else {
                 PluginWebIsland(
                     port = livePortValue.takeIf { it > 0 } ?: availablePort,
@@ -194,37 +167,23 @@ fun PluginComponentPane(
                 )
                 if (webLoading && webFailed == null) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                        com.deepseek.dsh.core.designsystem.DshSpinner(c.accent, 28.dp)
                     }
                 }
-                // Web 客户端没有启动成功时，页面本身只是一张启动失败卡片；给出
-                // 原生可读的原因和一个重试入口，不让用户把「Host 半边坏了」误认为
-                // 「插件界面就是这样」。
+                // Веб-клиент не поднялся: понятная причина и «Повторить», чтобы сбой Host не выглядел как «так и задумано».
                 webFailed?.let { reason ->
-                    androidx.compose.material3.Surface(
-                        color = MaterialTheme.colorScheme.errorContainer,
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(12.dp),
+                    Column(
+                        Modifier.align(Alignment.TopCenter).padding(12.dp).fillMaxWidth()
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(18.dp)).background(c.dangerSoft).padding(16.dp),
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(
-                                text = androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_full_ui_start_failed),
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                            )
-                            Text(
-                                text = reason.take(320),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                            )
-                            TextButton(onClick = {
-                                webFailed = null
-                                webLoading = true
-                                webReloadKey += 1
-                            }) { Text(androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_retry)) }
-                        }
+                        Text(
+                            androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_full_ui_start_failed),
+                            style = com.deepseek.dsh.feature.settings.ui.body(15.sp, 20.sp, FontWeight.SemiBold), color = c.danger,
+                        )
+                        Text(reason.take(320), style = com.deepseek.dsh.feature.settings.ui.small(13.sp, 18.sp), color = c.t2, modifier = Modifier.padding(top = 4.dp))
+                        com.deepseek.dsh.feature.settings.ui.KBtn(
+                            androidx.compose.ui.res.stringResource(com.deepseek.dsh.feature.settings.R.string.pcp_retry), reload, Modifier.padding(top = 12.dp),
+                        )
                     }
                 }
             }

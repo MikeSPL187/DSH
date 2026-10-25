@@ -62,26 +62,11 @@ fun NativePluginComponentPane(
     }
     Column(modifier = modifier.fillMaxSize()) {
         if (showHeader) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = androidx.compose.ui.res.stringResource(com.deepseek.dsh.plugin.nativehost.R.string.native_back),
-                        tint = MaterialTheme.colorScheme.onBackground,
-                    )
-                }
-                Text(
-                    text = page.entry.title,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.weight(1f),
-                )
-            }
+            com.deepseek.dsh.core.designsystem.DshTopBar(
+                title = page.entry.title,
+                onBack = onBack,
+                backDescription = androidx.compose.ui.res.stringResource(com.deepseek.dsh.plugin.nativehost.R.string.native_back),
+            )
         }
         if (pageHost != null && theme != null) {
             CompositionLocalProvider(PageLifecycle.LocalIsActive provides { mounted.value }) {
