@@ -2001,7 +2001,7 @@ fun MainAppHost(
         val rel = file.absolutePath.removePrefix(activeWorkspace.absolutePath).trimStart('/').replace('\\', '/')
         if (rel.isNotBlank() && chatAttachments.none { it.workspaceRelativePath == rel }) {
             chatAttachments.add(
-                com.deepseek.dsh.feature.chat.ChatAttachment(displayName = file.name, workspaceRelativePath = rel, sizeBytes = file.length()),
+                com.deepseek.dsh.feature.chat.ChatAttachment(displayName = file.name, workspaceRelativePath = rel, sizeBytes = file.length(), localPath = file.absolutePath),
             )
         }
     }
@@ -3288,6 +3288,7 @@ fun MainAppHost(
                                 displayName = item.name,
                                 workspaceRelativePath = rel,
                                 sizeBytes = item.sizeBytes,
+                                localPath = item.absolutePath,
                             ),
                         )
                     }

@@ -46,6 +46,7 @@ import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +59,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -555,5 +557,138 @@ fun NetBar(state: NetState, onRetry: () -> Unit, modifier: Modifier = Modifier) 
             Modifier.height(40.dp).clip(RoundedCornerShape(11.dp)).background(c.s2).clickable(role = Role.Button, onClick = onRetry).padding(horizontal = 12.dp),
             contentAlignment = Alignment.Center,
         ) { Text(stringResource(R.string.ck_retry), style = ckBody(13.5.sp, 17.sp, FontWeight.Medium), color = c.accent) }
+    }
+}
+
+/**
+ * Вложения над строкой ввода `.atts`: плитка 54 dp — миниатюра фото или значок файла,
+ * имя и тип; круглая «×» убирает.
+ */
+@Composable
+internal fun AttachmentRail(attachments: List<ChatAttachment>, onRemove: (ChatAttachment) -> Unit, modifier: Modifier = Modifier) {
+    val c = Dsh.colors
+    Row(modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        attachments.forEach { a ->
+            Box {
+                Row(
+                    Modifier.height(54.dp).widthIn(max = 200.dp).clip(RoundedCornerShape(14.dp)).background(c.s2).padding(start = 6.dp, end = 28.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    val thumb = rememberThumb(a.localPath.takeIf { a.isImageAttachment() })
+                    if (thumb != null) {
+                        androidx.compose.foundation.Image(
+                            thumb, null, contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                            modifier = Modifier.size(42.dp).clip(RoundedCornerShape(10.dp)).border(1.dp, c.line, RoundedCornerShape(10.dp)),
+                        )
+                    } else Box(Modifier.size(42.dp).clip(RoundedCornerShape(10.dp)).background(c.s1), contentAlignment = Alignment.Center) {
+                        Icon(if (a.isImageAttachment()) DshGlyphs.Image else DshGlyphs.File, null, tint = c.accent, modifier = Modifier.size(18.dp))
+                    }
+                    Column {
+                        Text(a.displayName, style = ckBody(13.sp, 16.sp, FontWeight.Medium), color = c.t1, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 120.dp))
+                        Text(
+                            if (a.isImageAttachment()) stringResource(R.string.ck_att_image) else listOf(stringResource(R.string.ck_att_file), a.formattedSize()).filter { it.isNotBlank() }.joinToString(" · "),
+                            style = ckBody(12.5.sp, 16.sp), color = c.t2, maxLines = 1,
+                        )
+                    }
+                }
+                // `.x`: круг 20 dp, касаемая зона 40.
+                val desc = stringResource(R.string.ck_att_remove)
+                Box(
+                    Modifier.align(Alignment.TopEnd).size(40.dp).graphicsLayer { translationX = 10.dp.toPx(); translationY = -6.dp.toPx() }
+                        .clip(CircleShape).clickable(role = Role.Button) { onRemove(a) }.semantics { contentDescription = desc },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(Modifier.size(20.dp).clip(CircleShape).background(c.t3), contentAlignment = Alignment.Center) {
+                        Icon(DshGlyphs.X, null, tint = c.bg, modifier = Modifier.size(12.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Миниатюра фото ~126 px по меньшей стороне, читается в фоне. */
+@Composable
+private fun rememberThumb(path: String?): androidx.compose.ui.graphics.ImageBitmap? {
+    var bmp by remember(path) { androidx.compose.runtime.mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    LaunchedEffect(path) {
+        if (path == null) return@LaunchedEffect
+        bmp = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching {
+                val o = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                android.graphics.BitmapFactory.decodeFile(path, o)
+                var s = 1
+                while (minOf(o.outWidth, o.outHeight) / (s * 2) >= 126) s *= 2
+                android.graphics.BitmapFactory.decodeFile(path, android.graphics.BitmapFactory.Options().apply { inSampleSize = s })?.asImageBitmap()
+            }.getOrNull()
+        }
+    }
+    return bmp
+}
+
+/** Плашка режима плана над полем ввода: агент сначала покажет шаги и подождёт «да». */
+@Composable
+internal fun PlanModeBar(onExit: () -> Unit) {
+    val c = Dsh.colors
+    val shape = RoundedCornerShape(18.dp)
+    Row(
+        Modifier.padding(start = 10.dp, end = 10.dp, bottom = 8.dp).fillMaxWidth().clip(shape).background(c.accentSoft.compositeOn(c.bg))
+            .padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(DshGlyphs.Tasks, null, tint = c.accent, modifier = Modifier.size(18.dp))
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.plan_banner_title), style = ckBody(14.sp, 18.sp, FontWeight.Medium), color = c.accent)
+            Text(stringResource(R.string.plan_banner_desc), style = ckBody(12.5.sp, 16.sp), color = c.t2, maxLines = 2)
+        }
+        ChatIconBtn(DshGlyphs.X, stringResource(R.string.plan_banner_exit), tint = c.t2, iconSize = 18.dp, onClick = onExit)
+    }
+}
+
+/**
+ * Цель и план сессии (goal / todos Host): свёрнуто — текущий шаг и полоса прогресса,
+ * развёрнуто — все шаги с отметками.
+ */
+@Composable
+internal fun PlanDock(goal: com.deepseek.dsh.core.model.GoalInfo?, todos: List<com.deepseek.dsh.core.model.TodoEntryInfo>) {
+    val c = Dsh.colors
+    var open by remember { androidx.compose.runtime.mutableStateOf(false) }
+    val done = todos.count { it.status == "completed" }
+    val current = todos.firstOrNull { it.status == "in_progress" } ?: todos.firstOrNull { it.status != "completed" }
+    val shape = RoundedCornerShape(18.dp)
+    Column(
+        Modifier.padding(start = 10.dp, end = 10.dp, bottom = 8.dp).fillMaxWidth().floatShadow(shape, c.isDark).clip(shape)
+            .background(c.glass.compositeOn(c.bg)).border(1.dp, c.glassLine, shape)
+            .clickable(role = Role.Button) { open = !open }.padding(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(if (goal != null) DshGlyphs.Flow else DshGlyphs.Tasks, null, tint = c.accent, modifier = Modifier.size(16.dp))
+            Text(
+                goal?.objective ?: (current?.content ?: stringResource(R.string.ck_plan_done)),
+                style = ckBody(14.sp, 18.sp, FontWeight.Medium), color = c.t1, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+            )
+            if (todos.isNotEmpty()) Text(stringResource(R.string.ck_plan_progress, done, todos.size), style = ckBody(12.5.sp, 16.sp), color = c.t3)
+            Icon(DshGlyphs.Chev, null, tint = c.t3, modifier = Modifier.size(16.dp).graphicsLayer { rotationZ = if (open) 180f else 0f })
+        }
+        if (todos.isNotEmpty()) Box(Modifier.padding(top = 8.dp).fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(c.s3)) {
+            Box(Modifier.fillMaxWidth(done / todos.size.toFloat()).height(4.dp).clip(RoundedCornerShape(2.dp)).background(c.accent))
+        }
+        goal?.blockedReason?.takeIf { it.isNotBlank() }?.let { Text(it, style = ckBody(12.5.sp, 16.sp), color = c.warn, modifier = Modifier.padding(top = 6.dp)) }
+        AnimatedVisibility(open && todos.isNotEmpty(), enter = expandVertically(DshMotion.snappy()) + fadeIn(), exit = shrinkVertically(DshMotion.snappy()) + fadeOut()) {
+            Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                todos.forEach { t ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        val st = when (t.status) { "completed" -> c.ok; "in_progress" -> c.accent; else -> c.t3 }
+                        Box(Modifier.size(16.dp).clip(CircleShape).background(if (t.status == "completed") st else Color.Transparent).border(1.5.dp, st, CircleShape), contentAlignment = Alignment.Center) {
+                            if (t.status == "completed") Icon(DshGlyphs.Check, null, tint = Color.White, modifier = Modifier.size(11.dp))
+                            if (t.status == "in_progress") Box(Modifier.size(6.dp).clip(CircleShape).background(st))
+                        }
+                        Text(t.content, style = ckBody(13.5.sp, 18.sp), color = if (t.status == "completed") c.t3 else c.t1, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+        }
     }
 }

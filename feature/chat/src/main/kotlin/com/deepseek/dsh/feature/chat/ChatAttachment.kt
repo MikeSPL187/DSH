@@ -13,6 +13,8 @@ data class ChatAttachment(
     val workspaceRelativePath: String,
     /** 文件大小（字节）。 */
     val sizeBytes: Long,
+    /** Путь к файлу на телефоне — для миниатюры фото в поле ввода. */
+    val localPath: String? = null,
 )
 
 /**

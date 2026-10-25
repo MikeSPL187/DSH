@@ -42,6 +42,7 @@ object AttachmentImporter {
                         displayName = target.name,
                         workspaceRelativePath = "$ATTACHMENTS_DIR/${target.name}",
                         sizeBytes = target.length(),
+                        localPath = target.absolutePath,
                     ),
                 )
             } else {
@@ -72,6 +73,7 @@ object AttachmentImporter {
                         displayName = target.name,
                         workspaceRelativePath = target.absolutePath,
                         sizeBytes = target.length(),
+                        localPath = target.absolutePath,
                     ),
                 )
             } else {

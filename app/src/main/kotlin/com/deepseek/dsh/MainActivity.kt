@@ -194,7 +194,7 @@ class MainActivity : ComponentActivity() {
                     com.deepseek.dsh.plugin.nativehost.NativeHost.LocalHost provides nativeHost,
                     com.deepseek.dsh.plugin.nativehost.NativeHost.LocalTheme provides nativeTheme,
                     com.deepseek.dsh.core.designsystem.LocalConversationFontSize provides
-                        (com.deepseek.dsh.feature.settings.ThemeBridge.fontSize ?: 14),
+                        (com.deepseek.dsh.feature.settings.ThemeBridge.fontSize ?: 16),
                     // «Настройки → Оформление»: размер шрифта кода и вибрация при действиях.
                     com.deepseek.dsh.core.designsystem.LocalCodeFontSize provides com.deepseek.dsh.feature.settings.logic.DshUserPrefs.codeSize,
                     androidx.compose.ui.platform.LocalHapticFeedback provides

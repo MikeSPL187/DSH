@@ -473,7 +473,7 @@ fun ModernChatScreen(
         onSendMessage(text)
     }
     val composerBlock: @Composable () -> Unit = {
-        if (planMode) PlanModeBanner(onExit = { onPlanModeChange(false) })
+        if (planMode) PlanModeBar(onExit = { onPlanModeChange(false) })
         ClaudeCodeModsPluginUi.BandView(snapshot = bandSnapshot, pressing = bandPressing, onPress = onBandPress)
         if (voiceRecording) VoiceBar(voiceSeconds, voiceLevel, voiceBusy, onVoiceCancel, onVoiceStop)
         if (voiceEnabled && voiceError != null) {
@@ -537,7 +537,7 @@ fun ModernChatScreen(
                     if (activeCommandLabel != null) Row(Modifier.padding(start = 6.dp, top = 4.dp, bottom = 2.dp)) {
                         ComposerChip("/$activeCommandLabel", com.deepseek.dsh.core.designsystem.DshGlyphs.X, accent = true, onClick = { activeCommandToken = null })
                     }
-                    if (attachments.isNotEmpty()) AttachmentRail(attachments, onRemoveAttachment, Modifier.padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 4.dp))
+                    if (attachments.isNotEmpty()) AttachmentRail(attachments, onRemoveAttachment)
                 },
                 leading = {
                     com.deepseek.dsh.plugin.nativehost.OfficialSlot(slot = com.deepseek.dsh.plugin.nativesdk.slots.NativeSlot.COMPOSER_LEFT) {}
@@ -577,7 +577,7 @@ fun ModernChatScreen(
             lastScroll = y
         }
     }
-    val closeSheets = { modelMenuOpen = false; permissionMenuOpen = false; agentPresetMenuOpen = false; toolDetail = null; changeDiffIndex = null; commandSheetOpen = false }
+    val closeSheets = { actionMessage = null; trajectoryOpen = false; pendingConfirm = null; modelMenuOpen = false; permissionMenuOpen = false; agentPresetMenuOpen = false; toolDetail = null; changeDiffIndex = null; commandSheetOpen = false }
     val effortOptions = reasoningOptions
     val sheet: (@Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit)? = when {
         modelMenuOpen -> {
@@ -665,6 +665,39 @@ fun ModernChatScreen(
             }
             body
         }
+        pendingConfirm != null -> {
+            val preset = pendingConfirm!!
+            val body: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
+                RiskSheetBody(preset, onCancel = { pendingConfirm = null }) {
+                    currentPermission = preset
+                    onPermissionSelected(preset)
+                    pendingConfirm = null
+                }
+            }
+            body
+        }
+        actionMessage != null -> {
+            val m = actionMessage!!
+            val body: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
+                val ctx = LocalContext.current
+                val copied = stringResource(R.string.ck_copied)
+                MessageActionsBody(
+                    message = m,
+                    onCopy = { text ->
+                        (ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
+                            .setPrimaryClip(android.content.ClipData.newPlainText("message", text))
+                        android.widget.Toast.makeText(ctx, copied, android.widget.Toast.LENGTH_SHORT).show()
+                    },
+                    onFork = { seq -> MessageActionBridge.forkAt?.invoke(seq) },
+                    onDismiss = { actionMessage = null },
+                )
+            }
+            body
+        }
+        trajectoryOpen -> {
+            val body: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = { TrajectoryBody() }
+            body
+        }
         agentPresetMenuOpen -> {
             { PresetSheetBody(agentPresetSelectedId) { id -> agentPresetMenuOpen = false; onAgentPresetSelected(id) } }
         }
@@ -745,6 +778,8 @@ fun ModernChatScreen(
                             // Пока агент работает — шаги раскрыты, готово — свёрнуто; нажатие переключает.
                             expanded = collapsedTurns[row.key] ?: !row.done,
                             onToggle = { collapsedTurns[row.key] = !(collapsedTurns[row.key] ?: !row.done) },
+                            // Долгое нажатие на шапку — «Ход сессии» (события Host).
+                            onLongPress = { trajectoryOpen = true },
                             liveReasoning = if (!row.done) streamingReasoning else "",
                             translate = translateReasoning,
                             onOpenDetail = { toolDetail = it },
@@ -879,30 +914,7 @@ fun ModernChatScreen(
         }
 
 
-        if (trajectoryOpen) {
-            TrajectoryDialog(onDismiss = { trajectoryOpen = false })
-        }
 
-        actionMessage?.let { message ->
-            MessageActionDialog(
-                message = message,
-                onCopy = { text ->
-                    val clipboard = localContext.getSystemService(
-                        android.content.Context.CLIPBOARD_SERVICE,
-                    ) as android.content.ClipboardManager
-                    clipboard.setPrimaryClip(
-                        android.content.ClipData.newPlainText("message", text),
-                    )
-                    android.widget.Toast.makeText(
-                        localContext,
-                        localContext.getString(R.string.markdown_copied),
-                        android.widget.Toast.LENGTH_SHORT,
-                    ).show()
-                },
-                onFork = { seq -> MessageActionBridge.forkAt?.invoke(seq) },
-                onDismiss = { actionMessage = null },
-            )
-        }
 
 
         ChatFade(Modifier.align(Alignment.BottomCenter))
@@ -918,12 +930,10 @@ fun ModernChatScreen(
                     onEdit = { message, text -> onQueueAction(message.id, "edit", text) },
                     onRemove = { message -> onQueueAction(message.id, "remove", null) },
                     onSteer = { message -> onQueueAction(message.id, "steer", null) },
-                    modifier = Modifier.padding(horizontal = 16.dp),
+
                 )
             }
-            if (goal != null || todos.isNotEmpty()) {
-                SessionPlanDock(goal = goal, todos = todos, modifier = Modifier.padding(horizontal = 16.dp))
-            }
+            if (goal != null || todos.isNotEmpty()) PlanDock(goal, todos)
             // Док прячется, пока открыта клавиатура (`.dock.away`).
             AnimatedVisibility(
                 visible = !composerFocused,
@@ -975,132 +985,6 @@ fun ModernChatScreen(
             if (a != null) DangerScreen(a, dangerInfo, sessionTitle, onBack = { dangerOpen = false }, onDecided = { allowed -> decide(a, allowed) })
         }
     }
-    }
-
-    // 加号：分组命令菜单（添加 / 指令）
-    pendingConfirm?.let { preset ->
-        PermissionRiskDialog(
-            preset = preset,
-            onDismiss = { pendingConfirm = null },
-            onConfirm = {
-                currentPermission = preset
-                onPermissionSelected(preset)
-                pendingConfirm = null
-            },
-        )
-    }
-}
-
-/**
- * 风险确认弹窗（对齐 ui-primitives 的 RiskConfirmation + Modal）：
- * 警告图标 + 说明文案 + 「我已了解风险」勾选，勾选后主按钮才可用。
- */
-@Composable
-private fun PermissionRiskDialog(
-    preset: PermissionPreset,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-) {
-    var acknowledged by remember(preset) { mutableStateOf(false) }
-    val titleRes = preset.confirmTitleResId ?: return
-    val descRes = preset.confirmDescResId ?: return
-    val ackRes = preset.confirmAckResId ?: return
-    val enableRes = preset.confirmEnableResId ?: return
-    val colors = LocalDshPanelColors.current
-
-    DshDialog(
-        onDismiss = onDismiss,
-        title = stringResource(titleRes),
-        closeLabel = stringResource(R.string.action_close),
-        width = DshPanelDefaults.WideDialogWidth,
-        content = {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                Icon(
-                    painter = painterResource(id = com.deepseek.dsh.core.designsystem.R.drawable.ic_warning_outline),
-                    contentDescription = null,
-                    tint = colors.stateErrorPrimary,
-                    modifier = Modifier
-                        .padding(top = 2.dp)
-                        .size(18.dp),
-                )
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    text = stringResource(descRes),
-                    color = colors.labelSecondary,
-                    fontSize = 14.sp,
-                    lineHeight = 22.sp,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            Spacer(Modifier.height(20.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .toggleable(
-                        value = acknowledged,
-                        role = Role.Checkbox,
-                        onValueChange = { acknowledged = it },
-                    ),
-                verticalAlignment = Alignment.Top,
-            ) {
-                RiskCheckbox(checked = acknowledged)
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    text = stringResource(ackRes),
-                    color = colors.labelPrimary,
-                    fontSize = 14.sp,
-                    lineHeight = 22.sp,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        },
-        footer = {
-            DshDialogButton(
-                text = stringResource(R.string.action_cancel),
-                primary = false,
-                enabled = true,
-                onClick = onDismiss,
-                modifier = Modifier.widthIn(min = 72.dp),
-            )
-            DshDialogButton(
-                text = stringResource(enableRes),
-                primary = true,
-                enabled = acknowledged,
-                onClick = onConfirm,
-                modifier = Modifier.widthIn(min = 136.dp),
-            )
-        },
-    )
-}
-
-/** 风险确认的原生勾选框：16dp 方形，选中使用品牌主色填充。 */
-@Composable
-private fun RiskCheckbox(checked: Boolean) {
-    val colors = LocalDshPanelColors.current
-    val shape = RoundedCornerShape(4.dp)
-    Box(
-        modifier = Modifier
-            .padding(top = 3.dp)
-            .size(16.dp)
-            .clip(shape)
-            .background(if (checked) colors.buttonPrimaryFill else Color.Transparent)
-            .then(
-                if (checked) {
-                    Modifier
-                } else {
-                    Modifier.border(1.dp, colors.borderL3, shape)
-                },
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (checked) {
-            Icon(
-                painter = painterResource(id = com.deepseek.dsh.core.designsystem.R.drawable.ic_check),
-                contentDescription = null,
-                tint = colors.labelPrimaryForeground,
-                modifier = Modifier.size(11.dp),
-            )
-        }
     }
 }
 
@@ -1261,43 +1145,6 @@ internal fun parseAskQuestions(raw: String): List<AskQuestion> = runCatching {
 }.getOrDefault(emptyList())
 
 
-/**
- * 计划模式横幅：提示当前只生成计划，等用户确认后再执行。
- * 与官方 plan mode 一致：进入后 placeholder 与发送语义切换，可随时退出。
- */
-@Composable
-private fun PlanModeBanner(onExit: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = stringResource(R.string.plan_banner_title),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Text(
-                text = stringResource(R.string.plan_banner_desc),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        IconButton(onClick = onExit, modifier = Modifier.size(24.dp)) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = stringResource(R.string.plan_banner_exit),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(14.dp),
-            )
-        }
-    }
-}
 
 /** Полоса записи голоса: уровень, время, «Отмена» и «Распознать». */
 @Composable
@@ -1340,58 +1187,6 @@ private fun VoiceBar(seconds: Int, level: Float, busy: Boolean, onCancel: () -> 
 }
 
 
-/** 输入卡片上方的已选附件行：名称 + 大小，右侧移除。 */
-@Composable
-private fun AttachmentRail(
-    attachments: List<ChatAttachment>,
-    onRemove: (ChatAttachment) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        attachments.forEach { attachment ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    painter = painterResource(id = com.deepseek.dsh.core.designsystem.R.drawable.ic_cmd_file),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(13.dp),
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = attachment.displayName,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                val sizeLabel = attachment.formattedSize()
-                if (sizeLabel.isNotEmpty()) {
-                    Text(
-                        text = sizeLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline,
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                }
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = stringResource(R.string.attachment_remove),
-                    tint = MaterialTheme.colorScheme.outline,
-                    modifier = Modifier
-                        .size(13.dp)
-                        .clickable { onRemove(attachment) },
-                )
-            }
-        }
-    }
-}
 
 /**
  * composer trigger 药丸（模型 / 权限选择器）：
@@ -1401,77 +1196,6 @@ private fun AttachmentRail(
 
 
 
-/**
- * 目标 / 待办 dock（官方 `goal` + `todos` 投影）：输入框上方的紧凑卡片。
- */
-@Composable
-private fun SessionPlanDock(
-    goal: com.deepseek.dsh.core.model.GoalInfo?,
-    todos: List<com.deepseek.dsh.core.model.TodoEntryInfo>,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(bottom = 6.dp),
-    ) {
-        goal?.let { current ->
-            Text(
-                text = current.objective,
-                fontSize = 12.sp,
-                lineHeight = 18.sp,
-                maxLines = 2,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            val meta = buildString {
-                append(current.phase)
-                if (current.roundsStarted > 0) {
-                    append(" \u00b7 round ")
-                    append(current.roundsStarted)
-                    if (current.maxGoalRounds > 0) {
-                        append("/")
-                        append(current.maxGoalRounds)
-                    }
-                }
-                current.blockedReason?.takeIf { it.isNotBlank() }?.let {
-                    append(" \u00b7 ")
-                    append(it)
-                }
-            }
-            Text(
-                text = meta,
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.outline,
-            )
-        }
-        if (todos.isNotEmpty()) {
-            val done = todos.count { it.status == "completed" }
-            Text(
-                text = "TODO " + done + "/" + todos.size,
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.outline,
-                modifier = Modifier.padding(top = 2.dp),
-            )
-            todos.take(6).forEach { todo ->
-                Text(
-                    text = when (todo.status) {
-                        "completed" -> "\u2713 " + todo.content
-                        "in_progress" -> "\u25B6 " + todo.content
-                        else -> "\u25CB " + todo.content
-                    },
-                    fontSize = 11.sp,
-                    lineHeight = 16.sp,
-                    maxLines = 1,
-                    color = if (todo.status == "completed") {
-                        MaterialTheme.colorScheme.outline
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
-                )
-            }
-        }
-    }
-}
 
 
 

@@ -28,6 +28,7 @@ class ScreenPreviewActivity : ComponentActivity() {
         val state = intent.getStringExtra("state") ?: "main"
         setContent {
             DshTheme(darkTheme = dark) {
+                if (state.startsWith("chat")) { ChatPreview(state); return@DshTheme }
                 val model = remember { sample(state) }
                 val history = remember { androidx.compose.runtime.mutableStateListOf("git status", "./gradlew :app:assembleDebug", "adb devices") }
                 var font = remember { androidx.compose.runtime.mutableFloatStateOf(12.5f) }
@@ -70,5 +71,35 @@ class ScreenPreviewActivity : ComponentActivity() {
         m.blocks.last().folded = true
         m.submit("adb devices"); m.feed("x\r\nbash: adb: команда не найдена\r\n"); m.feed(DONE(127))
         return m
+    }
+
+    /** Чат на данных прототипа: главный, ход работы, правка, удаление. */
+    @androidx.compose.runtime.Composable
+    private fun ChatPreview(state: String) {
+        val t0 = System.currentTimeMillis() - 70_000
+        fun msg(id: String, role: com.deepseek.dsh.core.model.MessageRole, content: String, at: Long) = com.deepseek.dsh.core.model.ChatMessage("h", "s", id, role, content, createdAt = at)
+        fun tool(id: String, name: String, status: String, body: String, args: String, at: Long) =
+            msg("tool_$id", com.deepseek.dsh.core.model.MessageRole.TOOL, "\u0002TOOL\u0002$id\u0002$name\u0002$status\u0002$body\u0002$args", at)
+        val log = "> Configure project :app\n> Task :app:compileDebugKotlin\ne: This version (1.7.3) of the Compose Compiler\n   requires Kotlin 2.0.21 but you appear to be using 2.0.0\nBUILD FAILED in 12s"
+        val messages = if (state == "chat-home") emptyList() else listOf(
+            msg("u1", com.deepseek.dsh.core.model.MessageRole.USER, "Сборка падает после обновления Compose. Найди причину и исправь.", t0),
+            tool("c1", "read", "ok", "...", "{\"path\":\"app/build.gradle.kts\"}", t0 + 1_000),
+            tool("c2", "bash", "error", log, "{\"command\":\"./gradlew :app:assembleDebug\"}", t0 + 14_000),
+        )
+        val approval = when (state) {
+            "chat-approve" -> com.deepseek.dsh.feature.chat.ChatApproval("e1", "edit", "Версия Kotlin не подходит компилятору Compose. Агент изменит одну строку.",
+                "{\"file_path\":\"gradle/libs.versions.toml\",\"old_string\":\"kotlin = 2.0.0\",\"new_string\":\"kotlin = 2.0.21\"}", "c9", { }, { })
+            "chat-danger" -> com.deepseek.dsh.feature.chat.ChatApproval("e2", "bash", "Для ночного архива не хватает 1,2 ГБ.",
+                "{\"command\":\"rm -rf build/ ~/.gradle/caches\"}", "c9", { }, { },
+                inspect = { p -> com.deepseek.dsh.feature.chat.DangerInfo(listOf(com.deepseek.dsh.feature.chat.DangerTarget(p[0], 327_155_712, false), com.deepseek.dsh.feature.chat.DangerTarget(p[1], 1_180_696_576, true)), 966_367_641) })
+            else -> null
+        }
+        com.deepseek.dsh.feature.chat.ModernChatScreen(
+            messages = messages, onSendMessage = {}, isThinking = state != "chat-home", isSending = state != "chat-home",
+            approval = approval, sessionTitle = "Скрипт резервного копирования",
+            topBar = { sc -> com.deepseek.dsh.ModernTopAppBar(title = if (state == "chat-home") "" else "Сборка падает после обновления Compose", workspace = "DSH-Workspace", scrolled = sc, onMenuClick = { finish() }) },
+            userName = "Михаил", resume = if (state == "chat-home") com.deepseek.dsh.feature.chat.ChatResume("s1", "Сборка падает после обновления Compose") else null,
+            filesBadge = 2, onOpenTerminal = {}, voiceEnabled = true, selectedModel = "DeepSeek V4", availableModels = listOf("DeepSeek V4"),
+        )
     }
 }

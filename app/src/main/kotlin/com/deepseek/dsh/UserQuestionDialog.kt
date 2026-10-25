@@ -78,57 +78,13 @@ fun UserQuestionDialog(
         })
     }.toString()
 
-    DshDialog(
+    com.deepseek.dsh.feature.chat.AgentQuestionSheet(
+        questions = parsed.map { com.deepseek.dsh.feature.chat.AgentQuestion(it.id, it.text, it.detail, it.options, it.multi) },
+        onSubmit = { sel, cus ->
+            selection.clear(); selection.putAll(sel)
+            custom.clear(); custom.putAll(cus)
+            onSubmit(answersJson())
+        },
         onDismiss = onDismiss,
-        title = stringResource(R.string.question_request_title),
-        closeLabel = stringResource(R.string.action_close),
-        footer = {
-            DshDialogButton(
-                text = stringResource(R.string.action_cancel),
-                primary = false,
-                enabled = true,
-                onClick = onDismiss,
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            DshDialogButton(
-                text = stringResource(R.string.question_submit),
-                primary = true,
-                enabled = ready,
-                onClick = { onSubmit(answersJson()) },
-            )
-        },
-        content = {
-            Column {
-                parsed.forEach { question ->
-                    Text(text = question.text)
-                    question.detail?.takeIf { it.isNotBlank() }?.let { detail ->
-                        Text(text = detail)
-                    }
-                    val selected = selection[question.id].orEmpty()
-                    question.options.forEach { label ->
-                        val on = label in selected
-                        TextButton(
-                            onClick = {
-                                selection[question.id] = when {
-                                    question.multi && on -> selected - label
-                                    question.multi -> selected + label
-                                    else -> setOf(label)
-                                }
-                            },
-                        ) {
-                            Text(text = if (on) "\u2713 $label" else label)
-                        }
-                    }
-                    if (question.options.isEmpty()) {
-                        DshTextInput(
-                            value = custom[question.id].orEmpty(),
-                            onValueChange = { custom[question.id] = it },
-                            placeholder = stringResource(R.string.question_custom_placeholder),
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-            }
-        },
     )
 }

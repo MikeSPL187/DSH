@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -22,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -75,12 +75,15 @@ private fun Thumbnail(ref: AttachmentImageRef) {
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
         }.getOrNull()
     }
-    val shape = RoundedCornerShape(12.dp)
+    // Фото над пузырём пользователя: скругление 16, как у плиток `.ph`.
+    val c = com.deepseek.dsh.core.designsystem.Dsh.colors
+    val shape = RoundedCornerShape(16.dp)
     Box(
         modifier = Modifier
             .size(width = 132.dp, height = 132.dp)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), shape)
-            .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, shape),
+            .clip(shape)
+            .background(c.s2, shape)
+            .border(1.dp, c.line, shape),
         contentAlignment = Alignment.Center,
     ) {
         bitmap?.let { image ->
@@ -88,9 +91,7 @@ private fun Thumbnail(ref: AttachmentImageRef) {
                 bitmap = image,
                 contentDescription = ref.name,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(132.dp)
-                    .background(MaterialTheme.colorScheme.surface, shape),
+                modifier = Modifier.size(132.dp),
             )
         }
     }

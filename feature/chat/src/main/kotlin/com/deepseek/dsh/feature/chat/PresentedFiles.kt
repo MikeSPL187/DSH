@@ -8,11 +8,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -21,21 +20,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.deepseek.dsh.core.designsystem.Dsh
+import com.deepseek.dsh.core.designsystem.DshGlyphs
 import com.deepseek.dsh.core.protocol.PresentedFileInfo
 
-/** 官方一个 turn 尾部最多铺 4 张文件卡，其余折叠。 */
+/** Сколько файлов видно до «Все N». */
 private const val COLLAPSED_PRESENTED_COUNT = 4
 
 /**
- * 产物卡片行：对齐官方 `ui-deliverables` 的 `PresentedFileCard`。
- *
- * 单文件整行，多个两列；卡片 60dp 高、40dp 图标框、文件名 13sp、
- * 描述 10sp（Host 的 description，缺省回落成扩展名）。超过 4 个折叠。
+ * Результаты, которые агент отдал (deliverables): карточка как «Изменения» —
+ * «Результаты», ниже файлы с описанием; нажатие открывает файл в «Файлах».
  */
 @Composable
 fun PresentedFilesRow(
@@ -44,130 +47,44 @@ fun PresentedFilesRow(
     modifier: Modifier = Modifier,
 ) {
     if (files.isEmpty()) return
+    val c = Dsh.colors
     var expanded by remember(files.size) { mutableStateOf(false) }
     val collapsible = files.size > COLLAPSED_PRESENTED_COUNT
-    val visible = if (collapsible && !expanded) {
-        files.take(COLLAPSED_PRESENTED_COUNT)
-    } else {
-        files
-    }
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(top = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        if (files.size == 1) {
-            PresentedFileCard(file = files.first(), onOpen = onOpen)
-        } else {
-            visible.chunked(2).forEach { rowFiles ->
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    rowFiles.forEach { file ->
-                        PresentedFileCard(
-                            file = file,
-                            onOpen = onOpen,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                    // 奇数个时右侧留空，避免最后一张被拉成整行。
-                    if (rowFiles.size == 1) {
-                        Box(modifier = Modifier.weight(1f))
-                    }
-                }
-            }
-        }
-        if (collapsible) {
+    val visible = if (collapsible && !expanded) files.take(COLLAPSED_PRESENTED_COUNT) else files
+    val shape = RoundedCornerShape(18.dp)
+    val line = c.line
+    Column(modifier.padding(top = 4.dp, bottom = 16.dp).fillMaxWidth().clip(shape).background(c.s1).border(1.dp, c.line, shape)) {
+        Text(stringResource(R.string.ck_results), style = ckBody(14.5.sp, 18.sp, FontWeight.Medium), color = c.t1, modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp))
+        visible.forEach { file ->
+            val name = file.path.substringAfterLast('/')
+            val description = file.description
+                ?.replace(Regex("\\s*(?:\\([^()]*\\)|（[^（）]*）)\\s*$"), "")?.trim()?.takeIf { it.isNotEmpty() }
+                ?: name.substringAfterLast('.', "").takeIf { it.isNotEmpty() && it.length <= 5 }?.uppercase()
+                ?: stringResource(R.string.presented_file)
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded }
-                    .padding(vertical = 2.dp),
-                horizontalArrangement = Arrangement.Center,
+                Modifier.fillMaxWidth().drawBehind { drawRect(line, size = Size(size.width, 1.dp.toPx())) }
+                    .clickable(role = Role.Button) { onOpen(file) }.padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(
-                    text = if (expanded) {
-                        stringResource(R.string.presented_collapse)
-                    } else {
-                        stringResource(R.string.presented_all, files.size)
-                    },
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.outline,
-                )
+                Box(Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(c.accentSoft), contentAlignment = Alignment.Center) {
+                    Icon(DshGlyphs.File, null, tint = c.accent, modifier = Modifier.size(18.dp))
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(name, style = ckMono(13.sp, 17.sp), color = c.t1, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(description, style = ckBody(12.5.sp, 16.sp), color = c.t3, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Icon(DshGlyphs.Right, null, tint = c.t3, modifier = Modifier.size(18.dp))
             }
         }
-    }
-}
-
-@Composable
-private fun PresentedFileCard(
-    file: PresentedFileInfo,
-    onOpen: (PresentedFileInfo) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val name = file.path.substringAfterLast('/')
-    val extension = name.substringAfterLast('.', "")
-        .takeIf { it.isNotEmpty() && it.length <= 5 }
-        ?.uppercase()
-        ?: stringResource(R.string.presented_file)
-    val description = file.description
-        ?.replace(Regex("\\s*(?:\\([^()]*\\)|（[^（）]*）)\\s*$"), "")
-        ?.trim()
-        ?.takeIf { it.isNotEmpty() }
-        ?: extension
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(60.dp)
-            .background(
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                shape = RoundedCornerShape(12.dp),
-            )
-            .border(
-                width = 0.5.dp,
-                color = MaterialTheme.colorScheme.outlineVariant,
-                shape = RoundedCornerShape(12.dp),
-            )
-            .clickable { onOpen(file) }
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
-                    shape = RoundedCornerShape(10.dp),
-                )
-                .border(
-                    width = 0.5.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                    shape = RoundedCornerShape(10.dp),
-                ),
+        if (collapsible) Box(
+            Modifier.fillMaxWidth().drawBehind { drawRect(line, size = Size(size.width, 1.dp.toPx())) }
+                .clickable(role = Role.Button) { expanded = !expanded }.padding(vertical = 12.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = extension.take(4),
-                fontSize = 9.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-            )
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = name,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = description,
-                fontSize = 10.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.outline,
+                if (expanded) stringResource(R.string.presented_collapse) else stringResource(R.string.presented_all, files.size),
+                style = ckBody(13.5.sp, 17.sp), color = c.accent,
             )
         }
     }

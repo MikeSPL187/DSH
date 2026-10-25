@@ -104,6 +104,16 @@
     <string name="ck_net_checking_sub">Checking the connection</string>
     <string name="ck_net_back">Back online</string>
     <string name="ck_net_back_sub">You can continue</string>
+    <string name="ck_att_image">image</string>
+    <string name="ck_att_file">file</string>
+    <string name="ck_att_remove">Remove attachment</string>
+    <string name="ck_plan_done">Plan complete</string>
+    <string name="ck_plan_progress">%1$d of %2$d</string>
+    <string name="ck_results">Results</string>
+    <string name="ck_agent_question">Agent question</string>
+    <string name="ck_your_answer">Your answer</string>
+    <string name="ck_or_your_answer">Or your own answer</string>
+    <string name="ck_answer">Answer</string>
     <plurals name="ck_steps">
         <item quantity="one">%d step</item>
         <item quantity="other">%d steps</item>

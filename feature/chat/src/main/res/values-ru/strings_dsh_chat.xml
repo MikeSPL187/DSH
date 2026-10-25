@@ -104,6 +104,16 @@
     <string name="ck_net_checking_sub">Проверяю связь</string>
     <string name="ck_net_back">Снова в сети</string>
     <string name="ck_net_back_sub">Можно продолжать</string>
+    <string name="ck_att_image">изображение</string>
+    <string name="ck_att_file">файл</string>
+    <string name="ck_att_remove">Убрать вложение</string>
+    <string name="ck_plan_done">План выполнен</string>
+    <string name="ck_plan_progress">%1$d из %2$d</string>
+    <string name="ck_results">Результаты</string>
+    <string name="ck_agent_question">Вопрос агента</string>
+    <string name="ck_your_answer">Ваш ответ</string>
+    <string name="ck_or_your_answer">Или свой ответ</string>
+    <string name="ck_answer">Ответить</string>
     <plurals name="ck_steps">
         <item quantity="one">%d шаг</item>
         <item quantity="few">%d шага</item>

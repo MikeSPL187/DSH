@@ -14,6 +14,11 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -26,6 +31,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -315,5 +322,106 @@ private fun ModeChip(icon: androidx.compose.ui.graphics.vector.ImageVector, labe
     ) {
         androidx.compose.material3.Icon(icon, null, tint = if (on) c.accent else c.t2, modifier = Modifier.size(18.dp))
         Text(label, style = ckBody(13.5.sp, 17.sp, if (on) FontWeight.Medium else FontWeight.Normal), color = if (on) c.accent else c.t2, maxLines = 1)
+    }
+}
+
+/**
+ * Лист подтверждения опасного режима (полный доступ, автопроверка): что это значит,
+ * галочка «понимаю риск» и «Включить», доступная только после неё.
+ */
+@Composable
+fun ColumnScope.RiskSheetBody(preset: PermissionPreset, onCancel: () -> Unit, onConfirm: () -> Unit) {
+    val c = Dsh.colors
+    var ack by androidx.compose.runtime.remember(preset) { androidx.compose.runtime.mutableStateOf(false) }
+    Box(Modifier.padding(start = 4.dp, top = 4.dp, bottom = 12.dp).size(52.dp).clip(RoundedCornerShape(16.dp)).background(c.dangerSoft), contentAlignment = Alignment.Center) {
+        androidx.compose.material3.Icon(com.deepseek.dsh.core.designsystem.DshGlyphs.Alert, null, tint = c.danger, modifier = Modifier.size(22.dp))
+    }
+    DshSheetTitle(stringResource(preset.confirmTitleResId ?: preset.titleResId))
+    Text(stringResource(preset.confirmDescResId ?: preset.descResId), style = ckBody(14.5.sp, 21.75.sp), color = c.t2, modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 14.dp))
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.s2)
+            .selectable(ack, role = Role.Checkbox) { ack = !ack }.padding(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // `.cb`: 24 dp, радиус 8; отмечено — акцентом с галочкой.
+        val bg by animateColorAsState(if (ack) c.accent else Color.Transparent, tween(200), label = "cb")
+        Box(Modifier.size(24.dp).clip(RoundedCornerShape(8.dp)).background(bg).border(1.75.dp, if (ack) c.accent else c.t3, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
+            if (ack) androidx.compose.material3.Icon(com.deepseek.dsh.core.designsystem.DshGlyphs.Check, null, tint = Color.White, modifier = Modifier.size(15.dp))
+        }
+        Text(stringResource(preset.confirmAckResId ?: preset.titleResId), style = ckBody(14.5.sp, 19.sp), color = c.t1, modifier = Modifier.weight(1f))
+    }
+    Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Btn(stringResource(R.string.action_cancel), BtnStyle.Ghost, Modifier.weight(1f), height = 52.dp, radius = 16.dp, fontSize = 16f, onClick = onCancel)
+        Box(Modifier.weight(1.35f).graphicsLayer { alpha = if (ack) 1f else 0.45f }) {
+            Btn(stringResource(preset.confirmEnableResId ?: preset.titleResId), BtnStyle.Danger, Modifier.fillMaxWidth(), height = 52.dp, radius = 16.dp, fontSize = 16f) { if (ack) onConfirm() }
+        }
+    }
+}
+
+/** Вопрос агента (user-questions/request): текст, пояснение, варианты; без вариантов — свой ответ. */
+data class AgentQuestion(val id: String, val text: String, val detail: String?, val options: List<String>, val multi: Boolean)
+
+/**
+ * Лист «Вопрос агента» поверх всего приложения: метка, вопросы с вариантами
+ * (один или несколько), поле для своего ответа; «Ответить» — когда на всё есть ответ.
+ *
+ * @param onSubmit выбранные варианты и свой ответ по id вопроса.
+ */
+@Composable
+fun AgentQuestionSheet(
+    questions: List<AgentQuestion>,
+    onSubmit: (selected: Map<String, Set<String>>, custom: Map<String, String>) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val c = Dsh.colors
+    val selection = androidx.compose.runtime.remember(questions) { androidx.compose.runtime.mutableStateMapOf<String, Set<String>>() }
+    val custom = androidx.compose.runtime.remember(questions) { androidx.compose.runtime.mutableStateMapOf<String, String>() }
+    val ready = questions.isNotEmpty() && questions.all { !selection[it.id].isNullOrEmpty() || !custom[it.id].isNullOrBlank() }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        Box(Modifier.fillMaxSize().background(c.scrim).clickable(remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, null, onClick = onDismiss)) {
+            Column(
+                Modifier.align(Alignment.BottomCenter).imePadding().navigationBarsPadding().padding(8.dp).fillMaxWidth()
+                    .heightIn(max = 640.dp).clip(RoundedCornerShape(34.dp)).background(c.s1)
+                    .clickable(remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, null) {}
+                    .verticalScroll(androidx.compose.foundation.rememberScrollState())
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 18.dp),
+            ) {
+                Box(Modifier.align(Alignment.CenterHorizontally).padding(top = 4.dp, bottom = 12.dp).size(width = 38.dp, height = 5.dp).clip(RoundedCornerShape(3.dp)).background(c.s3))
+                Box(Modifier.padding(start = 4.dp, bottom = 10.dp)) { Tier(stringResource(R.string.ck_agent_question), com.deepseek.dsh.core.designsystem.DshGlyphs.Msg) }
+                questions.forEach { q ->
+                    Text(q.text, style = ckDisplay(17.sp, 22.sp), color = c.t1, modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 4.dp))
+                    q.detail?.takeIf { it.isNotBlank() }?.let { Text(it, style = ckBody(14.sp, 20.sp), color = c.t2, modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 6.dp)) }
+                    val sel = selection[q.id].orEmpty()
+                    Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        q.options.forEach { label ->
+                            ModelRadio(label, null, label in sel) {
+                                selection[q.id] = when {
+                                    q.multi && label in sel -> sel - label
+                                    q.multi -> sel + label
+                                    else -> setOf(label)
+                                }
+                            }
+                        }
+                    }
+                    val draft = custom[q.id].orEmpty()
+                    androidx.compose.foundation.text.BasicTextField(
+                        draft, { custom[q.id] = it }, textStyle = ckBody(15.sp, 20.sp).copy(color = c.t1),
+                        cursorBrush = androidx.compose.ui.graphics.SolidColor(c.accent),
+                        modifier = Modifier.padding(top = 8.dp, bottom = 14.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.s2).padding(horizontal = 14.dp, vertical = 12.dp),
+                        decorationBox = { inner ->
+                            if (draft.isEmpty()) Text(stringResource(if (q.options.isEmpty()) R.string.ck_your_answer else R.string.ck_or_your_answer), style = ckBody(15.sp, 20.sp), color = c.t3)
+                            inner()
+                        },
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Btn(stringResource(R.string.action_cancel), BtnStyle.Ghost, Modifier.weight(1f), onClick = onDismiss)
+                    Box(Modifier.weight(1f).graphicsLayer { alpha = if (ready) 1f else 0.45f }) {
+                        Btn(stringResource(R.string.ck_answer), BtnStyle.Primary, Modifier.fillMaxWidth()) { if (ready) onSubmit(selection.toMap(), custom.toMap()) }
+                    }
+                }
+            }
+        }
     }
 }

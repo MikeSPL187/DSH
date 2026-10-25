@@ -16,6 +16,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -96,11 +97,13 @@ enum class WorkState { Running, Done, Stopped }
  * подпись с переливом во время работы и шеврон сворачивания.
  */
 @Composable
-fun WorkHead(state: WorkState, label: String, collapsed: Boolean, onToggle: () -> Unit) {
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+fun WorkHead(state: WorkState, label: String, collapsed: Boolean, onToggle: () -> Unit, onLongPress: (() -> Unit)? = null) {
     val c = Dsh.colors
     val rot by animateFloatAsState(if (collapsed) -90f else 0f, DshMotion.snappy(), label = "chev")
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 44.dp).clickable(remember { MutableInteractionSource() }, null, role = Role.Button, onClick = onToggle)
+        Modifier.fillMaxWidth().heightIn(min = 44.dp)
+            .combinedClickable(remember { MutableInteractionSource() }, null, role = Role.Button, onLongClick = onLongPress, onClick = onToggle)
             .padding(top = 4.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -465,6 +468,7 @@ internal fun WorkBlock(
     decided: Map<String, Pair<Boolean, Boolean>> = emptyMap(),
     onDecided: (ChatApproval, Boolean) -> Unit = { _, _ -> },
     onOpenDanger: () -> Unit = {},
+    onLongPress: (() -> Unit)? = null,
 ) {
     val tools = remember(items) { items.mapNotNull { parseTool(it) } }
     val running = tools.lastOrNull { it.status == "running" }
@@ -475,7 +479,7 @@ internal fun WorkBlock(
         else -> ckHeadLabel(running?.name)
     }
     Column(Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 18.dp)) {
-        WorkHead(if (done) WorkState.Done else WorkState.Running, label, collapsed = !expanded, onToggle = onToggle)
+        WorkHead(if (done) WorkState.Done else WorkState.Running, label, collapsed = !expanded, onToggle = onToggle, onLongPress = onLongPress)
         AnimatedVisibility(expanded, enter = expandVertically(DshMotion.smooth()) + fadeIn(), exit = shrinkVertically(DshMotion.snappy()) + fadeOut()) {
             val steps = mutableListOf<Pair<StepState, @Composable () -> Unit>>()
             items.forEach { m ->
