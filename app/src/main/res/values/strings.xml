@@ -64,18 +64,9 @@
     <!-- Drawer & Account Menu (Aligned with ui-settings-account / AccountMenu.tsx) -->
 
     <!-- Plugins Screen -->
-    <string name="host_startup_failed">Local Host failed to start</string>
-    <string name="host_startup_log_title">Recent output</string>
-    <string name="host_startup_copy">Copy diagnostics</string>
     <string name="host_startup_copied">Diagnostics copied</string>
-    <string name="host_startup_continue">Continue anyway</string>
-    <string name="host_startup_continue_hint">You can check the reason and retry in Settings → Mobile runtime.</string>
     <string name="host_startup_timeout">Local Host startup timed out after 90s</string>
     <string name="host_starting">Starting local Host…</string>
-    <string name="action_host_retry">Retry</string>
-    <string name="storage_permission_title">File access permission required</string>
-    <string name="storage_permission_desc">DSH workspaces live under Documents/DSH-Workspace. Grant “All files access” to read and write files before continuing.</string>
-    <string name="storage_permission_grant">Grant access</string>
     <string name="official_agent_team_title">Agent Team</string>
     <string name="agent_team_loading">Loading team…</string>
     <string name="agent_team_unavailable">Team is not available</string>

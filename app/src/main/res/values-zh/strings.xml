@@ -64,18 +64,9 @@
     <!-- 侧栏抽屉与账户菜单 (对齐 ui-settings-account / AccountMenu.tsx) -->
 
     <!-- 插件管理 -->
-    <string name="host_startup_failed">本地 Host 启动失败</string>
-    <string name="host_startup_log_title">最近输出</string>
-    <string name="host_startup_copy">复制诊断信息</string>
     <string name="host_startup_copied">诊断信息已复制</string>
-    <string name="host_startup_continue">仍然进入</string>
-    <string name="host_startup_continue_hint">进入后可到「设置 → 移动运行时」查看原因并重试。</string>
     <string name="host_startup_timeout">本地 Host 启动超时（90 秒）</string>
     <string name="host_starting">正在启动本地 Host…</string>
-    <string name="action_host_retry">重试</string>
-    <string name="storage_permission_title">需要文件访问权限</string>
-    <string name="storage_permission_desc">DSH 的工作区位于 Documents/DSH-Workspace，必须授予「所有文件访问权限」才能读写文件并继续使用。</string>
-    <string name="storage_permission_grant">去开启权限</string>
     <string name="official_agent_team_title">智能体团队</string>
     <string name="agent_team_loading">正在加载团队…</string>
     <string name="agent_team_unavailable">Team 暂不可用</string>

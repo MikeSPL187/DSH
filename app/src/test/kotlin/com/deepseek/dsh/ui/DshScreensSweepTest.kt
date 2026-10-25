@@ -57,7 +57,7 @@ class DshScreensSweepTest {
 
     private class Frame(val width: Int, val dark: Boolean, val name: String, val content: @Composable () -> Unit) {
         /** Листы снимаем в высоту телефона: их место — у нижнего края экрана. */
-        val height: Int get() = if (name.startsWith("term") || name.startsWith("chat") || name.contains("sheet") || name.endsWith("-add") || name.endsWith("-trust")) (if (width == 360) 740 else if (width == 390) 844 else 915) else 2400
+        val height: Int get() = if (name.startsWith("term") || name.startsWith("chat") || name.startsWith("start") || name.contains("sheet") || name.endsWith("-add") || name.endsWith("-trust")) (if (width == 360) 740 else if (width == 390) 844 else 915) else 2400
     }
 
     /** Отрисовать по очереди каждый кадр в окне [w]×2400 и сохранить его, обрезав пустой низ. */
@@ -467,6 +467,28 @@ class DshScreensSweepTest {
                 "chat-drawer" to @Composable { drawer() },
                 "chat-drawer-empty" to @Composable { drawer(emptyList()) },
                 "chat-drawer-search" to @Composable { drawer(query = "сборка") },
+            ),
+        ),
+    )
+
+    @Test
+    fun startup() = sweep(
+        matrix(
+            listOf(
+                "start-loading" to @Composable { com.deepseek.dsh.feature.runtime.HostStartScreen(status = "Запуск локального Host…") },
+                "start-failed" to @Composable {
+                    com.deepseek.dsh.feature.runtime.HostStartScreen(
+                        status = "", failed = true, detail = "Локальный Host не запустился за 90 с",
+                        logTail = listOf(
+                            "[host] loading plugins from /data/dsh/plugins",
+                            "[host] node: v22.11.0",
+                            "Error: listen EADDRINUSE: address already in use 127.0.0.1:7461",
+                            "    at Server.setupListenHandle (node:net:1817:16)",
+                        ),
+                        onCopyReport = {}, onContinue = {},
+                    )
+                },
+                "start-access" to @Composable { com.deepseek.dsh.feature.runtime.StorageAccessScreen(onAllow = {}, onPrivate = {}) },
             ),
         ),
     )

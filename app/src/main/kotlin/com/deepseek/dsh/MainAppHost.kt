@@ -1404,11 +1404,7 @@ fun MainAppHost(
     }
 
     if (!runtimeUi.showOnboarding && runtimeUi.rootfsReady == null) {
-        HostStartupSplash(
-            phase = RuntimePhase.STARTING,
-            title = stringResource(R.string.runtime_checking),
-            onRetry = {}
-        )
+        com.deepseek.dsh.feature.runtime.HostStartScreen(status = stringResource(R.string.runtime_checking))
         return
     }
 
@@ -1423,11 +1419,14 @@ fun MainAppHost(
 
     // 首次进入必须先授予「所有文件访问权限」，否则不能进入引导/主界面。
     if (!runtimeUi.showOnboarding && !ui.hasAllFilesAccess) {
-        StoragePermissionGate(
-            onRequest = openAllFilesSettings,
-            onUsePrivateWorkspace = {
+        val gateActivity = androidx.activity.compose.LocalActivity.current
+        com.deepseek.dsh.feature.runtime.StorageAccessScreen(
+            onAllow = openAllFilesSettings,
+            onPrivate = {
                 StorageAccess.choosePrivateWorkspace(context)
                 ui.hasAllFilesAccess = true
+                // Пути рабочей папки вычисляются при создании экрана: пересоздаём его.
+                gateActivity?.recreate()
             },
         )
         return
@@ -1467,12 +1466,29 @@ fun MainAppHost(
         }
     }
     if (!runtimeUi.showOnboarding && runtimeUi.rootfsReady == true && !runtimeUi.hostProgressReady) {
-        HostStartupSplash(
-            phase = if (runtimeUi.hostStartupError) RuntimePhase.ERROR else RuntimePhase.STARTING,
-            // 失败原因和最近输出必须显示在这里：启动页是唯一入口，只给一个
-            // 「重试」按钮会让用户既修不了、也没法把原因发出来。
-            detail = runtimeUi.hostStartupDetail ?: if (runtimeUi.hostStartupError) status.lastError else null,
-            logTail = if (runtimeUi.hostStartupError) status.logTail else emptyList(),
+        val failed = runtimeUi.hostStartupError
+        val failDetail = runtimeUi.hostStartupDetail ?: if (failed) status.lastError else null
+        val copiedLabel = stringResource(R.string.host_startup_copied)
+        com.deepseek.dsh.feature.runtime.HostStartScreen(
+            status = stringResource(R.string.host_starting),
+            failed = failed,
+            // Причина и последний вывод — здесь: это единственный вход, без них нечего исправить и некуда отправить.
+            detail = failDetail,
+            logTail = if (failed) status.logTail else emptyList(),
+            onCopyReport = {
+                // Вывод уже очищен от секретов (runner), в отчёт идёт целиком: главное часто в конце.
+                val payload = buildString {
+                    appendLine("DSH Host startup failed")
+                    appendLine("device: ${android.os.Build.BRAND} ${android.os.Build.MODEL}")
+                    appendLine("android: ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})")
+                    appendLine("abi: ${android.os.Build.SUPPORTED_ABIS.joinToString()}")
+                    failDetail?.takeIf { it.isNotBlank() }?.let { appendLine("error: $it") }
+                    status.logTail.forEach { appendLine(it) }
+                }
+                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("DSH host startup", payload))
+                android.widget.Toast.makeText(context, copiedLabel, android.widget.Toast.LENGTH_SHORT).show()
+            },
             onRetry = {
                 runtimeUi.hostStartupError = false
                 runtimeUi.hostStartupDetail = null
@@ -1511,11 +1527,7 @@ fun MainAppHost(
         startupHydrated = true
     }
     if (!runtimeUi.showOnboarding && runtimeUi.hostProgressReady && !startupHydrated) {
-        HostStartupSplash(
-            phase = RuntimePhase.STARTING,
-            title = stringResource(R.string.host_loading_data),
-            onRetry = {},
-        )
+        com.deepseek.dsh.feature.runtime.HostStartScreen(status = stringResource(R.string.host_loading_data))
         return
     }
 

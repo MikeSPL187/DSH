@@ -12,6 +12,4 @@
     <string name="backup_failed">无法创建备份</string>
     <string name="share_diagnostics_title">发送诊断信息</string>
     <string name="diagnostics_failed">无法导出诊断信息</string>
-    <string name="storage_use_private_workspace">改用应用私有文件夹</string>
-    <string name="storage_use_private_workspace_desc">文件保存在 DSH 内部（Android/data）。Agent 看不到手机上的其他文件夹，仍可导入文件。</string>
 </resources>

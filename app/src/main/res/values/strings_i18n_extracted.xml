@@ -12,6 +12,4 @@
     <string name="backup_failed">Could not create the backup</string>
     <string name="share_diagnostics_title">Send diagnostics</string>
     <string name="diagnostics_failed">Could not export diagnostics</string>
-    <string name="storage_use_private_workspace">Use a private app folder instead</string>
-    <string name="storage_use_private_workspace_desc">Files stay inside DSH (Android/data). The agent cannot see other folders on the phone; you can still import files.</string>
 </resources>

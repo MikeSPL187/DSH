@@ -83,6 +83,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -786,8 +787,14 @@ private fun Field(
 /** Шаг 2: приватная папка или общая память телефона. */
 @Composable
 private fun WorkspaceStep(shared: Boolean, onShared: (Boolean) -> Unit, granted: Boolean, dir: Int) {
-    val c = Dsh.colors
     StepHead(2, stringResource(R.string.ob_ws_title), stringResource(R.string.ob_ws_lead), dir)
+    WorkspaceOptions(shared, onShared, granted, dir)
+}
+
+/** Два варианта папки и предупреждение о разрешении. */
+@Composable
+private fun WorkspaceOptions(shared: Boolean, onShared: (Boolean) -> Unit, granted: Boolean, dir: Int) {
+    val c = Dsh.colors
     Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Option(
             title = stringResource(R.string.ob_ws_private),
@@ -1128,6 +1135,155 @@ private fun Spinner(size: Dp, stroke: Dp, color: Color) {
             topLeft = Offset(w / 2, w / 2),
             size = androidx.compose.ui.geometry.Size(this.size.width - w, this.size.height - w),
             style = Stroke(width = w, cap = StrokeCap.Butt),
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Экраны запуска (в прототипе отдельно не нарисованы — собраны из частей первого запуска)
+// ---------------------------------------------------------------------------
+
+/** Знак DSH, как `.ob-mark`: плитка 84 с градиентом индиго. */
+@Composable
+private fun Mark(modifier: Modifier = Modifier) {
+    val c = Dsh.colors
+    Box(
+        modifier
+            .shadow(28.dp, RoundedCornerShape(26.dp), ambientColor = c.accent.copy(alpha = 0.4f), spotColor = c.accent.copy(alpha = 0.4f))
+            .size(84.dp)
+            .clip(RoundedCornerShape(26.dp))
+            .background(Brush.linearGradient(listOf(c.accent2, c.accent), start = Offset(0f, 0f), end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)))
+            .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.35f), Color.Transparent), endY = 6f), RoundedCornerShape(26.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(DshGlyphs.Dsh, contentDescription = null, tint = Color.White, modifier = Modifier.size(40.dp))
+    }
+}
+
+/**
+ * Запуск Host при открытии приложения: знак, «DSH» и строка состояния с кольцом.
+ * Если Host не поднялся — заголовок, пояснение, последний вывод (уже без секретов)
+ * с копированием отчёта, «Повторить» и «Открыть без Host».
+ *
+ * @param status строка под названием, пока идёт запуск.
+ * @param failed запуск не удался.
+ * @param detail причина ошибки (без секретов).
+ */
+@Composable
+fun HostStartScreen(
+    status: String,
+    failed: Boolean = false,
+    detail: String? = null,
+    logTail: List<String> = emptyList(),
+    onRetry: () -> Unit = {},
+    onCopyReport: (() -> Unit)? = null,
+    onContinue: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+) {
+    val c = Dsh.colors
+    if (!failed) {
+        val p = remember { Animatable(0f) }
+        LaunchedEffect(Unit) { p.animateTo(1f, DshMotion.smooth()) }
+        Column(
+            modifier.fillMaxSize().background(c.bg).statusBarsPadding().navigationBarsPadding().padding(horizontal = 22.dp)
+                .graphicsLayer { alpha = p.value; scaleX = 0.96f + 0.04f * p.value; scaleY = 0.96f + 0.04f * p.value },
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Mark()
+            Spacer(Modifier.height(22.dp))
+            Text("DSH", style = H1, color = c.t1, modifier = Modifier.semantics { heading() })
+            Spacer(Modifier.height(10.dp))
+            Row(
+                Modifier.semantics(mergeDescendants = true) { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Spinner(15.dp, 2.dp, c.accent)
+                Text(status, style = TextStyle(fontFamily = DshFonts.body, fontSize = 15.sp, lineHeight = 20.sp), color = c.t2, textAlign = TextAlign.Center)
+            }
+        }
+        return
+    }
+    Column(modifier.fillMaxSize().background(c.bg).statusBarsPadding()) {
+        Column(
+            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 22.dp, end = 22.dp, top = 66.dp, bottom = 20.dp),
+        ) {
+            Text(stringResource(R.string.st_failed_title), style = H2, color = c.t1, modifier = Modifier.semantics { heading() })
+            Spacer(Modifier.height(8.dp))
+            Text(stringResource(R.string.st_failed_lead), style = Lead, color = c.t2)
+            if (!detail.isNullOrBlank()) {
+                Spacer(Modifier.height(14.dp))
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.dangerSoft).padding(horizontal = 13.dp, vertical = 11.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(DshGlyphs.Alert, null, tint = c.danger, modifier = Modifier.padding(top = 2.dp).size(15.dp))
+                    Text(detail, style = Small, color = c.danger)
+                }
+            }
+            val lines = logTail.takeLast(12)
+            if (lines.isNotEmpty() || onCopyReport != null) {
+                Spacer(Modifier.height(18.dp))
+                Column(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(c.s1).border(1.dp, c.line, RoundedCornerShape(22.dp))
+                        .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 14.dp),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.st_log), style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Medium, fontSize = 13.5.sp), color = c.t2, modifier = Modifier.weight(1f))
+                        if (onCopyReport != null) {
+                            val desc = stringResource(R.string.st_copy)
+                            Box(
+                                Modifier.size(40.dp).clip(CircleShape).clickable(role = Role.Button, onClick = onCopyReport).semantics { contentDescription = desc },
+                                contentAlignment = Alignment.Center,
+                            ) { Icon(DshGlyphs.Copy, null, tint = c.t2, modifier = Modifier.size(18.dp)) }
+                        }
+                    }
+                    lines.forEach { line ->
+                        Text(
+                            line,
+                            style = TextStyle(fontFamily = DshFonts.mono, fontSize = 11.5.sp, lineHeight = 17.sp),
+                            color = c.t2, maxLines = 3, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(end = 10.dp),
+                        )
+                    }
+                }
+            }
+        }
+        Bottom(
+            primaryText = stringResource(R.string.ob_retry),
+            primaryEnabled = true,
+            onPrimary = onRetry,
+            altText = onContinue?.let { stringResource(R.string.st_open_anyway) },
+            onAlt = { onContinue?.invoke() },
+        )
+    }
+}
+
+/**
+ * Доступ ко всем файлам пропал (выключен в системе): тот же выбор, что на шаге
+ * «Где хранить проекты» — снова дать доступ или перейти в приватную папку DSH.
+ */
+@Composable
+fun StorageAccessScreen(onAllow: () -> Unit, onPrivate: () -> Unit, modifier: Modifier = Modifier) {
+    val c = Dsh.colors
+    var shared by remember { mutableStateOf(true) }
+    Column(modifier.fillMaxSize().background(c.bg).statusBarsPadding()) {
+        Column(
+            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 22.dp, end = 22.dp, top = 66.dp, bottom = 20.dp),
+        ) {
+            Text(stringResource(R.string.ob_ws_title), style = H2, color = c.t1, modifier = Modifier.semantics { heading() })
+            Spacer(Modifier.height(8.dp))
+            Text(stringResource(R.string.st_access_lead), style = Lead, color = c.t2)
+            Spacer(Modifier.height(22.dp))
+            WorkspaceOptions(shared, { shared = it }, granted = false, dir = 1)
+        }
+        Bottom(
+            primaryText = stringResource(if (shared) R.string.ob_allow else R.string.ob_continue),
+            primaryEnabled = true,
+            onPrimary = { if (shared) onAllow() else onPrivate() },
+            altText = null,
+            onAlt = {},
         )
     }
 }
