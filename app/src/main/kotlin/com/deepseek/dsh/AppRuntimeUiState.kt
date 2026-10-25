@@ -6,10 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.deepseek.dsh.core.data.ClaudeCodeBandSnapshot
-import com.deepseek.dsh.core.model.TerminalInfo
 import com.deepseek.dsh.core.protocol.HostJobInfo
 import com.deepseek.dsh.core.protocol.SessionRawFrame
-import com.deepseek.dsh.core.protocol.TerminalConnection
 import com.deepseek.dsh.feature.sessions.SessionDisplayItem
 import com.deepseek.dsh.feature.sessions.WorkspaceFolder
 import com.deepseek.dsh.plugin.nativehost.NativePluginItem
@@ -82,14 +80,7 @@ class AppRuntimeUiState(
     var hostStartupDetail by mutableStateOf<String?>(null)
     var hostRetryKey by mutableStateOf(0)
 
-    // 终端
-    var terminalBuffer by mutableStateOf("")
-    var terminalStatus by mutableStateOf("")
-    var terminalWritable by mutableStateOf(false)
-    var terminalList by mutableStateOf<List<TerminalInfo>>(emptyList())
-    var activeTerminalId by mutableStateOf("main")
-    var terminalShells by mutableStateOf<List<Pair<String, String>>>(emptyList())
-    var terminalConnection by mutableStateOf<TerminalConnection?>(null)
+    // Готовность данных
     var pluginsHydrated by mutableStateOf(false)
     var accountHydrated by mutableStateOf(false)
     var localHostBound by mutableStateOf(false)

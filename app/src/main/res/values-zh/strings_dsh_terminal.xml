@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Терминал (#screen-terminal). ru / en / zh. -->
+<resources>
+    <string name="tm_title">终端</string>
+    <string name="tm_font">字号</string>
+    <string name="tm_font_toast">字号 %1$s pt</string>
+    <string name="tm_clear">清空</string>
+    <string name="tm_add">新标签页</string>
+    <string name="tm_add_toast">新建 %1$s 标签页</string>
+    <string name="tm_placeholder">命令或 help</string>
+    <string name="tm_placeholder_ro">仅查看</string>
+    <string name="tm_input">命令</string>
+    <string name="tm_run">运行</string>
+    <string name="tm_send">发送给程序</string>
+    <string name="tm_stop">停止 (Ctrl+C)</string>
+    <string name="tm_sec">%1$s 秒</string>
+    <string name="tm_min_sec">%1$d 分 %2$d 秒</string>
+    <string name="tm_code">代码 %1$d</string>
+    <string name="tm_interrupted">已中断</string>
+    <string name="tm_explain">解释</string>
+    <string name="tm_copy">复制</string>
+    <string name="tm_copied">已复制</string>
+    <string name="tm_retry">重试</string>
+    <string name="tm_explain_wait">正在分析输出…</string>
+    <string name="tm_explain_nokey">需要 DeepSeek 密钥——请在 设置 → 模型 中添加。</string>
+    <string name="tm_explain_badkey">DeepSeek 密钥无效——请在 设置 → 模型 中更换。</string>
+    <string name="tm_explain_balance">DeepSeek 余额不足。</string>
+    <string name="tm_explain_offline">无法连接 DeepSeek，请检查网络后重试。</string>
+    <string name="tm_explain_prompt">你是手机上 Linux 终端（DSH 应用）里的助手。用户执行的命令失败了。用 1–3 句话简要说明原因和解决办法。不要用 Markdown。用中文回答。如果一条命令就能解决，最后一行写：FIX: &lt;命令&gt;。</string>
+    <string name="tm_connecting">正在连接 Linux…</string>
+    <string name="tm_sub_connecting">连接中…</string>
+    <string name="tm_sub_offline">未连接</string>
+    <string name="tm_no_session">终端在会话目录中打开。请先在聊天中开始一个会话。</string>
+    <string name="tm_unavailable">终端不可用：Linux 无响应。</string>
+    <string name="tm_closed">Shell 已退出。</string>
+    <string name="tm_reopen">重新打开</string>
+    <string name="tm_try_again">重试</string>
+    <string name="tm_empty">命令及其输出会显示在这里。
+从 help 或 ls 开始。</string>
+    <string name="tm_tab_close">关闭标签页</string>
+    <string name="tm_tab_close_sub">Shell 进程将被结束</string>
+    <string name="tm_ctrl_c">^C</string>
+</resources>

@@ -120,7 +120,7 @@ internal fun pageTitleOf(page: ActivePage): String = when (page) {
     ActivePage.FILES -> stringResource(R.string.page_files)
     ActivePage.HOSTS -> stringResource(R.string.page_hosts)
     ActivePage.RUNTIME -> stringResource(R.string.page_runtime)
-    ActivePage.TERMINAL -> stringResource(R.string.terminal_title)
+    ActivePage.TERMINAL -> stringResource(R.string.tm_title)
     ActivePage.SETTINGS -> stringResource(R.string.page_settings)
     ActivePage.CHAT -> "deepseek"
 }

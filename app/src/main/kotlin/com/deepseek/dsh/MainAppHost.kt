@@ -964,97 +964,6 @@ fun MainAppHost(
         hostBound = runtimeUi.localHostBound,
     )
 
-    // 多终端（官方 terminal/list）：页签集合、当前页签、可用 shell。
-    // ANSI 屏幕模型：光标定位/清屏由它处理，渲染文本给 UI。
-    val terminalBufferModel = remember { TerminalBuffer(cols = 80, rows = 24) }
-    DisposableEffect(
-        ui.activePage,
-        ui.selectedSessionId,
-        runtimeUi.activeTerminalId,
-        ui.rightDrawerOpen,
-        ui.rightDrawerTab,
-    ) {
-        // 终端不要求用户先选中会话：新会话页打开终端时回退到最近会话，
-        // 这样这枚胶囊点开就会自动 create/open，而不是停在“无会话”。
-        val sid = ui.selectedSessionId ?: sessions.firstOrNull()?.sessionId
-        var job: kotlinx.coroutines.Job? = null
-        val terminalVisible = ui.activePage == ActivePage.TERMINAL ||
-            (ui.rightDrawerOpen && ui.rightDrawerTab == "terminal")
-        if (terminalVisible && sid == null) {
-            // 没有会话时 Host 的 terminal/create 没有归属，页面会永远停在“正在连接…”。
-            runtimeUi.terminalStatus = context.getString(R.string.terminal_no_session)
-            runtimeUi.terminalBuffer = ""
-            return@DisposableEffect onDispose {
-                runtimeUi.terminalConnection?.close()
-                runtimeUi.terminalConnection = null
-            }
-        }
-        if (terminalVisible && sid != null) {
-            job = scope.launch {
-                runtimeUi.terminalList = dshRepository.listTerminals(ui.activeHostId, sid)
-                runtimeUi.terminalShells = dshRepository.listTerminalShells(ui.activeHostId, sid)
-                if (runtimeUi.terminalList.none { it.id == runtimeUi.activeTerminalId }) {
-                    val created = dshRepository.createTerminal(
-                        ui.activeHostId, sid, runtimeUi.activeTerminalId, shellPath = null, cols = 80, rows = 24,
-                    )
-                    if (created != null) {
-                        runtimeUi.terminalList = dshRepository.listTerminals(ui.activeHostId, sid)
-                    }
-                }
-                val connection = dshRepository.openTerminal(
-                    ui.activeHostId, sid, 80, 24, runtimeUi.activeTerminalId,
-                )
-                if (connection == null) {
-                    runtimeUi.terminalStatus = context.getString(R.string.terminal_unavailable)
-                    return@launch
-                }
-                runtimeUi.terminalConnection = connection
-                runtimeUi.terminalStatus = context.getString(R.string.terminal_connecting)
-                connection.frames.collect { raw ->
-                    val frame = runCatching {
-                        kotlinx.serialization.json.Json.parseToJsonElement(raw)
-                            as? kotlinx.serialization.json.JsonObject
-                    }.getOrNull() ?: return@collect
-                    fun text(key: String): String? =
-                        (frame[key] as? kotlinx.serialization.json.JsonPrimitive)
-                            ?.contentOrNull
-                    when (text("type")) {
-                        "snapshot" -> {
-                            terminalBufferModel.setScreen(text("screen").orEmpty())
-                            runtimeUi.terminalBuffer = terminalBufferModel.render()
-                            runtimeUi.terminalWritable = frame["writable"]?.toString() == "true"
-                            val info = frame["info"]
-                                as? kotlinx.serialization.json.JsonObject
-                            runtimeUi.terminalStatus = (info?.get("state")
-                                as? kotlinx.serialization.json.JsonPrimitive)
-                                ?.contentOrNull.orEmpty()
-                        }
-                        "output" -> {
-                            terminalBufferModel.feed(text("data").orEmpty())
-                            runtimeUi.terminalBuffer = terminalBufferModel.render()
-                        }
-                        "state" -> {
-                            runtimeUi.terminalWritable = frame["writable"]?.toString() == "true"
-                            val info = frame["info"]
-                                as? kotlinx.serialization.json.JsonObject
-                            runtimeUi.terminalStatus = (info?.get("state")
-                                as? kotlinx.serialization.json.JsonPrimitive)
-                                ?.contentOrNull.orEmpty()
-                        }
-                        "closed" -> runtimeUi.terminalStatus =
-                            context.getString(R.string.terminal_closed)
-                        "error" -> runtimeUi.terminalStatus =
-                            text("message").orEmpty()
-                    }
-                }
-            }
-        }
-        onDispose {
-            job?.cancel()
-            runtimeUi.terminalConnection?.close()
-            runtimeUi.terminalConnection = null
-        }
-    }
     // 斜杠命令目录跟着会话走；commands/change 事件也会触发刷新。
     LaunchedEffect(ui.activeHostId, ui.selectedSessionId) {
         val sid = ui.selectedSessionId
@@ -2093,64 +2002,25 @@ fun MainAppHost(
     }
 
 
-    // 终端面板内容：TERMINAL 页与右侧栏终端标签复用同一份状态与回调。
-    val terminalContent: @Composable () -> Unit = {
-    
-                                TerminalScreen(
-                                    buffer = runtimeUi.terminalBuffer,
-                                    status = runtimeUi.terminalStatus,
-                                    emptyHint = runtimeUi.terminalStatus,
-                                    writable = runtimeUi.terminalWritable,
-                                    terminals = runtimeUi.terminalList,
-                                    activeTerminalId = runtimeUi.activeTerminalId,
-                                    shellChoices = runtimeUi.terminalShells,
-                                    onSelectTerminal = { id -> runtimeUi.activeTerminalId = id },
-                                    onCreateTerminal = { shellPath ->
-                                        val sid = ui.selectedSessionId
-                                        if (sid != null) {
-                                            scope.launch {
-                                                val id = "term-" + System.currentTimeMillis()
-                                                dshRepository.createTerminal(
-                                                    ui.activeHostId, sid, id, shellPath, 80, 24,
-                                                )
-                                                runtimeUi.terminalList = dshRepository.listTerminals(ui.activeHostId, sid)
-                                                runtimeUi.activeTerminalId = id
-                                            }
-                                        }
-                                    },
-                                    onRenameTerminal = { id, title ->
-                                        val sid = ui.selectedSessionId
-                                        if (sid != null) {
-                                            scope.launch {
-                                                dshRepository.renameTerminal(ui.activeHostId, sid, id, title)
-                                                runtimeUi.terminalList = dshRepository.listTerminals(ui.activeHostId, sid)
-                                            }
-                                        }
-                                    },
-                                    onInput = { line ->
-                                        runtimeUi.terminalConnection?.write(line + "\r")
-                                    },
-                                    onQuickKey = { key ->
-                                        runtimeUi.terminalConnection?.write(key)
-                                    },
-                                    onClose = {
-                                        val sid = ui.selectedSessionId
-                                        if (sid != null) {
-                                            scope.launch {
-                                                dshRepository.closeTerminal(
-                                                    ui.activeHostId, sid, runtimeUi.activeTerminalId,
-                                                )
-                                                runtimeUi.terminalConnection?.close()
-                                                runtimeUi.terminalConnection = null
-                                                runtimeUi.terminalStatus = context.getString(
-                                                    R.string.terminal_closed
-                                                )
-                                            }
-                                        }
-                                    },
-                                )
-                            
+    // Терминал: страница (с «Назад») и вкладка боковой панели (без неё) — одна связка с Host.
+    // Оболочка открывается в последней сессии, если ни одна не выбрана.
+    val terminalDistro = remember(ui.activeHostId) {
+        if (ui.activeHostId != com.deepseek.dsh.core.model.HostDescriptor.Local().id) null
+        else runCatching {
+            java.io.File(layout.rootfsDir, "etc/os-release").readLines().firstOrNull { it.startsWith("PRETTY_NAME=") }
+                ?.substringAfter('=')?.trim('"')?.substringBefore(" GNU/Linux")?.substringBefore(" (")
+        }.getOrNull()
     }
+    val terminalRoute: @Composable (Boolean) -> Unit = { page ->
+        com.deepseek.dsh.terminal.DshTerminalRoute(
+            repository = dshRepository,
+            hostId = ui.activeHostId,
+            sessionId = ui.selectedSessionId ?: sessions.firstOrNull()?.sessionId,
+            distro = terminalDistro,
+            onBack = if (page) ({ ui.activePage = ActivePage.CHAT }) else null,
+        )
+    }
+    val terminalContent: @Composable () -> Unit = { terminalRoute(false) }
 
     // 插件注册到右侧栏的标签：App 只放容器，标签与内容都由插件贡献。
     val rightPanePluginTabs = com.deepseek.dsh.plugin.nativehost.nativeRightPaneTabs()
@@ -2407,7 +2277,7 @@ fun MainAppHost(
             }
             val chatPage = ui.activePage == ActivePage.CHAT
             val pageHasOwnHeader = ui.activePage == ActivePage.SETTINGS || ui.activePage == ActivePage.FILES ||
-                ui.activePage == ActivePage.PLUGINS || ui.activePage == ActivePage.AUTOMATION
+                ui.activePage == ActivePage.PLUGINS || ui.activePage == ActivePage.AUTOMATION || ui.activePage == ActivePage.TERMINAL
             Scaffold(
                 // 内容区不再让 Scaffold 自动消费系统栏/IME：聊天页自己按
                 // WindowInsets.ime 动态留白，其它页在下面补 navigationBars，
@@ -3187,7 +3057,7 @@ fun MainAppHost(
                             }
                         }
 
-                        ActivePage.TERMINAL -> PageContentSlot { terminalContent() }
+                        ActivePage.TERMINAL -> terminalRoute(true)
 
                         ActivePage.SETTINGS -> DshSettingsRoute(
                             SettingsDeps(

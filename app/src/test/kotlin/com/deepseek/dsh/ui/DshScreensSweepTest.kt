@@ -57,7 +57,7 @@ class DshScreensSweepTest {
 
     private class Frame(val width: Int, val dark: Boolean, val name: String, val content: @Composable () -> Unit) {
         /** Листы снимаем в высоту телефона: их место — у нижнего края экрана. */
-        val height: Int get() = if (name.contains("sheet") || name.endsWith("-add") || name.endsWith("-trust")) (if (width == 360) 740 else if (width == 390) 844 else 915) else 2400
+        val height: Int get() = if (name.startsWith("term") || name.contains("sheet") || name.endsWith("-add") || name.endsWith("-trust")) (if (width == 360) 740 else if (width == 390) 844 else 915) else 2400
     }
 
     /** Отрисовать по очереди каждый кадр в окне [w]×2400 и сохранить его, обрезав пустой низ. */
@@ -243,6 +243,76 @@ class DshScreensSweepTest {
                 "au-edit-week" to @Composable { com.deepseek.dsh.feature.settings.ui.AutomationHomeScreen(au, onClose = {}, projects = projects, now = auNow, initialEdit = "deps") },
                 "au-new" to @Composable { com.deepseek.dsh.feature.settings.ui.AutomationHomeScreen(au, onClose = {}, projects = projects, now = auNow, initialTemplate = 3, defaultModel = "DeepSeek V4 · Высокий" to 0) },
                 "au-empty" to @Composable { com.deepseek.dsh.feature.settings.ui.AutomationHomeScreen(emptyList(), onClose = {}, projects = projects, now = auNow) },
+            ),
+        ),
+    )
+
+    // ---------- Терминал ----------
+
+    private val esc = "\u001b"
+    private fun done(code: Int, cwd: String = "/root/workspace") = "$esc]133;D;$code;$cwd;/root\u0007"
+
+    /** Вкладка bash как в прототипе: поток собран так, как его печатает bash с метками. */
+    private fun bashModel(withExplain: Boolean = false, busy: Boolean = false): com.deepseek.dsh.terminal.TermModel {
+        var now = System.currentTimeMillis() - 120_000
+        val m = com.deepseek.dsh.terminal.TermModel("bash") { now }
+        m.setupLine(); m.feed(done(0))
+        fun run(cmd: String, out: String, code: Int, ms: Long) { m.submit(cmd); m.feed("$cmd\r\n$out"); now += ms; m.feed(done(code)) }
+        run("git status", "На ветке main\r\nИзменения, не проиндексированные для коммита:\r\n  $esc[31mизменено:      gradle/libs.versions.toml$esc[m\r\n", 0, 40)
+        run("./gradlew :app:assembleDebug", "$esc[2m> Task :app:compileDebugKotlin\r\n> Task :app:packageDebug$esc[0m\r\n$esc[32mBUILD SUCCESSFUL in 41s$esc[0m\r\n", 0, 41_200)
+        m.blocks.last().folded = true
+        run("adb devices", "bash: adb: команда не найдена\r\n", 127, 10)
+        if (withExplain) m.blocks.last().explain = com.deepseek.dsh.terminal.Explain().apply {
+            text = "В Linux-окружении нет adb. Поставьте пакет — или работайте с устройством через мост DSH, он уже подключён."
+            fix = "apt install -y adb"; done = true
+        }
+        if (busy) {
+            now = System.currentTimeMillis() - 1_000
+            m.submit("./gradlew test"); m.feed("./gradlew test\r\n$esc[2m> Task :core:model:test\r\n> Task :core:protocol:test$esc[0m\r\n")
+        }
+        return m
+    }
+
+    private fun gradleModel(): com.deepseek.dsh.terminal.TermModel {
+        val m = com.deepseek.dsh.terminal.TermModel("gradle") { System.currentTimeMillis() - 3_000 }
+        m.setupLine(); m.feed(done(0))
+        m.submit("./gradlew test --continuous")
+        m.feed("./gradlew test --continuous\r\n$esc[2mОжидание изменений в исходниках…\r\n> Task :core:protocol:test$esc[0m\r\n$esc[32mBUILD SUCCESSFUL$esc[0m · 182 теста\r\n")
+        return m
+    }
+
+    private val termTabs = listOf(com.deepseek.dsh.TermTab("bash", "bash", false), com.deepseek.dsh.TermTab("gradle", "gradle test", true))
+    private val termHistory = listOf("git status", "./gradlew :app:assembleDebug", "adb devices")
+
+    @Composable
+    private fun term(
+        model: com.deepseek.dsh.terminal.TermModel?,
+        status: com.deepseek.dsh.TermStatus = com.deepseek.dsh.TermStatus.Ready,
+        active: String = "bash",
+        tabs: List<com.deepseek.dsh.TermTab> = termTabs,
+        font: Float = 12.5f,
+    ) = com.deepseek.dsh.TerminalScreen(
+        tabs = tabs, activeId = active, model = model, status = status,
+        subtitle = if (status == com.deepseek.dsh.TermStatus.Ready) "Debian 12 · ~/workspace" else if (status == com.deepseek.dsh.TermStatus.Connecting) "Подключение…" else "Нет подключения",
+        connected = status == com.deepseek.dsh.TermStatus.Ready, writable = status == com.deepseek.dsh.TermStatus.Ready,
+        history = termHistory, fontSize = font, toast = com.deepseek.dsh.feature.settings.ui.rememberToast(), onBack = {},
+        onFont = {}, onClear = {}, onSelectTab = {}, onAddTab = {}, onCloseTab = {}, onRun = {}, onStdin = {}, onRaw = {},
+        onExplain = {}, onCopy = {}, onRetryStatus = {}, onResize = { _, _ -> },
+    )
+
+    @Test
+    fun terminal() = sweep(
+        matrix(
+            listOf(
+                "term-main" to @Composable { term(androidx.compose.runtime.remember { bashModel() }) },
+                "term-explain" to @Composable { term(androidx.compose.runtime.remember { bashModel(withExplain = true) }) },
+                "term-gradle" to @Composable { term(androidx.compose.runtime.remember { gradleModel() }, active = "gradle") },
+                "term-busy" to @Composable { term(androidx.compose.runtime.remember { bashModel(busy = true) }, tabs = listOf(com.deepseek.dsh.TermTab("bash", "bash", true), termTabs[1])) },
+                "term-font" to @Composable { term(androidx.compose.runtime.remember { bashModel() }, font = 14f) },
+                "term-empty" to @Composable { term(androidx.compose.runtime.remember { com.deepseek.dsh.terminal.TermModel("bash") }) },
+                "term-connecting" to @Composable { term(null, com.deepseek.dsh.TermStatus.Connecting, tabs = emptyList()) },
+                "term-nosession" to @Composable { term(null, com.deepseek.dsh.TermStatus.NoSession, tabs = emptyList()) },
+                "term-closed" to @Composable { term(androidx.compose.runtime.remember { bashModel() }, com.deepseek.dsh.TermStatus.Closed) },
             ),
         ),
     )

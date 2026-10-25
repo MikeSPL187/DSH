@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Терминал (#screen-terminal). ru / en / zh. -->
+<resources>
+    <string name="tm_title">Terminal</string>
+    <string name="tm_font">Font size</string>
+    <string name="tm_font_toast">Font %1$s pt</string>
+    <string name="tm_clear">Clear</string>
+    <string name="tm_add">New tab</string>
+    <string name="tm_add_toast">New %1$s tab</string>
+    <string name="tm_placeholder">Command or help</string>
+    <string name="tm_placeholder_ro">View only</string>
+    <string name="tm_input">Command</string>
+    <string name="tm_run">Run</string>
+    <string name="tm_send">Send to program</string>
+    <string name="tm_stop">Stop (Ctrl+C)</string>
+    <string name="tm_sec">%1$s s</string>
+    <string name="tm_min_sec">%1$d min %2$d s</string>
+    <string name="tm_code">code %1$d</string>
+    <string name="tm_interrupted">interrupted</string>
+    <string name="tm_explain">Explain</string>
+    <string name="tm_copy">Copy</string>
+    <string name="tm_copied">Copied</string>
+    <string name="tm_retry">Retry</string>
+    <string name="tm_explain_wait">Reading the output…</string>
+    <string name="tm_explain_nokey">A DeepSeek key is needed — add it in Settings → Models.</string>
+    <string name="tm_explain_badkey">The DeepSeek key was rejected — replace it in Settings → Models.</string>
+    <string name="tm_explain_balance">Your DeepSeek balance is empty.</string>
+    <string name="tm_explain_offline">Can\'t reach DeepSeek. Check the network and retry.</string>
+    <string name="tm_explain_prompt">You are a helper inside a Linux terminal on a phone (the DSH app). The user ran a command and it failed. In 1–3 short sentences explain why and what to do. No Markdown. Answer in English. If a single command fixes it, add a last line: FIX: &lt;command&gt;.</string>
+    <string name="tm_connecting">Connecting to Linux…</string>
+    <string name="tm_sub_connecting">Connecting…</string>
+    <string name="tm_sub_offline">Not connected</string>
+    <string name="tm_no_session">The terminal opens in a session\'s folder. Start a session in chat, then come back.</string>
+    <string name="tm_unavailable">Terminal unavailable: Linux isn\'t responding.</string>
+    <string name="tm_closed">The shell has exited.</string>
+    <string name="tm_reopen">Reopen</string>
+    <string name="tm_try_again">Try again</string>
+    <string name="tm_empty">Commands and their output appear here.
+Start with help or ls.</string>
+    <string name="tm_tab_close">Close tab</string>
+    <string name="tm_tab_close_sub">The shell process will be stopped</string>
+    <string name="tm_ctrl_c">^C</string>
+</resources>

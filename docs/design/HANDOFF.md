@@ -15,10 +15,11 @@
 | Переустановка Linux | `LinuxSetupScreen` там же | заменил старый `RootfsSetupScreen` |
 | Файлы | `feature/files/.../FilesScreen.kt`, `FilesModel.kt`; git: `runtime/host/.../WorkspaceGit.kt`, адаптер `app/.../WorkspaceFilesGit.kt` | всё по `#screen-files`; «агент» в подписях не пишем — не знаем, кто менял |
 | Плагины, Автоматизация, Настройки | `feature/settings/.../ui/` (`DshScreenKit.kt` — общий каркас экранов: шапка, группы, листы, тосты), связки `app/.../DshPluginsRoute.kt`, `AutomationRunner.kt`, `DshSettingsRoute.kt` | ключ API в Keystore (`ApiKeyVault`), видны только 4 последних символа; автоматизации — своя логика на JobScheduler (`AutomationStore`); вход по отпечатку — `BiometricGate.kt`. Невозможное (нет логики у Host) скрыто по решению владельца |
+| Терминал | `app/.../TerminalScreen.kt` (экран), `app/.../terminal/TermEngine.kt` (поток PTY → блоки), `TerminalRoute.kt` (связка с Host, вкладки, история), `TermExplainer.kt` («Объяснить» через DeepSeek) | блоки с кодом и временем — по меткам bash: при открытии вкладки приложение тихо ставит `PROMPT_COMMAND`, печатающий `OSC 133;D;код;папка;HOME` (решение владельца). Без bash — блоки без кода. «Объяснить» — ответ модели прямо в блоке (решение владельца), строка `FIX:` → кнопка. Полноэкранные программы (vim, top) показываются без раскладки экрана. Тест на записи настоящего bash: `TermEngineTest` |
 | Чат (частично), меню, лист одобрения | `feature/chat/...ChatScreen.kt`, `ApprovalSheet.kt`, `feature/sessions/...ModernNavigationDrawerContent.kt` | сделаны до правила «точь-в-точь» — ПЕРЕПРОВЕРИТЬ по прототипу и доделать |
 
 ## Осталось (по порядку)
-1. **Терминал** — `#screen-terminal` (цвета `Dsh.colors.term*` уже есть). Сейчас `TerminalScreen` в app — старый.
+1. ~~Терминал~~ — готово.
 2. **Чат** — сверить с прототипом главный экран, ход работы агента, док «Файлы/Терминал», лист «+» (вложения), лист модели, «нет сети», опасное действие (`#screen-danger`), одобрение.
 3. **Меню** (`#drawer`) — сверить.
 4–6. ~~Плагины, Автоматизация, Настройки~~ — готово (влито из `claude/redesign-settings`).
@@ -47,7 +48,12 @@ ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.grad
 - Сборка в облачном контейнере без `/opt/android-sdk`: SDK в `/home/user/android-sdk`, проверка зависимостей
   только локально `--dependency-verification lenient` (не коммитить изменения verification-metadata),
   Maven Central через зеркало `maven-central.storage-download.googleapis.com` в `~/.gradle/init.d/`.
-- Обход экранов Настроек/Плагинов/Автоматизации: `app/src/test/.../ui/DshScreensSweepTest.kt` → `app/build/ui-sweep/`.
+- Эмулятор в облачном контейнере ставится вручную (нет `sdkmanager`): `emulator-linux_x64-16428233.zip` и
+  `sys-img/google_apis/x86-26_r16.zip` с dl.google.com в `/home/user/android-sdk`, AVD `dsh26` — руками
+  (`~/.android/avd/dsh26.ini` + `config.ini`); запускать через `setsid nohup`, холодная загрузка ~4 мин.
+- Снимки терминала прототипа: Playwright, кадры main/top/explain/gradle/busy/stopped/ctrl/font/empty
+  при высоте телефона (360×740, 390×844, 412×915).
+- Обход экранов Настроек/Плагинов/Автоматизации/Терминала: `app/src/test/.../ui/DshScreensSweepTest.kt` → `app/build/ui-sweep/`.
 
 ## Грабли
 - Android обрезает пробелы в начале/конце строковых ресурсов — такие строки брать в кавычки.

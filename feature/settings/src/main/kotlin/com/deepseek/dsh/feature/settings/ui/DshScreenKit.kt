@@ -233,9 +233,10 @@ fun Modifier.rise(index: Int, step: Int = 35, start: Int = 40): Modifier {
 fun SBar(
     title: String,
     subtitle: String?,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     modifier: Modifier = Modifier,
     backDescription: String = "Назад",
+    live: Boolean? = null,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     Row(
@@ -246,7 +247,7 @@ fun SBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        IconBtn(DshGlyphs.Left, backDescription, onClick = onBack)
+        if (onBack != null) IconBtn(DshGlyphs.Left, backDescription, onClick = onBack) else Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f).padding(start = 2.dp)) {
             Text(
                 title,
@@ -256,7 +257,9 @@ fun SBar(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.semantics { heading() },
             )
-            if (!subtitle.isNullOrEmpty()) {
+            if (!subtitle.isNullOrEmpty()) Row(verticalAlignment = Alignment.CenterVertically) {
+                // `.title .live`: точка 6 dp перед подписью — зелёная, когда подключено
+                if (live != null) Box(Modifier.padding(end = 4.dp).size(6.dp).clip(CircleShape).background(if (live) Dsh.colors.ok else Dsh.colors.t3))
                 Text(subtitle, style = small(12.sp), color = Dsh.colors.t3, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
@@ -705,11 +708,11 @@ fun KBtn(
 
 /** Вращающийся круг `.spin-w`. */
 @Composable
-fun Spinner(color: Color, size: Dp = 16.dp) {
+fun Spinner(color: Color, size: Dp = 16.dp, stroke: Dp = 2.dp) {
     val t = rememberInfiniteTransition(label = "spin")
     val deg by t.animateFloat(0f, 360f, infiniteRepeatable(tween(800, easing = LinearEasing), RepeatMode.Restart), label = "deg")
     Canvas(Modifier.size(size).graphicsLayer { rotationZ = deg }) {
-        val w = 2.dp.toPx()
+        val w = stroke.toPx()
         drawArc(color, 0f, 270f, false, topLeft = Offset(w / 2, w / 2), size = androidx.compose.ui.geometry.Size(this.size.width - w, this.size.height - w), style = Stroke(w, cap = StrokeCap.Round))
     }
 }
