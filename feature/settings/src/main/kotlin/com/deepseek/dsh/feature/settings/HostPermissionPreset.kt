@@ -1,21 +1,13 @@
 package com.deepseek.dsh.feature.settings
 
-import com.deepseek.dsh.core.designsystem.kit.*
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.deepseek.dsh.core.data.DshRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.put
 
 /** Вариант режима доступа (элемент `permissionPresets/catalog` Host). */
 data class PermissionPresetOption(val value: String, val name: String)
@@ -58,51 +50,18 @@ object HostPermissionPreset {
     fun set(value: String) = writer?.invoke(value)
 
     private suspend fun load(repository: DshRepository, hostId: String) {
-        val catalog = runCatching {
-            repository.rpcRaw(hostId, "permissionPresets/catalog", "{}").getOrNull()
-        }.getOrNull()
-        val settings = runCatching {
-            repository.rpcRaw(hostId, "settings/describe", "{}").getOrNull()
-        }.getOrNull()
-        val json = Json { ignoreUnknownKeys = true; isLenient = true }
-        val parsedOptions = runCatching {
-            val root = json.parseToJsonElement(catalog.orEmpty())
-            val value = ((root as? JsonObject)?.get("result") as? JsonObject)?.get("value") as? JsonObject
-            ((value?.get("options") as? JsonArray).orEmpty()).mapNotNull { item ->
-                val obj = item as? JsonObject ?: return@mapNotNull null
-                val optionValue = (obj["value"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null
-                val name = (obj["name"] as? JsonPrimitive)?.contentOrNull ?: optionValue
-                PermissionPresetOption(optionValue, name)
-            }
-        }.getOrDefault(emptyList())
-        val parsedCurrent = runCatching {
-            val root = json.parseToJsonElement(settings.orEmpty())
-            val value = ((root as? JsonObject)?.get("result") as? JsonObject)?.get("value") as? JsonObject
-            val namespaces = value?.get("namespaces") as? JsonArray ?: return@runCatching null
-            namespaces.mapNotNull { item ->
-                val obj = item as? JsonObject ?: return@mapNotNull null
-                if ((obj["ns"] as? JsonPrimitive)?.contentOrNull != "permission") return@mapNotNull null
-                val docValue = obj["value"] as? JsonObject ?: return@mapNotNull null
-                revision = (obj["revision"] as? JsonPrimitive)?.intOrNull ?: revision
-                (docValue["defaultPreset"] as? JsonPrimitive)?.contentOrNull
-            }.firstOrNull()
-        }.getOrNull()
+        val settings = repository.hostSettings
+        val parsedOptions = runCatching { settings.permissionPresets(hostId) }.getOrDefault(emptyList())
+            .map { (value, name) -> PermissionPresetOption(value, name) }
+        val doc = runCatching { settings.namespace(hostId, NS) }.getOrNull()
+        doc?.revision?.let { revision = it }
         if (parsedOptions.isNotEmpty()) options = parsedOptions
-        current = parsedCurrent
+        current = (doc?.value?.get("defaultPreset") as? JsonPrimitive)?.contentOrNull
     }
 
     private suspend fun mutate(repository: DshRepository, hostId: String, value: String) {
-        val args = buildJsonObject {
-            put("ns", "permission")
-            put("ops", buildJsonArray {
-                add(buildJsonObject {
-                    put("op", "set")
-                    put("path", buildJsonArray { add(JsonPrimitive("defaultPreset")) })
-                    put("value", value)
-                })
-            })
-            put("expectedRevision", revision)
-        }
-        repository.rpcRaw(hostId, "settings/mutate", args.toString())
+        repository.hostSettings.setSettings(hostId, NS, listOf(listOf("defaultPreset") to JsonPrimitive(value)), revision)
     }
+
+    private const val NS = "permission"
 }

@@ -1,21 +1,14 @@
 package com.deepseek.dsh.feature.settings
 
-import com.deepseek.dsh.core.designsystem.kit.*
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.deepseek.dsh.core.data.DshRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.put
 
 /**
  * Тема и размер текста: настройка `ui-theme` в Host.
@@ -55,37 +48,15 @@ object HostTheme {
     fun setPreference(value: String) = writer?.invoke(value)
 
     private suspend fun load(repository: DshRepository, hostId: String) {
-        val raw = runCatching {
-            repository.rpcRaw(hostId, "settings/describe", "{}").getOrNull()
-        }.getOrNull()
-        val json = Json { ignoreUnknownKeys = true; isLenient = true }
-        runCatching {
-            val root = json.parseToJsonElement(raw.orEmpty())
-            val value = ((root as? JsonObject)?.get("result") as? JsonObject)?.get("value") as? JsonObject
-            val namespaces = value?.get("namespaces") as? JsonArray ?: return@runCatching
-            namespaces.forEach { item ->
-                val obj = item as? JsonObject ?: return@forEach
-                if ((obj["ns"] as? JsonPrimitive)?.contentOrNull != "ui-theme") return@forEach
-                val docValue = obj["value"] as? JsonObject ?: return@forEach
-                revision = (obj["revision"] as? JsonPrimitive)?.intOrNull ?: revision
-                (docValue["preference"] as? JsonPrimitive)?.contentOrNull?.let { preference = it }
-                fontSize = (docValue["fontSize"] as? JsonPrimitive)?.intOrNull
-            }
-        }
+        val doc = runCatching { repository.hostSettings.namespace(hostId, NS) }.getOrNull() ?: return
+        revision = doc.revision ?: revision
+        (doc.value["preference"] as? JsonPrimitive)?.contentOrNull?.let { preference = it }
+        fontSize = (doc.value["fontSize"] as? JsonPrimitive)?.intOrNull
     }
 
     private suspend fun mutate(repository: DshRepository, hostId: String, value: String) {
-        val args = buildJsonObject {
-            put("ns", "ui-theme")
-            put("ops", buildJsonArray {
-                add(buildJsonObject {
-                    put("op", "set")
-                    put("path", buildJsonArray { add(JsonPrimitive("preference")) })
-                    put("value", value)
-                })
-            })
-            put("expectedRevision", revision)
-        }
-        repository.rpcRaw(hostId, "settings/mutate", args.toString())
+        repository.hostSettings.setSettings(hostId, NS, listOf(listOf("preference") to JsonPrimitive(value)), revision)
     }
+
+    private const val NS = "ui-theme"
 }

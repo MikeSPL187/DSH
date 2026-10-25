@@ -25,11 +25,6 @@ class AppRuntimeUiState(
 ) {
     var showOnboarding by mutableStateOf(initialOnboarding)
 
-    // Сырые данные каталога провайдеров моделей
-    var modelProvidersRaw by mutableStateOf<String?>(null)
-    var modelSettingsRaw by mutableStateOf<String?>(null)
-    var modelCredentialsRaw by mutableStateOf<String?>(null)
-    var registeredProviderIds by mutableStateOf<List<String>>(emptyList())
     var agentTeamLoading by mutableStateOf(false)
 
     // Страница плагинов и установка

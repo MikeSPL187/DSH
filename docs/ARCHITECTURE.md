@@ -62,6 +62,7 @@ tooling:*                проверка контракта с Host и гене
 | `PluginPanesSheet.kt`, `JobsPanel.kt`, `AgentTeamPluginUi.kt` | листы панелей плагинов, фоновых задач, команды |
 | `ai/DeepSeekQuick.kt`, `ai/CommitMessageWriter.kt` | короткие запросы приложения к DeepSeek («Объяснить», сообщение коммита) |
 | `terminal/*`, `TerminalScreen.kt` | терминал: поток PTY → блоки команд, вкладки, «Объяснить» |
+| `ModelProviders.kt` | провайдеры моделей: список, сохранение ключа и полей, удаление ключа (Настройки и первый запуск) |
 | `AppChatServices.kt` | возможности Host для чата: оценки, картинки, workflow, траектория, ветвление, выгрузка |
 | `Dsh*Route.kt` | связки экранов «Плагины», «Автоматизация», «Настройки» с логикой |
 
@@ -87,11 +88,13 @@ Host по областям. Области — отдельные классы, 
 | `terminals` | `TerminalRepository` | терминалы сессии |
 | `commands` | `CommandsRepository` | слэш-команды и навыки |
 | `approvals` | `ApprovalsRepository` | одобрения и вопросы агента, режимы инструментов |
-| `hostSettings` | `HostSettingsRepository` | каталог моделей, язык Host, выгрузка журналов |
+| `hostSettings` | `HostSettingsRepository` | документы настроек (`namespace`, `setSettings`), провайдеры моделей и их ключи, режимы доступа, каталог моделей, язык Host |
 | `speech`, `translation` | `SpeechRepository`, `TranslationRepository` | распознавание речи, перевод рассуждений |
 
 Общие вызовы и разбор ответа `{result:{ok,value}}` — `HostCalls`; разбор проекций Host
 (`workspace/follow`, `todos`, `goal`, `inbox`) — чистые функции в `HostProjections.kt` с тестами.
+Сырых RPC-строк в приложении нет: экраны вызывают только типизированные методы областей.
+Области тестируются на JVM с подставным Host (`FakeHost` в тестах `core:data`).
 
 ## Что дальше (по пользе)
 
@@ -100,3 +103,4 @@ Host по областям. Области — отдельные классы, 
    (`PairingTls`), затем включить `SettingsUi.remoteHostsSupported`.
 2. **Тесты UI-логики** в `feature:chat`, `feature:runtime` и `core:designsystem` — сейчас там
    нет модульных тестов, проверка идёт снимками в `app` (`DshScreensSweepTest`, `ScreensGalleryTest`).
+   Для областей данных тесты есть (`core:data`); осталось покрыть `PluginsRepository` и `TasksRepository`.

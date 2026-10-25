@@ -66,13 +66,6 @@ class DshRepository(
     val speech = SpeechRepository(calls)
     val translation = TranslationRepository(calls)
 
-    /** Сырой вызов Host для настроек, которые разбирает вызывающий (`settings/describe` и т. п.). */
-    suspend fun rpcRaw(hostId: String, method: String, argsJson: String): Result<String> =
-        when (val res = client.rpcRaw(hostId, method, argsJson)) {
-            is RemoteResult.Success -> Result.success(res.data)
-            is RemoteResult.Failure -> Result.failure(IllegalStateException("${res.code}: ${res.message}"))
-        }
-
     // ── Сессии ────────────────────────────────────────────────────────────────
 
     /** Сессии, известные Host (последний `session/list`). */

@@ -44,7 +44,7 @@ internal fun FirstRunOnboarding(
     dshRepository: com.deepseek.dsh.core.data.DshRepository,
     runtimeManager: HostRuntimeManager,
     activeWorkspace: java.io.File,
-    officialModelNamespaces: Set<String>,
+    modelProviders: ModelProviders,
     onboardingPreferences: com.deepseek.dsh.feature.runtime.OnboardingPreferences,
     settingsRepository: com.deepseek.dsh.core.data.DefaultSettingsRepository,
     oauthManager: com.deepseek.dsh.core.protocol.DeepSeekOAuthManager,
@@ -144,7 +144,7 @@ internal fun FirstRunOnboarding(
             finishing = true
             scope.launch {
                 if (key != null) {
-                    applyKey(key, ui, runtimeUi, dshRepository, officialModelNamespaces, oauthManager, context)
+                    applyKey(key, ui.activeHostId, modelProviders, dshRepository, oauthManager, context)
                 }
                 val result = OnboardingResult.of(OnboardingPurpose.DEVELOPMENT, OnboardingProcess.STANDARD, skipped = false)
                 onboardingPreferences.save(result)
@@ -287,19 +287,15 @@ internal fun parseModels(body: String): List<String> = runCatching {
 /** Записывает ключ в Host тем же путём, что «Настройки → Модели», и обновляет каталог моделей. */
 private suspend fun applyKey(
     key: OnboardingKey,
-    ui: AppUiState,
-    runtimeUi: AppRuntimeUiState,
+    hostId: String,
+    modelProviders: ModelProviders,
     dshRepository: com.deepseek.dsh.core.data.DshRepository,
-    officialModelNamespaces: Set<String>,
     oauthManager: com.deepseek.dsh.core.protocol.DeepSeekOAuthManager,
     context: android.content.Context,
 ) {
-    val settingsRaw = dshRepository.rpcRaw(ui.activeHostId, "settings/describe", "{}").getOrNull()
-    val providersRaw = dshRepository.rpcRaw(ui.activeHostId, "llm/listConfigurableProviders", "{}").getOrNull()
+    modelProviders.refresh(hostId)
     val provider = when (key.provider) {
-        OnboardingProvider.DEEPSEEK -> com.deepseek.dsh.feature.settings.parseModelProviders(
-            providersRaw, settingsRaw, null, officialModelNamespaces,
-        ).firstOrNull { it.id == "deepseek-official" || it.id.contains("deepseek") || it.keyRef.contains("deepseek") }
+        OnboardingProvider.DEEPSEEK -> modelProviders.deepSeek(dshRepository.plugins.officialSettingsNamespaces())
         OnboardingProvider.CUSTOM -> com.deepseek.dsh.feature.settings.ModelProviderUi(
             id = "custom-api",
             name = "custom-api",
@@ -317,21 +313,7 @@ private suspend fun applyKey(
         android.widget.Toast.makeText(context, context.getString(R.string.onboarding_key_failed), android.widget.Toast.LENGTH_LONG).show()
         return
     }
-    kotlinx.coroutines.coroutineScope {
-        saveModelProvider(
-            scope = this,
-            repository = dshRepository,
-            hostId = ui.activeHostId,
-            provider = provider,
-            key = key.key,
-            baseUrl = if (key.provider == OnboardingProvider.CUSTOM) key.baseUrl else "",
-            models = key.models,
-            onSettingsRaw = { runtimeUi.modelSettingsRaw = it },
-            onCredentialsRaw = { runtimeUi.modelCredentialsRaw = it },
-        )
-    }
-    runtimeUi.modelProvidersRaw = providersRaw
-    runtimeUi.modelSettingsRaw = dshRepository.rpcRaw(ui.activeHostId, "settings/describe", "{}").getOrNull()
-    dshRepository.hostSettings.refreshModelCatalog(ui.activeHostId)
+    val baseUrl = if (key.provider == OnboardingProvider.CUSTOM) key.baseUrl else ""
+    modelProviders.save(hostId, provider, key.key, baseUrl, key.models)
     if (key.provider == OnboardingProvider.DEEPSEEK) oauthManager.signInWithApiKey(key.key)
 }

@@ -17,7 +17,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -406,6 +405,7 @@ fun MainAppHost(
     val pluginSlotSurfaces by dshRepository.plugins.pluginSlotSurfacesFlow.collectAsState()
     // Кто официальный, а кто плагин — решает Host (принадлежность host-slots моста).
     val officialModelNamespaces = dshRepository.plugins.officialSettingsNamespaces()
+    val modelProviders = remember(dshRepository) { ModelProviders(dshRepository) }
 
     // Зарегистрированные провайдеры: в каталоге «Добавить» их нет, они настраиваются своими карточками.
 
@@ -615,13 +615,7 @@ fun MainAppHost(
     LaunchedEffect(accountState.isSignedIn, accountState.hasApiKey) {
         if (accountState.isSignedIn || accountState.hasApiKey) {
             kotlinx.coroutines.delay(600)
-            runtimeUi.modelSettingsRaw = dshRepository.rpcRaw(ui.activeHostId, "settings/describe", "{}").getOrNull()
-            runtimeUi.modelProvidersRaw = dshRepository.rpcRaw(ui.activeHostId, "llm/listConfigurableProviders", "{}").getOrNull()
-            val providerRefs = com.deepseek.dsh.feature.settings.parseModelProviders(
-                runtimeUi.modelProvidersRaw, runtimeUi.modelSettingsRaw, null, officialModelNamespaces
-            ).map { it.keyRef }.distinct()
-            val refsJson = providerRefs.joinToString(prefix = "{\"refs\":[", postfix = "]}") { "\"$it\"" }
-            runtimeUi.modelCredentialsRaw = dshRepository.rpcRaw(ui.activeHostId, "credentials/describe", refsJson).getOrNull()
+            modelProviders.refresh(ui.activeHostId)
             dshRepository.hostSettings.refreshModelCatalog(ui.activeHostId)
             dshRepository.plugins.refreshPluginInventory(ui.activeHostId)
         }
@@ -656,13 +650,7 @@ fun MainAppHost(
                 dshApplication.bindLocalHost(port, status.token)
             }
             dshRepository.refreshSessions(ui.activeHostId)
-            runtimeUi.modelSettingsRaw = dshRepository.rpcRaw(ui.activeHostId, "settings/describe", "{}").getOrNull()
-            runtimeUi.modelProvidersRaw = dshRepository.rpcRaw(ui.activeHostId, "llm/listConfigurableProviders", "{}").getOrNull()
-            val providerRefs = com.deepseek.dsh.feature.settings.parseModelProviders(
-                runtimeUi.modelProvidersRaw, runtimeUi.modelSettingsRaw, null, officialModelNamespaces
-            ).map { it.keyRef }.distinct()
-            val refsJson = providerRefs.joinToString(prefix = "{\"refs\":[", postfix = "]}") { "\"$it\"" }
-            runtimeUi.modelCredentialsRaw = dshRepository.rpcRaw(ui.activeHostId, "credentials/describe", refsJson).getOrNull()
+            modelProviders.refresh(ui.activeHostId)
             dshRepository.hostSettings.refreshModelCatalog(ui.activeHostId)
             dshRepository.plugins.refreshPluginInventory(ui.activeHostId)
             // Как только Host готов, читаем аккаунт и отмечаем hydrated только по ясному
@@ -728,7 +716,7 @@ fun MainAppHost(
             dshRepository = dshRepository,
             runtimeManager = runtimeManager,
             activeWorkspace = activeWorkspace,
-            officialModelNamespaces = officialModelNamespaces,
+            modelProviders = modelProviders,
             onboardingPreferences = onboardingPreferences,
             settingsRepository = settingsRepository,
             oauthManager = oauthManager,
@@ -1460,7 +1448,7 @@ fun MainAppHost(
                             SettingsDeps(
                                 ui = ui, runtimeUi = runtimeUi, repository = dshRepository, settingsRepository = settingsRepository,
                                 runtimeManager = runtimeManager, layout = layout, backup = backupAndDiag, oauthManager = oauthManager,
-                                officialNamespaces = officialModelNamespaces, workspace = activeWorkspace, availableModels = availableModelNames,
+                                officialNamespaces = officialModelNamespaces, modelProviders = modelProviders, workspace = activeWorkspace, availableModels = availableModelNames,
                                 remotes = availableHosts,
                                 pluginsOn = bridgePluginCatalog.bundles.count { it.enabled } +
                                     runtimeUi.nativePluginItems.count { it.statusLabel == context.getString(R.string.plugin_status_installed) },

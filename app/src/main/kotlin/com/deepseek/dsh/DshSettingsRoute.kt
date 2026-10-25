@@ -27,7 +27,6 @@ import com.deepseek.dsh.feature.settings.logic.BalanceLedger
 import com.deepseek.dsh.feature.settings.logic.DshUserPrefs
 import com.deepseek.dsh.feature.settings.logic.HostStats
 import com.deepseek.dsh.feature.settings.logic.StorageScanner
-import com.deepseek.dsh.feature.settings.parseModelProviders
 import com.deepseek.dsh.feature.settings.ui.KeyState
 import com.deepseek.dsh.feature.settings.ui.ProviderRow
 import com.deepseek.dsh.feature.settings.ui.RemoteHostRow
@@ -64,6 +63,7 @@ internal class SettingsDeps(
     val backup: com.deepseek.dsh.runtime.host.RuntimeBackupAndDiagnostics,
     val oauthManager: com.deepseek.dsh.core.protocol.DeepSeekOAuthManager,
     val officialNamespaces: Set<String>,
+    val modelProviders: ModelProviders,
     val workspace: java.io.File,
     val availableModels: List<String>,
     val remotes: List<HostDescriptor>,
@@ -111,17 +111,9 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
     val money = { v: Double -> balance?.let { String.format(Locale.getDefault(), "%.2f %s", v, it.second) } }
 
     // Провайдеры Host: свой ключ DeepSeek и OpenAI-совместимые.
-    val providers = remember(d.runtimeUi.modelProvidersRaw, d.runtimeUi.modelSettingsRaw, d.runtimeUi.modelCredentialsRaw) {
-        runCatching { parseModelProviders(d.runtimeUi.modelProvidersRaw, d.runtimeUi.modelSettingsRaw, d.runtimeUi.modelCredentialsRaw, d.officialNamespaces) }.getOrDefault(emptyList())
-    }
+    val providers = d.modelProviders.list(d.officialNamespaces)
     LaunchedEffect(hostId) {
-        refreshModelProviderData(
-            scope = scope, repository = d.repository, hostId = hostId,
-            onProviderIds = { d.runtimeUi.registeredProviderIds = it },
-            onSettingsRaw = { d.runtimeUi.modelSettingsRaw = it },
-            onProvidersRaw = { d.runtimeUi.modelProvidersRaw = it },
-            onCredentialsRaw = { d.runtimeUi.modelCredentialsRaw = it },
-        )
+        d.modelProviders.refresh(hostId)
         HostPermissionPreset.refresh()
         HostTheme.refresh()
     }
@@ -268,18 +260,11 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         }
 
         override suspend fun saveKey(key: String): Boolean {
-            val provider = providers.firstOrNull(::isDeepSeek) ?: run {
-                val providersRaw = d.repository.rpcRaw(hostId, "llm/listConfigurableProviders", "{}").getOrNull()
-                val settingsRaw = d.repository.rpcRaw(hostId, "settings/describe", "{}").getOrNull()
-                parseModelProviders(providersRaw, settingsRaw, null, d.officialNamespaces).firstOrNull(::isDeepSeek)
+            val provider = d.modelProviders.deepSeek(d.officialNamespaces) ?: run {
+                d.modelProviders.refresh(hostId)
+                d.modelProviders.deepSeek(d.officialNamespaces)
             } ?: return false
-            kotlinx.coroutines.coroutineScope {
-                saveModelProvider(
-                    this, d.repository, hostId, provider, key, "", emptyList(),
-                    onSettingsRaw = { d.runtimeUi.modelSettingsRaw = it },
-                    onCredentialsRaw = { d.runtimeUi.modelCredentialsRaw = it },
-                )
-            }
+            d.modelProviders.save(hostId, provider, key)
             d.oauthManager.signInWithApiKey(key)
             tick++
             return true
@@ -293,32 +278,16 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
                 keyConfigured = false, settingsNs = "llm-pi-ai", settingsPath = listOf("providers", id),
                 baseUrl = baseUrl, declared = false, configured = false,
             )
-            kotlinx.coroutines.coroutineScope {
-                saveModelProvider(
-                    this, d.repository, hostId, provider, key, baseUrl, models,
-                    onSettingsRaw = { d.runtimeUi.modelSettingsRaw = it },
-                    onCredentialsRaw = { d.runtimeUi.modelCredentialsRaw = it },
-                )
-            }
-            d.runtimeUi.modelProvidersRaw = d.repository.rpcRaw(hostId, "llm/listConfigurableProviders", "{}").getOrNull()
+            d.modelProviders.save(hostId, provider, key, baseUrl, models)
             return true
         }
 
         override fun manageKeysOnSite() { openLink(context, "https://platform.deepseek.com/api_keys") }
 
         override suspend fun deleteKey(): Boolean {
-            val provider = providers.firstOrNull(::isDeepSeek)
-            if (provider != null) d.repository.plugins.unsetCredential(hostId, provider.keyRef)
-            ApiKeyVault.delete(DEEPSEEK_VAULT_REF)
+            d.modelProviders.deleteKey(hostId, providers.firstOrNull(::isDeepSeek))
             withContext(Dispatchers.IO) { BalanceLedger.clear(context) }
             d.oauthManager.signInWithApiKey("")
-            refreshModelProviderData(
-                scope = scope, repository = d.repository, hostId = hostId,
-                onProviderIds = { d.runtimeUi.registeredProviderIds = it },
-                onSettingsRaw = { d.runtimeUi.modelSettingsRaw = it },
-                onProvidersRaw = { d.runtimeUi.modelProvidersRaw = it },
-                onCredentialsRaw = { d.runtimeUi.modelCredentialsRaw = it },
-            )
             balance = null; ledger = null; keyState = KeyState.None
             return true
         }
@@ -426,7 +395,6 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
     SettingsHomeScreen(ui, onClose = d.onClose, actions = actions, initialPage = initialPage ?: StPage.Root, toast = toast)
 }
 
-private fun isDeepSeek(p: ModelProviderUi) = p.id == "deepseek-official" || p.id.contains("deepseek") || p.keyRef.contains("DEEPSEEK", ignoreCase = true)
 
 /** Правило одобрения из пресетов Host: true — правки в папке без вопросов. */
 private fun approveState(): Boolean? {

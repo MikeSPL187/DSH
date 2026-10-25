@@ -7,13 +7,18 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-/** Настройки Host: каталог моделей, язык Host, выгрузка журналов сессий. */
+/**
+ * Настройки Host: документы настроек (`settings/...`), провайдеры моделей и их ключи,
+ * каталог моделей, режимы доступа, язык Host, выгрузка журналов сессий.
+ */
 class HostSettingsRepository internal constructor(
     private val client: DshClientProtocol,
     private val calls: HostCalls,
@@ -25,6 +30,76 @@ class HostSettingsRepository internal constructor(
     suspend fun refreshModelCatalog(hostId: String) {
         (client.getModelCatalog(hostId) as? RemoteResult.Success)?.data?.let { _modelCatalogFlow.value = it }
     }
+
+    // ── Документы настроек ───────────────────────────────────────────────────
+
+    /** Ответ `settings/describe` целиком — для разборщиков, которым нужен весь документ. */
+    suspend fun describeSettingsRaw(hostId: String): String? = calls.rpc(hostId, "settings/describe").getOrNull()
+
+    /** Одно пространство настроек из `settings/describe`; null — нет такого или Host не ответил. */
+    suspend fun namespace(hostId: String, ns: String): SettingsNamespace? {
+        val namespaces = (calls.value(hostId, "settings/describe") as? JsonObject)?.get("namespaces") as? JsonArray
+        val obj = namespaces?.mapNotNull { it as? JsonObject }?.firstOrNull { it.str("ns") == ns } ?: return null
+        return SettingsNamespace(
+            value = obj["value"] as? JsonObject ?: JsonObject(emptyMap()),
+            revision = obj.str("revision")?.toIntOrNull(),
+        )
+    }
+
+    /**
+     * Записать поля пространства одной операцией `settings/mutate`.
+     * @param values путь поля → новое значение.
+     * @param expectedRevision ревизия, по которой читали; Host отклонит запись поверх чужих правок. null — без проверки.
+     */
+    suspend fun setSettings(
+        hostId: String,
+        ns: String,
+        values: List<Pair<List<String>, JsonElement>>,
+        expectedRevision: Int?,
+    ): Boolean {
+        val args = buildJsonObject {
+            put("ns", ns)
+            put("ops", buildJsonArray {
+                values.forEach { (path, value) ->
+                    add(buildJsonObject {
+                        put("op", "set")
+                        put("path", buildJsonArray { path.forEach { add(JsonPrimitive(it)) } })
+                        put("value", value)
+                    })
+                }
+            })
+            put("expectedRevision", expectedRevision?.let(::JsonPrimitive) ?: JsonNull)
+        }
+        return calls.ok(hostId, "settings/mutate", args)
+    }
+
+    // ── Провайдеры моделей ───────────────────────────────────────────────────
+
+    /** Ответ `llm/listConfigurableProviders` целиком (каталог провайдеров, которые можно настроить). */
+    suspend fun configurableProvidersRaw(hostId: String): String? =
+        calls.rpc(hostId, "llm/listConfigurableProviders").getOrNull()
+
+    /** id провайдеров, уже зарегистрированных в Host (`llm/listProviders`). */
+    suspend fun registeredProviderIds(hostId: String): List<String> =
+        (calls.value(hostId, "llm/listProviders") as? JsonArray)
+            ?.mapNotNull { (it as? JsonObject)?.str("id") }.orEmpty()
+
+    /** Ответ `credentials/describe` по ссылкам [refs] целиком; значения ключей в нём нет никогда. */
+    suspend fun describeCredentialsRaw(hostId: String, refs: List<String>): String? {
+        val args = buildJsonObject { put("refs", buildJsonArray { refs.forEach { add(JsonPrimitive(it)) } }) }
+        return calls.rpc(hostId, "credentials/describe", args).getOrNull()
+    }
+
+    // ── Прочее ───────────────────────────────────────────────────────────────
+
+    /** Режимы доступа Host (`permissionPresets/catalog`): значение → название. */
+    suspend fun permissionPresets(hostId: String): List<Pair<String, String>> =
+        ((calls.value(hostId, "permissionPresets/catalog") as? JsonObject)?.get("options") as? JsonArray)
+            ?.mapNotNull { item ->
+                val obj = item as? JsonObject ?: return@mapNotNull null
+                val value = obj.str("value") ?: return@mapNotNull null
+                value to (obj.str("name") ?: value)
+            }.orEmpty()
 
     /**
      * Язык текстов Host (описания команд, расписания, страницы плагинов). Host знает
@@ -38,34 +113,23 @@ class HostSettingsRepository internal constructor(
         calls.rpc(hostId, "settings/update", args)
     }
 
-    /** Включена ли выгрузка журналов сессий (`session-log-deepseek` в `settings/describe`). */
+    /** Включена ли выгрузка журналов сессий (`session-log-deepseek`). */
     suspend fun fetchSessionLogUploadEnabled(hostId: String): Boolean? =
-        sessionLogNamespace(hostId)
-            ?.let { (it["value"] as? JsonObject)?.str("enabled")?.toBooleanStrictOrNull() }
+        namespace(hostId, SESSION_LOG_NS)?.value?.str("enabled")?.toBooleanStrictOrNull()
 
-    /** Включить или выключить выгрузку журналов сессий (`settings/mutate`). */
-    suspend fun setSessionLogUploadEnabled(hostId: String, enabled: Boolean): Boolean {
-        val revision = sessionLogNamespace(hostId)?.str("revision")?.toIntOrNull()
-        val args = buildJsonObject {
-            put("ns", SESSION_LOG_NS)
-            put("ops", buildJsonArray {
-                add(buildJsonObject {
-                    put("op", "set")
-                    put("path", buildJsonArray { add(JsonPrimitive("enabled")) })
-                    put("value", JsonPrimitive(enabled))
-                })
-            })
-            if (revision != null) put("expectedRevision", revision)
-        }
-        return calls.ok(hostId, "settings/mutate", args)
-    }
-
-    private suspend fun sessionLogNamespace(hostId: String): JsonObject? {
-        val namespaces = (calls.value(hostId, "settings/describe") as? JsonObject)?.get("namespaces") as? JsonArray
-        return namespaces?.mapNotNull { it as? JsonObject }?.firstOrNull { it.str("ns") == SESSION_LOG_NS }
-    }
+    /** Включить или выключить выгрузку журналов сессий. */
+    suspend fun setSessionLogUploadEnabled(hostId: String, enabled: Boolean): Boolean =
+        setSettings(
+            hostId,
+            SESSION_LOG_NS,
+            listOf(listOf("enabled") to JsonPrimitive(enabled)),
+            namespace(hostId, SESSION_LOG_NS)?.revision,
+        )
 
     private companion object {
         const val SESSION_LOG_NS = "session-log-deepseek"
     }
 }
+
+/** Пространство настроек Host: значение и ревизия (для записи без затирания чужих правок). */
+data class SettingsNamespace(val value: JsonObject, val revision: Int?)
