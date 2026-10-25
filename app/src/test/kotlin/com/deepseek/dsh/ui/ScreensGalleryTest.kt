@@ -104,7 +104,7 @@ class ScreensGalleryTest {
             DshTheme(darkTheme = dark) {
                 FilesScreen(
                     root = root, rootLabel = "DSH-Workspace", refreshKey = 0, git = fakeGit,
-                    onClose = {}, onAttach = {}, onAsk = {}, onPrompt = {}, onShare = {}, onImport = {}, onToast = {},
+                    onClose = {}, onAttach = {}, onAsk = {}, onReview = {}, commitMessage = null, onShare = {}, onImport = {}, onToast = {},
                     initialTab = tab,
                 )
             }

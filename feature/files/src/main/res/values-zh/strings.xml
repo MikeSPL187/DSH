@@ -205,7 +205,8 @@
     <string name="fs_deleted">已删除</string>
     <string name="fs_ask_prompt">解释一下 %1$s 是做什么的</string>
     <string name="fs_review_prompt">提交前检查我的更改</string>
-    <string name="fs_commit_prompt">为当前更改写一条提交说明</string>
+    <string name="fs_commit_copied">已复制：“%1$s”</string>
+    <string name="fs_commit_writing">正在撰写说明…</string>
     <string name="fs_now">刚刚</string>
     <string name="fs_today">今天 %1$s</string>
     <string name="fs_yesterday">昨天</string>

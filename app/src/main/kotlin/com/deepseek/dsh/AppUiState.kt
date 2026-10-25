@@ -50,6 +50,8 @@ class AppUiState(
     var rightDrawerPreviewPath by mutableStateOf<String?>(null)
     var sessionInspectorOpen by mutableStateOf(false)
     var pendingAgentPreset by mutableStateOf<String?>(null)
+    /** Запрос, который чат отправит сам, как только откроется (новая сессия). */
+    var pendingAutoSend by mutableStateOf<String?>(null)
     /** Текст, который нужно подставить в поле ввода нового чата («Спросить», «Создать с агентом»). */
     var pendingComposerText by mutableStateOf<String?>(null)
     /** Открытый экран плагина («Открыть» в карточке плагина): id плагина. */

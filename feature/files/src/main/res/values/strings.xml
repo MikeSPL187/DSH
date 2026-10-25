@@ -205,7 +205,8 @@
     <string name="fs_deleted">Deleted</string>
     <string name="fs_ask_prompt">Explain what %1$s does</string>
     <string name="fs_review_prompt">Review my changes before committing</string>
-    <string name="fs_commit_prompt">Suggest a commit message for the current changes</string>
+    <string name="fs_commit_copied">Copied: “%1$s”</string>
+    <string name="fs_commit_writing">Writing the message…</string>
     <string name="fs_now">just now</string>
     <string name="fs_today">today, %1$s</string>
     <string name="fs_yesterday">yesterday</string>

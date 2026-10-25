@@ -138,7 +138,9 @@ private sealed interface Sheet {
  * @param onClose «Назад» из корня.
  * @param onAttach прикрепить файл к сообщению и открыть чат.
  * @param onAsk спросить агента о файле (прикрепить и подставить вопрос).
- * @param onPrompt подставить текст в черновик чата и открыть чат.
+ * @param onReview отправить агенту просьбу проверить изменения (новая сессия) и открыть чат.
+ * @param commitMessage написать сообщение коммита по текущим изменениям; null — недоступно.
+ *   Возвращает текст или причину, почему не вышло.
  * @param onShare системное «Поделиться».
  * @param onImport импорт с телефона в папку.
  * @param onToast короткое сообщение внизу.
@@ -152,7 +154,8 @@ fun FilesScreen(
     onClose: () -> Unit,
     onAttach: (File) -> Unit,
     onAsk: (File) -> Unit,
-    onPrompt: (String) -> Unit,
+    onReview: (String) -> Unit,
+    commitMessage: (suspend (GitInfo) -> Result<String>)?,
     onShare: (File) -> Unit,
     onImport: (File) -> Unit,
     onToast: (String) -> Unit,
@@ -248,7 +251,7 @@ fun FilesScreen(
                             if (ok) { onToast(revertedText); refresh(); pop() }
                         }
                     })
-                    Entry.Changes -> ChangesView(gitInfo, git != null, onReview = { onPrompt(it) }, onOpen = { push(Entry.Diff(it)) })
+                    Entry.Changes -> ChangesView(gitInfo, git != null, onReview = onReview, commitMessage = commitMessage, onToast = onToast, onOpen = { push(Entry.Diff(it)) })
                     Entry.Search -> SearchView(root, query, version, changedPaths, onOpen = { f -> push(if (f.isDirectory) Entry.Dir(relPath(root, f)) else Entry.Doc(relPath(root, f))) }, onMore = { sheet = Sheet.Actions(it) })
                 }
             }
@@ -852,7 +855,14 @@ private data class Quad(val bg: Color, val ink: Color, val num: String, val text
 
 /** Вкладка «Изменения»: сводка с веткой, «Проверить с агентом», список файлов. */
 @Composable
-private fun ChangesView(info: GitInfo?, gitReady: Boolean, onReview: (String) -> Unit, onOpen: (String) -> Unit) {
+private fun ChangesView(
+    info: GitInfo?,
+    gitReady: Boolean,
+    onReview: (String) -> Unit,
+    commitMessage: (suspend (GitInfo) -> Result<String>)?,
+    onToast: (String) -> Unit,
+    onOpen: (String) -> Unit,
+) {
     val c = Dsh.colors
     val files = info?.changes.orEmpty()
     Column(Modifier.fillMaxSize().background(c.bg).verticalScroll(rememberScrollState()).padding(ViewPadding)) {
@@ -893,10 +903,28 @@ private fun ChangesView(info: GitInfo?, gitReady: Boolean, onReview: (String) ->
                         color = c.t2,
                     )
                     val review = stringResource(R.string.fs_review_prompt)
-                    val commit = stringResource(R.string.fs_commit_prompt)
+                    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+                    val copied = stringResource(R.string.fs_commit_copied)
+                    val scope = rememberCoroutineScope()
+                    var writing by remember { mutableStateOf(false) }
                     Column(Modifier.padding(top = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         DshButton(stringResource(R.string.fs_review), { onReview(review) }, Modifier.fillMaxWidth().height(48.dp), icon = DshGlyphs.Spark)
-                        DshButton(stringResource(R.string.fs_commit_msg), { onReview(commit) }, Modifier.fillMaxWidth().height(48.dp), kind = DshButtonKind.Ghost, icon = DshGlyphs.Msg)
+                        if (commitMessage != null) DshButton(
+                            stringResource(if (writing) R.string.fs_commit_writing else R.string.fs_commit_msg),
+                            {
+                                writing = true
+                                scope.launch {
+                                    commitMessage(info)
+                                        .onSuccess { msg ->
+                                            clipboard.setText(androidx.compose.ui.text.AnnotatedString(msg))
+                                            onToast(copied.format(msg.lineSequence().first()))
+                                        }
+                                        .onFailure { onToast(it.message.orEmpty()) }
+                                    writing = false
+                                }
+                            },
+                            Modifier.fillMaxWidth().height(48.dp), kind = DshButtonKind.Ghost, enabled = !writing, icon = DshGlyphs.Msg,
+                        )
                     }
                 }
                 Section(stringResource(R.string.fs_files), "${files.size}")

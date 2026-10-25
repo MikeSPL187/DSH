@@ -182,7 +182,8 @@
     <string name="fs_deleted">Удалено</string>
     <string name="fs_ask_prompt">Объясни, что делает %1$s</string>
     <string name="fs_review_prompt">Проверь мои изменения перед коммитом</string>
-    <string name="fs_commit_prompt">Предложи сообщение коммита для текущих изменений</string>
+    <string name="fs_commit_copied">Скопировано: «%1$s»</string>
+    <string name="fs_commit_writing">Пишу сообщение…</string>
     <string name="fs_now">только что</string>
     <string name="fs_today">сегодня, %1$s</string>
     <string name="fs_yesterday">вчера</string>
