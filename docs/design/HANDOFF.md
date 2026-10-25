@@ -35,7 +35,11 @@
 Слои, модули, правила и план — в `docs/ARCHITECTURE.md`. Кратко: `MainAppHost` разобран на части
 (`StartupGate`, `AppDrawer`, `ChatSender`, `HostAccount`, `VoiceInput`, `NativePluginsController`,
 `ToolPolicyEffect`, `WorkspaceOps`/`WorkspaceDialogs`), каркас экранов перенесён в
-`core.designsystem.kit`, `DshTopBar` = `SBar`. Следующий шаг — своё состояние у страницы чата.
+`core.designsystem.kit`, `DshTopBar` = `SBar`. Страница чата — `ChatRoute` (данные сессии читает сама,
+выбор модели — `ChatModelSelection`). Протокол разделён на клиентов по областям Host-API (`RemoteClient` —
+фасад), `DshRepository` — на области (`repository.plugins`, `.account`, `.tasks`, `.terminals`, `.commands`,
+`.approvals`, `.hostSettings`, `.speech`, `.translation`). Комментарии в коде — на русском.
+Проверка как в CI: `./gradlew test` (снимочные тесты экранов — только в debug-варианте).
 
 ## Окна и панели вне прототипа
 - Все окна приложения (`DshDialog`, `DshHeadlessModal`, `DshSheetPanel`) рисуются одним системным листом
