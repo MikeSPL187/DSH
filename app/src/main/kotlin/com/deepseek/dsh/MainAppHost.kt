@@ -1545,6 +1545,7 @@ fun MainAppHost(
             oauthManager = oauthManager,
             openAllFilesSettings = openAllFilesSettings,
             onWorkspaceChosen = { workspaceChoiceKey++ },
+            backup = backupAndDiag,
         )
         return
     }

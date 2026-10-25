@@ -50,6 +50,7 @@ internal fun FirstRunOnboarding(
     oauthManager: com.deepseek.dsh.core.protocol.DeepSeekOAuthManager,
     openAllFilesSettings: () -> Unit,
     onWorkspaceChosen: () -> Unit,
+    backup: com.deepseek.dsh.runtime.host.RuntimeBackupAndDiagnostics? = null,
 ) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -75,7 +76,34 @@ internal fun FirstRunOnboarding(
             ?: "en"
     }
 
+    // «Восстановить из резервной копии»: та же копия, что делают Настройки (без ключей).
+    val toast = com.deepseek.dsh.feature.settings.ui.rememberToast()
+    var restoring by remember { mutableStateOf(false) }
+    val restoreLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri == null || backup == null || restoring) return@rememberLauncherForActivityResult
+        restoring = true
+        scope.launch {
+            val wasRunning = runCatching { runtimeManager.getStatus().phase == com.deepseek.dsh.runtime.host.RuntimePhase.RUNNING }.getOrDefault(false)
+            if (wasRunning) runCatching { runtimeManager.stop() }
+            val r = withContext(Dispatchers.IO) {
+                runCatching { context.contentResolver.openInputStream(uri)!!.use { backup.restoreUserDataBackup(it).getOrThrow() } }
+            }
+            if (wasRunning) withContext(Dispatchers.IO) { runCatching { runtimeManager.start(activeWorkspace.absolutePath) } }
+            restoring = false
+            toast.show(
+                r.fold(
+                    { context.getString(R.string.ob_restore_done, it) },
+                    { context.getString(R.string.ob_restore_failed) },
+                ),
+            )
+        }
+    }
+
+    androidx.compose.foundation.layout.Box {
     OnboardingScreen(
+        onRestoreBackup = if (backup != null) ({ restoreLauncher.launch(arrayOf("application/zip", "application/octet-stream")) }) else null,
         install = install,
         sharedAccessGranted = ui.hasAllFilesAccess && !StorageAccess.usesPrivateWorkspace(context),
         checkKey = { provider, baseUrl, key -> checkApiKey(provider, baseUrl, key) },
@@ -130,6 +158,8 @@ internal fun FirstRunOnboarding(
             }
         },
     )
+    com.deepseek.dsh.feature.settings.ui.ToastHost(toast)
+    }
 }
 
 /** Ход установки с понятной причиной ошибки и технической подробностью. */

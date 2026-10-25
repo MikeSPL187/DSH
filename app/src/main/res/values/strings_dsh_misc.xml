@@ -6,4 +6,6 @@
     <string name="drawer_foot_key">Settings · own DeepSeek key</string>
     <string name="drawer_foot_nokey">Settings · no key yet</string>
     <string name="drawer_now">now</string>
+    <string name="ob_restore_done">Restored %1$d files. Enter the API key again — backups don\'t include it</string>
+    <string name="ob_restore_failed">Couldn\'t restore — this isn\'t a DSH backup</string>
 </resources>

@@ -6,4 +6,6 @@
     <string name="drawer_foot_key">Настройки · свой ключ DeepSeek</string>
     <string name="drawer_foot_nokey">Настройки · ключ не задан</string>
     <string name="drawer_now">сейчас</string>
+    <string name="ob_restore_done">Восстановлено файлов: %1$d. Ключ API введите заново — в копии его нет</string>
+    <string name="ob_restore_failed">Не удалось восстановить — это не резервная копия DSH</string>
 </resources>

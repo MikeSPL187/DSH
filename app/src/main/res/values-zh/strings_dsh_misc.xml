@@ -6,4 +6,6 @@
     <string name="drawer_foot_key">设置 · 自有 DeepSeek 密钥</string>
     <string name="drawer_foot_nokey">设置 · 尚未设置密钥</string>
     <string name="drawer_now">现在</string>
+    <string name="ob_restore_done">已恢复 %1$d 个文件。请重新输入 API 密钥——备份中不包含密钥</string>
+    <string name="ob_restore_failed">无法恢复——这不是 DSH 备份</string>
 </resources>
