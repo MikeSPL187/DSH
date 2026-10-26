@@ -4,7 +4,6 @@ import com.deepseek.dsh.core.designsystem.kit.*
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
-import java.time.LocalDate
 import java.time.ZoneId
 
 /**
@@ -37,7 +36,7 @@ object BalanceLedger {
 
     /** Сводка по снимкам (время, баланс); вынесено для тестов. */
     fun summarize(samples: List<Pair<Long, Double>>, current: Double, now: Long, zone: ZoneId = ZoneId.systemDefault()): Summary {
-        val today = LocalDate.ofInstant(java.time.Instant.ofEpochMilli(now), zone)
+        val today = java.time.Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
         val dayStart = today.atStartOfDay(zone).toInstant().toEpochMilli()
         val monthStart = today.withDayOfMonth(1).atStartOfDay(zone).toInstant().toEpochMilli()
         val weekStart = now - 7 * 86_400_000L

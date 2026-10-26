@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Плагины по прототипу docs/design/dsh-prototype.html (#screen-plugins). ru / en. -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="pl_title">Плагины</string>
     <string name="pl_install">Установить плагин</string>
     <string name="pl_search">Плагин или инструмент</string>
@@ -123,13 +123,14 @@
         <item quantity="many">%d ошибок</item>
         <item quantity="other">%d ошибки</item>
     </plurals>
-    <plurals name="pl_errors_word">
+    <!-- Только слово: число рядом набрано отдельно. -->
+    <plurals name="pl_errors_word" tools:ignore="ImpliedQuantity">
         <item quantity="one">ошибка</item>
         <item quantity="few">ошибки</item>
         <item quantity="many">ошибок</item>
         <item quantity="other">ошибки</item>
     </plurals>
-    <plurals name="pl_calls_week">
+    <plurals name="pl_calls_week" tools:ignore="ImpliedQuantity">
         <item quantity="one">вызов за неделю</item>
         <item quantity="few">вызова за неделю</item>
         <item quantity="many">вызовов за неделю</item>

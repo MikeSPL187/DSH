@@ -1,19 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Settings: Agent presets pane + Update pane (English, default locale). All keys use the agent_update_ prefix. -->
 <resources>
-
-    <!-- ── Agent presets pane ─────────────────────────────────────────── -->
-
-    <!-- Built-in preset: standard mode -->
-
-    <!-- Built-in preset: PTC mode -->
-
-    <!-- Built-in preset: minimal mode -->
-
-    <!-- Built-in preset: creator mode -->
-
-    <!-- ── Update pane: version info ──────────────────────────────────── -->
-
     <!-- ── Update pane: bridge plugin (required update) ──────────────── -->
     <string name="agent_update_plugin_versions">Installed %1$s → latest %2$s</string>
     <string name="agent_update_action_update_plugin">Update</string>
@@ -22,7 +9,4 @@
     <string name="agent_update_plugin_popup_title">Bridge plugin update available</string>
     <string name="agent_update_plugin_popup_desc">The installed client plugin talks to this Host. Updating it keeps both sides on the same bridge protocol.</string>
     <string name="agent_update_plugin_popup_later">Later</string>
-
-    <!-- ── Update pane: APK client ───────────────────────────────────── -->
-
 </resources>

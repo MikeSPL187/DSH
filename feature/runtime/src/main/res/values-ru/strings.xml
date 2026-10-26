@@ -1,11 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">DSH</string>
-    <string name="chat_thinking">Рассуждаю и выполняю инструменты…</string>
-    <string name="reasoning_fast">Быстро</string>
-    <string name="reasoning_deep_think">DeepThink</string>
-    <string name="reasoning_max">Максимальные рассуждения</string>
-    <string name="action_close">Закрыть</string>
     <string name="ob_back">Назад</string>
     <string name="ob_tagline">Агент для программирования, который работает прямо на телефоне</string>
     <string name="ob_feat_linux">Настоящий Linux</string>

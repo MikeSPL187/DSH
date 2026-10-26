@@ -227,7 +227,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         },
         rootfsUpdated = remember(tick) { d.layout.rootfsDir.resolve("etc/os-release").takeIf { it.exists() }?.lastModified()?.let { shortDate(it) } },
         storage = storage,
-        biometricAvailable = biometricAvailable(context),
+        biometricAvailable = BiometricLock.available(context),
         biometric = DshUserPrefs.biometric,
         trusted = d.trustedNative,
         notifDone = settings.notifyOnTurnComplete,
@@ -424,13 +424,6 @@ private fun openLink(context: Context, url: String) {
 }
 
 /** Отпечаток: есть ли на телефоне биометрия (Android 11+, как у экрана блокировки). */
-private fun biometricAvailable(context: Context): Boolean {
-    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return false
-    val bm = context.getSystemService(android.hardware.biometrics.BiometricManager::class.java) ?: return false
-    @Suppress("DEPRECATION")
-    return bm.canAuthenticate() == android.hardware.biometrics.BiometricManager.BIOMETRIC_SUCCESS
-}
-
 /** Баланс DeepSeek: `GET /user/balance`. Возвращает состояние ключа и (сумма, знак валюты). */
 private suspend fun fetchDeepSeekBalance(key: String): Pair<KeyState, Pair<Double, String>?> = withContext(Dispatchers.IO) {
     runCatching {

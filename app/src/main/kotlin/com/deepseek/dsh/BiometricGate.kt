@@ -39,6 +39,30 @@ import com.deepseek.dsh.core.designsystem.kit.KBtn
  */
 object BiometricLock {
     private const val GRACE_MS = 60_000L
+
+    /** Чем можно подтвердить вход: отпечаток (или лицо) либо код телефона. */
+    private const val AUTHENTICATORS =
+        android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_WEAK or
+            android.hardware.biometrics.BiometricManager.Authenticators.DEVICE_CREDENTIAL
+
+    /**
+     * Есть ли на телефоне чем подтвердить вход. Без отпечатка и без кода телефона
+     * блокировка не включается и не закрывает DSH — иначе из приложения не выйти.
+     */
+    fun available(context: android.content.Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
+        val manager = context.getSystemService(android.hardware.biometrics.BiometricManager::class.java) ?: return false
+        return runCatching { manager.canAuthenticate(AUTHENTICATORS) }.getOrNull() ==
+            android.hardware.biometrics.BiometricManager.BIOMETRIC_SUCCESS
+    }
+
+    @androidx.annotation.RequiresApi(Build.VERSION_CODES.R)
+    internal fun prompt(context: android.content.Context, title: String, subtitle: String): android.hardware.biometrics.BiometricPrompt =
+        android.hardware.biometrics.BiometricPrompt.Builder(context)
+            .setTitle(title)
+            .setSubtitle(subtitle)
+            .setAllowedAuthenticators(AUTHENTICATORS)
+            .build()
     var locked by mutableStateOf(true)
     private var pausedAt = 0L
 
@@ -51,22 +75,16 @@ object BiometricLock {
 
 @Composable
 fun BiometricGate() {
-    if (!DshUserPrefs.biometric || Build.VERSION.SDK_INT < Build.VERSION_CODES.R || !BiometricLock.locked) return
+    if (!DshUserPrefs.biometric || !BiometricLock.locked) return
     val context = LocalContext.current
+    if (!remember { BiometricLock.available(context) }) return
     var asking by remember { mutableStateOf(false) }
     val title = stringResource(R.string.bio_title)
     val sub = stringResource(R.string.bio_sub)
     fun ask() {
         if (asking || Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+        val prompt = BiometricLock.prompt(context, title, sub)
         asking = true
-        val prompt = android.hardware.biometrics.BiometricPrompt.Builder(context)
-            .setTitle(title)
-            .setSubtitle(sub)
-            .setAllowedAuthenticators(
-                android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_WEAK or
-                    android.hardware.biometrics.BiometricManager.Authenticators.DEVICE_CREDENTIAL,
-            )
-            .build()
         prompt.authenticate(
             android.os.CancellationSignal(),
             context.mainExecutor,

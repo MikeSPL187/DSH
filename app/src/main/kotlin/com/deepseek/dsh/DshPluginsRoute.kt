@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -470,7 +471,8 @@ internal fun PluginUiPage(
         androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.weight(1f)) {
             if (id.startsWith("apk:")) {
                 val pluginId = id.removePrefix("apk:")
-                val page = com.deepseek.dsh.plugin.nativehost.NativePageRegistry.registrations.value.firstOrNull { it.pluginId == pluginId }?.pages?.firstOrNull()
+                val registrations by com.deepseek.dsh.plugin.nativehost.NativePageRegistry.registrations.collectAsState()
+                val page = registrations.firstOrNull { it.pluginId == pluginId }?.pages?.firstOrNull()
                 if (page != null) {
                     com.deepseek.dsh.plugin.nativehost.NativePluginComponentPane(
                         page = page, componentId = "$pluginId#${page.entry.id}", spec = JsonObject(emptyMap()), onBack = onBack,
