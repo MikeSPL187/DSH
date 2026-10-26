@@ -40,6 +40,7 @@ internal fun AppDrawer(
     scope: CoroutineScope,
     folders: List<WorkspaceFolder>,
     hostWorkspaces: List<HostWorkspaceInfo>,
+    workspaceRoot: java.io.File,
     sessions: List<SessionInfo>,
     waitingIds: Set<String>,
     previews: Map<String, String>,
@@ -93,7 +94,7 @@ internal fun AppDrawer(
                         runtimeUi.renameWorkspaceName = folder.name
                     },
                     onMove = { folder, delta ->
-                        val index = hostWorkspaces.indexOfFirst { it.path == folder.path }
+                        val index = hostWorkspaces.indexOf(hostWorkspaces.forFolder(folder.path, workspaceRoot))
                         val targetIndex = index + delta
                         if (index >= 0 && delta != 0 && targetIndex in hostWorkspaces.indices) {
                             // Вниз — перед элементом после цели, вверх — перед целью; в конец — без beforeWorkspaceId.

@@ -547,7 +547,7 @@ fun MainAppHost(
                 override suspend fun delete(workspaceId: String) { dshRepository.deleteWorkspace(ui.activeHostId, workspaceId) }
                 override suspend fun renameSession(sessionId: String, title: String) { dshRepository.renameSession(ui.activeHostId, sessionId, title) }
             },
-            hostIdOf = { path -> dshRepository.hostWorkspacesFlow.value.firstOrNull { it.path == path }?.id },
+            hostIdOf = { path -> dshRepository.hostWorkspacesFlow.value.forFolder(path, activeWorkspace)?.id },
         )
     }
     WorkspaceDialogs(runtimeUi, workspaceOps, scope)
@@ -747,56 +747,20 @@ fun MainAppHost(
 
     val workspaceFolders = remember(
         sessions, ui.selectedSessionId, activeWorkspace, runtimeUi.workspaceRevision, hostWorkspaces,
+        runningSessionIds, unreadSessionIds,
     ) {
-        // Корень DSH-Workspace сам не рабочая папка — показываются только его подпапки.
-        val workspaceDirs = workspaceManager.listWorkspaceDirectories(activeWorkspace)
-            .filter { it.absolutePath != activeWorkspace.absolutePath }
-        // Порядок и названия — из проекции workspace/follow Host; без неё — имена папок на диске.
-        val hostByPath = hostWorkspaces.associateBy { it.path }
-        val orderedDirs = workspaceDirs.sortedBy { dir ->
-            hostWorkspaces.indexOfFirst { it.path == dir.absolutePath }
-                .let { if (it < 0) Int.MAX_VALUE else it }
-        }
-        orderedDirs.mapIndexed { idx, dir ->
-            val dirSessions = sessions.filter { s ->
-                val wsPath = s.workspacePath
-                wsPath != null && (wsPath == dir.absolutePath || wsPath.startsWith(dir.absolutePath))
-            }.ifEmpty {
-                if (idx == 0) sessions else emptyList()
-            }
-            val hostSessionOrder = hostByPath[dir.absolutePath]?.sessionIds.orEmpty()
-            val orderedSessions = dirSessions.sortedBy { s ->
-                hostSessionOrder.indexOf(s.sessionId).let { if (it < 0) Int.MAX_VALUE else it }
-            }
-            com.deepseek.dsh.feature.sessions.WorkspaceFolder(
-                id = "ws_${dir.name.hashCode()}",
-                name = hostByPath[dir.absolutePath]?.title?.takeIf { it.isNotBlank() }
-                    ?: dir.name.ifEmpty { context.getString(R.string.workspace_main) },
-                path = dir.absolutePath,
-                sessions = orderedSessions.mapIndexed { sIdx, s ->
-                    com.deepseek.dsh.feature.sessions.SessionDisplayItem(
-                        sessionId = s.sessionId,
-                        title = s.title,
-                        isRunning = s.sessionId in runningSessionIds,
-                        hasUnread = s.sessionId in unreadSessionIds,
-                        updatedAt = s.updatedAt,
-                        archived = s.archived,
-                        pinned = s.pinned,
-                        timeAgo = run {
-                            val elapsed = (System.currentTimeMillis() - s.updatedAt).coerceAtLeast(0L)
-                            when {
-                                elapsed < 60_000L -> context.getString(R.string.time_just_now)
-                                elapsed < 60L * 60 * 1000 -> context.getString(R.string.time_minutes, (elapsed / 60_000L).toInt())
-                                elapsed < 24L * 60 * 60 * 1000 -> context.getString(R.string.time_hours, (elapsed / (60 * 60 * 1000)).toInt())
-                                else -> context.getString(R.string.time_days, (elapsed / (24 * 60 * 60 * 1000)).toInt())
-                            }
-                        },
-                        isActiveDot = (s.sessionId == ui.selectedSessionId)
-                    )
-                },
-                isExpanded = idx == 0
-            )
-        }
+        buildWorkspaceFolders(
+            // Корень DSH-Workspace сам не рабочая папка — только его подпапки.
+            dirs = workspaceManager.listWorkspaceDirectories(activeWorkspace)
+                .filter { it.absolutePath != activeWorkspace.absolutePath },
+            root = activeWorkspace,
+            sessions = sessions,
+            hostWorkspaces = hostWorkspaces,
+            selectedSessionId = ui.selectedSessionId,
+            runningIds = runningSessionIds,
+            unreadIds = unreadSessionIds,
+            timeAgo = { updatedAt -> timeAgoLabel(context, updatedAt) },
+        )
     }
 
     // Терминал появляется, только когда в Host включён плагин терминала —
@@ -826,7 +790,7 @@ fun MainAppHost(
             drawer = {
                 AppDrawer(
                     state = drawerUi, ui = ui, runtimeUi = runtimeUi, repository = dshRepository, scope = scope,
-                    folders = workspaceFolders, hostWorkspaces = hostWorkspaces, sessions = sessions,
+                    folders = workspaceFolders, hostWorkspaces = hostWorkspaces, workspaceRoot = activeWorkspace, sessions = sessions,
                     waitingIds = pendingApprovalWaterfalls.mapNotNull { it.agentId }.toSet(),
                     previews = sessionPreviews,
                     hostLive = status.phase == RuntimePhase.RUNNING || ui.activeHostId != com.deepseek.dsh.core.model.HostDescriptor.Local().id,
