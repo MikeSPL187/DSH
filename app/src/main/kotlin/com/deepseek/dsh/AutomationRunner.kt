@@ -117,7 +117,12 @@ object AutomationRunner {
             return@withContext Outcome(false, app.getString(R.string.au_run_no_session, it.message ?: ""), null, false)
         }
         val sid = session.sessionId
-        presetFor(a.perm)?.let { runCatching { repo.selectPermissionPreset(LOCAL_HOST, sid, it) } }
+        // Права — до промпта, и без запасного пути: не удалось — сессия не запускается. Иначе автоматизация
+        // «только читать» в фоне, без пользователя, работала бы с правами сессии по умолчанию (вплоть до полного доступа).
+        val preset = presetFor(a.perm)
+        if (runCatching { repo.selectPermissionPreset(LOCAL_HOST, sid, preset) }.getOrDefault(false) != true) {
+            return@withContext Outcome(false, app.getString(R.string.au_run_no_perm), sid, false)
+        }
         modelFor(app, a)?.let { (model, provider, effort) -> runCatching { repo.selectModel(LOCAL_HOST, sid, model, provider, effort) } }
 
         val prompt = buildString {
@@ -142,7 +147,7 @@ object AutomationRunner {
     }
 
     /** Пресет прав Host: «только читать» или «править в рабочей папке». */
-    private fun presetFor(perm: String): String? {
+    private fun presetFor(perm: String): String {
         val options = HostPermissionPreset.options.map { it.value }
         return if (perm == "edit") options.firstOrNull { "workspace" in it || ("write" in it && "danger" !in it) } ?: "workspace-write"
         else options.firstOrNull { "read" in it } ?: "read-only"

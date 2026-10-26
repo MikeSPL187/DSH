@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
@@ -497,7 +498,10 @@ private fun KeySheet(custom: Boolean, a: SettingsActions, toast: ToastState, clo
         key, { key = it }, stringResource(R.string.st_key_field), secret = !shown, keyboard = KeyboardType.Password,
         trailing = {
             IconBtn(DshGlyphs.Eye, stringResource(if (shown) R.string.st_key_hide else R.string.st_key_show), size = 40.dp, iconSize = 18.dp, tint = Dsh.colors.t3) { shown = !shown }
-            KBtn(stringResource(R.string.st_key_paste), { clipboard.getText()?.text?.let { key = it.trim() } }, height = 36.dp, radius = 10.dp, fontSize = 13.sp, horizontal = 10.dp, ink = Dsh.colors.accent)
+            KBtn(stringResource(R.string.st_key_paste), {
+                // Вставленный ключ не остаётся в буфере обмена: его читают клавиатура и другие приложения.
+                clipboard.getText()?.text?.trim()?.takeIf { it.isNotEmpty() }?.let { key = it; clipboard.setText(AnnotatedString("")) }
+            }, height = 36.dp, radius = 10.dp, fontSize = 13.sp, horizontal = 10.dp, ink = Dsh.colors.accent)
         },
     )
     val (msg, color) = when {

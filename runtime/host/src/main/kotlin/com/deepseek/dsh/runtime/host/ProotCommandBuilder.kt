@@ -68,6 +68,7 @@ object ProotCommandBuilder {
         cmd.add("${layout.groupOverlay.absolutePath}:/etc/group")
         // Рабочая папка пользователя — как у Host: /workspace.
         if (workspacePath != null && java.io.File(workspacePath).isDirectory) {
+            require(':' !in workspacePath) { "path must not contain ':': $workspacePath" }
             cmd.add("-b")
             cmd.add("$workspacePath:/workspace")
         }
@@ -110,6 +111,8 @@ object ProotCommandBuilder {
         cmd.add(rootfs)
 
         fun bind(host: String, guest: String? = null) {
+            // `-b путь:гость`: двоеточие в пути proot принял бы за разделитель и смонтировал папку в чужое место.
+            require(':' !in host) { "path must not contain ':': $host" }
             if (!java.io.File(host).exists()) return
             cmd.add("-b")
             cmd.add(if (guest == null || guest == host) host else "$host:$guest")

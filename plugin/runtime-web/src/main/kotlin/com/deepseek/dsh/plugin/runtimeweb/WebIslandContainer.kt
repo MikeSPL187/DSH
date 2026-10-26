@@ -150,8 +150,9 @@ class WebIslandContainer(
                 val host = uri.host
                 val port = if (uri.port != -1) uri.port else if (uri.scheme == "https") 443 else 80
 
-                // Только loopback этого приложения или доверенные домены.
-                if (host == allowedHost && (port == allowedPort || allowedPort == 0)) {
+                // Только Host этого приложения: адрес и порт точно. Порт 0 (Host не запущен) не открывает ничего —
+                // раньше он разрешал любой локальный сервер на телефоне.
+                if (host == allowedHost && allowedPort > 0 && port == allowedPort) {
                     return false
                 }
                 // Внешние ссылки внутри островка не открываются.

@@ -222,6 +222,7 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
     ): RemoteResult<Boolean> = withContext(kotlinx.coroutines.Dispatchers.IO) {
         val payload = buildJsonObject {
             put("type", "client-request")
+            put("rpcId", java.util.UUID.randomUUID().toString())
             put("method", "session/selectPermission")
             put("payload", buildJsonObject {
                 put("args", buildJsonObject {
@@ -232,16 +233,27 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
         }.toString()
 
         val request = Request.Builder()
-            .url("$baseUrl/api")
+            .url("$baseUrl/api/session/selectPermission")
             .post(payload.toRequestBody(mediaTypeJson))
             .build()
 
+        // Права — граница безопасности: сбой сети или отказ Host — это отказ, а не «выбрано».
         try {
             client.newCall(request).execute().use { response ->
-                RemoteResult.Success(response.isSuccessful)
+                val body = response.body?.string().orEmpty()
+                if (!response.isSuccessful) {
+                    return@use RemoteResult.Failure("dsh/session/select-permission", extractRpcError(body) ?: "HTTP ${response.code}")
+                }
+                val result = runCatching { json.parseToJsonElement(body) as? kotlinx.serialization.json.JsonObject }
+                    .getOrNull()?.get("result") as? kotlinx.serialization.json.JsonObject
+                if (result?.get("ok")?.toString() == "false") {
+                    RemoteResult.Failure("dsh/session/select-permission", extractRpcError(body) ?: "rejected by Host")
+                } else {
+                    RemoteResult.Success(true)
+                }
             }
         } catch (e: Exception) {
-            RemoteResult.Success(true)
+            RemoteResult.Failure("dsh/session/select-permission", e.message ?: "network error")
         }
     }
 

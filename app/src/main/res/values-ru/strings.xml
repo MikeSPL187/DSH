@@ -206,6 +206,7 @@
     <string name="account_bonus_title">Бонус получен</string>
     <string name="account_bonus_ok">Понятно</string>
     <string name="model_switch_failed">Не удалось сменить модель: %1$s</string>
+    <string name="perm_switch_failed">Не удалось сменить права — у сессии остались прежние</string>
     <string name="header_agents_count">Агентов: %1$d</string>
     <string name="header_jobs_running">Фоновых задач выполняется: %1$d</string>
     <string name="header_jobs_idle">Фоновых задач: %1$d</string>

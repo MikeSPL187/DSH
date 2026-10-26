@@ -45,6 +45,9 @@ class WorkspaceOpsTest {
         assertNull(ops.create("../evil"))
         assertNull(ops.create(".."))
         assertNull(ops.create("a/b"))
+        // Двоеточие proot принял бы за разделитель `-b путь:гость`; управляющие символы — не имя.
+        assertNull(ops.create("evil:etc"))
+        assertNull(ops.create("a\nb"))
         assertFalse(File(base, "evil").exists())
         assertTrue(calls.isEmpty())
     }

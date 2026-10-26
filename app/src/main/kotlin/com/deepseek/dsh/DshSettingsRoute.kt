@@ -2,7 +2,6 @@ package com.deepseek.dsh
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -282,7 +281,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
             return true
         }
 
-        override fun manageKeysOnSite() { openLink(context, "https://platform.deepseek.com/api_keys") }
+        override fun manageKeysOnSite() { openWebLink(context, "https://platform.deepseek.com/api_keys") }
 
         override suspend fun deleteKey(): Boolean {
             d.modelProviders.deleteKey(hostId, providers.firstOrNull(::isDeepSeek))
@@ -388,8 +387,8 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
             }
         }
 
-        override fun whatsNew() { openLink(context, update?.htmlUrl ?: "https://github.com/EricFL1998/deepseek-harness-mobile/releases") }
-        override fun licenses() { openLink(context, "https://github.com/EricFL1998/deepseek-harness-mobile/blob/main/third_party") }
+        override fun whatsNew() { openWebLink(context, update?.htmlUrl ?: "https://github.com/EricFL1998/deepseek-harness-mobile/releases") }
+        override fun licenses() { openWebLink(context, "https://github.com/EricFL1998/deepseek-harness-mobile/blob/main/third_party") }
     }
 
     SettingsHomeScreen(ui, onClose = d.onClose, actions = actions, initialPage = initialPage ?: StPage.Root, toast = toast)
@@ -419,9 +418,6 @@ private fun shortFingerprint(fp: String): String {
     return if (parts.size > 4) parts.take(2).joinToString(":") + "…" + parts.last() else fp
 }
 
-private fun openLink(context: Context, url: String) {
-    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-}
 
 /** Отпечаток: есть ли на телефоне биометрия (Android 11+, как у экрана блокировки). */
 /** Баланс DeepSeek: `GET /user/balance`. Возвращает состояние ключа и (сумма, знак валюты). */

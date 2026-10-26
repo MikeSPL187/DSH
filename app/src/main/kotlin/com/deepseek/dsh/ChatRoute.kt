@@ -152,12 +152,7 @@ internal fun ChatRoute(d: ChatDeps) {
         onLoadChangeDiff = { index -> ui.selectedSessionId?.let { repository.loadChangeDiff(hostId, it, index) } },
         onOpenDeliverable = { file ->
             // Путь Host /workspace/<x> — это <рабочая папка>/<x> на телефоне.
-            val localPath = when {
-                file.path.startsWith(HOST_WORKSPACE) -> File(d.workspace, file.path.removePrefix(HOST_WORKSPACE)).path
-                file.path.startsWith(d.workspace.absolutePath) -> file.path
-                else -> null
-            }
-            val dir = localPath?.let { File(it).parentFile }?.takeIf { it.exists() }
+            val dir = workspaceFileOf(file.path, d.workspace)?.parentFile?.takeIf { it.exists() }
             if (dir != null) {
                 ui.filesDir = dir
                 ui.activePage = ActivePage.FILES
@@ -224,7 +219,11 @@ internal fun ChatRoute(d: ChatDeps) {
         },
         selectedPermission = permissionPresetOf(d.activeSession?.permissionPreset),
         onPermissionSelected = { preset ->
-            withSession { repository.selectPermissionPreset(hostId, it, preset.hostId()) }
+            withSession {
+                if (!repository.selectPermissionPreset(hostId, it, preset.hostId())) {
+                    toast(context.getString(R.string.perm_switch_failed), long = true)
+                }
+            }
         },
         reasoningLevel = reasoningLevel,
         reasoningOptions = model.efforts,
@@ -283,6 +282,21 @@ internal fun ChatRoute(d: ChatDeps) {
 
 /** Корень рабочих папок внутри Host. */
 private const val HOST_WORKSPACE = "/workspace/"
+
+/**
+ * Файл телефона для пути из ответа агента: `/workspace/<x>` — это `<рабочая папка>/<x>`.
+ * Путь вне рабочей папки (в том числе через `..` или ссылку) — null: агент не открывает другие папки телефона.
+ */
+internal fun workspaceFileOf(path: String, workspace: File): File? {
+    val candidate = when {
+        path.startsWith(HOST_WORKSPACE) -> File(workspace, path.removePrefix(HOST_WORKSPACE))
+        path.startsWith(workspace.absolutePath + File.separator) -> File(path)
+        else -> return null
+    }
+    val root = workspace.canonicalFile.toPath()
+    val real = runCatching { candidate.canonicalFile }.getOrNull() ?: return null
+    return real.takeIf { it.toPath().startsWith(root) }
+}
 
 private fun permissionPresetOf(hostId: String?): PermissionPreset = when (hostId) {
     "read_only" -> PermissionPreset.READ_ONLY

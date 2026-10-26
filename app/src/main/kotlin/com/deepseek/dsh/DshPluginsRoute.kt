@@ -376,7 +376,7 @@ private fun settingOf(ns: String, key: String, node: FormNode, value: JsonElemen
 internal fun normalizeSpec(link: String): String? {
     val t = link.trim()
     if (t.isEmpty()) return null
-    if (Regex("""^(?:https?://)?(?:www\.)?github\.com/[^/\s#]+/[^/\s#]+?(?:\.git)?(?:#\S+)?/?$""", RegexOption.IGNORE_CASE).matches(t)) return t
+    if (Regex("""^(?:https://)?(?:www\.)?github\.com/[^/\s#]+/[^/\s#]+?(?:\.git)?(?:#\S+)?/?$""", RegexOption.IGNORE_CASE).matches(t)) return t
     if (Regex("""^(@[a-z0-9-~][a-z0-9-._~]*/)?[a-z0-9-~][a-z0-9-._~]*(@[\w.^~<>=*| -]+)?$""").matches(t)) return t
     return null
 }
@@ -399,14 +399,16 @@ private suspend fun installFromFile(context: Context, uri: Uri, d: PluginDeps, t
     val dirName = "upload-" + System.currentTimeMillis()
     val root = withContext(Dispatchers.IO) {
         runCatching {
-            val dest = java.io.File(d.installCacheDir, "plugin-upload/$dirName").apply { mkdirs() }.canonicalFile
-            java.util.zip.ZipInputStream(context.contentResolver.openInputStream(uri)!!).use { zis ->
-                while (true) {
-                    val e = zis.nextEntry ?: break
-                    val target = java.io.File(dest, e.name).canonicalFile
-                    if (!target.path.startsWith(dest.path + java.io.File.separator)) continue
-                    if (e.isDirectory) target.mkdirs() else { target.parentFile?.mkdirs(); target.outputStream().use { zis.copyTo(it) } }
-                }
+            val uploads = java.io.File(d.installCacheDir, "plugin-upload")
+            // Прошлые загрузки уже установлены или не удались — в кэше им делать нечего.
+            uploads.listFiles()?.forEach { com.deepseek.dsh.runtime.host.SafeFiles.deleteTree(it) }
+            val dest = java.io.File(uploads, dirName)
+            try {
+                // Пути не выходят из папки, размер и число записей ограничены (zip-бомба не заполнит память).
+                context.contentResolver.openInputStream(uri)!!.use { com.deepseek.dsh.runtime.host.SafeZip.extract(it, dest) }
+            } catch (error: Exception) {
+                com.deepseek.dsh.runtime.host.SafeFiles.deleteTree(dest)
+                throw error
             }
             // Архив может содержать одну верхнюю папку.
             val single = dest.listFiles()?.singleOrNull()?.takeIf { it.isDirectory && !java.io.File(dest, "package.json").exists() }

@@ -331,7 +331,7 @@ class HostProcessRunner(
         return lines.lastOrNull { it.isNotBlank() }?.trim()?.take(MAX_ERROR_LINE_CHARS)
     }
 
-    private fun redact(text: String): String = TOKEN_PATTERN.replace(text, "token=***")
+    private fun redact(text: String): String = SecretScrubber.scrub(text)
 
     private companion object {
         /** Строк в кольцевом буфере: хватает найти причину сбоя запуска и не раздуть поток состояния. */
@@ -342,8 +342,5 @@ class HostProcessRunner(
 
         /** Сколько ждать дочитывания stdout/stderr после выхода процесса. */
         const val STREAM_DRAIN_TIMEOUT_MS = 2_000L
-
-        /** Токены в журнале и тексте ошибок всегда вычищаются. */
-        val TOKEN_PATTERN = Regex("""token=[A-Za-z0-9_\-]+""")
     }
 }

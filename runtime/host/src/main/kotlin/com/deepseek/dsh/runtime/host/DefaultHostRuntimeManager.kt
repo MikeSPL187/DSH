@@ -988,13 +988,7 @@ class DefaultHostRuntimeManager(
         val cmd = ProotCommandBuilder.build(launchConfig)
         // Запуск через shell: прямой exec proot унаследовал бы окружение компоновщика процесса приложения,
         // и разбор модулей Node в proot отличался бы от ручного запуска.
-        val launchCmd = listOf(
-            "/system/bin/sh",
-            "-c",
-            cmd.joinToString(" ") { arg ->
-                if (arg.any { it.isWhitespace() }) "'" + arg.replace("'", "'\\''") + "'" else arg
-            }
-        )
+        val launchCmd = listOf("/system/bin/sh", "-c", shellCommand(cmd))
 
         val logFile = File(layout.logsDir, "host_${System.currentTimeMillis()}.log")
         logFile.appendText("[CMD] ${cmd.joinToString(" ")}\n")
@@ -1149,3 +1143,11 @@ class DefaultHostRuntimeManager(
 
 
 
+
+/**
+ * Строка для `sh -c`: каждый аргумент — в одинарных кавычках, кавычка внутри — `'\''`.
+ * В одинарных кавычках оболочка ничего не раскрывает: имя папки вроде `a;rm -rf ~` или `$(…)`
+ * остаётся именем, а не командой (раньше в кавычки брались только аргументы с пробелами).
+ */
+internal fun shellCommand(argv: List<String>): String =
+    argv.joinToString(" ") { arg -> "'" + arg.replace("'", "'\\''") + "'" }

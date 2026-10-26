@@ -27,7 +27,7 @@ class RuntimeBackupAndDiagnostics(
         try {
             ZipOutputStream(FileOutputStream(backupZip)).use { zos ->
                 // Хотя бы одна корневая запись снимка.
-                val markerEntry = ZipEntry("snapshot_meta.txt")
+                val markerEntry = ZipEntry(BACKUP_MARKER)
                 zos.putNextEntry(markerEntry)
                 zos.write("DSH User Data Snapshot $timestamp\n".toByteArray(Charsets.UTF_8))
                 zos.closeEntry()
@@ -82,9 +82,7 @@ class RuntimeBackupAndDiagnostics(
     }
 
     internal fun scrubSensitiveInfo(rawText: String): String {
-        // Вычистка секретов: token/cookie/API-ключ. Кроме query/Bearer/sk-, в журналах часто встречаются
-        // поля JSON, заголовки Cookie/Authorization и токены GitHub — раньше они выгружались как есть.
-        return SCRUB_RULES.fold(rawText) { text, (pattern, replacement) -> pattern.replace(text, replacement) }
+        return SecretScrubber.scrub(rawText)
     }
 
     /** Рекурсивно упаковать папку: по символическим ссылкам не ходим (ссылки в node_modules ведут на весь rootfs или образуют цикл). */
@@ -114,43 +112,23 @@ class RuntimeBackupAndDiagnostics(
      */
     suspend fun restoreUserDataBackup(input: java.io.InputStream): Result<Int> = withContext(Dispatchers.IO) {
         runCatching {
-            val home = layout.dshHomeDir.apply { mkdirs() }.canonicalFile
-            var count = 0
-            var marker = false
-            java.util.zip.ZipInputStream(input).use { zis ->
-                while (true) {
-                    val e = zis.nextEntry ?: break
-                    if (e.name == "snapshot_meta.txt") { marker = true; continue }
-                    if (e.isDirectory || !e.name.startsWith("dsh_home/")) continue
-                    val rel = e.name.removePrefix("dsh_home/")
-                    if (rel.isBlank() || SECRET_FILE.containsMatchIn(rel.substringAfterLast('/'))) continue
-                    val target = File(home, rel).canonicalFile
-                    if (!target.path.startsWith(home.path + File.separator)) continue
-                    target.parentFile?.mkdirs()
-                    java.io.FileOutputStream(target).use { zis.copyTo(it) }
-                    count++
+            // Знак снимка — первая запись каждой копии DSH: чужой архив отклоняется до записи первого файла.
+            SafeZip.extract(input, layout.dshHomeDir) { entry, index ->
+                if (index == 0) {
+                    require(entry.name == BACKUP_MARKER) { "not a DSH backup" }
+                    return@extract null
                 }
+                val rel = entry.name.takeIf { it.startsWith("dsh_home/") }?.removePrefix("dsh_home/")
+                rel?.takeIf { it.isNotBlank() && !SECRET_FILE.containsMatchIn(it.substringAfterLast('/')) }
             }
-            require(marker) { "not a DSH backup" }
-            count
         }
     }
 
     private companion object {
+        /** Первая запись каждой резервной копии DSH. */
+        const val BACKUP_MARKER = "snapshot_meta.txt"
+
         /** Имена файлов с ключами и токенами — их не архивируем и не восстанавливаем. */
         val SECRET_FILE = Regex("""(?i)(credential|secret|token|\.env$|auth\.json$|\.key$|\.pem$)""")
-
-        private val SECRET_KEYS =
-            "(?:token|access_?token|refresh_?token|api_?key|apikey|secret|password|passwd|authorization|cookie|session|credential|private_?key)"
-        val SCRUB_RULES: List<Pair<Regex, String>> = listOf(
-            Regex("""(?i)([?&](?:token|auth|access_token|key)=)[^&\s"']+""") to "$1REDACTED",
-            Regex("""(?i)token=[a-zA-Z0-9_\-.]+""") to "token=REDACTED",
-            Regex("""(?i)\bBearer\s+[A-Za-z0-9_\-.~+/=]+""") to "Bearer REDACTED",
-            Regex("""(?i)\b(authorization|x-api-key|cookie|set-cookie)\s*:\s*[^\r\n]+""") to "$1: REDACTED",
-            Regex("""(?i)("[A-Za-z0-9_\-]*$SECRET_KEYS[A-Za-z0-9_\-]*"\s*:\s*)"[^"]*"""") to "$1\"REDACTED\"",
-            Regex("""(?i)\b(dsh-web-session|session|sid)=[^;\s"']+""") to "$1=REDACTED",
-            Regex("""\bsk-[A-Za-z0-9_\-]{8,}""") to "sk-REDACTED",
-            Regex("""\bgh[pousr]_[A-Za-z0-9]{20,}""") to "gh_REDACTED",
-        )
     }
 }

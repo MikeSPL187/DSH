@@ -638,7 +638,10 @@ private fun ModelStep(
             secret = true,
             ok = check is KeyCheck.Ok,
             keyboard = KeyboardType.Password,
-            onPaste = { clipboard.getText()?.text?.trim()?.takeIf { it.isNotEmpty() }?.let(onKey) },
+            onPaste = {
+                // Вставленный ключ не остаётся в буфере обмена: его читают клавиатура и другие приложения.
+                clipboard.getText()?.text?.trim()?.takeIf { it.isNotEmpty() }?.let { onKey(it); clipboard.setText(androidx.compose.ui.text.AnnotatedString("")) }
+            },
         )
     }
     // `.ob-state`: где хранится ключ, проверка, итог.

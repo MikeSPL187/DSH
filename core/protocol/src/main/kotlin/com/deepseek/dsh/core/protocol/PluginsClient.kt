@@ -427,12 +427,13 @@ internal class PluginsClient(private val conn: HostConnection) : PluginsApi {
             .post(payload.toRequestBody(mediaTypeJson))
             .build()
 
+        // Сбой сети — не «переключено»: иначе выключенный пользователем плагин показывался бы выключенным, оставаясь включённым.
         try {
             client.newCall(request).execute().use { response ->
                 RemoteResult.Success(response.isSuccessful)
             }
-        } catch (_: Exception) {
-            RemoteResult.Success(true)
+        } catch (e: Exception) {
+            RemoteResult.Failure("dsh/plugin/set-bundle-enabled", e.message ?: "network error")
         }
     }
 

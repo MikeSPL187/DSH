@@ -214,6 +214,7 @@
 <string name="account_bonus_title">Reward received</string>
     <string name="account_bonus_ok">Got it</string>
     <string name="model_switch_failed">Model switch failed: %1$s</string>
+    <string name="perm_switch_failed">Couldn\'t change permissions — the session keeps its current ones</string>
     <string name="header_agents_count">%1$d agents</string>
     <string name="header_jobs_running">%1$d background jobs running</string>
     <string name="header_jobs_idle">%1$d background jobs</string>

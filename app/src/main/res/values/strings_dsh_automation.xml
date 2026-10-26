@@ -9,6 +9,7 @@
     <string name="au_run_phone_busy">Android delayed the run</string>
     <string name="au_run_no_host">Host didn\'t start</string>
     <string name="au_run_no_session">Couldn\'t start a session: %1$s</string>
+    <string name="au_run_no_perm">Couldn\'t set the session permissions — the run was not started</string>
     <string name="au_run_read_only">Don\'t change any files — only read and send a summary.</string>
     <string name="au_run_timeout">Didn\'t finish in 30 minutes — stopped</string>
     <string name="au_run_empty">The agent didn\'t answer</string>

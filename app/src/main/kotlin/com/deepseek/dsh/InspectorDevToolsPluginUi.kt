@@ -99,7 +99,14 @@ internal fun NodeJsDevToolsPane() {
                             settings.domStorageEnabled = true
                             settings.allowFileAccess = false
                             settings.allowContentAccess = false
-                            webViewClient = WebViewClient()
+                            settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                            // В окне — cookie сессии Host: переходы только по его адресу, внешние ссылки не открываются.
+                            webViewClient = object : WebViewClient() {
+                                override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
+                                    val target = request?.url ?: return true
+                                    return !(target.scheme == "http" && target.host == "127.0.0.1" && target.port == port)
+                                }
+                            }
                             // Отладочные маршруты Host — по cookie сессии; переносим cookie приложения в WebView.
                             runCatching {
                                 @Suppress("UNUSED_VARIABLE")
@@ -107,11 +114,9 @@ internal fun NodeJsDevToolsPane() {
                                 val cookies = app?.cookieJar?.loadForRequest(
                                     "http://127.0.0.1:$port/".toHttpUrl(),
                                 ).orEmpty()
-                                val header = cookies.joinToString("; ") { "${it.name}=${it.value}" }
-                                if (header.isNotBlank()) {
-                                    CookieManager.getInstance().setCookie("http://127.0.0.1:$port/", header)
-                                    CookieManager.getInstance().flush()
-                                }
+                                // setCookie принимает одну cookie: строка «a=1; b=2» записала бы только первую.
+                                cookies.forEach { CookieManager.getInstance().setCookie("http://127.0.0.1:$port/", "${it.name}=${it.value}") }
+                                if (cookies.isNotEmpty()) CookieManager.getInstance().flush()
                             }
                             loadUrl(url)
                         }

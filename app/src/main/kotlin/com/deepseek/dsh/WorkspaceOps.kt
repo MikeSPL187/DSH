@@ -78,6 +78,12 @@ class WorkspaceOps(
         f != r && f.startsWith(r)
     }.getOrDefault(false)
 
+    /**
+     * Имя папки проекта: без разделителей пути, `.`/`..` и управляющих символов. Двоеточие запрещено:
+     * папка монтируется в Linux как `-b путь:/workspace`, и proot принял бы его за разделитель.
+     */
     private fun cleanName(raw: String): String? =
-        raw.trim().takeIf { it.isNotEmpty() && it != "." && it != ".." && '/' !in it && '\\' !in it && '\u0000' !in it }
+        raw.trim().takeIf { name ->
+            name.isNotEmpty() && name != "." && name != ".." && name.none { it == '/' || it == '\\' || it == ':' || it.isISOControl() }
+        }
 }

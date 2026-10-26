@@ -42,7 +42,7 @@ class HostProcessRunnerTest {
             // Токен должен быть вычищен до попадания в состояние и интерфейс.
             assertTrue(
                 "logTail должен содержать URL без секретов, факт=${starting.logTail}",
-                starting.logTail.any { it.contains("token=***") && !it.contains("token=abc") },
+                starting.logTail.any { it.contains("token=REDACTED") && !it.contains("token=abc") },
             )
 
             runner.markReady()

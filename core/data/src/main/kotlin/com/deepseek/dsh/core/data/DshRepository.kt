@@ -185,9 +185,15 @@ class DshRepository(
             .map { }
             .onSuccess { dao.updateSessionModel(hostId, sessionId, displayName ?: model) }
 
-    suspend fun selectPermissionPreset(hostId: String, sessionId: String, preset: String) {
-        dao.updateSessionPermission(hostId, sessionId, preset)
-        client.selectPermissionPreset(hostId, sessionId, preset)
+    /**
+     * Выбрать пресет прав сессии; true — Host его принял. Локально пресет сохраняется только после
+     * ответа Host: экран не должен показывать права, которых у сессии на самом деле нет.
+     */
+    suspend fun selectPermissionPreset(hostId: String, sessionId: String, preset: String): Boolean {
+        val result = client.selectPermissionPreset(hostId, sessionId, preset)
+        val accepted = result is com.deepseek.dsh.core.protocol.RemoteResult.Success && result.data
+        if (accepted) dao.updateSessionPermission(hostId, sessionId, preset)
+        return accepted
     }
 
     suspend fun cancelSession(hostId: String, sessionId: String): Boolean {

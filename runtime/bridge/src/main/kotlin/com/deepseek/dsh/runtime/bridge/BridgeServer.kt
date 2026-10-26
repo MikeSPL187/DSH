@@ -356,10 +356,13 @@ class BridgeServer(
     }
 
     /** Совпадает с привязкой `/workspace` Host; не передано — общая рабочая папка по умолчанию. */
-    private fun resolvedWorkspacePath(): String = workspacePath?.takeIf { it.isNotBlank() }
-        ?: java.io.File(
-            android.os.Environment.getExternalStorageDirectory(), "Documents/DSH-Workspace"
-        ).absolutePath
+    private fun resolvedWorkspacePath(): String = (
+        workspacePath?.takeIf { it.isNotBlank() }
+            ?: java.io.File(android.os.Environment.getExternalStorageDirectory(), "Documents/DSH-Workspace").absolutePath
+        ).also {
+            // `-b путь:/workspace`: двоеточие в пути proot принял бы за разделитель и смонтировал папку в чужое место.
+            require(':' !in it) { "workspace path must not contain ':'" }
+        }
 
     /**
      * Запустить процесс и собрать вывод. Вывод обрезается по пределу символов, но канал читается до конца (иначе процесс
