@@ -385,8 +385,8 @@ class PluginsRepository internal constructor(
         client.uninstallPlugin(hostId, packageName).toResult()
             .onSuccess { refreshPluginInventory(hostId) }
 
-    /** Плагины установлены, включены или удалены — обновить всё, что о них знает приложение. */
-    internal suspend fun onPluginsChanged(hostId: String) {
+    /** Перечитать всё о плагинах (после установки, включения или удаления). */
+    suspend fun refreshAll(hostId: String) {
         refreshPluginInventory(hostId)
         refreshBridgePluginCatalog()
         refreshPluginSettingsPages()

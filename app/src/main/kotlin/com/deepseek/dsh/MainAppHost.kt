@@ -19,7 +19,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -47,7 +46,6 @@ import com.deepseek.dsh.runtime.host.HostRuntimeManager
 import com.deepseek.dsh.runtime.host.RuntimeLayout
 import com.deepseek.dsh.runtime.host.RuntimePhase
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -305,83 +303,7 @@ fun MainAppHost(
             kotlinx.coroutines.delay(1_000)
         }
     }
-    /**
-     * Чтобы включённый или выключенный экспериментальный плагин заработал: если Host просит
-     * перезапуск — перезапустить и дождаться RUNNING, затем перечитать каталог моста, плагины и
-     * страницы настроек. Тогда нужные функции (команда агентов, голос, терминал, диагностика,
-     * перевод, магазин плагинов) появляются сразу, без окна «Перезапустите».
-     */
-    suspend fun restartHostForPluginChange(): Boolean {
-        val restart = HostRuntimeHolder.restartHost?.invoke() ?: return false
-        if (restart.isFailure) return false
-        val finished = kotlinx.coroutines.withTimeoutOrNull(90_000) {
-            runner.statusFlow.first { it.phase != RuntimePhase.RUNNING }
-            runner.statusFlow.first { it.phase == RuntimePhase.RUNNING }
-            true
-        } ?: false
-        runCatching { dshRepository.plugins.refreshBridgePluginCatalog() }
-        runCatching { dshRepository.plugins.refreshPluginInventory(ui.activeHostId) }
-        runCatching { dshRepository.plugins.refreshPluginSettingsPages() }
-        return finished
-    }
-
-    /** `restartReason` Host → пояснение к «Перезапустите DSH, чтобы применить изменения». */
-    fun restartReasonText(reason: String?): String = when (reason) {
-        "package-moved" ->
-            context.getString(R.string.restart_reason_package_moved)
-        "no-hmr" -> context.getString(R.string.restart_reason_no_hmr)
-        "host-module" -> context.getString(R.string.restart_reason_host_module)
-        "unmanaged-plugin" -> context.getString(R.string.restart_reason_unmanaged_plugin)
-        "module-comparison" -> context.getString(R.string.restart_reason_module_comparison)
-        else -> context.getString(R.string.restart_reason_generic)
-    }
-    // Если после переключения плагина Host просит перезапуск или прислал замечания — сказать об этом.
-    ui.pluginChangeNotice?.let { lines ->
-        val c = com.deepseek.dsh.core.designsystem.Dsh.colors
-        val closeNotice = {
-            if (!ui.pluginRestartRunning) {
-                ui.pluginChangeNotice = null
-                ui.pluginRestartError = null
-            }
-        }
-        com.deepseek.dsh.core.designsystem.DshDialog(
-            onDismiss = closeNotice,
-            title = stringResource(R.string.restart_needed_title),
-            closeLabel = stringResource(R.string.action_close),
-            description = stringResource(R.string.restart_needed_desc),
-            content = {
-                lines.forEach { line ->
-                    Text(line, style = com.deepseek.dsh.feature.chat.ckBody(14.sp, 20.sp), color = c.t2, modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 6.dp))
-                }
-                ui.pluginRestartError?.let { message ->
-                    Text(message, style = com.deepseek.dsh.feature.chat.ckBody(13.5.sp, 19.sp), color = c.danger, modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 4.dp))
-                }
-            },
-            footer = {
-                com.deepseek.dsh.core.designsystem.DshDialogButton(
-                    text = stringResource(R.string.restart_later), primary = false, enabled = !ui.pluginRestartRunning, onClick = closeNotice,
-                )
-                com.deepseek.dsh.core.designsystem.DshDialogButton(
-                    text = if (ui.pluginRestartRunning) stringResource(R.string.restarting) else stringResource(R.string.restart_now),
-                    primary = true, enabled = !ui.pluginRestartRunning,
-                    onClick = {
-                        scope.launch {
-                            ui.pluginRestartRunning = true
-                            ui.pluginRestartError = null
-                            val restart = HostRuntimeHolder.restartHost?.invoke()
-                                ?: Result.failure(IllegalStateException(context.getString(R.string.host_not_ready)))
-                            ui.pluginRestartRunning = false
-                            if (restart.isSuccess) {
-                                ui.pluginChangeNotice = null
-                            } else {
-                                ui.pluginRestartError = restart.exceptionOrNull()?.message ?: context.getString(R.string.restart_failed)
-                            }
-                        }
-                    },
-                )
-            },
-        )
-    }
+    PluginChangeNoticeDialog(ui, scope)
     if (ui.sessionInspectorOpen) {
         SessionInspectorOverlayDialog(
             frames = runtimeUi.rawSessionFrames,
@@ -447,23 +369,6 @@ fun MainAppHost(
         }
     }
 
-    // «Работающую версию» bridge-плагина и перезапуск Host даёт слой приложения:
-    // модуль runtime не знает слоя данных, а путь рабочей папки известен только здесь.
-    // Сама установка (скачать архив тега, распаковать в rootfs) — в HostRuntimeManager.
-
-    LaunchedEffect(ui.activeHostId) {
-        dshRepository.refreshSessions(ui.activeHostId)
-        dshRepository.hostSettings.refreshModelCatalog(ui.activeHostId)
-        dshRepository.plugins.refreshPluginInventory(ui.activeHostId)
-        // Каталог моста и список Host читаются параллельно: первый даёт слоты и значки,
-        // второй — запас, если моста нет.
-        dshRepository.plugins.refreshBridgePluginCatalog()
-        dshRepository.plugins.refreshPluginSettingsPages()
-        dshRepository.tasks.refreshAutomationTasks(ui.activeHostId)
-        dshRepository.tasks.refreshTeamTasks(ui.activeHostId)
-        // Потоки Host здесь не открываются: пока адрес не привязан (заглушка 127.0.0.1:1),
-        // девять WebSocket просто не подключатся. Подписка — после готовности Host (есть порт).
-    }
 
     val backupAndDiag = remember {
         com.deepseek.dsh.runtime.host.RuntimeBackupAndDiagnostics(layout)
@@ -484,57 +389,8 @@ fun MainAppHost(
             .getOrDefault(emptySet())
     }
 
-    /**
-     * Запомнить экспериментальный bundle, включённый или выключенный через приложение.
-     *
-     * Профиль на устройстве пересоздаётся из шаблона при каждом запуске Host (проверено:
-     * записанный `dsh.profile.bundles` пропадает), поэтому выбор хранится и локально
-     * и возвращается в профиль после запуска Host.
-     * @param name имя пакета bundle.
-     * @param enabled включён или выключен.
-     */
-    fun rememberBundleSelection(name: String, enabled: Boolean) {
-        val prefs = context.getSharedPreferences(PLUGIN_SELECTION_PREFS, android.content.Context.MODE_PRIVATE)
-        val current = prefs.getStringSet(PLUGIN_SELECTION_KEY, emptySet())?.toMutableSet() ?: mutableSetOf()
-        if (enabled) current.add(name) else current.remove(name)
-        prefs.edit().putStringSet(PLUGIN_SELECTION_KEY, current).apply()
-    }
-
-    /** Экспериментальные bundle, которые пользователь включил. */
-    fun savedEnabledBundles(): Set<String> =
-        context.getSharedPreferences(PLUGIN_SELECTION_PREFS, android.content.Context.MODE_PRIVATE)
-            .getStringSet(PLUGIN_SELECTION_KEY, emptySet())?.toSet() ?: emptySet()
-
-    /**
-     * Включить или выключить bundle Host и дождаться ответа; при необходимости Host перезапускается.
-     * Переключатель потом берёт фактическое состояние из обновлённого каталога.
-     */
-    suspend fun toggleBundleAwait(packageName: String, enabled: Boolean): Boolean {
-        val result = dshRepository.plugins.setBundleEnabled(ui.activeHostId, packageName, enabled)
-        result.fold(
-            onSuccess = { outcome ->
-                rememberBundleSelection(packageName, enabled)
-                if (outcome.restartRequired) {
-                    android.widget.Toast.makeText(context, context.getString(R.string.plugin_toggle_restarting), android.widget.Toast.LENGTH_SHORT).show()
-                    ui.pluginChangeNotice = if (restartHostForPluginChange()) null
-                    else listOf(context.getString(R.string.restart_dsh_hint), restartReasonText(outcome.restartReason))
-                } else if (outcome.warnings.isNotEmpty()) {
-                    android.widget.Toast.makeText(context, outcome.warnings.first().take(120), android.widget.Toast.LENGTH_LONG).show()
-                }
-            },
-            onFailure = {
-                android.widget.Toast.makeText(
-                    context,
-                    context.getString(R.string.plugin_toggle_failed, context.getString(if (enabled) R.string.plugin_enable else R.string.plugin_disable)),
-                    android.widget.Toast.LENGTH_SHORT,
-                ).show()
-            },
-        )
-        dshRepository.plugins.refreshBridgePluginCatalog()
-        dshRepository.plugins.refreshPluginInventory(ui.activeHostId)
-        dshRepository.plugins.refreshPluginSettingsPages()
-        return result.isSuccess
-    }
+    val bundleSelection = remember { BundleSelection(context) }
+    val bundleToggle = remember(dshRepository, runner) { BundleToggle(context, dshRepository, runner, ui, bundleSelection) }
 
 
     // «Работать в фоне, пока есть задачи» решает фоновая служба, когда приложение смахивают.
@@ -583,43 +439,7 @@ fun MainAppHost(
         hostBound = runtimeUi.localHostBound,
     )
 
-    // Слэш-команды — по открытой сессии; событие commands/change тоже обновляет список.
-    LaunchedEffect(ui.activeHostId, ui.selectedSessionId) {
-        val sid = ui.selectedSessionId
-        if (sid != null) {
-            runCatching { dshRepository.commands.refreshHostCommands(ui.activeHostId, sid) }
-            runCatching { dshRepository.commands.refreshHostSkills(ui.activeHostId, sid) }
-        }
-    }
-    // Настройки Host (тема, пресет доступа, загрузка журналов, расписания) — как только Host доступен,
-    // а не после открытия сессии: экран «Настройки» нужен и без неё.
-    LaunchedEffect(ui.activeHostId, runtimeUi.localHostBound) {
-        if (!runtimeUi.localHostBound && ui.currentAppSettings.remoteHostUrl.isBlank()) return@LaunchedEffect
-        HostSchedules.wire(dshRepository, ui.activeHostId, scope)
-        com.deepseek.dsh.feature.settings.HostSessionLogUpload.wire(dshRepository, ui.activeHostId, scope)
-        com.deepseek.dsh.feature.settings.HostPermissionPreset.wire(dshRepository, ui.activeHostId, scope)
-        com.deepseek.dsh.feature.settings.HostTheme.wire(dshRepository, ui.activeHostId, scope)
-    }
-    // Фоновые задачи и поток открытой сессии (follow: снимок досылает историю и результаты).
-    LaunchedEffect(ui.activeHostId, ui.selectedSessionId, runtimeUi.localHostBound) {
-        val sid = ui.selectedSessionId
-        // Пока Host не привязан, адрес — заглушка 127.0.0.1:1, потоки не подключатся.
-        val bound = runtimeUi.localHostBound || ui.currentAppSettings.remoteHostUrl.isNotBlank()
-        if (sid != null && bound) {
-            dshRepository.tasks.watchJobs(ui.activeHostId, sid)
-            dshRepository.watchSession(ui.activeHostId, sid)
-        }
-        else dshRepository.tasks.unwatchJobs()
-    }
     val hostWorkspaces by dshRepository.hostWorkspacesFlow.collectAsState()
-    LaunchedEffect(accountState.isSignedIn, accountState.hasApiKey) {
-        if (accountState.isSignedIn || accountState.hasApiKey) {
-            kotlinx.coroutines.delay(600)
-            modelProviders.refresh(ui.activeHostId)
-            dshRepository.hostSettings.refreshModelCatalog(ui.activeHostId)
-            dshRepository.plugins.refreshPluginInventory(ui.activeHostId)
-        }
-    }
     val dshApplication = context.applicationContext as DshApplication
 
     // Сначала каталог Host; пока Host запускается — кэш, чтобы не мигало «Выберите модель».
@@ -642,67 +462,7 @@ fun MainAppHost(
         baseUrl = { dshApplication.defaultClient.currentBaseUrl() },
     )
 
-    // Локальный Host запущен: клиент привязывается к его порту и токену, все данные Host перечитываются.
-    LaunchedEffect(status.phase, status.port, status.token) {
-        val port = status.port
-        if (port != null) {
-            if (ui.currentAppSettings.remoteHostUrl.isBlank()) {
-                dshApplication.bindLocalHost(port, status.token)
-            }
-            dshRepository.refreshSessions(ui.activeHostId)
-            modelProviders.refresh(ui.activeHostId)
-            dshRepository.hostSettings.refreshModelCatalog(ui.activeHostId)
-            dshRepository.plugins.refreshPluginInventory(ui.activeHostId)
-            // Как только Host готов, читаем аккаунт и отмечаем hydrated только по ясному
-            // signed-in или signed-out; ошибка чтения (Host ещё поднимается) — повтор,
-            // иначе первый экран мигнул бы «Не вошли» перед «Вошли».
-            // Параллельно с каталогом плагинов: они независимы, последовательно — дольше запуск.
-            val accountHydrationJob = async {
-                if (!runtimeUi.accountHydrated) {
-                    val deadline = System.currentTimeMillis() + 4_000
-                    while (System.currentTimeMillis() < deadline) {
-                        val state = runCatching {
-                            dshRepository.account.getAccountState(ui.activeHostId).getOrNull()
-                        }.getOrNull()
-                        if (state != null) {
-                            if (state.status == "credential-stored") {
-                                val profile = runCatching {
-                                    dshRepository.account.getAccountProfile(ui.activeHostId).getOrNull()
-                                }.getOrNull()
-                                val balance = runCatching {
-                                    dshRepository.account.getAccountBalance(ui.activeHostId).getOrNull()
-                                }.getOrNull()
-                                oauthManager.applyHostAccount(profile, balance)
-                            } else if (state.status == "signed-out" && oauthManager.accountFlow.value.isSignedIn) {
-                                oauthManager.signOut()
-                            }
-                            runtimeUi.accountHydrated = true
-                            return@async
-                        }
-                        kotlinx.coroutines.delay(150)
-                    }
-                }
-            }
-            // Данные плагинов готовы, когда есть список, каталог моста и страницы настроек.
-            dshRepository.plugins.refreshBridgePluginCatalog()
-            dshRepository.plugins.refreshPluginSettingsPages()
-            accountHydrationJob.await()
-            runtimeUi.pluginsHydrated = true
-            dshRepository.tasks.refreshAutomationTasks(ui.activeHostId)
-            dshRepository.tasks.refreshTeamTasks(ui.activeHostId)
-            val baseUrl = dshApplication.defaultClient.currentBaseUrl()
-            if (baseUrl.endsWith(":1")) {
-                android.util.Log.w("DSH", "Host not bound yet, skip remote streams: $baseUrl")
-            } else {
-                runtimeUi.localHostBound = true
-                dshRepository.subscribeRemoteEvents(ui.activeHostId)
-                // Язык Host (английский; Host не знает русского).
-                val appLanguage = context.resources.configuration.locales[0].language
-                dshRepository.hostSettings.syncHostLocale(ui.activeHostId)
-            }
-            // Дальше состояние аккаунта приходит по account/watch; первый раз прочитано выше.
-        }
-    }
+    HostDataSync(ui, runtimeUi, dshRepository, modelProviders, oauthManager, dshApplication, status, scope)
 
     // Запуск: Linux установлен и не требует переустановки, есть доступ к папке, Host отвечает,
     // аккаунт и плагины загружены. До этого — экраны запуска.
@@ -776,90 +536,8 @@ fun MainAppHost(
     ) { ok -> cameraUri?.takeIf { ok }?.let { importAttachments(listOf(it)) } }
     val hasCamera = remember { context.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_CAMERA_ANY) }
 
-    // После обновления bridge-плагина нужно знать работающую версию (manifest моста)
-    // и перезапустить Host с новым кодом. Это есть только у приложения — передаём в runtime.
-    DisposableEffect(ui.activeHostId, activeWorkspace.absolutePath) {
-        HostRuntimeHolder.runningBridgeVersionProvider = {
-            runCatching { dshRepository.plugins.bridgePluginVersion(forceRefresh = true) }.getOrNull()
-        }
-        HostRuntimeHolder.restartHost = {
-            val stopped = runtimeManager.stop()
-            if (stopped.isFailure) {
-                stopped
-            } else {
-                runtimeManager.start(activeWorkspace.absolutePath).map { }
-            }
-        }
-        onDispose {
-            HostRuntimeHolder.runningBridgeVersionProvider = null
-            HostRuntimeHolder.restartHost = null
-        }
-    }
-    // Короткие сообщения плагинов: Host копит, клиент забирает опросом и показывает Toast.
-    // Без канала событий цикл ничего не делает и никому не мешает.
-    // Профиль сбрасывается при каждом запуске Host: набор гарантирует, что каждый bundle
-    // возвращается один раз за сеанс приложения и Host не перезагружается снова и снова.
-    val restoredBundles = remember { mutableSetOf<String>() }
-    // Цикл опроса запускается один раз и читает текущую сессию через latest-value, без устаревших значений.
-    val currentSessionForTeam by androidx.compose.runtime.rememberUpdatedState(ui.selectedSessionId)
-    LaunchedEffect(Unit) {
-        var ticks = 0
-        while (true) {
-            kotlinx.coroutines.delay(4_000)
-            // Опрос нужен только видимому интерфейсу: в фоне или при остановленном локальном
-            // Host он лишь будил радио/CPU каждые 4 секунды и разряжал батарею.
-            if (!UserActivity.isForeground) continue
-            if (ui.activeHostId == com.deepseek.dsh.core.model.HostDescriptor.Local().id &&
-                runner.statusFlow.value.phase != RuntimePhase.RUNNING
-            ) continue
-            ticks += 1
-            // Мост сканирует клиентские bundle постепенно: за раз — один, результат копится.
-            // Периодическое обновление двигает сканирование; после конца это дешёвое чтение.
-            if (ticks % 4 == 0) {
-                runCatching { dshRepository.plugins.refreshBridgePluginCatalog() }
-                // Вернуть в профиль включённые пользователем экспериментальные bundle (профиль сбрасывается).
-                val catalog = dshRepository.plugins.bridgePluginCatalogFlow.value
-                val missing = savedEnabledBundles().filter { name ->
-                    name !in restoredBundles && catalog.bundles.none { it.name == name && it.enabled }
-                }
-                if (missing.isNotEmpty()) {
-                    missing.forEach { name -> restoredBundles += name }
-                    missing.forEach { name ->
-                        runCatching { dshRepository.plugins.setBundleEnabled(ui.activeHostId, name, true) }
-                    }
-                    runCatching { dshRepository.plugins.refreshBridgePluginCatalog() }
-                    runCatching { dshRepository.plugins.refreshPluginInventory(ui.activeHostId) }
-                }
-            }
-            // Точки входа плагинов не зависят от одного мгновения «у Host появился порт»: при холодном
-            // старте первый запрос моста может опередить cookie сессии и упасть, и группа «Интерфейс
-            // плагинов» в настройках пропала бы. Пока точек входа нет — повтор чаще, потом реже.
-            val entriesEmpty = dshRepository.plugins.pluginSlotEntriesFlow.value.isEmpty()
-            val settingsRefreshEvery = if (entriesEmpty) 2 else 8
-            if (ticks % settingsRefreshEvery == 0) {
-                runCatching { dshRepository.plugins.refreshPluginSettingsPages() }
-            }
-            // Состояние участников команды меняется с вызовами инструментов — периодическое лёгкое чтение.
-            if (ticks % 4 == 0) {
-                val teamOn = dshRepository.plugins.bridgePluginCatalogFlow.value.bundles.any {
-                    it.name == AgentTeamPluginUi.BUNDLE && it.enabled
-                }
-                if (teamOn) {
-                    runCatching { dshRepository.tasks.refreshAgentTeam(ui.activeHostId, currentSessionForTeam) }
-                }
-            }
-            runCatching {
-                val events = dshRepository.plugins.pendingPluginEvents()
-                // client/refresh — в сигнал перерисовки компонента; тосты — системный Toast.
-                dshRepository.plugins.dispatchPluginEvents(events)
-                events.forEach { event ->
-                    if (event.kind == "toast" && event.text.isNotBlank()) {
-                        android.widget.Toast.makeText(context, event.text, android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
-        }
-    }
+    HostRestartBridgeEffect(ui.activeHostId, dshRepository, runtimeManager, activeWorkspace)
+    PluginPollingEffect(ui, dshRepository, runner, bundleSelection)
     val workspaceOps = remember(activeWorkspace, ui.activeHostId) {
         WorkspaceOps(
             root = activeWorkspace,
@@ -1379,7 +1057,7 @@ fun MainAppHost(
                                 saveSettings = { ns, patch, revision -> dshRepository.plugins.updatePluginSettings(ns, patch, revision) },
                                 marketIndexes = { dshRepository.plugins.marketIndexes(ui.activeHostId) },
                                 marketSearch = { url, query -> dshRepository.plugins.marketSearch(ui.activeHostId, url, query) },
-                                toggleBundle = { packageName, enabled -> toggleBundleAwait(packageName, enabled) },
+                                toggleBundle = bundleToggle::toggle,
                                 install = { spec ->
                                     installPluginWithProgress(
                                         context = context, repository = dshRepository, hostId = ui.activeHostId, pkgName = spec,

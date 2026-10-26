@@ -592,7 +592,7 @@ class DshRepository(
             // Те же события слушает выбор модели в веб-клиенте.
             "llm/adapters-updated", "settings/document-updated",
             "credentials/record-updated", "credentials/reference-updated" -> hostSettings.refreshModelCatalog(hostId)
-            "plugin-manager/changed" -> plugins.onPluginsChanged(hostId)
+            "plugin-manager/changed" -> plugins.refreshAll(hostId)
             "plugin-market/changed" -> plugins.refreshBridgePluginCatalog()
             "schedule/changed" -> tasks.onSchedulesChanged(hostId)
             "deepseek-account/session-expired" -> account.onSessionExpired()
