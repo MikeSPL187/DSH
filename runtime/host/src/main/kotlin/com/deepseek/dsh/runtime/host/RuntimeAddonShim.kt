@@ -4,30 +4,30 @@ import java.io.File
 import java.nio.file.Files
 
 /**
- * 给 rootfs 里的 `node-addon-require-builtin` 装一个纯 JS 兜底实现。
+ * Запасная реализация на чистом JS для `node-addon-require-builtin` в rootfs.
  *
- * 引擎的 Loader 与 app-boot 通过这个原生插件读取 Node internal 模块（ESM/CJS
- * loader 等）。该插件的平台二进制是 optionalDependency：镜像打包机与目标 ABI
- * 不一致、或安装时跳过了 optional 依赖，包里就只剩 JS 外壳，Host 启动时直接
- * 报 `Cannot find module .../node-addon-require-builtin/...` 退出。
+ * Loader и app-boot движка читают через это нативное дополнение внутренние модули Node (загрузчики ESM/CJS
+ * и др.). Двоичный файл платформы — optionalDependency: если машина сборки образа и целевой ABI
+ * не совпали или установка пропустила необязательные зависимости, в пакете остаётся лишь JS-оболочка, и Host при запуске
+ * сразу выходит с `Cannot find module .../node-addon-require-builtin/...`.
  *
- * Node 以 `--expose-internals` 启动时 `require('internal/...')` 直接可用，因此
- * 我们可以用 `requireBuiltin(id) = require(id)` 的 JS 实现顶替原生插件。只替换
- * 「已经坏了」的安装（主文件缺失 / 平台包缺失），健康的镜像保持原样。
+ * С `--expose-internals` у Node `require('internal/...')` доступен напрямую, поэтому
+ * дополнение можно заменить JS-реализацией `requireBuiltin(id) = require(id)`. Заменяются только
+ * «уже сломанные» установки (нет главного файла или пакета платформы), исправные образы не трогаются.
  *
- * 幂等：结果写入 `/root/.dsh/.addon-shim-revision`，同一 revision 不重复改动。
+ * Повтор безопасен: итог пишется в `/root/.dsh/.addon-shim-revision`, та же revision повторно не применяется.
  */
 internal object RuntimeAddonShim {
 
-    /** 被替换的包名。 */
+    /** Заменяемый пакет. */
     const val PACKAGE = "node-addon-require-builtin"
 
-    /** shim 自己的版本；改动 shim 内容时递增，旧 rootfs 会重新应用。 */
+    /** Версия самой заглушки; растёт при изменении её кода — старые rootfs применят заново. */
     private const val REVISION = "1"
 
     /**
-     * 检查并（必要时）安装 shim。
-     * @param layout 运行时目录。
+     * Проверить и (если нужно) поставить заглушку.
+     * @param layout папки окружения.
      */
     fun ensure(layout: RuntimeLayout) {
         val globalModules = File(
@@ -49,10 +49,10 @@ internal object RuntimeAddonShim {
     }
 
     /**
-     * 原生插件是否已经不可用。
+     * Не работает ли уже нативное дополнение.
      *
-     * 判据：包/主文件缺失，或 `optionalDependencies` 里声明的平台包一个都不在。
-     * 解析失败按「坏」处理——宁可换成纯 JS 实现，也不要让 Host 起不来。
+     * Признак: нет пакета или главного файла, или нет ни одного пакета платформы из `optionalDependencies`.
+     * Ошибка разбора считается «сломано»: лучше чистый JS, чем незапускающийся Host.
      */
     private fun needsShim(
         base: File,
@@ -61,8 +61,8 @@ internal object RuntimeAddonShim {
     ): Boolean {
         val manifest = File(base, "package.json")
         if (!manifest.isFile) return true
-        // 用文本匹配而不是 org.json：这里只需要两个字段，且单元测试运行在 JVM 上
-        // （android.jar 的 org.json 是未实现的 stub）。
+        // Поиск по тексту, а не org.json: нужны всего два поля, а тесты идут на JVM
+        // (org.json в android.jar — нереализованная заглушка).
         val text = runCatching { manifest.readText() }.getOrNull() ?: return true
         val main = MAIN_PATTERN.find(text)?.groupValues?.get(1) ?: "index.js"
         if (!File(base, main).isFile) return true
@@ -70,7 +70,7 @@ internal object RuntimeAddonShim {
             .map { it.groupValues[1] }
             .toSet()
         if (platformPackages.isEmpty()) return false
-        // 平台包可能 hoisted 到 dsh/node_modules、放在包内，或落在 rootfs 全局。
+        // Пакет платформы может быть поднят в dsh/node_modules, лежать внутри пакета или в общей папке rootfs.
         val roots = listOf(
             globalModules,
             File(base, "node_modules"),
@@ -79,13 +79,13 @@ internal object RuntimeAddonShim {
         return platformPackages.none { name -> roots.any { root -> File(root, name).exists() } }
     }
 
-    /** `package.json` 里的 `main` 字段。 */
+    /** Поле `main` из `package.json`. */
     private val MAIN_PATTERN = Regex("\"main\"\\s*:\\s*\"([^\"]+)\"")
 
-    /** `optionalDependencies` 里的平台子包名（`node-addon-require-builtin-<os>-<arch>-<libc>`）。 */
+    /** Имена подпакетов платформы из `optionalDependencies` (`node-addon-require-builtin-<os>-<arch>-<libc>`). */
     private val PLATFORM_PATTERN = Regex("\"($PACKAGE-[a-z0-9-]+)\"")
 
-    /** 用纯 JS 实现替换目标包（原目录改名留档，便于排查）。 */
+    /** Заменить целевой пакет реализацией на чистом JS (старая папка переименовывается — для разбора). */
     private fun install(target: File) {
         val parent = target.parentFile ?: return
         if (target.exists() || Files.isSymbolicLink(target.toPath())) {
@@ -99,8 +99,8 @@ internal object RuntimeAddonShim {
         File(target, "index.js").writeText(
             """
             'use strict';
-            // 引擎只用到 requireBuiltin(id)：Node 以 --expose-internals 启动时
-            // require('internal/...') 可用，因此不再依赖原生 .node 二进制。
+            // Движку нужен только requireBuiltin(id): с --expose-internals у Node
+            // require('internal/...') доступен, поэтому нативный двоичный .node больше не нужен.
             function requireBuiltin(id) {
                 return require(id);
             }

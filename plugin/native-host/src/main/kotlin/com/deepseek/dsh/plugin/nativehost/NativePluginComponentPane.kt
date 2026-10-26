@@ -1,24 +1,12 @@
 package com.deepseek.dsh.plugin.nativehost
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import com.deepseek.dsh.plugin.nativesdk.pages.PageContent
 import com.deepseek.dsh.plugin.nativesdk.pages.PageLifecycle
 import androidx.compose.runtime.CompositionLocalProvider
@@ -41,7 +29,7 @@ fun NativePluginComponentPane(
     pluginRpc: (suspend (method: String, payload: JsonObject) -> Result<String>)? = null,
     dispatchEvent: (suspend (componentId: String, event: String, payload: JsonObject) -> Unit)? = null,
     refreshEvents: SharedFlow<String>? = null,
-    /** 作为设置页子内容嵌入时传 false：返回条由设置页顶层 Header 提供。 */
+    /** false — встроено в настройки: шапку «Назад» даёт корень настроек. */
     showHeader: Boolean = true,
 ) {
     val host = NativeHost.LocalHost.current
@@ -51,7 +39,7 @@ fun NativePluginComponentPane(
         if (host == null) null else NativePageHost(
             componentId = componentId,
             delegate = host,
-            pluginRpc = pluginRpc ?: { _, _ -> Result.failure(IllegalStateException("Host RPC 未连接")) },
+            pluginRpc = pluginRpc ?: { _, _ -> Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Host RPC is not connected", "Host RPC не подключён"))) },
             dispatch = dispatchEvent ?: { _, _, _ -> },
         )
     }
@@ -62,26 +50,11 @@ fun NativePluginComponentPane(
     }
     Column(modifier = modifier.fillMaxSize()) {
         if (showHeader) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "返回",
-                        tint = MaterialTheme.colorScheme.onBackground,
-                    )
-                }
-                Text(
-                    text = page.entry.title,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.weight(1f),
-                )
-            }
+            com.deepseek.dsh.core.designsystem.DshTopBar(
+                title = page.entry.title,
+                onBack = onBack,
+                backDescription = androidx.compose.ui.res.stringResource(com.deepseek.dsh.plugin.nativehost.R.string.native_back),
+            )
         }
         if (pageHost != null && theme != null) {
             CompositionLocalProvider(PageLifecycle.LocalIsActive provides { mounted.value }) {

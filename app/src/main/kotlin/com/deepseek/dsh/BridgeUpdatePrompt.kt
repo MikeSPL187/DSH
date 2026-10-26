@@ -1,12 +1,9 @@
 package com.deepseek.dsh
 
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -23,11 +20,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * 启动时的 bridge 插件更新弹窗。
+ * Окно обновления bridge-плагина при запуске.
  *
- * 只有 bridge 插件落后才弹：它是客户端与 Host 的协议对端，版本错位会直接
- * 影响所有 bridge 能力。rootfs 镜像的「可选」更新只出现在设置页，不在这里
- * 打扰用户。
+ * Только если bridge-плагин отстаёт: он — вторая сторона протокола клиента и Host,
+ * и расхождение версий ломает всё, что идёт через мост. Необязательное обновление rootfs
+ * показывается только в настройках и при запуске не мешает.
  */
 @Composable
 internal fun BridgeUpdatePrompt() {
@@ -39,7 +36,7 @@ internal fun BridgeUpdatePrompt() {
     var error by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        // 等运行时创建并读完版本；最多等 2 分钟，读不到就安静退出。
+        // Ждём, пока runtime создан и версия прочитана; не дольше 2 минут, иначе молча выходим.
         repeat(24) {
             val manager = HostRuntimeHolder.manager
             if (manager != null) {

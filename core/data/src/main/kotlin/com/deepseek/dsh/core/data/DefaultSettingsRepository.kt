@@ -4,17 +4,49 @@ import com.deepseek.dsh.core.model.AppSettings
 import com.deepseek.dsh.core.model.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/**
+ * @param secretCipher шифрование токена удалённого Host (аудит F-04/N-14); null — хранить открыто,
+ *   только для тестов.
+ */
 class DefaultSettingsRepository(
     private val dao: DshDao,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val secretCipher: SecretCipher? = null,
 ) : SettingsRepository {
+
+    /** Прочитать токен: шифр расшифровывается, старый открытый текст — как есть; не расшифровать (ключ утерян) — токена нет. */
+    private fun revealToken(stored: String): String =
+        secretCipher?.decrypt(stored) ?: if (secretCipher == null) stored else ""
+
+    /** Записать токен: если шифрование не удалось, открытый текст не сохраняется — пусть пользователь введёт снова. */
+    private fun sealToken(plain: String): String {
+        val cipher = secretCipher ?: return plain
+        return runCatching { cipher.encrypt(plain) }.getOrDefault("")
+    }
+
+    init {
+        // Разовая миграция: старые версии хранили токен открыто — шифруем при первом чтении.
+        if (secretCipher != null) {
+            scope.launch(Dispatchers.IO) {
+                runCatching {
+                    val entity = dao.getAppSettings().first() ?: return@runCatching
+                    val token = entity.remoteHostToken
+                    if (token.isNotEmpty() && !secretCipher.isEncrypted(token)) {
+                        dao.saveAppSettings(entity.copy(remoteHostToken = sealToken(token)))
+                    }
+                }
+            }
+        }
+    }
 
     val settingsFlow: StateFlow<AppSettings> = dao.getAppSettings()
         .map { entity ->
@@ -33,13 +65,13 @@ class DefaultSettingsRepository(
                     notifyOnTurnComplete = entity.notifyOnTurnComplete,
                     notifyOnError = entity.notifyOnError,
                     remoteHostUrl = entity.remoteHostUrl,
-                    remoteHostToken = entity.remoteHostToken,
+                    remoteHostToken = revealToken(entity.remoteHostToken),
                     workspacePath = entity.workspacePath
                 )
             } else {
                 AppSettings()
             }
-        }.stateIn(
+        }.flowOn(Dispatchers.IO).stateIn(
             scope = scope,
             started = SharingStarted.Eagerly,
             initialValue = AppSettings()
@@ -67,7 +99,7 @@ class DefaultSettingsRepository(
                 notifyOnTurnComplete = updated.notifyOnTurnComplete,
                 notifyOnError = updated.notifyOnError,
                 remoteHostUrl = updated.remoteHostUrl,
-                remoteHostToken = updated.remoteHostToken,
+                remoteHostToken = sealToken(updated.remoteHostToken),
                 workspacePath = updated.workspacePath
             )
         )

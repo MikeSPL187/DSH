@@ -43,11 +43,20 @@ android {
     }
 
     buildTypes {
+        // Тестовая сборка ставится рядом с релизной (другой applicationId и своё
+        // signature-разрешение плагинов), не затирая данные установленной версии.
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            manifestPlaceholders["bindPluginPermission"] = "com.dsh.mobile.debug.permission.BIND_PLUGIN"
+        }
         release {
-            // 1.0 以“能装、能跑”为先：暂不开启 R8 收缩，避免反射/Compose/插件
-            // 入口被裁掉；后续补 keep 规则后再打开。
-            isMinifyEnabled = false
-            isShrinkResources = false
+            manifestPlaceholders["bindPluginPermission"] = "com.deepseek.dsh.permission.BIND_PLUGIN"
+            // Аудит F-18: R8 включён. Публичная поверхность, с которой линкуются нативные
+            // плагины (SDK, Compose, AndroidX, Kotlin), сохранена в proguard-rules.pro;
+            // релиз проверен на эмуляторе вместе с загрузкой companion-плагина.
+            isMinifyEnabled = true
+            isShrinkResources = true
             signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -71,8 +80,21 @@ android {
     kotlinOptions {
         jvmTarget = "21"
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        unitTests.isReturnDefaultValues = true
+        unitTests.all { test ->
+            // Офлайн-образ android-all для Robolectric: -ProbolectricDepsDir=<папка с jar>.
+            providers.gradleProperty("robolectricDepsDir").orNull?.let { dir ->
+                test.systemProperty("robolectric.offline", "true")
+                test.systemProperty("robolectric.dependency.dir", dir)
+            }
+            test.maxHeapSize = "3g"
+        }
+    }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -80,10 +102,8 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:protocol"))
     implementation(project(":core:bridge"))
-    implementation(project(":core:network"))
     implementation(project(":core:data"))
     implementation(project(":core:designsystem"))
-    implementation(project(":core:ui"))
 
     implementation(project(":feature:runtime"))
     implementation(project(":feature:hosts"))
@@ -118,16 +138,21 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
 
     testImplementation(libs.junit)
+    // UI-прогон экранов на JVM (Robolectric + нативная графика), см. app/src/test/.../ui/.
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }
 
-
-
-
-
-
-
-
-
-
+// Снимочные тесты экранов запускают ComponentActivity из ui-test-manifest, который подключён
+// только к debug (тестовая Activity не должна попадать в релизный APK). В release-варианте
+// их не запускаем — те же экраны проверяются в testDebugUnitTest.
+tasks.withType<Test>().configureEach {
+    if (name == "testReleaseUnitTest") {
+        exclude("**/ScreensGalleryTest*", "**/DesignSystemGalleryTest*", "**/DshScreensSweepTest*", "**/KeyCheckTargetTest*")
+    }
+}

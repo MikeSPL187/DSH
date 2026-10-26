@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -35,15 +34,15 @@ import com.deepseek.dsh.core.designsystem.LocalDshPanelColors
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
 /**
- * 「开发者工具」里的 NodeJS 诊断（Chrome DevTools）。
+ * Диагностика NodeJS (Chrome DevTools) в «Инструментах разработчика».
  *
- * 官方 `experimental-inspector` 把 chrome-devtools-frontend 放进 `shell.bottom`
- * 的 iframe，并通过 Host 代理 CDP。原生侧没有可移植的等价物，所以按官方同样
- * 的做法：用 WebView 载入同一个 DevTools 前端（Host 的
- * `/inspector/devtools/devtools_app.html`），并把会话 cookie 同步给 WebView。
+ * Плагин `experimental-inspector` встраивает chrome-devtools-frontend в iframe `shell.bottom`
+ * и проксирует CDP через Host. Нативного аналога нет, поэтому так же:
+ * WebView загружает тот же фронтенд DevTools (у Host —
+ * `/inspector/devtools/devtools_app.html`), cookie сессии передаются в WebView.
  *
- * 入口与官方一致：不是插件详情页，而是调试面板（会话数据诊断）里的一个页签；
- * 手机没有 Ctrl/Cmd+Shift+. 的底部面板快捷键。
+ * Вход — вкладка в панели отладки (диагностика сессии), а не страница плагина:
+ * на телефоне нет нижней панели по Ctrl/Cmd+Shift+.
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -100,19 +99,24 @@ internal fun NodeJsDevToolsPane() {
                             settings.domStorageEnabled = true
                             settings.allowFileAccess = false
                             settings.allowContentAccess = false
-                            webViewClient = WebViewClient()
-                            // Host 的调试路由走会话 cookie；把 App 的 cookie jar 内容同步给 WebView。
+                            settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                            // В окне — cookie сессии Host: переходы только по его адресу, внешние ссылки не открываются.
+                            webViewClient = object : WebViewClient() {
+                                override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
+                                    val target = request?.url ?: return true
+                                    return !(target.scheme == "http" && target.host == "127.0.0.1" && target.port == port)
+                                }
+                            }
+                            // Отладочные маршруты Host — по cookie сессии; переносим cookie приложения в WebView.
                             runCatching {
                                 @Suppress("UNUSED_VARIABLE")
                                 val ignored = token
                                 val cookies = app?.cookieJar?.loadForRequest(
                                     "http://127.0.0.1:$port/".toHttpUrl(),
                                 ).orEmpty()
-                                val header = cookies.joinToString("; ") { "${it.name}=${it.value}" }
-                                if (header.isNotBlank()) {
-                                    CookieManager.getInstance().setCookie("http://127.0.0.1:$port/", header)
-                                    CookieManager.getInstance().flush()
-                                }
+                                // setCookie принимает одну cookie: строка «a=1; b=2» записала бы только первую.
+                                cookies.forEach { CookieManager.getInstance().setCookie("http://127.0.0.1:$port/", "${it.name}=${it.value}") }
+                                if (cookies.isNotEmpty()) CookieManager.getInstance().flush()
                             }
                             loadUrl(url)
                         }

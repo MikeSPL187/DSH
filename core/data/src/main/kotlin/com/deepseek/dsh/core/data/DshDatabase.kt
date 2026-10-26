@@ -5,16 +5,12 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [
-        HostEntity::class,
         SessionEntity::class,
         MessageEntity::class,
-        DraftEntity::class,
-        ApprovalEntity::class,
-        SurfaceCatalogEntity::class,
         AppSettingsEntity::class
     ],
-    version = 3,
-    exportSchema = false
+    version = 4,
+    exportSchema = true
 )
 abstract class DshDatabase : RoomDatabase() {
     abstract fun dshDao(): DshDao

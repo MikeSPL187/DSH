@@ -30,6 +30,10 @@ object DshSlotRegistry {
     const val SIDEBAR_PANELLIST: String = "sidebar.panellist"
     const val SIDEBAR_RIGHT_PANE_TAB: String = "sidebar.right.pane.tab"
     const val SIDEBAR_RIGHT_PANE_TAB_TITLE: String = "sidebar.right.pane.tab.title"
+    /** Панель сессии сбоку (нативный SDK — RIGHT_PANEL). */
+    const val RIGHTBAR_SESSION: String = "rightbar.session"
+    /** Капсула плагина на стартовой странице боковой панели (нативный SDK — RIGHT_PANEL_GUIDE_ENTRY). */
+    const val SIDEBAR_RIGHT_TAB_GUIDE_ENTRY: String = "sidebar.right.tab.guide.entry"
 
     const val SHELL_OVERLAY: String = "shell.overlay"
     const val SETTINGS_SECTION: String = "settings.section"

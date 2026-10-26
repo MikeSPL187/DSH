@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -28,36 +27,22 @@ import com.deepseek.dsh.core.data.ClaudeCodeBandSnapshot
 import com.deepseek.dsh.core.designsystem.LocalDshPanelColors
 
 /**
- * 「Claude Code 子智能体」插件的原生界面：输入框上方的模组横幅。
+ * Нативный интерфейс плагина «Субагенты Claude Code»: полоса модов над полем ввода.
  *
- * 官方 `client-ui-claude-code-mods` 在 `conversation.input.dock` 注册一条
- * 动态横幅，内容由 Host 序列化成 `Text`/`Box`/`Button` 节点树；按钮按下走
- * `claudeCodeMods.pressBand`。这里按同样的树与配色画原生版。
+ * `client-ui-claude-code-mods` регистрирует в `conversation.input.dock` живую полосу:
+ * Host присылает дерево узлов `Text`/`Box`/`Button`, нажатие кнопки идёт в
+ * `claudeCodeMods.pressBand`. Здесь то же дерево рисуется нативно.
  */
 object ClaudeCodeModsPluginUi {
-    /** 启用后才会出现横幅的 bundle（Claude Code 子智能体）。 */
+    /** Bundle, при котором появляется полоса (субагенты Claude Code). */
     const val BUNDLE = "@deepseek-ai/dsh-subagent-claude-code"
 
-    /** 官方 `data-color` 的取值 → 主题色。 */
-    private fun colorOf(name: String?): Color? = when (name) {
-        "yellow" -> Color(0xFFB58900)
-        "red" -> Color(0xFFDC322F)
-        "green" -> Color(0xFF859900)
-        "cyan" -> Color(0xFF2AA198)
-        "blue" -> Color(0xFF268BD2)
-        "magenta" -> Color(0xFFD33682)
-        "gray", "grey" -> Color(0xFF93A1A1)
-        "white" -> Color(0xFFFDF6E3)
-        "black" -> Color(0xFF002B36)
-        else -> null
-    }
-
     /**
-     * 画一条横幅。
+     * Нарисовать полосу.
      *
-     * @param snapshot 当前快照；`root == null` 时什么都不画（官方同样）。
-     * @param pressing 有按钮在处理中（禁用其余按钮并显示处理中）。
-     * @param onPress 点按钮：传入 generation 与 actionId。
+     * @param snapshot текущий снимок; при `root == null` ничего не рисуется.
+     * @param pressing нажатие обрабатывается (остальные кнопки выключены, видно «Выполняется»).
+     * @param onPress нажатие кнопки: generation и actionId.
      */
     @Composable
     fun BandView(
@@ -81,7 +66,7 @@ object ClaudeCodeModsPluginUi {
     }
 }
 
-/** 递归画一个节点。 */
+/** Нарисовать узел (рекурсивно). */
 @Composable
 private fun NodeView(
     node: BandNode,
@@ -157,7 +142,7 @@ private fun NodeView(
     }
 }
 
-/** 官方 `data-color` → 颜色；没有时用主文本色。 */
+/** `data-color` → цвет; без него — основной цвет текста. */
 @Composable
 private fun colorOrLabel(name: String?): Color =
     name?.let { candidate ->

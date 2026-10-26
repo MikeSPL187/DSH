@@ -33,7 +33,7 @@ class RuntimeHostTest {
         val baseDir = File("/data/user/0/com.deepseek.dsh/files")
         val nativeDir = File("/data/app/com.deepseek.dsh/lib/arm64")
         val layout = RuntimeLayout(baseDir = baseDir, nativeLibraryDir = nativeDir)
-        // workspace 必须是真实存在的目录：构建器会跳过不存在的 bind 源。
+        // workspace должна быть настоящей папкой: сборщик пропускает несуществующие источники привязки.
         val workspace = File.createTempFile("dsh-workspace", "").apply {
             delete()
             mkdirs()
@@ -50,10 +50,10 @@ class RuntimeHostTest {
             assertTrue(cmd.contains("-r"))
             assertTrue(cmd.contains(layout.rootfsDir.absolutePath))
             assertTrue(cmd.contains("${workspace.absolutePath}:/workspace"))
-            // Host 进程刻意不加 --link2symlink：它会破坏 FUSE 工作区上
-            // write 工具的 hardlink 原子发布（改用 fs-link-fallback.cjs）。
+            // Процессу Host нарочно не даётся --link2symlink: он ломает атомарную публикацию hardlink
+            // инструмента write на рабочей папке FUSE (вместо этого fs-link-fallback.cjs).
             assertFalse(cmd.contains("--link2symlink"))
-            // 与 DSHA 对齐的三项：假 root、launcher 退出回收 guest、symlink lstat 修正。
+            // Три пункта как в DSHA: мнимый root, завершение гостя при выходе launcher, исправление lstat symlink.
             assertTrue(cmd.contains("-0"))
             assertTrue(cmd.contains("--kill-on-exit"))
             assertTrue(cmd.contains("-L"))
@@ -62,11 +62,11 @@ class RuntimeHostTest {
             assertEquals("/root", cmd[cmd.indexOf("-w") + 1])
             assertTrue(cmd.contains("HOME=/root"))
             assertTrue(cmd.contains("DSH_HOME=/root/.dsh"))
-            // 直接跑 dsh 的 bin.js，而不是 /opt/dsh/bin/dsh 包装脚本：包装脚本会让
-            // import.meta.url 指向包装层，profile bundle 的解析锚点随之出错。
+            // Запускается прямо bin.js dsh, а не обёртка /opt/dsh/bin/dsh: обёртка направила бы
+            // import.meta.url на себя, и опора разбора bundle профиля сбилась бы.
             assertTrue(cmd.contains("/usr/local/bin/node"))
-            // 引擎通过 --expose-internals 读 Node internal 模块，避免依赖缺失的
-            // node-addon-require-builtin 原生插件（Host 起不来的直接原因）。
+            // Движок читает внутренние модули Node через --expose-internals, без зависимости от отсутствующего
+            // нативного дополнения node-addon-require-builtin (прямая причина незапуска Host).
             assertTrue(cmd.contains("--expose-internals"))
             assertTrue(cmd.indexOf("--expose-internals") < cmd.indexOf("/usr/local/lib/node_modules/@deepseek-ai/dsh/lib/bin.js"))
             assertTrue(cmd.any { it.endsWith("@deepseek-ai/dsh/lib/bin.js") })

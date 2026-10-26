@@ -20,17 +20,17 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 /**
- * v4.0 设计文档 §12.3: WebView 安全加固与 Web 岛容器
- * - JS 开，File/Content 关，Mixed Content 拒，第三方 Cookie 仅 host
- * - shouldOverrideUrlLoading 白名单
- * - onRenderProcessGone 恢复
+ * Островок WebView с усиленной безопасностью.
+ * - JS включён, File/Content выключены, смешанное содержимое запрещено, сторонние cookie только для host
+ * - белый список в shouldOverrideUrlLoading
+ * - восстановление после onRenderProcessGone
  *
- * 除了安全边界，这里还负责把**加载状态**告诉宿主界面：插件界面用
- * [onLoadingChanged] / [onFailed] 画加载指示与失败重试，而不是让用户盯着一块
- * 空白 WebView 猜它是没加载、加载失败、还是根本没有内容。
+ * Кроме границ безопасности, контейнер сообщает интерфейсу хоста **состояние загрузки**: интерфейс плагина
+ * по [onLoadingChanged] / [onFailed] рисует индикатор и «Повторить», чтобы пользователь не гадал над пустым
+ * WebView — не загрузилось, ошибка или содержимого просто нет.
  *
- * @param onLoadingChanged 主框架开始/结束加载时回调（true = 正在加载）。
- * @param onFailed 主框架加载失败或收到 HTTP 错误时回调，参数是给用户看的原因。
+ * @param onLoadingChanged начало и конец загрузки основного фрейма (true — идёт загрузка).
+ * @param onFailed основной фрейм не загрузился или пришла ошибка HTTP; аргумент — причина для пользователя.
  */
 class WebIslandContainer(
     context: Context,
@@ -44,27 +44,31 @@ class WebIslandContainer(
     @Serializable
     private data class BridgeEnvelope(val type: String, val payload: kotlinx.serialization.json.JsonElement? = null)
 
-    /** 最后一次成功的导航地址，供 [reloadLast] 使用。 */
+    /** Последний удачный адрес — для [reloadLast]. */
     private var lastUrl: String? = null
 
-    /** 页面是否已经加载完成；焦点脚本要等它完成后再跑。 */
+    /** Загружена ли страница; скрипт фокуса ждёт её загрузки. */
     private var pageFinished = false
 
-    /** 需要自动打开的设置分区标签（插件自己的 `settings.section` 文案）。 */
+    /** Подписи раздела настроек, который открыть сразу (текст `settings.section` плагина). */
     private var focusLabels: List<String> = emptyList()
 
-    /** 需要打开的 `settings.section` 注册 id（与 Web 客户端里的分区 id 一致）。 */
+    /** id регистрации `settings.section`, который открыть (совпадает с id раздела в веб-клиенте). */
     private var focusSectionId: String? = null
 
     /**
-     * 等 WebView 拿到非零尺寸后再真正开始导航。
+     * Начинать загрузку, только когда у WebView ненулевой размер.
      *
-     * Android WebView 在 0×0 尺寸下开始导航时，会把布局视口（initial containing
-     * block）固定成 0 高；之后再测量也不会重算，结果页面里 `100vh` 全是 0，
-     * 设置面板这类按视口高度布局的界面高度算成 0——用户看到的是一整块灰蒙层。
-     * 所以首次导航必须放到视图已经测量之后。
+     * Если Android WebView начинает загрузку при размере 0×0, высота вьюпорта раскладки (initial containing
+     * block) фиксируется нулём и потом не пересчитывается: `100vh` на странице — 0,
+     * и интерфейсы с высотой по вьюпорту (панель настроек) получают высоту 0 — пользователь видит сплошную серую пелену.
+     * Поэтому первая загрузка — только после измерения.
      */
     private var pendingLoad: (() -> Unit)? = null
+
+    /** Журнал диагностики — только в отлаживаемой сборке. */
+    private val debugLogs: Boolean =
+        context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
 
     init {
         setupSecuritySettings()
@@ -79,13 +83,12 @@ class WebIslandContainer(
             allowContentAccess = false
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             domStorageEnabled = true
-            databaseEnabled = false
             cacheMode = WebSettings.LOAD_DEFAULT
-            // Web 客户端按 CSS 视口渲染；默认的宽视口会让手机看到桌面布局。
+            // Веб-клиент рисуется по вьюпорту CSS; широкий вьюпорт по умолчанию показал бы на телефоне десктопную раскладку.
             useWideViewPort = false
             loadWithOverviewMode = false
-            // 页面里的 fetch 走的是本机 loopback，不应带浏览器缓存造成旧 HTML。
-            // 但静态资源仍要走缓存，所以这里不整体禁缓存，交给 Host 的响应头。
+            // fetch на странице идёт на loopback, кэш браузера не должен давать старый HTML.
+            // Статика же кэшируется, поэтому кэш целиком не выключаем — решают заголовки ответа Host.
         }
 
         CookieManager.getInstance().apply {
@@ -93,11 +96,14 @@ class WebIslandContainer(
             setAcceptThirdPartyCookies(this@WebIslandContainer, false)
         }
 
-        // 注册安全 JSBridge
-        addJavascriptInterface(JsBridge(), "DshNativeBridge")
+        // JS-интерфейс виден всем фреймам страницы (и iframe сторонних плагинов). Регистрируется,
+        // только если вызывающему нужны сообщения, — меньше поверхность атаки (аудит F-11).
+        if (onBridgeMessage != null) {
+            addJavascriptInterface(JsBridge(), "DshNativeBridge")
+        }
 
-        // 调试构建允许 chrome://inspect 观察这个 WebView（与 Host 的联调需要）。
-        if (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) {
+        // В отладочной сборке WebView виден в chrome://inspect (нужно для отладки с Host).
+        if (debugLogs) {
             runCatching { WebView.setWebContentsDebuggingEnabled(true) }
         }
     }
@@ -114,12 +120,12 @@ class WebIslandContainer(
                 super.onPageFinished(view, url)
                 pageFinished = true
                 onLoadingChanged?.invoke(false)
-                Log.d(TAG, "onPageFinished $url viewport=${view?.width}x${view?.height}")
-                // 视口高度为 0 时先修一次，再驱动 Web 客户端自己的界面——设置面板按
-                // `100vh` 布局，视口坏着的话它会被算成 0 高，只剩一层灰色蒙版。
+                debugLog { "onPageFinished ${redactToken(url)} viewport=${view?.width}x${view?.height}" }
+                // При нулевой высоте вьюпорта сначала исправить её, потом управлять интерфейсом веб-клиента — панель
+                // настроек раскладывается по `100vh` и при сломанном вьюпорте получит высоту 0, останется только серая пелена.
                 repairViewportIfNeeded()
-                // Web 客户端把自己的启动失败画在页面里；从这里读一眼，让宿主知道
-                // 这块 WebView 实际没有进入应用界面。
+                // Ошибку запуска веб-клиент рисует на странице; читаем её, чтобы хост знал,
+                // что WebView так и не вошёл в интерфейс приложения.
                 view?.evaluateJavascript(BOOT_FAILURE_PROBE) { result ->
                     val text = result?.trim()
                     if (text != null && text.length > 2 && text != "null") {
@@ -127,26 +133,29 @@ class WebIslandContainer(
                         if (message.isNotBlank()) onFailed?.invoke(message)
                     }
                 }
-                // 打开插件自己的设置分区：Web 客户端没有 URL 路由，只能驱动它自己的
-                // 界面（侧边栏 → 账号菜单 → 设置 → 分区行）。脚本在页面里轮询等待
-                // React 挂载，失败时保持普通界面，不影响浏览。
+                // Открыть раздел настроек плагина: маршрутов URL у веб-клиента нет, только управление
+                // его интерфейсом (боковая панель → меню аккаунта → настройки → строка раздела). Скрипт на странице
+                // ждёт монтирования React; не вышло — остаётся обычный интерфейс, просмотру не мешает.
                 if (focusLabels.isNotEmpty()) {
                     view?.evaluateJavascript(focusScript(focusLabels, focusSectionId)) { result ->
-                        Log.d(TAG, "focus script (page finished): $result")
+                        debugLog { "focus script (page finished): $result" }
                     }
                 }
             }
 
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val uri = request?.url ?: return true
+                // Только http(s): intent:/javascript:/file: отклоняются даже при том же host.
+                if (uri.scheme != "http" && uri.scheme != "https") return true
                 val host = uri.host
                 val port = if (uri.port != -1) uri.port else if (uri.scheme == "https") 443 else 80
 
-                // 仅允许本应用关联的 local loopback 或受信域名
-                if (host == allowedHost && (port == allowedPort || allowedPort == 0)) {
+                // Только Host этого приложения: адрес и порт точно. Порт 0 (Host не запущен) не открывает ничего —
+                // раньше он разрешал любой локальный сервер на телефоне.
+                if (host == allowedHost && allowedPort > 0 && port == allowedPort) {
                     return false
                 }
-                // 外链不允许直接在岛内导航
+                // Внешние ссылки внутри островка не открываются.
                 return true
             }
 
@@ -158,7 +167,7 @@ class WebIslandContainer(
                 if (request?.isForMainFrame == true) {
                     onLoadingChanged?.invoke(false)
                     val description = error?.description?.toString()?.takeIf { it.isNotBlank() }
-                        ?: "网络错误"
+                        ?: com.deepseek.dsh.core.model.Tr.t("Network error", "Сетевая ошибка")
                     onFailed?.invoke(description)
                 }
                 super.onReceivedError(view, request, error)
@@ -171,23 +180,29 @@ class WebIslandContainer(
             ) {
                 if (request?.isForMainFrame == true) {
                     onLoadingChanged?.invoke(false)
-                    onFailed?.invoke("Host 返回 HTTP ${errorResponse?.statusCode ?: 0}")
+                    onFailed?.invoke(com.deepseek.dsh.core.model.Tr.t("Host returned HTTP ${errorResponse?.statusCode ?: 0}", "Host вернул HTTP ${errorResponse?.statusCode ?: 0}"))
                 }
                 super.onReceivedHttpError(view, request, errorResponse)
             }
 
             override fun onRenderProcessGone(view: WebView?, detail: android.webkit.RenderProcessGoneDetail?): Boolean {
-                // 崩溃安全兜底
+                // Защита при падении: сообщить хосту (ошибка и «Повторить») и освободить этот WebView.
+                onLoadingChanged?.invoke(false)
+                onFailed?.invoke("WebView renderer crashed")
                 destroy()
                 return true
             }
         }
-        // 页面 console 转发到 logcat：Web 半边的启动失败只有在这里能看到完整原因。
+        // console страницы — в logcat: только там видна полная причина сбоя запуска веб-части.
+        // Только в отлаживаемой сборке: вывод страницы может содержать данные сессии и токены (аудит N-05/F-11).
         webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(message: ConsoleMessage?): Boolean {
                 message ?: return false
-                Log.d("DshWebIsland", "${message.messageLevel()} ${message.sourceId()}:${message.lineNumber()} ${message.message()}")
-                return false
+                debugLog {
+                    "${message.messageLevel()} ${redactToken(message.sourceId())}:${message.lineNumber()} " +
+                        redactToken(message.message())
+                }
+                return true
             }
         }
     }
@@ -195,6 +210,7 @@ class WebIslandContainer(
     private inner class JsBridge {
         @JavascriptInterface
         fun postMessage(jsonString: String) {
+            if (jsonString.length > MAX_BRIDGE_MESSAGE_CHARS) return
             try {
                 val envelope = Json.decodeFromString<BridgeEnvelope>(jsonString)
                 onBridgeMessage?.invoke(envelope.type, envelope.payload?.toString() ?: "")
@@ -206,10 +222,7 @@ class WebIslandContainer(
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        Log.d(
-            TAG,
-            "onSizeChanged ${oldw}x${oldh} -> ${w}x${h} pendingLoad=${pendingLoad != null}",
-        )
+        debugLog { "onSizeChanged ${oldw}x${oldh} -> ${w}x${h} pendingLoad=${pendingLoad != null}" }
         if (w > 0 && h > 0) {
             val run = pendingLoad
             pendingLoad = null
@@ -218,18 +231,18 @@ class WebIslandContainer(
     }
 
     /**
-     * 触发一次真实的尺寸变化，让 Chromium 重算布局视口。
+     * Вызвать настоящее изменение размера, чтобы Chromium пересчитал вьюпорт раскладки.
      *
-     * 这台设备上的 WebView 在页面首次布局时若布局视口高度为 0，之后即便视图尺寸
-     * 变成 1280×2448，CSS 的 `100vh` 仍然解析成 0：`window.innerHeight` 是对的，
-     * 但以视口高度布局的界面（Web 客户端的设置面板）会被算成 0 高。给视图一次
-     * 1px 的高度变化再还原，会走一遍真实的 layout/resize，视口随之更新。
+     * Если на этом устройстве при первой раскладке высота вьюпорта 0, то даже когда размер становится
+     * 1280×2448, `100vh` в CSS остаётся 0: `window.innerHeight` верен,
+     * а интерфейс с высотой по вьюпорту (панель настроек веб-клиента) получает высоту 0. Изменение высоты
+     * на 1px и обратно проводит настоящие layout/resize, и вьюпорт обновляется.
      */
     private fun nudgeViewport() {
         val params = layoutParams as? android.view.ViewGroup.LayoutParams ?: return
         if (width <= 0 || height <= 0) return
         val originalHeight = params.height
-        Log.d(TAG, "nudgeViewport on ${width}x${height} params=$originalHeight")
+        debugLog { "nudgeViewport on ${width}x${height} params=$originalHeight" }
         params.height = height + 1
         requestLayout()
         postDelayed({
@@ -238,18 +251,18 @@ class WebIslandContainer(
         }, 80)
     }
 
-    /** 布局视口高度是不是坏的（`100vh` = 0），坏就修正；最多重试两次。 */
+    /** Сломана ли высота вьюпорта (`100vh` = 0); если да — исправить, не больше двух попыток. */
     private fun repairViewportIfNeeded(attempt: Int = 0) {
         evaluateJavascript(VIEWPORT_PROBE) { result ->
             val ok = result?.contains("ok") == true
-            Log.d(TAG, "viewport probe (attempt $attempt): $result")
+            debugLog { "viewport probe (attempt $attempt): $result" }
             if (ok || attempt >= 2) return@evaluateJavascript
             nudgeViewport()
             postDelayed({ repairViewportIfNeeded(attempt + 1) }, 400)
         }
     }
 
-    /** 重新加载最后一次导航；没有加载过时无操作。 */
+    /** Перезагрузить последний адрес; если загрузок не было — ничего. */
     fun reloadLast() {
         val target = lastUrl ?: return
         onLoadingChanged?.invoke(true)
@@ -257,29 +270,29 @@ class WebIslandContainer(
     }
 
     /**
-     * 自动打开插件自己的设置分区。
+     * Сразу открыть раздел настроек плагина.
      *
-     * Web 客户端是一个没有 URL 路由的 SPA（`/` 永远是同一个壳），所以「完整界面」
-     * 只能加载整个客户端，再驱动它自己的界面走到插件分区。优先直接调用设置面板
-     * store 的 `openSection(sectionId)`（不依赖侧边栏/菜单的展开状态），失败再退回
-     * 点击路径；脚本在页面里持续重试一段时间，覆盖 Web 客户端启动慢、预览提示
-     * 后出现、onboarding 把面板关掉等时序。
+     * Веб-клиент — SPA без маршрутов URL (`/` — всегда одна оболочка), поэтому «полный интерфейс»
+     * — это загрузить клиент целиком и провести его интерфейс к разделу плагина. Сначала напрямую
+     * `openSection(sectionId)` хранилища панели настроек (не зависит от раскрытия боковой панели и меню), иначе
+     * путь нажатиями; скрипт повторяет попытки какое-то время — на случай медленного запуска клиента,
+     * позднего окна предварительной версии, онбординга, закрывающего панель.
      *
-     * 失败时什么也不做：界面停在 Web 客户端本身，仍可手动浏览。
+     * Не вышло — ничего: остаётся сам веб-клиент, по нему можно пройти вручную.
      *
-     * @param labels 候选标签（本地化 label、注册 id）。
-     * @param sectionId 该插件 `settings.section` 的注册 id（Web 客户端里同一身份）。
+     * @param labels подписи-кандидаты (на языке интерфейса, id регистрации).
+     * @param sectionId id регистрации `settings.section` плагина (тот же в веб-клиенте).
      */
     fun focusSettingsSection(labels: List<String>, sectionId: String? = null) {
         focusLabels = labels.filter { it.isNotBlank() }
         focusSectionId = sectionId?.takeIf { it.isNotBlank() }
         if (!pageFinished || focusLabels.isEmpty()) return
         evaluateJavascript(focusScript(focusLabels, focusSectionId)) { result ->
-            Log.d(TAG, "focus script: $result")
+            debugLog { "focus script: $result" }
         }
     }
 
-    /** 把标签数组编码成 JS 字面量。 */
+    /** Массив подписей — литералом JS. */
     private fun labelsLiteral(labels: List<String>): String =
         labels.joinToString(prefix = "[", postfix = "]") { "\"" + escapeJson(it) + "\"" }
 
@@ -299,17 +312,17 @@ class WebIslandContainer(
     }
 
     /**
-     * 驱动 Web 客户端走到目标分区的脚本。
+     * Скрипт, ведущий веб-клиент к нужному разделу.
      *
-     * 优先用设置面板 store 的 `openSection(sectionId)`（由 React fiber 的 props 找到），
-     * 它不依赖侧边栏是否展开、账号菜单是否被 onboarding 关掉；随后用 DOM 校验当前
-     * 分区行是否 `aria-current`。失败再退回点击路径（launcher → 菜单项 → 分区行）。
+     * Сначала `openSection(sectionId)` хранилища панели настроек (найден через props волокна React):
+     * не зависит от раскрытой боковой панели и меню аккаунта, закрытого онбордингом; затем по DOM проверяется,
+     * что строка раздела `aria-current`. Иначе — путь нажатиями (launcher → пункт меню → строка раздела).
      *
-     * 整个脚本以 250ms 为节拍持续尝试约 30 秒：Web 客户端启动快慢、首启预览提示、
-     * 空白会话的 onboarding 都可能在任意时刻改变界面状态。成功即返回。
+     * Скрипт пробует каждые 250 мс около 30 секунд: скорость запуска клиента, окно предварительной версии
+     * и онбординг пустой сессии могут поменять интерфейс в любой момент. Удача — выход.
      *
-     * @param labels 候选分区标签（本地化文案）。
-     * @param sectionId `settings.section` 注册 id，可为 null（只按标签点）。
+     * @param labels подписи раздела-кандидаты (на языке интерфейса).
+     * @param sectionId id регистрации `settings.section`, может быть null (только по подписи).
      */
     private fun focusScript(labels: List<String>, sectionId: String?): String = """
         (async () => {
@@ -357,9 +370,9 @@ class WebIslandContainer(
             const inDialog = Array.from(dialog.querySelectorAll('button')).filter(visible);
             return inDialog.find(isNav) || null;
           };
-          // Web 客户端是桌面优先的：手机宽度下设置面板仍是「188px 导航栏 + 内容」
-          // 的横向分栏，内容列只剩不到 200px，中文会一字一行。补一条窄屏适配，
-          // 让同一份真实界面在手机上可读：导航变成顶部横向滚动条，内容占满宽度。
+          // Веб-клиент рассчитан на десктоп: на ширине телефона панель настроек остаётся в две колонки
+          // «навигация 188px + содержимое», на содержимое меньше 200px, и текст идёт по слову в строке. Узкая раскладка
+          // делает тот же интерфейс читаемым на телефоне: навигация — прокрутка сверху, содержимое во всю ширину.
           const responsiveCss = [
             '@media (max-width: 700px) {',
             '  [role="dialog"][aria-modal="true"]:has(> nav) { flex-direction: column !important; width: calc(100vw - 16px) !important; max-width: calc(100vw - 16px) !important; height: calc(100vh - 40px) !important; }',
@@ -388,9 +401,9 @@ class WebIslandContainer(
             return true;
           };
           /**
-           * 从 settings launcher 的 React fiber 向上找设置面板的 actions。
-           * SettingsRoot 把 store 的 actions 当 props 传给内部组件，fiber 返回链上
-           * 一定能找到带 openSection 的那一层；这是 Web 客户端自己的 API，不是伪造状态。
+           * Подняться по волокну React от launcher настроек к actions панели настроек.
+           * SettingsRoot передаёт actions хранилища в props внутренним компонентам, поэтому вверх по волокну
+           * обязательно найдётся слой с openSection — это API самого веб-клиента, а не подделка состояния.
            */
           const settingsActions = () => {
             const candidates = Array.from(document.querySelectorAll(
@@ -415,8 +428,8 @@ class WebIslandContainer(
           };
           const deadline = Date.now() + 45000;
           let dispatched = false;
-          // 已经打开面板但还没等到 active 行时，需要连续几次确认面板没被
-          // onboarding 关掉才算成功；否则会「打开→被关→剩余时间不足」。
+          // Если панель открыта, но активной строки ещё нет, нужно несколько подтверждений подряд, что
+          // онбординг её не закрыл, — иначе «открыли → закрыли → времени не осталось».
           let stableChecks = 0;
           let lastNote = '';
           ensureResponsiveStyle();
@@ -432,8 +445,8 @@ class WebIslandContainer(
                 ensureResponsiveStyle();
                 return 'focused:' + ((active.innerText || '').trim() || sectionId || 'section');
               }
-              // 用 id 打开过、面板确实存在且有 active 行：再连续确认几拍防止
-              // onboarding 把面板刚打开就关掉（关掉后 dialog 会消失，计数归零）。
+              // Открыли по id, панель есть и активная строка тоже: ещё несколько тактов подтверждения, что
+              // онбординг не закрыл панель сразу (тогда окно пропадает и счётчик обнуляется).
               if (dialog && active && dispatched) {
                 stableChecks += 1;
                 if (stableChecks >= 3) {
@@ -443,7 +456,7 @@ class WebIslandContainer(
               } else {
                 stableChecks = 0;
               }
-              // ① 直接调 store：不经过侧边栏/账号菜单的展开状态。
+              // 1. Напрямую через хранилище: без зависимости от раскрытия боковой панели и меню аккаунта.
               if (sectionId !== null) {
                 let actions = null;
                 try { actions = settingsActions(); } catch (error) { lastNote = 'fiber:' + error; }
@@ -469,7 +482,7 @@ class WebIslandContainer(
                 }
                 lastNote = 'settings actions not found';
               }
-              // ② 退回点击路径：设置 launcher → 菜单项“设置” → 分区行。
+              // 2. Иначе нажатиями: launcher настроек → пункт «Настройки» → строка раздела.
               const existing = navButton();
               if (existing) {
                 clickElement(existing);
@@ -510,7 +523,7 @@ class WebIslandContainer(
 
     fun loadSurface(surfaceSlot: String, pluginId: String, isolated: Boolean = true, token: String? = null) {
         val run = { performLoad(surfaceSlot, pluginId, isolated, token) }
-        // 0×0 时开始导航会把布局视口固定成 0 高（见 [pendingLoad]），等测量完再走。
+        // Загрузка при 0×0 фиксирует нулевую высоту вьюпорта (см. [pendingLoad]) — ждём измерения.
         if (width > 0 && height > 0) {
             pendingLoad = null
             run()
@@ -534,10 +547,10 @@ class WebIslandContainer(
         }
         val targetUrl = "$base/$query"
 
-        // 启动 token 是**页面级**凭据：Host 对带 token 的请求返回完整 HTML（含 boot 清单），
-        // 但不在响应里下发 cookie —— 换取由页面自己的 JS 完成。所以带 token 时要停在
-        // 这个 URL 上，不能抢先跳到不带 token 的地址：那样拿到的是一份降级 HTML，
-        // 客户端会停在「Failed to load plugins」。cookie 建好之后的加载才用目标地址。
+        // Токен запуска — **страничный** пропуск: на запрос с токеном Host отдаёт полный HTML (со списком boot),
+        // но cookie в ответе не ставит — обмен делает JS самой страницы. Поэтому с токеном надо остаться
+        // на этом адресе, не переходить сразу на адрес без токена: там упрощённый HTML,
+        // и клиент застрянет на «Failed to load plugins». Целевой адрес — после того, как cookie получен.
         if (!token.isNullOrBlank()) {
             val cm = CookieManager.getInstance()
             val existing = cm.getCookie(base)
@@ -556,13 +569,25 @@ class WebIslandContainer(
         loadUrl(targetUrl)
     }
 
+    private inline fun debugLog(message: () -> String) {
+        if (debugLogs) Log.d(TAG, message())
+    }
+
     private companion object {
-        /** logcat 标签：Web 岛加载与视口修复的诊断。 */
+        /** Тег logcat: диагностика загрузки островка и исправления вьюпорта. */
         const val TAG = "DshWebIsland"
 
+        /** Предел одного сообщения JS → нативный код. */
+        const val MAX_BRIDGE_MESSAGE_CHARS = 256 * 1024
+
+        private val TOKEN_QUERY = Regex("""([?&](?:token|auth|access_token)=)[^&#\s]*""", RegexOption.IGNORE_CASE)
+
+        /** Стереть значения `token=` и подобных параметров в URL и тексте: пропуск запуска в журнал не попадает. */
+        fun redactToken(text: String?): String = text?.let { TOKEN_QUERY.replace(it, "$1***") }.orEmpty()
+
         /**
-         * 判断布局视口高度是否可用：`height: 100vh` 能解析出非零值才算正常。
-         * 返回 `ok` / `broken:<值>`。
+         * Проверить высоту вьюпорта: `height: 100vh` должна давать ненулевое значение.
+         * Возвращает `ok` / `broken:<значение>`.
          */
         const val VIEWPORT_PROBE = """
             (() => {
@@ -578,10 +603,10 @@ class WebIslandContainer(
         """
 
         /**
-         * 读出 Web 客户端启动页上的失败文案，交给宿主显示。
+         * Прочитать текст ошибки со страницы запуска веб-клиента и отдать хосту.
          *
-         * 页面本身把失败画出来（`Failed to load plugins`），但 WebView 的
-         * `onPageFinished` 仍算“成功”，宿主看不到失败。这里只读文本，不修改页面。
+         * Сама страница рисует ошибку (`Failed to load plugins`), но для WebView
+         * `onPageFinished` — «успех», и хост ошибки не видит. Здесь текст только читается, страница не меняется.
          */
         const val BOOT_FAILURE_PROBE = """
             (() => {

@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Автоматизация по прототипу docs/design/dsh-prototype.html (#screen-automation). ru / en. -->
+<resources>
+    <string name="au_title">Автоматизация</string>
+    <string name="au_without_you">запускаются без вас</string>
+    <string name="au_new">Новая автоматизация</string>
+    <string name="au_next_at">Следующий запуск %1$s</string>
+    <string name="au_off">Выключена</string>
+    <string name="au_off_lc">выключена</string>
+    <string name="au_done">Готово</string>
+    <string name="au_saved">«%1$s» сохранена · %2$s</string>
+    <string name="au_when_hour">Каждый час</string>
+    <string name="au_when_daily">Каждый день в %1$s</string>
+    <string name="au_when_work">По будням в %1$s</string>
+    <string name="au_short_daily">Ежедневно %1$s</string>
+    <string name="au_short_work">Будни %1$s</string>
+    <string name="au_c_charge">при зарядке</string>
+    <string name="au_c_wifi">по Wi‑Fi</string>
+    <string name="au_c_charge_s">зарядка</string>
+    <string name="au_c_wifi_s">Wi‑Fi</string>
+    <string name="au_today">сегодня</string>
+    <string name="au_tomorrow">завтра</string>
+    <string name="au_today_cap">Сегодня</string>
+    <string name="au_yesterday_cap">Вчера</string>
+    <string name="au_day_at">%1$s в %2$s</string>
+    <string name="au_day_time">%1$s %2$s</string>
+    <string name="au_in_hm">через %1$d ч %2$d мин</string>
+    <string name="au_in_m">через %1$d мин</string>
+    <string name="au_dur_s">%1$d с</string>
+    <string name="au_dur_m">%1$d мин</string>
+    <string name="au_dur_ms">%1$d мин %2$d с</string>
+    <string name="au_next">Следующий запуск</string>
+    <string name="au_host_note">Запуск разбудит Host в фоне. Если условие не выполнено — например, нет зарядки, — запуск переносится и отмечается в истории.</string>
+    <string name="au_mine">Мои автоматизации</string>
+    <string name="au_empty">Пока пусто — начните с шаблона</string>
+    <string name="au_from_tpl">Начать с шаблона</string>
+    <string name="au_then">далее %1$s</string>
+    <string name="au_turned_on">%1$s: включена</string>
+    <string name="au_turned_off">%1$s: выключена</string>
+    <string name="au_enable">Включить %1$s</string>
+    <string name="au_deleted">«%1$s» удалена</string>
+    <string name="au_copy_suffix">" (копия)"</string>
+    <string name="au_name_ph">Название</string>
+    <string name="au_what">Что сделать</string>
+    <string name="au_prompt_ph">Например: запусти тесты и, если что-то упало, найди причину</string>
+    <string name="au_when">Когда</string>
+    <string name="au_time">Время запуска</string>
+    <string name="au_hours">Часы</string>
+    <string name="au_minutes">Минуты</string>
+    <string name="au_charge">Только при зарядке</string>
+    <string name="au_charge_sub">Бережёт батарею</string>
+    <string name="au_wifi">Только по Wi‑Fi</string>
+    <string name="au_wifi_sub">Не тратит мобильный трафик</string>
+    <string name="au_may">Без вас агенту можно</string>
+    <string name="au_p_read">Только читать и сообщать</string>
+    <string name="au_p_read_sub">Ничего не меняет — присылает итог</string>
+    <string name="au_p_edit">Править файлы в проекте</string>
+    <string name="au_p_edit_sub">Изменения видны во вкладке «Изменения» в «Файлах»</string>
+    <string name="au_p_never">Удалять и выполнять опасное — никогда</string>
+    <string name="au_p_never_sub">Такие шаги агент отложит до вашего решения</string>
+    <string name="au_notify">Уведомлять</string>
+    <string name="au_where">Где и чем</string>
+    <string name="au_project">Проект</string>
+    <string name="au_model">Модель</string>
+    <string name="au_run_now">Запустить сейчас</string>
+    <string name="au_running">Выполняется…</string>
+    <string name="au_history">История</string>
+    <string name="au_history_empty">Ещё не запускалась</string>
+    <string name="au_history_empty_sub">Первый запуск появится здесь</string>
+    <string name="au_now">Сейчас</string>
+    <string name="au_duplicate">Дублировать</string>
+    <string name="au_delete">Удалить</string>
+    <string name="au_agent_tasks">Поставил агент</string>
+    <string name="au_agent_tasks_note">Эти задачи агент поставил сам по вашей просьбе в чате. Они выполняются в своей сессии.</string>
+    <string name="au_cancel">Отменить</string>
+    <string name="au_cancelled">Задача отменена</string>
+    <string name="au_delete_arm">Ещё раз</string>
+    <plurals name="au_active">
+        <item quantity="one">%d активна</item>
+        <item quantity="few">%d активны</item>
+        <item quantity="many">%d активны</item>
+        <item quantity="other">%d активны</item>
+    </plurals>
+    <string-array name="au_days">
+        <item>Пн</item>
+        <item>Вт</item>
+        <item>Ср</item>
+        <item>Чт</item>
+        <item>Пт</item>
+        <item>Сб</item>
+        <item>Вс</item>
+    </string-array>
+    <string-array name="au_when_week">
+        <item>По понедельникам в %1$s</item>
+        <item>По вторникам в %1$s</item>
+        <item>По средам в %1$s</item>
+        <item>По четвергам в %1$s</item>
+        <item>По пятницам в %1$s</item>
+        <item>По субботам в %1$s</item>
+        <item>По воскресеньям в %1$s</item>
+    </string-array>
+    <string-array name="au_freqs">
+        <item>Ежедневно</item>
+        <item>Будни</item>
+        <item>Неделя</item>
+        <item>Час</item>
+    </string-array>
+    <string-array name="au_notify">
+        <item>Всегда</item>
+        <item>При ошибке</item>
+        <item>Если новое</item>
+    </string-array>
+    <string-array name="au_hints">
+        <item>@файл</item>
+        <item>Итог — коротко</item>
+        <item>Только в ветке main</item>
+    </string-array>
+    <string-array name="au_hint_adds">
+        <item>" @"</item>
+        <item>" Итог — в 3–5 пунктах."</item>
+        <item>" Работай только в ветке main."</item>
+    </string-array>
+    <string-array name="au_tpl_names">
+        <item>Утренняя сводка</item>
+        <item>Тесты по ночам</item>
+        <item>Безопасность</item>
+        <item>Своя задача</item>
+    </string-array>
+    <string-array name="au_tpl_subs">
+        <item>Что изменилось за день</item>
+        <item>Запуск и разбор ошибок</item>
+        <item>Уязвимости в зависимостях</item>
+        <item>Опишите, что делать</item>
+    </string-array>
+    <string-array name="au_tpl_prompts">
+        <item>Пришли короткую сводку по проекту: коммиты, изменения, упавшие тесты.</item>
+        <item>Запусти тесты. Если упали — найди причину и опиши.</item>
+        <item>Проверь зависимости на известные уязвимости и устаревшие версии.</item>
+        <item></item>
+    </string-array>
+</resources>

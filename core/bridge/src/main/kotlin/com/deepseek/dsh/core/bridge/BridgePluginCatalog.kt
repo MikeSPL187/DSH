@@ -5,30 +5,30 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 /**
- * 插件页数据源：把 bridge 的两种 provider 归一成一份目录。
+ * Источник страницы плагинов: два provider моста сводятся в один каталог.
  *
- * 优先级严格按设计文档：
- * 1. `client-slots` 的 `plugins.item` 注册 —— 分类、文案、图标全部来自官方客户端资源；
- * 2. `package-inventory` 的 bundle / row 清单 —— Host 原生清单；
- * 3. 两者都没有时返回 [BridgePluginCatalogSource.NONE]，UI 显示空态而不是伪造数据。
+ * Порядок строго такой:
+ * 1. регистрации `plugins.item` из `client-slots` — категории, тексты и значки из ресурсов клиента;
+ * 2. список bundle / row из `package-inventory` — собственный список Host;
+ * 3. нет ни того ни другого — [BridgePluginCatalogSource.NONE], интерфейс показывает пустое состояние, а не выдумку.
  *
- * 图标优先取 `client-slots/icon-svg`（官方图形），取不到时回落到该包自己的
- * `meta.icon` data URL。两者都没有就留空，绝不用本地常量顶替。
+ * Значок — сначала `client-slots/icon-svg` (официальная графика), иначе собственный
+ * `meta.icon` пакета (data URL). Нет обоих — пусто, локальные заглушки не подставляются.
  */
 object BridgePluginCatalog {
 
-    /** `plugins.item` slot 名；官方插件管理页用它承载「内置插件配置」分组。 */
+    /** Слот `plugins.item`: в нём группа «Настройки встроенных плагинов» страницы плагинов. */
     const val PLUGINS_ITEM_SLOT: String = "plugins.item"
 
-    /** 图标请求的默认边长。 */
+    /** Сторона значка по умолчанию. */
     const val DEFAULT_ICON_SIZE: Int = 40
 
     /**
-     * 读取一份插件目录。
+     * Прочитать каталог плагинов.
      *
-     * @param registry 已协商的 provider 门面。
-     * @param iconSize 图标边长。
-     * @return 目录；两个 provider 都不可用时返回 `source = NONE` 的空目录。
+     * @param registry мост с согласованными provider.
+     * @param iconSize сторона значка.
+     * @return каталог; если оба provider недоступны — пустой с `source = NONE`.
      */
     suspend fun load(
         registry: BridgeRegistry,
@@ -37,7 +37,7 @@ object BridgePluginCatalog {
     ): BridgePluginCatalogResult {
         val warnings = mutableListOf<String>()
 
-        // 先协商：provider 是否存在由 manifest 决定，未协商时所有 has* 都为 false。
+        // Сначала согласование: есть ли provider — решает manifest, до него все has* ложны.
         when (val negotiated = registry.negotiate()) {
             is BridgeResult.Success -> warnings += negotiated.warnings
             is BridgeResult.Failure -> return BridgePluginCatalogResult(
@@ -83,8 +83,8 @@ object BridgePluginCatalog {
                     locale = registration.locale,
                     order = registration.order ?: 0,
                     componentId = registration.componentId,
-                    // 官方条目没有可评估的组件：bridge 直接按注册 id 返回固定
-                    // artwork，所以取图标的键在两种情况下都可用。
+                    // У официальных элементов нет оцениваемого компонента: мост отдаёт готовую
+                    // графику по id регистрации, поэтому ключ значка работает в обоих случаях.
                     iconSvg = iconOf(
                         registry,
                         registration.componentId ?: registration.identity,
@@ -146,10 +146,10 @@ object BridgePluginCatalog {
     }
 
     /**
-     * 取一个组件的官方图形。
+     * Официальная графика компонента.
      *
-     * 失败不抛：图标是装饰，缺了只是少了图形，目录本身仍然可用。失败原因进
-     * warnings，便于诊断「为什么这个插件没有图标」。
+     * Без исключений: значок — украшение, без него каталог работает. Причина ошибки — в
+     * warnings, чтобы было видно, почему у плагина нет значка.
      */
     private suspend fun iconOf(
         registry: BridgeRegistry,
@@ -168,12 +168,12 @@ object BridgePluginCatalog {
     }
 
     /**
-     * 渲染一个 `plugins.item` 组件的元素树。     *
-     * 客户端拿到树后自行决定渲染成原生控件；bridge 不理解 UI，只交数据。
+     * Дерево элементов компонента `plugins.item`.
+     * Как рисовать дерево нативно, решает клиент; мост интерфейса не понимает, он отдаёт данные.
      *
-     * @param registry 已协商的 provider 门面。
-     * @param componentId 组件身份。
-     * @param props 传给组件的 props，默认 `view = "summary"`，即官方卡片的一句话说明。
+     * @param registry мост с согласованными provider.
+     * @param componentId компонент.
+     * @param props props компонента; по умолчанию `view = "summary"` — одна фраза для карточки.
      */
     suspend fun renderItem(
         registry: BridgeRegistry,
@@ -182,41 +182,41 @@ object BridgePluginCatalog {
     ): BridgeResult<BridgeRenderTree> = registry.renderTree(componentId, props)
 }
 
-/** 目录来源，决定 UI 展示哪种形态。 */
+/** Источник каталога — от него зависит вид страницы. */
 /**
- * 把一次失败翻译成用户能照做的提示。
+ * Ошибку — в подсказку, которой можно последовать.
  *
- * 插件页不能只报「bridge unavailable」：最常见的情形是 rootfs 里的插件还没装
- * （旧镜像），那需要去设置页点「更新插件」，而不是检查网络。
- * @param failure 协商失败的稳定码与诊断文本。
- * @returns 面向用户的一句话。
+ * «bridge unavailable» мало: чаще всего в rootfs ещё нет плагина
+ * (старый образ) — нужно нажать «Обновить плагины» в настройках, а не проверять сеть.
+ * @param failure стабильный код и текст диагностики ошибки согласования.
+ * @returns одна фраза для пользователя.
  */
 private fun hintFor(failure: BridgeResult.Failure): String = when (failure.code) {
     BridgeErrorCode.TRANSPORT_UNREACHABLE ->
-        "Host 未就绪：无法连接本地运行时。请稍候或重启运行环境。"
+        com.deepseek.dsh.core.model.Tr.t("Host is not ready: cannot reach the local runtime. Wait or restart the runtime.", "Host не готов: нет связи с локальной средой. Подождите или перезапустите среду.")
     BridgeErrorCode.PROVIDER_UNKNOWN ->
-        "Host 上没有 bridge 路由：兼容层插件未安装。请在「设置 → 更新」中点击「更新插件」。"
+        com.deepseek.dsh.core.model.Tr.t("The Host has no bridge route: the compatibility plugin is not installed. Open Settings → Update and tap Update plugin.", "У Host нет маршрута bridge: плагин совместимости не установлен. Откройте «Настройки → Обновление» и нажмите «Обновить плагин».")
     BridgeErrorCode.TRANSPORT_DECODE_FAILED ->
-        "Host 的 bridge 响应无法解析（${failure.message}）。插件可能需要更新。"
+        com.deepseek.dsh.core.model.Tr.t("Cannot parse the Host bridge response (${failure.message}). The plugin may need an update.", "Не удалось разобрать ответ bridge от Host (${failure.message}). Возможно, плагин нужно обновить.")
     BridgeErrorCode.AUTH_REQUIRED ->
-        "Host 拒绝了本次请求：会话未建立。请重新登录或重启运行时。"
+        com.deepseek.dsh.core.model.Tr.t("The Host rejected the request: no session. Sign in again or restart the runtime.", "Host отклонил запрос: сессия не установлена. Войдите снова или перезапустите среду.")
     BridgeErrorCode.PROVIDER_VERSION_MISMATCH ->
-        "插件协议版本与客户端不匹配（${failure.message}）。请在「设置 → 更新」中更新插件。"
-    else -> "bridge 不可用：${failure.message}"
+        com.deepseek.dsh.core.model.Tr.t("Plugin protocol version does not match the client (${failure.message}). Update the plugin in Settings → Update.", "Версия протокола плагина не совпадает с клиентом (${failure.message}). Обновите плагин в «Настройки → Обновление».")
+    else -> com.deepseek.dsh.core.model.Tr.t("bridge unavailable: ${failure.message}", "bridge недоступен: ${failure.message}")
 }
 
 enum class BridgePluginCatalogSource {
-    /** 来自官方客户端 slot 注册：分类与图标都是官方资源。 */
+    /** Из регистраций слотов клиента: категории и значки официальные. */
     CLIENT_SLOTS,
 
-    /** 来自 Host 原生清单：只有 bundle / row，没有官方分类。 */
+    /** Из списка Host: только bundle / row, официальных категорий нет. */
     PACKAGE_INVENTORY,
 
-    /** 两者都不可用：UI 显示空态。 */
+    /** Нет ни того ни другого: пустое состояние. */
     NONE,
 }
 
-/** 一份插件目录。 */
+/** Каталог плагинов. */
 data class BridgePluginCatalogData(
     val source: BridgePluginCatalogSource,
     val categories: List<BridgePluginCategory> = emptyList(),
@@ -224,13 +224,13 @@ data class BridgePluginCatalogData(
     val managementAvailable: Boolean = false,
 )
 
-/** 目录 + 非致命说明。 */
+/** Каталог и нефатальные замечания. */
 data class BridgePluginCatalogResult(
     val catalog: BridgePluginCatalogData,
     val warnings: List<String> = emptyList(),
 )
 
-/** 一个官方插件分类（`plugins.item` 的一条注册）。 */
+/** Категория официальных плагинов (одна регистрация `plugins.item`). */
 data class BridgePluginCategory(
     val id: String,
     val label: String,
@@ -241,7 +241,7 @@ data class BridgePluginCategory(
     val iconSvg: String?,
 )
 
-/** Host 原生清单里的一个 bundle。 */
+/** Bundle из списка Host. */
 data class BridgePluginBundleSummary(
     val name: String,
     val title: String,
@@ -252,7 +252,7 @@ data class BridgePluginBundleSummary(
     val removable: Boolean,
     val enabled: Boolean,
     val installed: Boolean,
-    /** Host 报告的可用性：随安装提供、已安装或缺失。 */
+    /** Доступность по Host: из установки, установлен или отсутствует. */
     val availability: String = "",
     val errorCode: String?,
     val iconDataUrl: String?,
@@ -265,7 +265,7 @@ data class BridgePluginBundleSummary(
     val rows: List<BridgePluginRowSummary> = emptyList(),
 )
 
-/** bundle 的一条 row。 */
+/** Строка bundle. */
 data class BridgePluginRowSummary(
     val rowId: String,
     val moduleName: String,

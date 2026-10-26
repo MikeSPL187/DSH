@@ -7,10 +7,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 版本串拆段与更新性质判断。
+ * Разбор строки версии на части и характер обновления.
  *
- * 这一层的核心结论是「插件必需、镜像可选」，因此每个分支都要钉住：插件落后
- * 必须给出 `PLUGIN_REQUIRED`，镜像重建只能给出 `ROOTFS_OPTIONAL`。
+ * Главный вывод этого уровня — «плагин обязателен, образ необязателен», поэтому закреплена каждая ветка: отставший плагин
+ * обязан давать `PLUGIN_REQUIRED`, пересобранный образ — только `ROOTFS_OPTIONAL`.
  */
 class RootfsVersionTest {
 
@@ -62,8 +62,8 @@ class RootfsVersionTest {
 
     @Test
     fun `an identical install never asks for anything`() {
-        // 回归：启动横幅曾用字符串比较，同版本也会弹「运行时更新可用」。
-        // 判断必须走 assessUpdate，且同版本一律 NONE。
+        // Регрессия: полоса при запуске сравнивала строки и даже при той же версии показывала «Доступно обновление окружения».
+        // Решение — только через assessUpdate, при той же версии всегда NONE.
         for (manifest in listOf("1.0.1-dsh0.2.1-rc.2-bridge1.1.0", "1.1.0-dsh0.2.1-rc.2-bridge1.1.0")) {
             val assessment = assessUpdate(manifest, manifest, "1.1.0", "1.1.0")
             assertEquals("same manifest must be NONE: $manifest", UpdateNeed.NONE, assessment.need)
@@ -73,7 +73,7 @@ class RootfsVersionTest {
 
     @Test
     fun `the mandatory image update is the only kind shown at startup`() {
-        // 启动横幅只认 MANDATORY；仅插件落后时它必须为 NONE，所以启动不提醒。
+        // Полоса при запуске знает только MANDATORY; если отстал лишь плагин, она NONE — при запуске подсказки нет.
         assertEquals(
             RootfsUpdateKind.MANDATORY,
             decideRootfsUpdateKind("1.0.0-dsh0.2.1-rc.1-bridge1.1.0", "1.1.0-dsh0.2.1-rc.2-bridge1.1.0"),
@@ -86,10 +86,10 @@ class RootfsVersionTest {
 
     @Test
     fun `a rebuilt image with the same engine is not a mandatory update`() {
-        // 模拟器上真实踩到：1.0.0-dsh0.2.1-rc.2（旧镜像，无插件）升到
-        // 1.0.1-dsh0.2.1-rc.2-bridge1.1.0，dsh 段相同，却在启动时弹了
-        // 「重新下载运行时」。重新打包的镜像只算 REPACKAGED：设置页可选，
-        // 启动流程（只认 MANDATORY）不拦人。
+        // Случилось на эмуляторе: 1.0.0-dsh0.2.1-rc.2 (старый образ без плагина) обновился до
+        // 1.0.1-dsh0.2.1-rc.2-bridge1.1.0, часть dsh та же, но при запуске появилось
+        // «Скачать окружение заново». Пересобранный образ — только REPACKAGED: необязательно в настройках,
+        // запуск (знает только MANDATORY) не останавливается.
         assertEquals(
             RootfsUpdateKind.REPACKAGED,
             decideRootfsUpdateKind("1.0.0-dsh0.2.1-rc.2", "1.0.1-dsh0.2.1-rc.2-bridge1.1.0"),
@@ -98,8 +98,8 @@ class RootfsVersionTest {
 
     @Test
     fun `a patched image ignores the dsh segment`() {
-        // 构建期烧补丁的镜像内部是「最新 DSH + 补丁」，rc.3 与 rc.2 都可用；
-        // 只有 rootfs 段自增才提示可选更新。
+        // Образ со вшитыми при сборке патчами внутри «последний DSH + патчи», годятся и rc.3, и rc.2;
+        // необязательное обновление — только когда выросла часть rootfs.
         assertEquals(
             RootfsUpdateKind.NONE,
             decideRootfsUpdateKind(
@@ -118,7 +118,7 @@ class RootfsVersionTest {
                 availablePatched = true,
             ),
         )
-        // 已装补丁镜像，远端只有旧的未补丁镜像：不引导回退。
+        // Установлен образ с патчами, удалённо — только старый без патчей: к откату не ведём.
         assertEquals(
             RootfsUpdateKind.NONE,
             decideRootfsUpdateKind(
@@ -141,8 +141,8 @@ class RootfsVersionTest {
 
     @Test
     fun `an engine mismatch wins over a newer rootfs segment`() {
-        // 用户先收到了 rc.3 的 1.0.12 镜像，而当前 APK 的补丁目标是 rc.2：
-        // 即使 1.0.12 > 1.0.11，也必须引导换回 rc.2 的镜像，不能停在版本混杂的树。
+        // Пользователь первым получил образ 1.0.12 с rc.3, а цель патчей текущего APK — rc.2:
+        // хотя 1.0.12 > 1.0.11, нужно вернуть образ под rc.2, а не оставаться на дереве со смешанными версиями.
         assertEquals(
             RootfsUpdateKind.MANDATORY,
             decideRootfsUpdateKind(
@@ -154,8 +154,8 @@ class RootfsVersionTest {
 
     @Test
     fun `an older bundled manifest never offers a downgrade`() {
-        // 内置兜底清单（assets/rootfs-manifest.json）不会随发版更新；离线时它
-        // 可能比已装镜像旧。旧版本不能算「可更新」，否则会引导降级。
+        // Встроенный запасной манифест (assets/rootfs-manifest.json) с выпусками не обновляется; без сети он
+        // может быть старее установленного образа. Старая версия не должна считаться обновлением, иначе поведёт к откату.
         assertEquals(
             RootfsUpdateKind.NONE,
             decideRootfsUpdateKind("1.0.9-dsh0.2.1-rc.2-bridge2.0.1", "1.0.4-dsh0.2.1-rc.2-bridge1.3.1"),
@@ -172,13 +172,13 @@ class RootfsVersionTest {
 
     @Test
     fun `an uninstalled rootfs is not an update`() {
-        // 未安装由首启安装流程处理，不该在这里报更新。
+        // Без установки этим занимается первый запуск, сообщать об обновлении здесь не надо.
         assertEquals(UpdateNeed.NONE, assessUpdate(null, current, "1.1.0", null).need)
     }
 
     @Test
     fun `an installed plugin newer than the image needs nothing`() {
-        // 用户已经单独更新过插件：镜像里打包的旧版本不再意味着落后。
+        // Пользователь уже отдельно обновил плагин: старая версия, вложенная в образ, больше не значит «отстал».
         val assessment = assessUpdate(
             installed = "1.1.0-dsh0.2.1-rc.2-bridge1.0.0",
             available = "1.1.0-dsh0.2.1-rc.2-bridge1.0.0",
@@ -203,7 +203,7 @@ class RootfsVersionTest {
 
     @Test
     fun `a plugin packaged older than the image is required even before the image lands`() {
-        // 镜像已经指向新插件，但本地还是旧插件：先按插件必需处理。
+        // Образ уже указывает на новый плагин, а локально старый: сначала как обязательное обновление плагина.
         val assessment = assessUpdate(
             installed = "1.0.0-dsh0.2.1-rc.2-bridge1.0.0",
             available = current,
@@ -215,8 +215,8 @@ class RootfsVersionTest {
 
     @Test
     fun `an unknown installed plugin is never assumed current`() {
-        // 读不到实际安装版本时，镜像里打包过的版本不能当作「已安装」：
-        // 文件可能已经被删掉或替换，按落后处理、提示一次更新最安全。
+        // Если действующую версию не прочитать, версия, вложенная в образ, не считается «установленной»:
+        // файл могли удалить или заменить — безопаснее считать отставшим и один раз подсказать обновление.
         val assessment = assessUpdate(
             installed = "1.0.0-dsh0.2.1-rc.2-bridge1.0.0",
             available = current,
@@ -238,7 +238,7 @@ class RootfsVersionTest {
         )
         assertEquals(UpdateNeed.ROOTFS_OPTIONAL, assessment.need)
         assertTrue(assessment.hasUpdate)
-        // 可选的镜像更新不该让「更新插件」按钮出现。
+        // Необязательное обновление образа не должно показывать кнопку «Обновить плагин».
         assertFalse(assessment.canUpdatePlugin)
     }
 
@@ -255,9 +255,9 @@ class RootfsVersionTest {
 
     @Test
     fun `a repackaged image with the same engine offers an optional image update`() {
-        // rootfs 段自增说明镜像重新打包过：可能只是把新插件打进去，也可能带着
-        // 只存在于镜像里的修复。插件侧已经是最新，因此只给「可选」的镜像更新，
-        // 且不打断启动。
+        // Выросла часть rootfs — образ пересобран: возможно, лишь вложен новый плагин, а возможно,
+        // есть исправление, которое бывает только в образе. Плагин уже последний, поэтому только необязательное обновление образа
+        // и без остановки запуска.
         val assessment = assessUpdate(
             installed = "1.0.0-dsh0.2.1-rc.2-bridge1.1.0",
             available = "1.0.1-dsh0.2.1-rc.2-bridge1.1.0",
@@ -271,7 +271,7 @@ class RootfsVersionTest {
 
     @Test
     fun `an image that only differs by its packaged plugin needs nothing once the plugin is current`() {
-        // 镜像里打包的是 1.0.0，但用户已经把插件更新到 1.1.0：不必重下整包。
+        // В образе 1.0.0, но пользователь уже обновил плагин до 1.1.0: качать весь пакет не нужно.
         val assessment = assessUpdate(
             installed = "1.1.0-dsh0.2.1-rc.2-bridge1.0.0",
             available = current,
@@ -283,8 +283,8 @@ class RootfsVersionTest {
 
     @Test
     fun `without a latest-plugin answer the plugin is not judged`() {
-        // 查询失败时不能凭镜像段推断插件落后，否则会误报。这里镜像段也一致，
-        // 因此既不该报插件更新，也不该报镜像更新。
+        // При ошибке запроса нельзя по части образа заключить, что плагин отстал, — будет ложное сообщение. Часть образа
+        // тоже совпадает, поэтому нет ни обновления плагина, ни обновления образа.
         val assessment = assessUpdate(
             installed = "1.1.0-dsh0.2.1-rc.2-bridge1.0.0",
             available = current,
@@ -307,7 +307,7 @@ class RootfsVersionTest {
 
     @Test
     fun `plugin versions compare numerically rather than as text`() {
-        // 回归：字符串不等曾把 1.24.0 判成落后于 1.1.0，于是「更新」会降级。
+        // Регрессия: из-за неравенства строк 1.24.0 считалась отставшей от 1.1.0, и «обновление» было откатом.
         assertEquals(1, comparePluginVersions("1.24.0", "1.1.0"))
         assertEquals(-1, comparePluginVersions("1.1.0", "1.24.0"))
         assertEquals(1, comparePluginVersions("1.10.0", "1.9.9"))
@@ -320,9 +320,9 @@ class RootfsVersionTest {
 
     @Test
     fun `a newer installed plugin is never a downgrade target`() {
-        // 本地装的是未发布的开发版（1.24.0），仓库最新发布是 1.1.0：
-        // 这不是落后，也不能把按钮变成「更新」（那是降级）。镜像本身重新打包过，
-        // 因此只允许出现可选的镜像更新。
+        // Локально неопубликованная сборка разработки (1.24.0), последний выпуск в репозитории — 1.1.0:
+        // это не отставание, и кнопка не должна стать «Обновить» (это откат). Сам образ пересобран,
+        // поэтому допустимо только необязательное обновление образа.
         val assessment = assessUpdate(
             installed = "1.0.0-dsh0.2.1-rc.2-bridge1.1.0",
             available = current,
@@ -349,7 +349,7 @@ class RootfsVersionTest {
 
     @Test
     fun `without a latest release the update action stays disabled`() {
-        // 离线时按下去只会失败；界面应保持「无法判断」，按钮不可用。
+        // Без сети нажатие только упадёт; интерфейс остаётся «нельзя определить», кнопка недоступна.
         val assessment = assessUpdate(
             installed = current,
             available = current,
@@ -362,8 +362,8 @@ class RootfsVersionTest {
 
     @Test
     fun `an unknown installed version can still be updated when the latest release is known`() {
-        // 旧镜像没有 `-bridge` 段，插件也没落盘：无从判断，按「落后」处理，
-        // 因为更新一次是最安全的收敛动作。
+        // В старом образе нет части `-bridge`, и плагина на диске нет: определить нельзя, считаем «отстал» —
+        // одно обновление — самый безопасный путь к согласованному состоянию.
         val assessment = assessUpdate(
             installed = "1.0.0-dsh0.2.1-rc.2",
             available = current,
@@ -381,10 +381,10 @@ class RootfsVersionTest {
         assertTrue(RootfsNaming.isDshCompatible("1.0.11-dsh0.2.1-rc.2-bridge2.0.7", expected))
         assertFalse(RootfsNaming.isDshCompatible("1.0.12-dsh0.2.1-rc.3-bridge2.0.7", expected))
         assertFalse(RootfsNaming.isDshCompatible("1.0.0-dsh0.2.1-rc.2", "0.2.1-rc.3"))
-        // 无法解析/无法判断时不冒充兼容。
+        // Если разобрать или решить нельзя — совместимостью не притворяемся.
         assertFalse(RootfsNaming.isDshCompatible("weird", expected))
         assertFalse(RootfsNaming.isDshCompatible(null, expected))
-        // 内置清单缺失时保留旧行为（无法判断则放行）。
+        // Без встроенного манифеста — прежнее поведение (решить нельзя — пропускаем).
         assertTrue(RootfsNaming.isDshCompatible("1.0.12-dsh0.2.1-rc.3-bridge2.0.7", null))
         assertEquals("0.2.1-rc.2", RootfsNaming.dshVersion("1.0.11-dsh0.2.1-rc.2-bridge2.0.7"))
         assertNull(RootfsNaming.dshVersion("weird"))

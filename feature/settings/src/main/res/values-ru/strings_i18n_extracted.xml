@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pcp_back">Назад</string>
+    <string name="pcp_bridge_disconnected">Bridge не подключён</string>
+    <string name="pcp_full_ui_failed">Полный интерфейс · ошибка загрузки</string>
+    <string name="pcp_full_ui_web">Полный интерфейс · настоящий Web UI</string>
+    <string name="pcp_refresh">Обновить</string>
+    <string name="pcp_ui_unavailable">Интерфейс плагина пока недоступен</string>
+    <string name="pcp_bridge_retry">Bridge не подключён. Повторите, когда Host будет готов.</string>
+    <string name="pcp_full_ui_start_failed">Не удалось запустить полный интерфейс</string>
+    <string name="pcp_retry">Повторить</string>
+    <string name="pwi_host_not_running">Host не запущен, полный интерфейс открыть нельзя</string>
+</resources>

@@ -24,11 +24,11 @@ class ProtocolTest {
         val gen2 = sm.nextGeneration()
         assertEquals(2L, gen2)
 
-        // 尝试用旧 generation 跃迁应当被拒绝
+        // Переход от старого поколения должен отклоняться
         val oldTransition = sm.transitionTo(ConnectionState.Ready("local-host", gen1))
         assertFalse(oldTransition)
 
-        // 使用新 generation 跃迁成功
+        // Переход от нового поколения проходит
         val newTransition = sm.transitionTo(ConnectionState.Ready("local-host", gen2))
         assertTrue(newTransition)
         assertTrue(sm.isReady())
@@ -53,7 +53,7 @@ class ProtocolTest {
         assertEquals("dsh_session", loaded[0].name)
         assertEquals("token_test_123", loaded[0].value)
 
-        // 测试清理
+        // Очистка теста
         cookieJar.clearHost("127.0.0.1", 8080)
         assertTrue(cookieJar.loadForRequest(url).isEmpty())
     }

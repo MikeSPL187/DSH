@@ -10,14 +10,14 @@ import com.deepseek.dsh.core.designsystem.dshPanelColors
 import com.deepseek.dsh.plugin.nativesdk.theme.PluginTheme
 
 /**
- * 把 App 的 MaterialTheme 适配成插件可见的 [PluginTheme] 只读快照。
+ * Тема приложения как снимок [PluginTheme] для плагинов (только чтение).
  *
- * 深色模式 / 系统字体缩放由 MaterialTheme 统一处理，快照随之更新并触发宿主
- * 容器重组。插件拿到的永远是当前正确取值，不写自己的深浅色分支。
+ * Тёмная тема и масштаб шрифта системы учтены в теме приложения; снимок обновляется вместе с ней
+ * и перекомпонует контейнеры. Плагин всегда получает актуальные значения и своих веток для тем не пишет.
  *
- * 浮层字段直接取 App 菜单系统（DshMenuCard）的材质：半透明菜单底色合成到
- * 基础背景、发丝边、16dp 大圆角，因此插件 popover 和模型/权限菜单是同一套
- * 视觉，而不是另一张 Material Card。
+ * Поля плавающих панелей взяты из меню приложения (DshMenuCard): полупрозрачный фон меню поверх
+ * основного, тонкая граница, большой радиус 16dp — popover плагина выглядит как меню модели и доступа,
+ * а не как отдельная карточка Material.
  */
 @Composable
 fun rememberPluginTheme(): PluginTheme {
@@ -42,10 +42,10 @@ fun rememberPluginTheme(): PluginTheme {
         textCaption = t.bodySmall,
         textPopupTitle = t.labelSmall.copy(fontWeight = FontWeight.SemiBold),
         textPopupBody = t.bodyMedium.copy(fontSize = 13.sp, lineHeight = 20.sp),
-        // 主题由 App/Host 决定（ui-theme），不能用系统深浅色判断；
-        // dshPanelColors() 已经反映实际主题。
+        // Тему решает приложение и Host (ui-theme), а не тема системы;
+        // dshPanelColors() уже отражает действующую тему.
         isDark = panel.isDark,
-        // 设置页/面板与 App 的 DshPanel 完全同源：隔层底色、发丝边、三级文字色。
+        // Настройки и панели — из того же источника, что DshPanel приложения: фон слоя, тонкая граница, три уровня текста.
         colorPanel = panel.bgLayer2,
         colorPanelBorder = panel.borderL2,
         colorPanelElevated = panel.bgLayer3,
@@ -55,7 +55,7 @@ fun rememberPluginTheme(): PluginTheme {
         colorLink = c.primary,
         panelCorner = 16.dp,
         rowMinHeight = 44.dp,
-        // 按钮/开关/输入框与 App 的 DshDialogButton / DshSwitch 同源。
+        // Кнопки, переключатели и поля — те же, что DshDialogButton / DshSwitch приложения.
         colorButtonPrimary = panel.buttonPrimaryFill,
         colorButtonPrimaryHover = panel.buttonPrimaryHover,
         colorButtonTextOnPrimary = panel.labelPrimaryForeground,

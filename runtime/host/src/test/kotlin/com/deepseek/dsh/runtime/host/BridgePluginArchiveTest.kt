@@ -12,12 +12,18 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
 /**
- * 插件发布归档（GitHub zipball）的校验与解压。
+ * Проверка и распаковка архива выпуска плагина (zipball GitHub).
  *
- * 安装路径只有一条：下载 tag 归档 → 校验 → 铺进 profile。这些用例钉住
- * 「包名/版本/入口不一致就拒绝、路径不许逃出目标目录」这几条安全边界。
+ * Путь установки один: скачать архив тега → проверить → разложить в профиль. Эти тесты закрепляют
+ * границы безопасности: «не совпали имя пакета, версия или вход — отказ; пути не выходят из целевой папки».
  */
 class BridgePluginArchiveTest {
+    // Сообщения проверяются по английскому тексту: фиксируем язык, а не берём локаль машины.
+    @org.junit.Before
+    fun pinLanguage() {
+        com.deepseek.dsh.core.model.Tr.language = { "en" }
+    }
+
 
     private val packageName = "dsh-mobile-bridge-plugin"
 
@@ -60,7 +66,7 @@ class BridgePluginArchiveTest {
             val error = assertThrows(IllegalArgumentException::class.java) {
                 BridgePluginArchive.extract(archive.inputStream(), destination, packageName, "1.1.0")
             }
-            assertTrue(error.message.orEmpty().contains("版本不匹配"))
+            assertTrue(error.message.orEmpty().contains("Version mismatch"))
         } finally {
             destination.deleteRecursively()
         }
@@ -78,7 +84,7 @@ class BridgePluginArchiveTest {
             val error = assertThrows(IllegalArgumentException::class.java) {
                 BridgePluginArchive.extract(archive.inputStream(), destination, packageName, "1.1.0")
             }
-            assertTrue(error.message.orEmpty().contains("包名不匹配"))
+            assertTrue(error.message.orEmpty().contains("Package mismatch"))
         } finally {
             destination.deleteRecursively()
         }
@@ -134,7 +140,7 @@ class BridgePluginArchiveTest {
             val error = assertThrows(IllegalArgumentException::class.java) {
                 BridgePluginArchive.extract(archive.inputStream(), destination, packageName, "1.1.0")
             }
-            assertTrue(error.message.orEmpty().contains("越界"))
+            assertTrue(error.message.orEmpty().contains("escapes the root"))
         } finally {
             destination.deleteRecursively()
         }
@@ -156,7 +162,7 @@ class BridgePluginArchiveTest {
         assertEquals("owner/repo", BridgeReleaseDownloader.repositorySlug("git@github.com:owner/repo.git"))
     }
 
-    /** 一份最小的插件清单；字段与真实发布包保持同形。 */
+    /** Минимальный манифест плагина; поля как у настоящего пакета выпуска. */
     private fun manifestJson(version: String): String = """
         {
           "name": "$packageName",
@@ -168,7 +174,7 @@ class BridgePluginArchiveTest {
         }
     """.trimIndent()
 
-    /** 把若干路径/内容打成一个 zip。 */
+    /** Упаковать несколько путей и содержимое в zip. */
     private fun zip(vararg entries: Pair<String, String>): ByteArray {
         val buffer = ByteArrayOutputStream()
         ZipOutputStream(buffer).use { zip ->

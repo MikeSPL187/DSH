@@ -3,13 +3,12 @@ package com.deepseek.dsh.feature.files
 import java.io.File
 
 /**
- * v4.0 设计文档 §8.1 & §8.2:
- * 手机真实工作区管理与路径模型
+ * Рабочие папки на телефоне и модель путей.
  */
 enum class WorkspaceStorageType {
-    REAL_EXTERNAL,     // 真实外部公有目录 (Documents / Downloads, 系统文件直接可见)
-    SAF_MIRROR,        // SAF 镜像模式 (受限)
-    PRIVATE_ISOLATED   // App 私有目录高性能模式
+    REAL_EXTERNAL,     // общая внешняя папка (Documents / Downloads, видна в файлах системы)
+    SAF_MIRROR,        // зеркало через SAF (ограниченно)
+    PRIVATE_ISOLATED   // личная папка приложения, самая быстрая
 }
 
 data class FileItem(
@@ -27,11 +26,11 @@ class WorkspaceManager(
     fun resolveActiveWorkspace(type: WorkspaceStorageType): File {
         return when (type) {
             WorkspaceStorageType.REAL_EXTERNAL -> {
-                // 1. 优先使用传入的共享公有目录 (例如 /storage/emulated/0/Documents/DSH-Workspace)
+                // 1. Сначала переданная общая папка (например, /storage/emulated/0/Documents/DSH-Workspace)
                 if (preferredPublicDir != null && (preferredPublicDir.exists() || preferredPublicDir.mkdirs())) {
                     preferredPublicDir
                 } else {
-                    // 2. 尝试标准外部公有 Documents / Downloads 目录
+                    // 2. Затем стандартные общие Documents / Downloads
                     val standardDocs = File("/storage/emulated/0/Documents/DSH-Workspace")
                     val standardDownloads = File("/storage/emulated/0/Download/DSH-Workspace")
 
@@ -40,7 +39,7 @@ class WorkspaceManager(
                     } else if (standardDownloads.exists() || standardDownloads.mkdirs()) {
                         standardDownloads
                     } else {
-                        // 3. 仅在公有目录全部无权限时降级
+                        // 3. Только если нет доступа ни к одной общей папке — запасной вариант
                         File(appPrivateDir, "workspace").apply { mkdirs() }
                     }
                 }
@@ -70,7 +69,7 @@ class WorkspaceManager(
     }
 
     /**
-     * 扫描根工作区目录下的所有工作区子项目
+     * Все папки проектов в корне рабочих папок.
      */
     fun listWorkspaceDirectories(baseDir: File): List<File> {
         if (!baseDir.exists() || !baseDir.isDirectory) return listOf(baseDir)

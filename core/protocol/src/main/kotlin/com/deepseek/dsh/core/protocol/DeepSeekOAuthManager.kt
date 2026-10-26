@@ -4,18 +4,17 @@ import com.deepseek.dsh.core.model.AccountBalanceInfo
 import com.deepseek.dsh.core.model.AccountProfileInfo
 import com.deepseek.dsh.core.model.DeepSeekAccountState
 import com.deepseek.dsh.core.model.DeepSeekUserProfile
-import com.deepseek.dsh.core.model.DeepSeekWallet
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * DeepSeek 账号 OAuth 鉴权与状态中心
- * 默认账号直接对齐 DeepSeek Platform OAuth
+ * Состояние входа в аккаунт DeepSeek.
+ * Вход — через OAuth DeepSeek Platform.
  */
 class DeepSeekOAuthManager {
 
-    // 与官方一致：没有已保存凭据时处于未登录状态，不预置演示账号/余额。
+    // Без сохранённых данных — не вошли; демо-аккаунта и баланса нет.
     private val _accountFlow = MutableStateFlow(
         DeepSeekAccountState(
             isSignedIn = false,
@@ -25,12 +24,8 @@ class DeepSeekOAuthManager {
     )
     val accountFlow: StateFlow<DeepSeekAccountState> = _accountFlow.asStateFlow()
 
-    fun buildOAuthAuthorizeUrl(theme: String = "light"): String {
-        return "https://platform.deepseek.com/dsh/authorize?theme=$theme"
-    }
-
     fun signOut() {
-        // 退出账号不清除已配置的 API Key（官方两种凭据相互独立）。
+        // Выход не удаляет API-ключ: это независимые способы входа.
         _accountFlow.value = DeepSeekAccountState(
             isSignedIn = false,
             profile = null,
@@ -40,8 +35,8 @@ class DeepSeekOAuthManager {
     }
 
     /**
-     * API Key 登录：官方 SignInDialog 的「添加 API Key」路径。
-     * 只记录「已配置 API Key」，账号仍为未登录态；Key 本身不落盘。
+     * Вход по API-ключу («Добавить API-ключ»).
+     * Отмечается только «ключ задан», аккаунт остаётся без входа; сам ключ здесь не хранится.
      */
     fun signInWithApiKey(apiKey: String) {
         _accountFlow.value = DeepSeekAccountState(
@@ -52,22 +47,13 @@ class DeepSeekOAuthManager {
         )
     }
 
-    fun signInSuccess(profile: DeepSeekUserProfile) {
-        _accountFlow.value = DeepSeekAccountState(
-            isSignedIn = true,
-            profile = profile,
-            wallets = listOf(DeepSeekWallet(currency = "CNY", balance = "100.00")),
-            hasApiKey = _accountFlow.value.hasApiKey
-        )
-    }
-
-    /** Host account/watch 报告 credential-stored 后，用真实资料与余额更新登录态。 */
+    /** После credential-stored из account/watch — профиль и баланс из Host. */
     fun applyHostAccount(profile: AccountProfileInfo?, balance: AccountBalanceInfo?) {
         _accountFlow.value = DeepSeekAccountState(
             isSignedIn = true,
             profile = DeepSeekUserProfile(
                 id = profile?.id ?: "deepseek-account",
-                name = profile?.name ?: "已登录 DeepSeek",
+                name = profile?.name ?: com.deepseek.dsh.core.model.Tr.t("Signed in to DeepSeek", "Вход в DeepSeek выполнен"),
                 contact = profile?.contact,
                 avatarUrl = profile?.avatarUrl,
             ),

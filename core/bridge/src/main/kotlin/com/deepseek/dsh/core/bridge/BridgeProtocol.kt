@@ -6,64 +6,64 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 /**
- * `bridge/v1` 线协议模型。
+ * Модель протокола `bridge/v1`.
  *
- * 这些类型是 Host 侧 `dsh-mobile-bridge` 插件契约的客户端镜像：字段名与
- * `docs/protocol.md` 一一对应。未知字段由 [BridgeJson] 忽略，因此 Host 增加
- * 字段不会破坏已发布的客户端；未知 provider id 同样按「忽略」处理。
+ * Это клиентское отражение контракта плагина `dsh-mobile-bridge` в Host: имена полей
+ * совпадают с `docs/protocol.md`. Незнакомые поля [BridgeJson] пропускает, поэтому новые
+ * поля Host не ломают выпущенный клиент; незнакомые id provider тоже пропускаются.
  */
 object BridgeProtocol {
-    /** 协议版本；Host 报出未知主版本时客户端应拒绝。 */
+    /** Версия протокола; незнакомую основную версию клиент отклоняет. */
     const val BRIDGE_VERSION: String = "1.0.0"
 
-    /** 所有路由共用的前缀。 */
+    /** Общий префикс маршрутов. */
     const val BASE_PATH: String = "/dsh-mobile/bridge/v1"
 
-    /** provider 目录路由。 */
+    /** Маршрут каталога provider. */
     const val MANIFEST_PATH: String = "$BASE_PATH/manifest"
 
-    /** 查询路由。 */
+    /** Маршрут запросов. */
     const val QUERY_PATH: String = "$BASE_PATH/query"
 
-    /** `client-assets` provider id。 */
+    /** id provider `client-assets`. */
     const val PROVIDER_CLIENT_ASSETS: String = "client-assets"
 
-    /** `client-slots` provider id。 */
+    /** id provider `client-slots`. */
     const val PROVIDER_CLIENT_SLOTS: String = "client-slots"
 
-    /** `package-inventory` provider id。 */
+    /** id provider `package-inventory`. */
     const val PROVIDER_PACKAGE_INVENTORY: String = "package-inventory"
 
-    /** `native-plugins` provider id（原生伴侣清单）。 */
+    /** id provider `native-plugins` (список нативных компаньонов). */
     const val PROVIDER_NATIVE_PLUGINS: String = "native-plugins"
 
-    /** `rpc` provider id。 */
+    /** id provider `rpc`. */
     const val PROVIDER_RPC: String = "rpc"
 }
 
-/** Host 侧 `GET /manifest` 的响应体。 */
+/** Ответ `GET /manifest` Host. */
 @Serializable
 data class BridgeManifest(
     val bridgeVersion: String = "",
-    /** 插件自身的版本；Host 未上报（旧插件）时为 null。 */
+    /** Версия самого плагина; старый плагин её не сообщает — null. */
     val pluginVersion: String? = null,
     val dshVersion: String? = null,
     val providers: List<BridgeProviderEntry> = emptyList(),
     val warnings: List<String> = emptyList(),
 ) {
-    /** 按 id 查找一个 provider。 */
+    /** Найти provider по id. */
     fun provider(id: String): BridgeProviderEntry? = providers.firstOrNull { it.id == id }
 
-    /** 该 provider 是否以指定版本提供服务。 */
+    /** Обслуживает ли provider заданную версию. */
     fun serves(id: String, version: Int): Boolean = provider(id)?.version == version
 
-    /** 客户端是否理解 Host 报出的协议主版本。 */
+    /** Понимает ли клиент основную версию протокола Host. */
     fun isCompatible(): Boolean =
         bridgeVersion.substringBefore('.').toIntOrNull() ==
             BridgeProtocol.BRIDGE_VERSION.substringBefore('.').toIntOrNull()
 }
 
-/** manifest 中的一个 provider。 */
+/** Provider в manifest. */
 @Serializable
 data class BridgeProviderEntry(
     val id: String = "",
@@ -73,7 +73,7 @@ data class BridgeProviderEntry(
     val authorization: String? = null,
 )
 
-/** `POST /query` 的请求体。 */
+/** Тело запроса `POST /query`. */
 @Serializable
 data class BridgeQuery(
     val provider: String,
@@ -81,7 +81,7 @@ data class BridgeQuery(
     val args: Map<String, JsonElement> = emptyMap(),
 )
 
-/** `POST /query` 的响应体：成功与失败互斥，永不部分成功。 */
+/** Тело ответа `POST /query`: либо успех, либо ошибка, частичного успеха нет. */
 @Serializable
 data class BridgeQueryResponse(
     val ok: Boolean = false,
@@ -92,7 +92,7 @@ data class BridgeQueryResponse(
     val error: BridgeQueryError? = null,
 )
 
-/** 一次失败的稳定错误码与诊断文本。 */
+/** Стабильный код ошибки и текст диагностики. */
 @Serializable
 data class BridgeQueryError(
     val code: String = "",
@@ -100,7 +100,7 @@ data class BridgeQueryError(
     val details: JsonElement? = null,
 )
 
-/** 稳定错误码。客户端按码映射自己的文案，从不解析 message。 */
+/** Стабильные коды ошибок. Клиент сопоставляет код со своим текстом и message не разбирает. */
 object BridgeErrorCode {
     const val REQUEST_MALFORMED: String = "request/malformed"
     const val REQUEST_UNSUPPORTED_METHOD: String = "request/unsupported-method"
@@ -113,14 +113,14 @@ object BridgeErrorCode {
     const val AUTH_REQUIRED: String = "auth/required"
     const val INTERNAL_ERROR: String = "internal/error"
 
-    /** 客户端本地产生的错误码：Host 不可达。 */
+    /** Код клиента: Host недоступен. */
     const val TRANSPORT_UNREACHABLE: String = "transport/unreachable"
 
-    /** 客户端本地产生的错误码：响应无法解析。 */
+    /** Код клиента: ответ не разобрать. */
     const val TRANSPORT_DECODE_FAILED: String = "transport/decode-failed"
 }
 
-/** `client-assets` / `boot-graph` 的数据。 */
+/** Данные `client-assets` / `boot-graph`. */
 @Serializable
 data class BridgeBootGraph(
     val rev: String = "",
@@ -129,14 +129,14 @@ data class BridgeBootGraph(
     val batches: List<BridgeBootBatch> = emptyList(),
 )
 
-/** Host 发布标识。 */
+/** Выпуск Host. */
 @Serializable
 data class BridgeBootRelease(
     val version: String = "",
     val commit: String? = null,
 )
 
-/** boot manifest 中的一行。 */
+/** Строка boot manifest. */
 @Serializable
 data class BridgeBootEntry(
     val id: String = "",
@@ -147,7 +147,7 @@ data class BridgeBootEntry(
     val external: List<String> = emptyList(),
 )
 
-/** 一个初始 combo 脚本描述。 */
+/** Описание начального combo-скрипта. */
 @Serializable
 data class BridgeBootBatch(
     val phase: String = "",
@@ -156,7 +156,7 @@ data class BridgeBootBatch(
     val entries: List<String> = emptyList(),
 )
 
-/** `client-assets` / `module-source` 的数据。 */
+/** Данные `client-assets` / `module-source`. */
 @Serializable
 data class BridgeModuleSource(
     val id: String = "",
@@ -167,7 +167,7 @@ data class BridgeModuleSource(
     val source: String = "",
 )
 
-/** `client-assets` / `locale` 的数据。 */
+/** Данные `client-assets` / `locale`. */
 @Serializable
 data class BridgeLocale(
     val namespace: String = "",
@@ -176,7 +176,7 @@ data class BridgeLocale(
     val dictionary: Map<String, String> = emptyMap(),
 )
 
-/** 一条 slot 注册（已渲染成数据的形态）。 */
+/** Регистрация слота (в виде данных). */
 @Serializable
 data class BridgeSlotRegistration(
     val slot: String = "",
@@ -185,22 +185,22 @@ data class BridgeSlotRegistration(
     val order: Int? = null,
     val label: String? = null,
     val priority: Int? = null,
-    /** bridge 判定的原生落点，例如 `drawer` / `conversation` / `settings.page`。 */
+    /** Нативное место, определённое мостом, например `drawer` / `conversation` / `settings.page`. */
     val placement: String? = null,
     @SerialName("package") val packageName: String? = null,
     val locale: String? = null,
-    /** 注册来源：`static`（静态提取）或 `evaluated`（VM 求值）；旧插件不上报。 */
+    /** Откуда регистрация: `static` (статический разбор) или `evaluated` (выполнение в VM); старые плагины не сообщают. */
     val origin: String? = null,
     val render: BridgeSlotRender? = null,
 ) {
-    /** 客户端用于 dispatch 的稳定身份：`id` 优先，keyed slot 回落到 `key`。 */
+    /** Стабильный идентификатор для dispatch: сначала `id`, у слотов с ключом — `key`. */
     val identity: String get() = id ?: key ?: render?.componentId ?: slot
 
-    /** 组件身份，`render-tree` / `icon-svg` 的入参。 */
+    /** Компонент — аргумент `render-tree` / `icon-svg`. */
     val componentId: String? get() = render?.componentId
 }
 
-/** 一条注册的组件身份。 */
+/** Компонент регистрации. */
 @Serializable
 data class BridgeSlotRender(
     val kind: String = "",
@@ -209,7 +209,7 @@ data class BridgeSlotRender(
     val isFactory: Boolean get() = kind == "factory"
 }
 
-/** `client-slots` / `list` 的数据。 */
+/** Данные `client-slots` / `list`. */
 @Serializable
 data class BridgeSlotList(
     val slot: String? = null,
@@ -217,7 +217,7 @@ data class BridgeSlotList(
     val emptySlots: List<String> = emptyList(),
 )
 
-/** 序列化后的元素树节点：元素、文本或不可解析的占位。 */
+/** Узел сериализованного дерева: элемент, текст или неразборная заглушка. */
 @Serializable
 data class BridgeRenderNode(
     val kind: String = "",
@@ -229,14 +229,14 @@ data class BridgeRenderNode(
     val reason: String? = null,
 )
 
-/** `client-slots` / `render-tree` 的数据。 */
+/** Данные `client-slots` / `render-tree`. */
 @Serializable
 data class BridgeRenderTree(
     val componentId: String = "",
     val tree: BridgeRenderNode? = null,
 )
 
-/** `client-slots` / `icon-svg` 的数据。 */
+/** Данные `client-slots` / `icon-svg`. */
 @Serializable
 data class BridgeIconSvg(
     val componentId: String = "",
@@ -244,7 +244,7 @@ data class BridgeIconSvg(
     val svg: String? = null,
 )
 
-/** `package-inventory` 的一个 bundle。 */
+/** Bundle из `package-inventory`. */
 @Serializable
 data class BridgeBundle(
     val name: String = "",
@@ -261,7 +261,7 @@ data class BridgeBundle(
     val icon: String? = null,
     val rows: List<BridgeBundleRow> = emptyList(),
     val errorCode: String? = null,
-    /** bridge 下发的官方插件页策略（旧版 bridge 缺省时回落 App 侧）。 */
+    /** Правила официальной страницы плагинов от моста (старый мост не присылает — решает приложение). */
     val profileRoot: Boolean = false,
     val pinned: Boolean = false,
     val order: Int = 0,
@@ -270,7 +270,7 @@ data class BridgeBundle(
     val locked: Boolean = false,
 )
 
-/** bundle 的一条 row。 */
+/** Строка bundle. */
 @Serializable
 data class BridgeBundleRow(
     val rowId: String = "",
@@ -279,11 +279,11 @@ data class BridgeBundleRow(
     val description: String? = null,
     val icon: String? = null,
     val enabled: Boolean? = null,
-    /** Loader 入口 id；行没被 Host 解析成入口时为空，也就不能拨动它的开关。 */
+    /** id входа Loader; пусто, если Host не превратил строку во вход — тогда её не переключить. */
     val entryId: String? = null,
 )
 
-/** `package-inventory` 的一条 Loader row。 */
+/** Строка Loader из `package-inventory`. */
 @Serializable
 data class BridgeInventoryRow(
     val entryId: String = "",
@@ -295,7 +295,7 @@ data class BridgeInventoryRow(
     val icon: String? = null,
 )
 
-/** `package-inventory` / `bundles` 与 `/rows` 的数据。 */
+/** Данные `package-inventory` / `bundles` и `/rows`. */
 @Serializable
 data class BridgeInventory(
     val bundles: List<BridgeBundle> = emptyList(),
@@ -303,14 +303,14 @@ data class BridgeInventory(
     val managementAvailable: Boolean = false,
 )
 
-/** `package-inventory` / `meta-icon` 的数据。 */
+/** Данные `package-inventory` / `meta-icon`. */
 @Serializable
 data class BridgeMetaIcon(
     val name: String = "",
     val icon: String? = null,
 )
 
-/** `native-plugins`：一个原生伴侣插件的声明（JS 插件的 package.json 里 `dsh.native`）。 */
+/** `native-plugins`: объявление нативного компаньона (`dsh.native` в package.json JS-плагина). */
 @Serializable
 data class BridgeNativeCompanion(
     val pluginId: String = "",
@@ -321,23 +321,23 @@ data class BridgeNativeCompanion(
     val storeUrl: String? = null,
 )
 
-/** `native-plugins` / `for` 的数据。 */
+/** Данные `native-plugins` / `for`. */
 @Serializable
 data class BridgeNativeCompanionResult(
     val companion: BridgeNativeCompanion? = null,
 )
 
-/** `native-plugins` / `list` 的数据。 */
+/** Данные `native-plugins` / `list`. */
 @Serializable
 data class BridgeNativeCompanionList(
     val companions: List<BridgeNativeCompanion> = emptyList(),
 )
 
 /**
- * `host-slots/list` 的一条条目。
+ * Элемент `host-slots/list`.
  *
- * `slot` 是**原生**位置（例如 `settings.page`），不是浏览器 slot 名：bridge 已经把
- * 服务端能枚举的贡献归好类，客户端直接照位置渲染，不再自己推导。
+ * `slot` — **нативное** место (например, `settings.page`), а не имя слота браузера: мост уже
+ * разложил вклады, которые может перечислить сервер, и клиент просто рисует их на месте.
  */
 @Serializable
 data class BridgeSlotSurface(
@@ -348,20 +348,20 @@ data class BridgeSlotSurface(
     val module: String? = null,
 )
 
-/** `host-slots/list` 的响应体。 */
+/** Ответ `host-slots/list`. */
 @Serializable
 data class BridgeSlotSurfaceList(
     val surfaces: List<BridgeSlotSurface> = emptyList(),
 )
 
-/** Host 报告的一个已配置密钥位置（值永远不下发）。 */
+/** Настроенное место секрета по данным Host (значение не передаётся никогда). */
 @Serializable
 data class BridgeSecretSlot(
     val path: List<String> = emptyList(),
     val set: Boolean = false,
 )
 
-/** `settings/describe` 的响应体。 */
+/** Ответ `settings/describe`. */
 @Serializable
 data class BridgeSettingsDocument(
     val ns: String,
@@ -369,18 +369,18 @@ data class BridgeSettingsDocument(
     val applies: String? = null,
     val schema: JsonObject = JsonObject(emptyMap()),
     val value: JsonObject = JsonObject(emptyMap()),
-    /** 密钥字段位置；值为空时客户端据此显示「已配置」而不回显密钥。 */
+    /** Места полей-секретов; по ним клиент пишет «Задано», не показывая секрет. */
     val secrets: List<BridgeSecretSlot> = emptyList(),
 )
 
-/** `settings/update` 的响应体。 */
+/** Ответ `settings/update`. */
 @Serializable
 data class BridgeSettingsWriteResult(
     val ns: String,
     val updated: Boolean = false,
 )
 
-/** `events/pending` 里的一条瞬态消息。 */
+/** Короткое сообщение из `events/pending`. */
 @Serializable
 data class BridgeTransientEvent(
     val kind: String,
@@ -388,7 +388,7 @@ data class BridgeTransientEvent(
     val seq: Long = 0,
 )
 
-/** `events/pending` 的响应体。 */
+/** Ответ `events/pending`. */
 @Serializable
 data class BridgeTransientEventList(
     val events: List<BridgeTransientEvent> = emptyList(),

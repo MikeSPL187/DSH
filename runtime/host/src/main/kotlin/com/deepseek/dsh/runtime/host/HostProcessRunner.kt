@@ -14,19 +14,18 @@ import java.io.File
 import java.io.InputStreamReader
 
 /**
- * v4.0 设计文档 §4.3 & §4.4:
- * 管理 proot/bxroot 下的 DSH 子进程生命周期
+ * Жизненный цикл дочернего процесса DSH под proot/bxroot.
  *
- * 这里同时负责「状态别撒谎」：DSH 可能在启动中途悄悄退出（插件加载失败是常见
- * 原因，见 `.captures/latest-host.log` 的 `startup failed: N required plugins did
- * not activate`），旧实现没有人在等 `waitFor()`，RuntimePhase 就永远停在 STARTING，
- * 端口/token 永远读不到。现在有退出看门狗 + 最近输出环形缓冲：进程一退出就把
- * ERROR、退出码和最后几行（已脱敏）写进 [RuntimeStatus]。
+ * Здесь же правило «состояние не врёт»: DSH может тихо выйти посреди запуска (частая причина —
+ * ошибка загрузки плагина, см. `startup failed: N required plugins did
+ * not activate` в `.captures/latest-host.log`); раньше `waitFor()` никто не ждал, RuntimePhase навсегда оставался STARTING,
+ * порт и токен не читались никогда. Теперь есть сторож выхода и кольцевой буфер последнего вывода: как только процесс вышел,
+ * в [RuntimeStatus] пишутся ERROR, код выхода и последние строки (без секретов).
  */
 class HostProcessRunner(
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO)
 ) {
-    /** 同时保护 [process]、[logLines]、[stopping] 与状态推进。 */
+    /** Защищает [process], [logLines], [stopping] и смену состояния. */
     private val lock = Any()
 
     @Volatile
@@ -35,10 +34,10 @@ class HostProcessRunner(
     private var stderrJob: Job? = null
     private var watchdogJob: Job? = null
 
-    /** 最近输出（已脱敏），错误时直接给 UI 看。 */
+    /** Последний вывод (без секретов) — при ошибке сразу показывается интерфейсу. */
     private val logLines = ArrayDeque<String>()
 
-    /** App 主动 [terminate] 期间为 true：退出看门狗不把它当异常退出。 */
+    /** true во время [terminate] по инициативе приложения: сторож выхода не считает это сбоем. */
     private var stopping = false
 
     private val _statusFlow = MutableStateFlow(
@@ -62,7 +61,7 @@ class HostProcessRunner(
             return@withContext Result.failure(IllegalStateException("Host process is already running"))
         }
 
-        // 新一次启动：清掉上一轮留下的输出、退出码与「主动停止」标记。
+        // Новый запуск: убрать вывод, код выхода и метку «остановлено вручную» прошлого раза.
         synchronized(lock) {
             logLines.clear()
             stopping = false
@@ -81,9 +80,9 @@ class HostProcessRunner(
             pb.environment().putAll(environment)
 
             val proc = pb.start()
-            // 与第 66 行的重置不是一个临界区：这期间 stop() 可能已经跑过
-            // （stopping=true、process 仍是 null）。此时必须自己把刚拉起的进程
-            // 杀掉，否则会留下一个没人看管的 proot，状态却是 STOPPED。
+            // Это не та же критическая секция, что сброс выше: за это время stop() мог уже пройти
+            // (stopping=true, process ещё null). Тогда только что запущенный процесс надо убить
+            // самим, иначе останется бесхозный proot при состоянии STOPPED.
             val aborted = synchronized(lock) {
                 if (stopping) {
                     true
@@ -94,7 +93,7 @@ class HostProcessRunner(
             }
             if (aborted) {
                 runCatching { proc.destroyForcibly() }
-                return@withContext Result.failure(IllegalStateException("启动已被停止"))
+                return@withContext Result.failure(IllegalStateException(HostStrings.get(R.string.rt_start_cancelled, "Startup was stopped")))
             }
 
             val pid = try {
@@ -103,7 +102,7 @@ class HostProcessRunner(
                 null
             }
 
-            // 监听 stdout 以解析端口与 token
+            // stdout — разбор порта и токена.
             val outJob = scope.launch(Dispatchers.IO) {
                 runCatching {
                     val reader = BufferedReader(InputStreamReader(proc.inputStream))
@@ -117,10 +116,10 @@ class HostProcessRunner(
                         val endpoint = ProcessOutputParser.parseLine(current)
                         if (endpoint != null) {
                             publishStatus { status ->
-                                // 只接受「仍在启动」且未主动停止时的端口：terminate()
-                                // 之后的残余输出不能把 STOPPED 翻回 STARTING（看门狗
-                                // 已结束，界面会永远停在启动中）；markReady 后的 URL
-                                // 同理不能把 RUNNING 降回 STARTING。
+                                // Порт принимается, только пока запуск идёт и остановки не было: остаточный вывод после
+                                // terminate() не может вернуть STOPPED в STARTING (сторож уже закончил,
+                                // интерфейс застрял бы на запуске); URL после markReady
+                                // так же не может понизить RUNNING до STARTING.
                                 if (status.phase == RuntimePhase.STARTING && !stopping) {
                                     status.copy(
                                         phase = RuntimePhase.STARTING,
@@ -139,7 +138,7 @@ class HostProcessRunner(
             }
             stdoutJob = outJob
 
-            // 监听 stderr：只记日志（错误文案由看门狗从环形缓冲里取）。
+            // stderr — только в журнал (текст ошибки сторож берёт из кольцевого буфера).
             val errJob = scope.launch(Dispatchers.IO) {
                 runCatching {
                     val reader = BufferedReader(InputStreamReader(proc.errorStream))
@@ -162,7 +161,7 @@ class HostProcessRunner(
             publishStatus {
                 it.copy(
                     phase = RuntimePhase.ERROR,
-                    lastError = e.message ?: "无法启动 Host 进程"
+                    lastError = e.message ?: HostStrings.get(R.string.rt_cannot_start, "Could not start the Host process")
                 )
             }
             Result.failure(e)
@@ -170,16 +169,16 @@ class HostProcessRunner(
     }
 
     /**
-     * 等子进程退出；退出后把「最近输出 + 退出码」写回状态。
+     * Дождаться выхода процесса и записать в состояние «последний вывод + код выхода».
      *
-     * 必须是独立协程：DSH 启动失败时不会有人调 [terminate]，没有这条路径
-     * UI 就会一直显示 STARTING。
+     * Обязательно отдельный корутин: при сбое запуска DSH [terminate] никто не вызовет, и без этого пути
+     * интерфейс вечно показывал бы STARTING.
      */
     private fun startExitWatchdog(proc: Process, outJob: Job, errJob: Job) {
         val job = scope.launch(Dispatchers.IO) {
             val exitCode = runCatching { proc.waitFor() }.getOrNull() ?: return@launch
-            // 进程退出不代表管道已排空：先给读取协程一点时间把最后几行读完，
-            // 错误文案里的「最后一行」才可能是真正的原因（ERR_MODULE_NOT_FOUND 等）。
+            // Выход процесса не значит, что каналы прочитаны: даём корутинам чтения дочитать последние строки —
+            // только тогда «последняя строка» в ошибке может быть настоящей причиной (ERR_MODULE_NOT_FOUND и т. п.).
             withTimeoutOrNull(STREAM_DRAIN_TIMEOUT_MS) {
                 outJob.join()
                 errJob.join()
@@ -193,18 +192,18 @@ class HostProcessRunner(
 
     private fun onProcessExited(proc: Process, exitCode: Int) {
         synchronized(lock) {
-            // 主动停止，或者期间已经换成了新进程：都不算异常退出。
+            // Остановка вручную или за это время уже новый процесс — это не сбой.
             if (stopping || process !== proc) return
             val current = _statusFlow.value
             if (current.phase != RuntimePhase.STARTING && current.phase != RuntimePhase.RUNNING) {
                 return
             }
             val tail = logLines.toList()
-            val detail = lastMeaningfulLine(tail) ?: "无输出"
+            val detail = lastMeaningfulLine(tail) ?: HostStrings.get(R.string.rt_no_output, "no output")
             val message = if (current.phase == RuntimePhase.STARTING && current.port == null) {
-                "Host 进程已退出（exit=$exitCode）：$detail"
+                HostStrings.get(R.string.rt_host_exited_code, "The Host process exited (exit=%1\$d): %2\$s", exitCode, detail)
             } else {
-                "Host 进程意外退出（exit=$exitCode）：$detail"
+                HostStrings.get(R.string.rt_host_crashed_code, "The Host process exited unexpectedly (exit=%1\$d): %2\$s", exitCode, detail)
             }
             process = null
             _statusFlow.value = current.copy(
@@ -227,7 +226,7 @@ class HostProcessRunner(
         }
     }
 
-    /** rootfs 安装完成后把阶段推进到 STOPPED（可启动）。 */
+    /** После установки rootfs перевести в STOPPED (можно запускать). */
     fun markInstalled() {
         synchronized(lock) {
             logLines.clear()
@@ -241,9 +240,9 @@ class HostProcessRunner(
     }
 
     /**
-     * 从外部把状态推到 ERROR（例如启动等待端口超时）。
+     * Перевести состояние в ERROR извне (например, таймаут ожидания порта при запуске).
      *
-     * 保留最近的输出尾巴：这条错误会显示在设置页里，用户需要它来判断原因。
+     * Хвост последнего вывода сохраняется: ошибка показывается в настройках, по ней пользователь поймёт причину.
      */
     fun markError(message: String) {
         publishStatus { current ->
@@ -274,7 +273,7 @@ class HostProcessRunner(
                 }
             }
 
-            // 先停看门狗/读流协程，再落 STOPPED，避免看门狗把主动停止误报成 ERROR。
+            // Сначала остановить сторожа и чтение потоков, затем STOPPED — иначе сторож принял бы ручную остановку за ERROR.
             cancelJobs()
             synchronized(lock) {
                 if (process === proc) process = null
@@ -311,7 +310,7 @@ class HostProcessRunner(
         }
     }
 
-    /** 读-改-写状态，并统一补上最近的输出尾巴与更新时间。 */
+    /** Прочитать-изменить-записать состояние, всегда добавляя хвост вывода и время обновления. */
     private fun publishStatus(transform: (RuntimeStatus) -> RuntimeStatus) {
         synchronized(lock) {
             _statusFlow.value = transform(_statusFlow.value).copy(
@@ -325,26 +324,23 @@ class HostProcessRunner(
         for (line in lines.asReversed()) {
             val trimmed = line.trim()
             if (trimmed.isEmpty()) continue
-            // 跳过 stack trace 行（"at ..."）：它们只说明在哪崩，不说明为什么崩。
+            // Строки стека («at ...») пропускаются: они говорят, где упало, а не почему.
             if (trimmed.startsWith("at ")) continue
             return trimmed.take(MAX_ERROR_LINE_CHARS)
         }
         return lines.lastOrNull { it.isNotBlank() }?.trim()?.take(MAX_ERROR_LINE_CHARS)
     }
 
-    private fun redact(text: String): String = TOKEN_PATTERN.replace(text, "token=***")
+    private fun redact(text: String): String = SecretScrubber.scrub(text)
 
     private companion object {
-        /** 环形缓冲保留的行数：够定位启动失败，又不至于把状态流撑爆。 */
+        /** Строк в кольцевом буфере: хватает найти причину сбоя запуска и не раздуть поток состояния. */
         const val MAX_LOG_LINES = 120
 
-        /** 错误文案里「最后一行」的最大长度，避免整段 stack 文本进 UI。 */
+        /** Наибольшая длина «последней строки» в тексте ошибки, чтобы весь стек не попал в интерфейс. */
         const val MAX_ERROR_LINE_CHARS = 320
 
-        /** 进程退出后等待 stdout/stderr 排空的上限。 */
+        /** Сколько ждать дочитывания stdout/stderr после выхода процесса. */
         const val STREAM_DRAIN_TIMEOUT_MS = 2_000L
-
-        /** 日志与错误文案里的 token 一律脱敏。 */
-        val TOKEN_PATTERN = Regex("""token=[A-Za-z0-9_\-]+""")
     }
 }

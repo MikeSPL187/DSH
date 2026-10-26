@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Автоматизация по прототипу docs/design/dsh-prototype.html (#screen-automation). ru / en. -->
+<resources>
+    <string name="au_title">Automation</string>
+    <string name="au_without_you">run without you</string>
+    <string name="au_new">New automation</string>
+    <string name="au_next_at">Next run %1$s</string>
+    <string name="au_off">Off</string>
+    <string name="au_off_lc">off</string>
+    <string name="au_done">Done</string>
+    <string name="au_saved">“%1$s” saved · %2$s</string>
+    <string name="au_when_hour">Every hour</string>
+    <string name="au_when_daily">Every day at %1$s</string>
+    <string name="au_when_work">On weekdays at %1$s</string>
+    <string name="au_short_daily">Daily %1$s</string>
+    <string name="au_short_work">Weekdays %1$s</string>
+    <string name="au_c_charge">while charging</string>
+    <string name="au_c_wifi">on Wi‑Fi</string>
+    <string name="au_c_charge_s">charging</string>
+    <string name="au_c_wifi_s">Wi‑Fi</string>
+    <string name="au_today">today</string>
+    <string name="au_tomorrow">tomorrow</string>
+    <string name="au_today_cap">Today</string>
+    <string name="au_yesterday_cap">Yesterday</string>
+    <string name="au_day_at">%1$s at %2$s</string>
+    <string name="au_day_time">%1$s %2$s</string>
+    <string name="au_in_hm">in %1$d h %2$d min</string>
+    <string name="au_in_m">in %1$d min</string>
+    <string name="au_dur_s">%1$d s</string>
+    <string name="au_dur_m">%1$d min</string>
+    <string name="au_dur_ms">%1$d min %2$d s</string>
+    <string name="au_next">Next run</string>
+    <string name="au_host_note">A run wakes the Host in the background. If a condition isn\'t met — say, the phone isn\'t charging — the run is postponed and noted in the history.</string>
+    <string name="au_mine">My automations</string>
+    <string name="au_empty">Nothing yet — start from a template</string>
+    <string name="au_from_tpl">Start from a template</string>
+    <string name="au_then">next %1$s</string>
+    <string name="au_turned_on">%1$s: on</string>
+    <string name="au_turned_off">%1$s: off</string>
+    <string name="au_enable">Turn on %1$s</string>
+    <string name="au_deleted">“%1$s” deleted</string>
+    <string name="au_copy_suffix">" (copy)"</string>
+    <string name="au_name_ph">Name</string>
+    <string name="au_what">What to do</string>
+    <string name="au_prompt_ph">For example: run the tests and, if something fails, find out why</string>
+    <string name="au_when">When</string>
+    <string name="au_time">Run time</string>
+    <string name="au_hours">Hours</string>
+    <string name="au_minutes">Minutes</string>
+    <string name="au_charge">Only while charging</string>
+    <string name="au_charge_sub">Saves the battery</string>
+    <string name="au_wifi">Only on Wi‑Fi</string>
+    <string name="au_wifi_sub">Doesn\'t use mobile data</string>
+    <string name="au_may">Without you, the agent may</string>
+    <string name="au_p_read">Only read and report</string>
+    <string name="au_p_read_sub">Changes nothing — sends a summary</string>
+    <string name="au_p_edit">Edit files in the project</string>
+    <string name="au_p_edit_sub">Changes show in the “Changes” tab of “Files”</string>
+    <string name="au_p_never">Deleting and risky actions — never</string>
+    <string name="au_p_never_sub">The agent postpones such steps until you decide</string>
+    <string name="au_notify">Notify</string>
+    <string name="au_where">Where and with what</string>
+    <string name="au_project">Project</string>
+    <string name="au_model">Model</string>
+    <string name="au_run_now">Run now</string>
+    <string name="au_running">Running…</string>
+    <string name="au_history">History</string>
+    <string name="au_history_empty">Hasn\'t run yet</string>
+    <string name="au_history_empty_sub">The first run will show up here</string>
+    <string name="au_now">Now</string>
+    <string name="au_duplicate">Duplicate</string>
+    <string name="au_delete">Delete</string>
+    <string name="au_agent_tasks">Set by the agent</string>
+    <string name="au_agent_tasks_note">The agent set these up when you asked in a chat. They run in their own session.</string>
+    <string name="au_cancel">Cancel</string>
+    <string name="au_cancelled">Task cancelled</string>
+    <string name="au_delete_arm">Once more</string>
+    <plurals name="au_active">
+        <item quantity="one">%d active</item>
+        <item quantity="other">%d active</item>
+    </plurals>
+    <string-array name="au_days">
+        <item>Mon</item>
+        <item>Tue</item>
+        <item>Wed</item>
+        <item>Thu</item>
+        <item>Fri</item>
+        <item>Sat</item>
+        <item>Sun</item>
+    </string-array>
+    <string-array name="au_when_week">
+        <item>On Mondays at %1$s</item>
+        <item>On Tuesdays at %1$s</item>
+        <item>On Wednesdays at %1$s</item>
+        <item>On Thursdays at %1$s</item>
+        <item>On Fridays at %1$s</item>
+        <item>On Saturdays at %1$s</item>
+        <item>On Sundays at %1$s</item>
+    </string-array>
+    <string-array name="au_freqs">
+        <item>Daily</item>
+        <item>Weekdays</item>
+        <item>Weekly</item>
+        <item>Hourly</item>
+    </string-array>
+    <string-array name="au_notify">
+        <item>Always</item>
+        <item>On error</item>
+        <item>If new</item>
+    </string-array>
+    <string-array name="au_hints">
+        <item>@file</item>
+        <item>Short summary</item>
+        <item>Only on main</item>
+    </string-array>
+    <string-array name="au_hint_adds">
+        <item>" @"</item>
+        <item>" Summarize in 3–5 points."</item>
+        <item>" Work only on the main branch."</item>
+    </string-array>
+    <string-array name="au_tpl_names">
+        <item>Morning summary</item>
+        <item>Nightly tests</item>
+        <item>Security</item>
+        <item>Your own task</item>
+    </string-array>
+    <string-array name="au_tpl_subs">
+        <item>What changed during the day</item>
+        <item>Run and investigate failures</item>
+        <item>Vulnerable dependencies</item>
+        <item>Describe what to do</item>
+    </string-array>
+    <string-array name="au_tpl_prompts">
+        <item>Send a short project summary: commits, changes, failing tests.</item>
+        <item>Run the tests. If they fail, find the cause and describe it.</item>
+        <item>Check dependencies for known vulnerabilities and outdated versions.</item>
+        <item></item>
+    </string-array>
+</resources>

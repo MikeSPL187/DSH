@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="agent_update_plugin_versions">Установлена %1$s → последняя %2$s</string>
+    <string name="agent_update_action_update_plugin">Обновить</string>
+    <string name="agent_update_plugin_popup_title">Доступно обновление bridge-плагина</string>
+    <string name="agent_update_plugin_popup_desc">Установленный клиентский плагин общается с этим Host. Обновление удерживает обе стороны на одной версии протокола bridge.</string>
+    <string name="agent_update_plugin_popup_later">Позже</string>
+</resources>

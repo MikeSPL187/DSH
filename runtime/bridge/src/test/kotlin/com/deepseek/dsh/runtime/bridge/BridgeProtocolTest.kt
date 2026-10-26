@@ -21,23 +21,40 @@ class BridgeProtocolTest {
             val token = tokenFile.readText()
             assertTrue(token.isNotBlank())
 
-            // 缺失 token：在进入任何设备方法之前就被拒绝。
+            // Нет токена: отказ до любого метода устройства.
             val missing = server.dispatchRequest(
                 BridgeRequest(id = "req_1", method = BridgeMethod.EXEC_SHELL.methodName)
             )
             assertEquals(BridgeAuth.UNAUTHORIZED_CODE, missing.error?.code)
 
-            // 错误 token：同上。
+            // Неверный токен: то же.
             val wrong = server.dispatchRequest(
                 BridgeRequest(id = "req_2", method = BridgeMethod.EXEC_SHELL.methodName, auth = "wrong-token")
             )
             assertEquals(BridgeAuth.UNAUTHORIZED_CODE, wrong.error?.code)
 
-            // 通过鉴权后才进入方法分发：未知方法仍是 -32601，而不是 -32001。
+            // Только после авторизации — разбор метода: незнакомый метод даёт -32601, а не -32001.
             val authorized = server.dispatchRequest(
                 BridgeRequest(id = "req_3", method = "non_existent_method", auth = token)
             )
             assertEquals(-32601, authorized.error?.code)
+        } finally {
+            server.stop()
+            tokenFile.delete()
+        }
+    }
+
+    @Test
+    fun clipboardReadIsDeniedUnlessUserAllowsIt() {
+        val tokenFile = File.createTempFile("bridge", ".token")
+        tokenFile.delete()
+        val server = BridgeServer(context = android.app.Application(), tokenFile = tokenFile)
+        server.start()
+        try {
+            val response = server.dispatchRequest(
+                BridgeRequest(id = "clip", method = BridgeMethod.GET_CLIPBOARD.methodName, auth = tokenFile.readText()),
+            )
+            assertEquals(CLIPBOARD_DENIED_CODE, response.error?.code)
         } finally {
             server.stop()
             tokenFile.delete()
@@ -83,7 +100,7 @@ class BridgeProtocolTest {
         }
     }
 
-    /** 向桥发一行 JSON-RPC 并读取一行响应；鉴权失败时桥会主动断开。 */
+    /** Отправить строку JSON-RPC мосту и прочитать строку ответа; при ошибке авторизации мост сам рвёт соединение. */
     private fun sendLine(port: Int, payload: String): String =
         java.net.Socket("127.0.0.1", port).use { socket ->
             socket.soTimeout = 5_000

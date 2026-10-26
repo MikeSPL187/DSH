@@ -2,7 +2,6 @@ package com.deepseek.dsh
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,10 +9,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,44 +24,46 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.deepseek.dsh.core.designsystem.LocalDshPanelColors
+import com.deepseek.dsh.core.designsystem.Dsh
 import com.deepseek.dsh.core.model.PluginSettingsDocument
+import com.deepseek.dsh.core.designsystem.kit.BtnKind
+import com.deepseek.dsh.core.designsystem.kit.GLabel
+import com.deepseek.dsh.core.designsystem.kit.Gl
+import com.deepseek.dsh.core.designsystem.kit.KBtn
+import com.deepseek.dsh.core.designsystem.kit.SubNote
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 
-/** 插件原生 UI 里一个字段的控件形态。 */
+/** Вид элемента управления поля в нативном интерфейсе плагина. */
 internal enum class PluginFieldKind {
-    /** 单行文本。 */
+    /** Строка текста. */
     TEXT,
 
-    /** 数字。 */
+    /** Число. */
     NUMBER,
 
-    /** 几个固定选项（官方页面里的下拉/单选）。 */
+    /** Несколько фиксированных вариантов. */
     CHOICE,
 }
 
 /**
- * 插件原生 UI 的一个字段。
+ * Поле нативного интерфейса плагина.
  *
- * @param key 设置文档里的字段名（官方 `Config` schema 的键）。
- * @param label 中文标签，取自官方 locale。
- * @param hint 官方页面里的说明文字，可为空。
- * @param kind 控件形态。
- * @param choices CHOICE 的候选项：值 → 显示文案。
- * @param group 小节标题；只有同一小节的第一项需要写。
+ * @param key имя поля в документе настроек (ключ схемы `Config`).
+ * @param label подпись.
+ * @param hint пояснение, может быть пустым.
+ * @param kind вид элемента.
+ * @param choices варианты для CHOICE: значение → подпись.
+ * @param group заголовок раздела; нужен только у первого поля раздела.
  */
 internal data class PluginField(
     val key: String,
@@ -73,16 +75,14 @@ internal data class PluginField(
 )
 
 /**
- * 一个设置命名空间的通用原生表单：官方页面里由 `SettingsForm` 承担的那部分。
+ * Форма одного пространства настроек Host в стиле DSH: группа строк, варианты — «таблетками»,
+ * текст и числа — полем; «Сохранить» пишет изменения с revision (чужие правки не затираются).
  *
- * 读一次文档、按字段画控件、保存时把改动按命名空间回写（带 revision）。
- * 每个插件文件只描述自己的字段与文案，不再重复表单机制。
- *
- * @param namespace Host 设置命名空间。
- * @param hooks 读写 Host 的接口。
- * @param fields 字段表，顺序即页面顺序。
- * @param notices 表单下方的说明段落（官方页面的付费/隐私提示等）。
- * @param emptyHint 读不到文档时的说明。
+ * @param namespace пространство настроек Host.
+ * @param hooks чтение и запись Host.
+ * @param fields поля в порядке показа.
+ * @param notices пояснения под формой.
+ * @param emptyHint текст, если документ не читается.
  */
 @Composable
 internal fun PluginSettingsSection(
@@ -92,7 +92,6 @@ internal fun PluginSettingsSection(
     notices: List<String> = emptyList(),
     emptyHint: String = "",
 ) {
-    val colors = LocalDshPanelColors.current
     var document by remember(namespace) { mutableStateOf<PluginSettingsDocument?>(null) }
     var loaded by remember(namespace) { mutableStateOf(false) }
     val edits = remember(namespace) { mutableStateMapOf<String, String>() }
@@ -105,9 +104,7 @@ internal fun PluginSettingsSection(
 
     LaunchedEffect(namespace, reload) {
         loaded = false
-        // 插件刚启用时 Host 可能还没挂上它的设置命名空间（bridge 的 describe 会回
-        // "no configurable settings document"）。读不到就退避重试，避免停在官方的
-        //「暂不可用」文案上不再刷新。
+        // Только что включённый плагин может ещё не отдать документ: несколько попыток с паузой.
         repeat(20) {
             document = runCatching { hooks.loadDocument(namespace) }.getOrNull()
             loaded = true
@@ -118,79 +115,41 @@ internal fun PluginSettingsSection(
 
     fun valueOf(field: PluginField): String {
         edits[field.key]?.let { return it }
-        val doc = document ?: return ""
-        return primitiveText(doc.value[field.key])
-    }
-
-    fun edit(field: PluginField, text: String) {
-        edits[field.key] = text
-        status = null
+        return primitiveText(document?.value?.get(field.key))
     }
 
     val doc = document
     when {
-        !loaded -> Text(stringResource(R.string.settings_loading), color = colors.labelTertiary, fontSize = 13.sp)
-        doc == null -> Text(emptyHint, color = colors.labelTertiary, fontSize = 13.sp, lineHeight = 19.sp)
+        !loaded -> SubNote(stringResource(R.string.settings_loading), top = 0.dp)
+        doc == null -> SubNote(emptyHint, top = 0.dp)
         else -> {
-            var currentGroup: String? = null
-            fields.forEach { field ->
-                if (field.group != currentGroup) {
-                    currentGroup = field.group
-                    if (field.group != null) {
-                        Spacer(Modifier.height(18.dp))
-                        Text(
-                            text = field.group,
-                            color = colors.labelPrimary,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                        )
+            fields.groupBy { it.group }.forEach { (group, items) ->
+                if (group != null) GLabel(group)
+                Gl {
+                    items.forEach { field ->
+                        row {
+                            Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp)) {
+                                Text(field.label, style = Dsh.type.body, color = Dsh.colors.t1)
+                                if (!field.hint.isNullOrBlank()) Text(field.hint, style = Dsh.type.footnote, color = Dsh.colors.t3)
+                                Spacer(Modifier.height(8.dp))
+                                when (field.kind) {
+                                    PluginFieldKind.CHOICE -> ChoiceChipFlow(field.choices, valueOf(field)) { edits[field.key] = it; status = null }
+                                    else -> InputField(valueOf(field), numeric = field.kind == PluginFieldKind.NUMBER) { edits[field.key] = it; status = null }
+                                }
+                            }
+                        }
                     }
                 }
-                when (field.kind) {
-                    PluginFieldKind.CHOICE -> ChoiceField(
-                        field = field,
-                        selected = valueOf(field),
-                        onSelect = { edit(field, it) },
-                    )
-                    PluginFieldKind.NUMBER, PluginFieldKind.TEXT -> TextField(
-                        field = field,
-                        value = valueOf(field),
-                        numeric = field.kind == PluginFieldKind.NUMBER,
-                        onChange = { edit(field, it) },
-                    )
-                }
             }
-            notices.forEach { notice ->
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    text = notice,
-                    color = colors.labelTertiary,
-                    fontSize = 11.5.sp,
-                    lineHeight = 16.sp,
+            notices.forEach { SubNote(it) }
+            Row(Modifier.fillMaxWidth().padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                KBtn(
+                    stringResource(if (saving) R.string.settings_saving else R.string.settings_save), { saving = true },
+                    kind = BtnKind.Primary, height = 44.dp, enabled = edits.isNotEmpty(), busy = saving,
                 )
-            }
-            Spacer(Modifier.height(20.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (saving) colors.bgModulePlatform else colors.buttonPrimaryFill)
-                        .clickable(enabled = !saving && edits.isNotEmpty()) { saving = true },
-                ) {
-                    Text(
-                        text = if (saving) stringResource(R.string.settings_saving) else stringResource(R.string.settings_save),
-                        color = if (saving) colors.labelTertiary else colors.labelPrimaryForeground,
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                    )
-                }
                 Text(
-                    text = status ?: if (edits.isEmpty()) savedLabel else stringResource(R.string.settings_unsaved_changes),
-                    color = colors.labelTertiary,
-                    fontSize = 12.sp,
+                    status ?: if (edits.isEmpty()) savedLabel else stringResource(R.string.settings_unsaved_changes),
+                    style = Dsh.type.footnote, color = Dsh.colors.t3,
                 )
             }
             LaunchedEffect(saving) {
@@ -211,32 +170,17 @@ internal fun PluginSettingsSection(
                         PluginFieldKind.TEXT, PluginFieldKind.CHOICE -> JsonPrimitive(text)
                     }
                 }
-                val ok = runCatching {
-                    hooks.saveDocument(namespace, JsonObject(patch), doc.revision)
-                }.getOrDefault(false)
+                val ok = runCatching { hooks.saveDocument(namespace, JsonObject(patch), doc.revision) }.getOrDefault(false)
                 saving = false
-                status = if (ok) {
-                    edits.clear()
-                    reload += 1
-                    savedLabel
-                } else {
-                    rejectedLabel
-                }
+                status = if (ok) { edits.clear(); reload += 1; savedLabel } else rejectedLabel
             }
         }
     }
 }
 
 /**
- * 选项胶囊组：按可用宽度自动换行。
- *
- * 官方设置页的下拉/单选在手机上换成胶囊；像「DeepSeek Flash · 官方 API（付费）」
- * 这种长标签用单行 Row 会被压成竖排，所以这里用 FlowRow 让它们按整块宽度换行。
- *
- * @param options 值 → 显示文案。
- * @param selected 当前值。
- * @param enabled 是否可点。
- * @param onSelect 选中回调。
+ * Варианты «таблетками» (как фильтры `.pl-filters`): переносятся по ширине,
+ * выбранный — тёмный. Длинные подписи вроде «DeepSeek Flash · официальный API» помещаются целиком.
  */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -246,81 +190,46 @@ internal fun ChoiceChipFlow(
     enabled: Boolean = true,
     onSelect: (String) -> Unit,
 ) {
-    val colors = LocalDshPanelColors.current
+    val c = Dsh.colors
     androidx.compose.foundation.layout.FlowRow(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         options.forEach { (value, label) ->
             val active = value == selected
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(if (active) colors.buttonPrimaryFill else colors.bgModulePlatform)
-                    .border(
-                        0.5.dp,
-                        if (active) colors.buttonPrimaryFill else colors.borderL2,
-                        RoundedCornerShape(9.dp),
-                    )
-                    .clickable(enabled = enabled) { onSelect(value) }
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                    .heightIn(min = 40.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(if (active) c.t1 else c.s1)
+                    .then(if (active) Modifier else Modifier.border(1.dp, c.line, RoundedCornerShape(20.dp)))
+                    .selectable(active, enabled = enabled, role = Role.RadioButton) { onSelect(value) }
+                    .padding(horizontal = 12.dp, vertical = 9.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = label,
-                    color = if (active) colors.labelPrimaryForeground else colors.labelSecondary,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Text(label, style = Dsh.type.callout.copy(fontSize = 13.5.sp), color = if (active) c.bg else c.t2)
             }
         }
     }
 }
 
-/** 一个 CHOICE 字段：等宽选项条。 */
+/** Поле текста или числа: 44 dp, фон s2, радиус 12. */
 @Composable
-private fun ChoiceField(field: PluginField, selected: String, onSelect: (String) -> Unit) {
-    val colors = LocalDshPanelColors.current
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        Text(field.label, color = colors.labelPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-        if (!field.hint.isNullOrBlank()) {
-            Spacer(Modifier.height(2.dp))
-            Text(field.hint, color = colors.labelTertiary, fontSize = 11.5.sp, lineHeight = 16.sp)
-        }
-        Spacer(Modifier.height(6.dp))
-        ChoiceChipFlow(options = field.choices, selected = selected, onSelect = onSelect)
-    }
+private fun InputField(value: String, numeric: Boolean, onChange: (String) -> Unit) {
+    val c = Dsh.colors
+    androidx.compose.foundation.text.BasicTextField(
+        value = value,
+        onValueChange = onChange,
+        singleLine = true,
+        textStyle = (if (numeric) Dsh.type.code else Dsh.type.body).copy(color = c.t1),
+        cursorBrush = androidx.compose.ui.graphics.SolidColor(c.accent),
+        keyboardOptions = KeyboardOptions(keyboardType = if (numeric) KeyboardType.Number else KeyboardType.Text),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp).clip(RoundedCornerShape(12.dp)).background(c.s2).padding(horizontal = 12.dp, vertical = 12.dp),
+    )
 }
 
-/** 一个 TEXT/NUMBER 字段：标题、说明与输入框。 */
-@Composable
-private fun TextField(field: PluginField, value: String, numeric: Boolean, onChange: (String) -> Unit) {
-    val colors = LocalDshPanelColors.current
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        Text(field.label, color = colors.labelPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-        if (!field.hint.isNullOrBlank()) {
-            Spacer(Modifier.height(2.dp))
-            Text(field.hint, color = colors.labelTertiary, fontSize = 11.5.sp, lineHeight = 16.sp)
-        }
-        Spacer(Modifier.height(6.dp))
-        OutlinedTextField(
-            value = value,
-            onValueChange = onChange,
-            singleLine = true,
-            textStyle = TextStyle(
-                fontSize = 14.sp,
-                fontFamily = if (numeric) FontFamily.Monospace else FontFamily.Default,
-            ),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = if (numeric) KeyboardType.Number else KeyboardType.Text,
-            ),
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
-
-/** 文档里某个值的展示文本：字符串原样，布尔转 true/false，数字去掉多余 `.0`。 */
+/** Значение из документа как текст: строка как есть, логическое — true/false, число без лишнего `.0`. */
 private fun primitiveText(value: JsonElement?): String = when (value) {
     null -> ""
     is JsonPrimitive -> value.booleanOrNull?.toString() ?: value.contentOrNull.orEmpty()

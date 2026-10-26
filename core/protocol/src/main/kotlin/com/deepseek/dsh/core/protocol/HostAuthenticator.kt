@@ -10,9 +10,9 @@ import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * v4.0 设计文档 §5.5:
- * 本地：Runtime 启动产出 launcher URL（含 token）→ `GET /?token=` → 签名 cookie
- * 远程：网关设备令牌 / CookieJar 隔离
+ * Вход в Host:
+ * локальный — запуск даёт адрес с token → `GET /?token=` → подписанный cookie;
+ * удалённый — токен устройства шлюза, отдельный CookieJar.
  */
 class HostCookieJar : CookieJar {
     private val cookieStore = ConcurrentHashMap<String, MutableList<Cookie>>()
@@ -33,7 +33,7 @@ class HostCookieJar : CookieJar {
         val list = cookieStore[hostKey] ?: return emptyList()
         val now = System.currentTimeMillis()
         synchronized(list) {
-            // 过滤过期 cookie
+            // Отбросить просроченные cookie.
             list.removeAll { it.expiresAt < now }
             return list.toList()
         }
@@ -43,29 +43,32 @@ class HostCookieJar : CookieJar {
         cookieStore.remove("$host:$port")
     }
 
-    fun getCookies(host: String, port: Int): List<Cookie> {
-        return cookieStore["$host:$port"]?.toList() ?: emptyList()
-    }
 }
 
+/**
+ * Обменять token запуска на cookie сессии Host.
+ *
+ * Cookie должен попасть в CookieJar **того клиента, который шлёт запросы**: раньше создавался
+ * новый [HostCookieJar], а запросы шли через общий клиент, и отчёт всегда был
+ * «0 cookies» (аудит A-05/N-17). Теперь читается jar самого [client].
+ */
 class HostAuthenticator(
-    private val cookieJar: HostCookieJar = HostCookieJar(),
     private val client: OkHttpClient = OkHttpClient.Builder()
-        .cookieJar(cookieJar)
-        .build()
+        .cookieJar(HostCookieJar())
+        .build(),
 ) {
     suspend fun exchangeTokenForCookie(
         baseUrl: String,
         token: String?
     ): RemoteResult<List<Cookie>> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val parsedUrl = baseUrl.toHttpUrlOrNull()
-            ?: return@withContext RemoteResult.Failure("dsh/auth/failed", "Invalid baseUrl: $baseUrl")
+            ?: return@withContext RemoteResult.Failure("dsh/auth/failed", "Invalid baseUrl")
 
+        // token кодируется как параметр запроса, а не склейкой строк (& и # не обрежут и не подменят его).
         val urlWithToken = if (token.isNullOrEmpty()) {
-            baseUrl
+            parsedUrl
         } else {
-            val sep = if (baseUrl.contains("?")) "&" else "?"
-            "$baseUrl${sep}token=$token"
+            parsedUrl.newBuilder().setQueryParameter("token", token).build()
         }
 
         val request = Request.Builder()
@@ -76,8 +79,12 @@ class HostAuthenticator(
         try {
             client.newCall(request).execute().use { response ->
                 if (response.code in 200..399) {
-                    val cookies = cookieJar.getCookies(parsedUrl.host, parsedUrl.port)
-                    RemoteResult.Success(cookies)
+                    val cookies = client.cookieJar.loadForRequest(parsedUrl)
+                    if (!token.isNullOrEmpty() && cookies.isEmpty()) {
+                        RemoteResult.Failure("dsh/auth/failed", "Host did not issue a session cookie")
+                    } else {
+                        RemoteResult.Success(cookies)
+                    }
                 } else if (response.code == 401 || response.code == 403) {
                     RemoteResult.Failure("dsh/auth/failed", "Authentication rejected (HTTP ${response.code})")
                 } else {
@@ -85,7 +92,8 @@ class HostAuthenticator(
                 }
             }
         } catch (e: IOException) {
-            RemoteResult.Failure("dsh/net/timeout", e.message ?: "Network error during auth exchange")
+            // В тексте исключения может быть полный адрес с token — наружу его не отдаём.
+            RemoteResult.Failure("dsh/net/timeout", "Network error during auth exchange: ${e.javaClass.simpleName}")
         }
     }
 }

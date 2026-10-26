@@ -21,24 +21,24 @@ import com.deepseek.dsh.plugin.nativesdk.slots.SlotRegistry
 import com.deepseek.dsh.plugin.nativesdk.theme.PluginTheme
 import kotlinx.serialization.json.JsonObject
 
-/** 官方默认内容与插件增强内容的排列方式。 */
+/** Как расположены стандартное содержимое и дополнение плагина. */
 enum class SlotArrangement {
-    /** 与官方控件并排（输入栏按钮、触发器）。 */
+    /** Рядом со стандартными элементами (кнопки поля ввода, переключатели). */
     INLINE,
 
-    /** 官方内容在上，插件增强内容在下方（整条栏、整页）。 */
+    /** Стандартное сверху, дополнение плагина ниже (целая полоса, целая страница). */
     BLOCK,
 }
 
 /**
- * 官方控件的 slot 包装：官方默认 UI 通过 [content] 传入，插件贡献按仲裁规则
- * 与默认内容组合。这样官方控件本身也走同一条 slot 通道，插件可以 ENHANCE 或
- * OVERRIDE，而不是只有插件内容才经过 SlotRegistry。
+ * Обёртка слота для стандартного элемента: стандартный интерфейс приходит в [content], вклады плагинов
+ * объединяются с ним по правилам. Так и стандартные элементы идут через тот же слот, и плагин может
+ * их ENHANCE или OVERRIDE, а не только добавлять своё через SlotRegistry.
  *
- * - 无 NativeHost/Theme（例如预览/测试）：只渲染官方默认内容；
- * - 插件 OVERRIDE：官方默认隐藏，只渲染该插件；
- * - ENHANCE：官方默认内容 + 插件贡献按 [arrangement] 排列；
- * - 都没有：只渲染官方默认内容。
+ * - нет NativeHost/Theme (превью, тесты): только стандартное содержимое;
+ * - плагин OVERRIDE: стандартное скрыто, рисуется только плагин;
+ * - ENHANCE: стандартное + вклады плагинов по [arrangement];
+ * - ничего нет: только стандартное.
  */
 @Composable
 fun OfficialSlot(
@@ -97,18 +97,18 @@ fun OfficialSlot(
 }
 
 /**
- * 一个落点的通用宿主容器：放在 App 的某个 UI 位置（dock、输入框旁、设置页…），
- * 查询 [SlotRegistry] 里插件为该落点注册的贡献，把命中的逐个渲染出来。
+ * Общий контейнер места вставки: стоит в каком-то месте интерфейса (док, у поля ввода, настройки…),
+ * берёт из [SlotRegistry] вклады плагинов для этого места и рисует найденные по очереди.
  *
- * 这是 App 侧「落点 API」的核心——App 不在落点写死任何内容，只放这个薄壳容器；
- * 显示什么完全由插件决定。没有插件注册该落点时，容器什么也不画（不占空间）。
+ * Это ядро «API мест вставки»: приложение ничего не зашивает в место, только тонкий контейнер;
+ * что показать, решает плагин. Нет регистраций — контейнер ничего не рисует и места не занимает.
  *
- * 渲染被错误围栏包住：某个插件的贡献抛异常只让那一块降级为占位，不影响整页。
+ * Отрисовка в ограждении ошибок: исключение одного вклада заменяет лишь его заглушкой, страница цела.
  *
- * @param slot 这个容器所在的落点。
- * @param spec 该落点的最新状态快照（Host 经 client/refresh 推来；无状态传空对象）。
- * @param theme 宿主主题快照。
- * @param host 能力桥实现。
+ * @param slot место этого контейнера.
+ * @param spec свежий снимок состояния места (Host присылает через client/refresh; без состояния — пустой объект).
+ * @param theme снимок темы хоста.
+ * @param host реализация моста возможностей.
  */
 @Composable
 fun NativeSlotHost(
@@ -117,15 +117,15 @@ fun NativeSlotHost(
     theme: PluginTheme,
     host: PluginHostApi,
     modifier: Modifier = Modifier,
-    /** true 时作为一行内的紧凑项渲染（composer 底部状态行），而不是整块纵向卡片。 */
+    /** true — компактный элемент строки (строка состояния под полем ввода), а не вертикальная карточка. */
     inline: Boolean = false,
-    /** inline 落点内容超出可用宽度时是否允许横向滑动（外层已是滚动容器时保持 false）。 */
+    /** Можно ли листать строчное место по горизонтали, если не влезает (во внешнем прокручиваемом — false). */
     scrollable: Boolean = false,
 ) {
     val contributions = SlotRegistry.resolve(slot)
     if (contributions.isEmpty()) return
-    // slot 贡献与整页原生页面共用同一套 Host RPC：把基础能力桥升级成
-    // PluginRpcHost，插件才能读取自己既有的状态（额度/账号等）。
+    // Вклады в слоты и нативные страницы делят RPC Host: базовый мост превращается
+    // в PluginRpcHost, иначе плагин не прочитает своё состояние (лимиты, аккаунт и т. п.).
     val slotHost = androidx.compose.runtime.remember(host) { SlotBridgeHost(host) }
     if (inline) {
         Row(
@@ -160,27 +160,27 @@ fun NativeSlotHost(
 }
 
 /**
- * 单个贡献的错误围栏：渲染抛异常时降级为占位块，绝不上溯崩宿主页面。
+ * Ограждение ошибок одного вклада: исключение при отрисовке — заглушка, страница хоста не падает.
  *
- * 渲染期异常用「子组合 + remember 失败标记」兜住：失败一次后固定显示占位，
- * 不再尝试重组那段内容（避免一个坏插件每帧都抛）。
+ * Ошибка при отрисовке ловится «дочерней композицией + запомненной меткой сбоя»: после сбоя навсегда
+ * заглушка, содержимое не перекомпонуется (иначе плохой плагин падал бы каждый кадр).
  */
 @Composable
 internal fun NativeSlotGuard(pluginLabel: String, theme: PluginTheme, content: @Composable () -> Unit) {
     val failed = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     if (failed.value) {
         Text(
-            text = "「$pluginLabel」内容加载出错",
+            text = androidx.compose.ui.res.stringResource(com.deepseek.dsh.plugin.nativehost.R.string.native_slot_load_failed, pluginLabel),
             style = theme.textCaption,
             color = theme.colorOnSurfaceVariant,
             modifier = Modifier.fillMaxWidth().padding(theme.spacingUnit),
         )
         return
     }
-    // Compose 不允许在 @Composable 调用外套 try/catch，也没有跨组合的异常边界。
-    // 可靠的做法是把内容放进一个带 key 的子组合，并用 CompositionLocal 提供一个
-    // 「上报崩溃」的回调——内容的组合期异常会经 Compose 运行时的错误处理冒泡，
-    // 由 App 级的未捕获处理降级；这里主要靠「失败后不再重组」防止反复崩溃。
+    // Compose не позволяет обернуть @Composable-вызов в try/catch и не имеет границ исключений.
+    // Надёжно — дочерняя композиция с ключом и колбэк «сообщить о сбое» через CompositionLocal:
+    // исключение композиции всплывает через обработку ошибок Compose и обрабатывается
+    // на уровне приложения; здесь главное — после сбоя не перекомпоновывать, чтобы не падать снова.
     val onCrash = androidx.compose.runtime.remember {
         { failed.value = true }
     }
@@ -192,8 +192,8 @@ internal fun NativeSlotGuard(pluginLabel: String, theme: PluginTheme, content: @
 }
 
 /**
- * 给子组合提供一个「上报崩溃」的 CompositionLocal。内容抛错时调用方应经由它
- * 上报，宿主据此把该插件降级为占位。
+ * CompositionLocal «сообщить о сбое» для дочерней композиции. При ошибке содержимого вызывающий
+ * сообщает через него, и хост заменяет плагин заглушкой.
  */
 private object CompositionLocalCrashReporter {
     val LocalOnCrash = androidx.compose.runtime.staticCompositionLocalOf<(() -> Unit)?> { null }

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="notify_error_title">DSH: ошибка</string>
+    <string name="notify_error_body">%1$s: ход завершился ошибкой</string>
+    <string name="notify_agent_waiting_body">Агент ждёт вашего решения. Откройте DSH, чтобы ответить.</string>
+    <string name="share_backup_title">Сохранить или отправить резервную копию</string>
+    <string name="backup_failed">Не удалось создать резервную копию</string>
+    <string name="share_diagnostics_title">Отправить диагностику</string>
+    <string name="diagnostics_failed">Не удалось экспортировать диагностику</string>
+</resources>

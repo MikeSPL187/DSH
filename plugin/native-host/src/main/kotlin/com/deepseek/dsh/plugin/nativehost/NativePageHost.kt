@@ -34,7 +34,7 @@ internal class NativePageHost(
     }
 
     override fun dispatchEvent(componentId: String, event: String, payload: JsonObject) {
-        require(componentId == this.componentId) { "原生页面只能向自己的组件发送事件" }
+        require(componentId == this.componentId) { com.deepseek.dsh.core.model.Tr.t("A native page may only send events to its own component", "Нативная страница может отправлять события только своему компоненту") }
         scope.launch { dispatch(componentId, event, payload) }
     }
 

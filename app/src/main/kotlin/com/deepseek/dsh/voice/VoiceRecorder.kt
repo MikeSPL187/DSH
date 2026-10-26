@@ -7,15 +7,15 @@ import android.media.MediaRecorder
 import java.io.ByteArrayOutputStream
 
 /**
- * 语音输入的录音器：16 kHz 单声道 PCM16。
+ * Запись для голосового ввода: 16 кГц, моно, PCM16.
  *
- * 官方网页端用 `MediaRecorder` + `decodeAudioData` + `OfflineAudioContext`
- * 重采样成 16 kHz 单声道 PCM16 WAV；Android 侧直接用 `AudioRecord` 按目标
- * 采样率采集，省掉重采样，输出同样的规范 WAV（Host 的 `speech/transcribe`
- * 只接受这种格式）。
+ * Веб-версия пишет через `MediaRecorder`, затем `decodeAudioData` и `OfflineAudioContext`
+ * пересчитывает в WAV 16 кГц моно PCM16; на Android `AudioRecord` сразу пишет с нужной
+ * частотой без пересчёта, на выходе тот же WAV (`speech/transcribe` Host
+ * принимает только его).
  */
 internal class VoiceRecorder {
-    /** 采样率：与 Host 要求的 WAV 一致。 */
+    /** Частота дискретизации — как требует Host. */
     private val sampleRate = 16_000
 
     private var record: AudioRecord? = null
@@ -25,16 +25,12 @@ internal class VoiceRecorder {
     @Volatile
     private var running = false
 
-    /** 录音电平回调（0..1 的 RMS，用于界面电平条）。 */
+    /** Уровень записи (RMS 0..1 для индикатора). */
     var onLevel: ((Float) -> Unit)? = null
 
-    /** 是否正在录音。 */
-    val isRecording: Boolean
-        get() = running
-
     /**
-     * 开始录音。
-     * @returns 是否成功启动（没有麦克风或被占用时为 false）。
+     * Начать запись.
+     * @returns удалось ли начать (нет микрофона или он занят — false).
      */
     @SuppressLint("MissingPermission")
     fun start(): Boolean {
@@ -72,7 +68,7 @@ internal class VoiceRecorder {
                 val read = runCatching { recorder.read(buffer, 0, buffer.size) }.getOrDefault(0)
                 if (read > 0) {
                     output.write(buffer, 0, read)
-                    // RMS 电平：把 PCM16 采样平方平均后开方，映射到 0..1。
+                    // Уровень RMS: корень из среднего квадрата отсчётов PCM16, в диапазоне 0..1.
                     var sum = 0.0
                     var index = 0
                     while (index + 1 < read) {
@@ -93,8 +89,8 @@ internal class VoiceRecorder {
     }
 
     /**
-     * 结束录音并返回 16 kHz 单声道 PCM16 WAV 的字节。
-     * @returns WAV 数据；没有录到内容时返回 null。
+     * Закончить запись и вернуть WAV 16 кГц моно PCM16.
+     * @returns WAV; null — ничего не записано.
      */
     fun stop(): ByteArray? {
         if (!running) return null
@@ -114,7 +110,7 @@ internal class VoiceRecorder {
         return encodeWav(data)
     }
 
-    /** 丢弃当前录音。 */
+    /** Отбросить текущую запись. */
     fun cancel() {
         if (!running) return
         running = false
@@ -130,7 +126,7 @@ internal class VoiceRecorder {
         onLevel?.invoke(0f)
     }
 
-    /** 把裸 PCM16 数据包成 44 字节头的规范 WAV。 */
+    /** Обернуть сырые PCM16 в WAV со стандартным заголовком 44 байта. */
     private fun encodeWav(data: ByteArray): ByteArray {
         val total = data.size
         val header = ByteArray(44)

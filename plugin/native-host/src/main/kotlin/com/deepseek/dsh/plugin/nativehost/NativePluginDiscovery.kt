@@ -6,17 +6,17 @@ import android.content.Intent
 import android.content.pm.PackageManager
 
 /**
- * 已装原生伴侣插件的快照。
+ * Снимок установленного нативного компаньона.
  *
- * @property pluginId 插件 id（`dsh.plugin.id`），与 JS 插件的 componentId 前缀配对。
- * @property packageName 伴侣 APK 的包名。
- * @property version 插件自身版本（descriptor.version 声明）。
- * @property versionCode APK 的 versionCode。
- * @property apiVersion 该伴侣编译所针对的 native-SDK ABI 版本。
- * @property minAppVersion 伴侣要求的最低 App 版本码。
- * @property signatureFingerprint 签名证书指纹（SHA-256），用于掉包检测。
- * @property status 当前状态；只有 READY 的会被加载。
- * @property serviceComponent 插件 Service 的组件名（bindService 用）。
+ * @property pluginId id плагина (`dsh.plugin.id`), совпадает с префиксом componentId JS-плагина.
+ * @property packageName имя пакета компаньона APK.
+ * @property version версия плагина (из descriptor.version).
+ * @property versionCode versionCode APK.
+ * @property apiVersion версия ABI нативного SDK, под которую собран компаньон.
+ * @property minAppVersion минимальный код версии приложения.
+ * @property signatureFingerprint отпечаток сертификата подписи (SHA-256) — для обнаружения подмены.
+ * @property status состояние; загружаются только READY.
+ * @property serviceComponent компонент Service плагина (для bindService).
  */
 data class InstalledNativePlugin(
     val pluginId: String,
@@ -29,36 +29,42 @@ data class InstalledNativePlugin(
     val status: Status,
     val serviceComponent: ComponentName,
     /**
-     * 配对的 JS 插件安装地址（`dsh.plugin.jsPackage`：npm 包名或 GitHub 地址）。
-     * 装 APK 时 App 读它连带装 JS 插件；缺省时兜底用 [pluginId] 当 npm 包名试装。
+     * Адрес установки парного JS-плагина (`dsh.plugin.jsPackage`: имя npm или адрес GitHub).
+     * При установке APK приложение по нему ставит и JS-плагин; если нет — пробует [pluginId] как имя npm.
      */
     val jsPackage: String? = null,
-    /** APK 的安装/更新时间（毫秒），用于插件商店的更新提醒。 */
+    /** Время установки или обновления APK (мс) — для напоминания об обновлении. */
     val lastUpdateTime: Long = 0L,
 ) {
-    enum class Status { READY, ABI_TOO_NEW, APP_TOO_OLD, SIGNATURE_MISMATCH, DISABLED }
+    /**
+     * - READY: пользователь одобрил, имя пакета и подпись совпадают с одобренными — можно загружать.
+     * - UNTRUSTED: найден впервые, не одобрен; код не загружается.
+     * - SIGNATURE_MISMATCH: у того же pluginId другое имя пакета или подпись (подмена, переподпись) — не загружается.
+     */
+    enum class Status { READY, UNTRUSTED, ABI_TOO_NEW, APP_TOO_OLD, SIGNATURE_MISMATCH, DISABLED }
 }
 
 /**
- * 插件发现：扫描系统里声明了 `com.deepseek.dsh.action.PLUGIN_UI` 服务的伴侣 APK，
- * 解析其 meta-data，产出已装插件清单。只读 meta-data，此阶段不 bind/加载任何代码。
+ * Поиск плагинов: компаньоны APK, объявившие сервис `com.deepseek.dsh.action.PLUGIN_UI`;
+ * их meta-data разбирается в список установленных. Читается только meta-data, код не привязывается и не загружается.
  *
- * 调用方（App）在启动时全量重扫一次，并监听 `PACKAGE_ADDED`/`PACKAGE_REMOVED`/
- * `PACKAGE_REPLACED` 广播做增量增删——卸载必须当帧摘除渲染位，不留悬垂引用。
+ * Приложение пересканирует всё при запуске и следит за `PACKAGE_ADDED`/`PACKAGE_REMOVED`/
+ * `PACKAGE_REPLACED` — удалённый плагин убирается из мест вставки сразу, без висящих ссылок.
  */
 class NativePluginDiscovery(private val context: Context) {
 
     /**
-     * 全量扫描一次系统里已装的原生伴侣插件。
+     * Полное сканирование установленных нативных компаньонов.
      *
-     * @param appVersionCode 当前 App 的版本码（ABI 门禁用）。
-     * @param supportedApiVersion 当前 App 内 native-SDK 的 ABI 版本。
-     * @param pinnedFingerprints 已钉死的 pluginId → 指纹（首次见由调用方钉死）。
+     * @param appVersionCode код версии приложения (для проверки ABI).
+     * @param supportedApiVersion версия ABI нативного SDK приложения.
+     * @param pins одобренные пользователем pluginId → (имя пакета, отпечаток), см. [NativePluginTrustStore].
+     *   Компаньон без pin всегда UNTRUSTED: «увидели впервые» — не повод доверять.
      */
     fun scan(
         appVersionCode: Int,
         supportedApiVersion: Int,
-        pinnedFingerprints: Map<String, String>,
+        pins: Map<String, NativePluginPin>,
     ): List<InstalledNativePlugin> {
         val pm = context.packageManager
         val intent = Intent(ACTION_PLUGIN_UI)
@@ -70,22 +76,24 @@ class NativePluginDiscovery(private val context: Context) {
             val pluginId = meta.getString(META_ID)?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
             val apiVersion = meta.getInt(META_API_VERSION, -1).takeIf { it >= 0 } ?: return@mapNotNull null
             val minAppVersion = meta.getInt(META_MIN_APP_VERSION, 0)
-            // 配对的 JS 插件安装地址（甲：manifest 直声明）。缺省时由调用方查商店索引兜底（乙）。
+            // Адрес парного JS-плагина (первый источник — manifest). Если нет — вызывающий смотрит индекс магазина (второй).
             val jsPackage = meta.getString(META_JS_PACKAGE)?.takeIf { it.isNotBlank() }
             val packageName = serviceInfo.packageName
             val fingerprint = signingFingerprint(pm, packageName) ?: return@mapNotNull null
 
             val pkgInfo = runCatching { pm.getPackageInfo(packageName, 0) }.getOrNull()
-            val versionCode = pkgInfo?.longVersionCode?.toInt() ?: 0
+            val versionCode = pkgInfo?.let { androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(it).toInt() } ?: 0
             val lastUpdateTime = pkgInfo?.lastUpdateTime ?: 0L
 
-            // ABI 门禁：任一不匹配 → 标记状态，绝不进入加载流程。
+            // Проверка ABI: любое несовпадение — только состояние, до загрузки дело не доходит.
             val status = when {
                 apiVersion > supportedApiVersion -> InstalledNativePlugin.Status.ABI_TOO_NEW
                 minAppVersion > appVersionCode -> InstalledNativePlugin.Status.APP_TOO_OLD
-                pinnedFingerprints[pluginId]?.let { it != fingerprint } == true ->
-                    InstalledNativePlugin.Status.SIGNATURE_MISMATCH
-                else -> InstalledNativePlugin.Status.READY
+                else -> when (NativePluginTrustPolicy.evaluate(packageName, fingerprint, pins[pluginId])) {
+                    NativePluginTrustPolicy.Verdict.TRUSTED -> InstalledNativePlugin.Status.READY
+                    NativePluginTrustPolicy.Verdict.UNTRUSTED -> InstalledNativePlugin.Status.UNTRUSTED
+                    NativePluginTrustPolicy.Verdict.MISMATCH -> InstalledNativePlugin.Status.SIGNATURE_MISMATCH
+                }
             }
 
             InstalledNativePlugin(
@@ -104,22 +112,37 @@ class NativePluginDiscovery(private val context: Context) {
         }
     }
 
-    /** 读一个包的签名证书 SHA-256 指纹（小写无分隔）。 */
-    private fun signingFingerprint(pm: PackageManager, packageName: String): String? = runCatching {
-        val info = pm.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES)
-        val signatures = info.signingInfo?.apkContentsSigners ?: return null
-        val cert = signatures.firstOrNull()?.toByteArray() ?: return null
-        val digest = java.security.MessageDigest.getInstance("SHA-256").digest(cert)
-        digest.joinToString("") { "%02x".format(it) }
-    }.getOrNull()
+    internal companion object {
+        /**
+         * Отпечаток SHA-256 сертификата подписи пакета (нижний регистр, без разделителей).
+         *
+         * APK с несколькими подписантами не поддерживаются: если взять одного, злоумышленник добавил бы свой
+         * сертификат и обошёл pin, поэтому для них всегда null (не находится и не загружается).
+         */
+        fun signingFingerprint(pm: PackageManager, packageName: String): String? = runCatching {
+            val cert = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                val info = pm.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES)
+                val signingInfo = info.signingInfo ?: return null
+                if (signingInfo.hasMultipleSigners()) return null
+                signingInfo.apkContentsSigners?.singleOrNull()?.toByteArray() ?: return null
+            } else {
+                // Android 8.x: SigningInfo появился в API 28; раньше этот путь всегда падал,
+                // и на Android 8 нативные плагины не обнаруживались вовсе.
+                @Suppress("DEPRECATION")
+                val info = pm.getPackageInfo(packageName, PackageManager.GET_SIGNATURES)
+                @Suppress("DEPRECATION")
+                info.signatures?.singleOrNull()?.toByteArray() ?: return null
+            }
+            val digest = java.security.MessageDigest.getInstance("SHA-256").digest(cert)
+            digest.joinToString("") { "%02x".format(it) }
+        }.getOrNull()
 
-    private companion object {
         const val ACTION_PLUGIN_UI = "com.deepseek.dsh.action.PLUGIN_UI"
         const val META_ID = "dsh.plugin.id"
         const val META_API_VERSION = "dsh.plugin.apiVersion"
         const val META_MIN_APP_VERSION = "dsh.plugin.minAppVersion"
         const val META_VERSION = "dsh.plugin.version"
-        /** 配对的 JS 插件安装地址（npm 包名 / GitHub 地址）。 */
+        /** Адрес установки парного JS-плагина (имя npm или адрес GitHub). */
         const val META_JS_PACKAGE = "dsh.plugin.jsPackage"
     }
 }

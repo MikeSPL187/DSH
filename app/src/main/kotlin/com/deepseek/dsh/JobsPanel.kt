@@ -1,49 +1,46 @@
 package com.deepseek.dsh
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.deepseek.dsh.core.designsystem.Dsh
 import com.deepseek.dsh.core.designsystem.DshDialog
 import com.deepseek.dsh.core.designsystem.DshDialogButton
+import com.deepseek.dsh.core.designsystem.DshFonts
+import com.deepseek.dsh.core.designsystem.DshSheetList
+import com.deepseek.dsh.core.designsystem.DshSheetTitle
 import com.deepseek.dsh.core.protocol.HostJobInfo
+import com.deepseek.dsh.feature.chat.ckBody
 
 /**
- * 官方 `job/list` 的后台任务面板：列表 + 终止按钮 + 输出查看。
- *
- * 任务集合由 `job/list` 流实时推送；点「输出」打开 `job/follow` 的输出窗。
+ * Фоновые задачи сессии (`job/list`) листом: состояние, название, вид и ход,
+ * «Остановить» у идущих; нажатие открывает вывод (`job/follow`).
  */
 @Composable
 fun JobsPanel(
@@ -51,86 +48,52 @@ fun JobsPanel(
     onKill: (HostJobInfo) -> Unit,
     onOpenOutput: (HostJobInfo) -> Unit,
 ) {
+    val c = Dsh.colors
+    DshSheetTitle(stringResource(R.string.jobs_title))
     if (jobs.isEmpty()) {
-        Text(
-            text = stringResource(R.string.jobs_empty),
-            fontSize = 13.sp,
-            color = MaterialTheme.colorScheme.outline,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-        )
+        Text(stringResource(R.string.jobs_empty), style = ckBody(14.5.sp, 21.sp), color = c.t3, modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp))
         return
     }
-    Column {
-        jobs.forEach { job ->
+    DshSheetList {
+        jobs.forEachIndexed { i, job ->
             val running = job.status == "running" || job.status == "stopping"
+            if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .clickable { onOpenOutput(job) }
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                Modifier.fillMaxWidth().clickable(role = Role.Button) { onOpenOutput(job) }.padding(start = 14.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                // 状态点：running 旋转、settled 实心。
-                if (running) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(14.dp),
-                        strokeWidth = 1.5.dp,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(
-                                when (job.status) {
-                                    "completed" -> androidx.compose.ui.graphics.Color(0xFF34C759)
-                                    "failed", "killed" -> androidx.compose.ui.graphics.Color(0xFFFF3B30)
-                                    else -> MaterialTheme.colorScheme.outline
-                                },
-                            ),
-                    )
+                Box(Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(c.s1), contentAlignment = Alignment.Center) {
+                    if (running) {
+                        com.deepseek.dsh.core.designsystem.DshSpinner(c.accent, 16.dp)
+                    } else {
+                        val dot = when (job.status) {
+                            "completed" -> c.ok
+                            "failed", "killed" -> c.danger
+                            else -> c.t3
+                        }
+                        Box(Modifier.size(8.dp).clip(CircleShape).background(dot))
+                    }
                 }
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = job.label.ifBlank { job.id },
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp,
-                        maxLines = 1,
-                    )
+                Column(Modifier.weight(1f)) {
+                    Text(job.label.ifBlank { job.id }, style = ckBody(15.sp, 20.sp), color = c.t1, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     val sub = buildString {
                         append(job.kind)
                         job.progress?.takeIf { it.isNotBlank() }?.let { append(" · $it") }
                         if (!running) job.detail?.takeIf { it.isNotBlank() }?.let { append(" · $it") }
                     }
-                    if (sub.isNotBlank()) {
-                        Text(
-                            text = sub,
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.outline,
-                            maxLines = 1,
-                        )
-                    }
+                    if (sub.isNotBlank()) Text(sub, style = ckBody(12.5.sp, 17.sp), color = c.t3, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                if (running) {
-                    TextButton(onClick = { onKill(job) }) {
-                        Text(
-                            text = stringResource(R.string.jobs_kill),
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
-                }
+                if (running) Box(
+                    Modifier.heightIn(min = 40.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button) { onKill(job) }.padding(horizontal = 10.dp),
+                    contentAlignment = Alignment.Center,
+                ) { Text(stringResource(R.string.jobs_kill), style = ckBody(13.5.sp, 18.sp, FontWeight.Medium), color = c.danger) }
             }
         }
     }
 }
 
-/**
- * `job/follow` 输出窗：opened/output/status 帧由宿主聚合后传入。
- */
+/** Вывод фоновой задачи (`job/follow`): строка состояния и хвост вывода моноширинным, прокручен к низу. */
 @Composable
 fun JobOutputDialog(
     job: HostJobInfo,
@@ -138,61 +101,26 @@ fun JobOutputDialog(
     statusLine: String?,
     onDismiss: () -> Unit,
 ) {
+    val c = Dsh.colors
     DshDialog(
         onDismiss = onDismiss,
         title = job.label.ifBlank { job.id },
         closeLabel = stringResource(R.string.action_close),
+        description = statusLine?.takeIf { it.isNotBlank() },
         footer = {
-            DshDialogButton(
-                text = stringResource(R.string.action_close),
-                primary = true,
-                enabled = true,
-                onClick = onDismiss,
-            )
+            DshDialogButton(text = stringResource(R.string.action_close), primary = false, enabled = true, onClick = onDismiss)
         },
         content = {
-            Column {
-                statusLine?.takeIf { it.isNotBlank() }?.let { line ->
-                    Text(
-                        text = line,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.outline,
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                }
-                if (output.isBlank()) {
-                    Text(
-                        text = stringResource(R.string.jobs_output_empty),
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.outline,
-                    )
-                } else {
-                    val listState = rememberLazyListState(
-                        initialFirstVisibleItemIndex = Int.MAX_VALUE / 2,
-                    )
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    ) {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 320.dp)
-                                .padding(8.dp),
-                            verticalArrangement = Arrangement.Bottom,
-                        ) {
-                            items(listOf(output)) { text ->
-                                Text(
-                                    text = text,
-                                    fontSize = 11.sp,
-                                    lineHeight = 16.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                )
-                            }
-                        }
-                    }
+            if (output.isBlank()) {
+                Text(stringResource(R.string.jobs_output_empty), style = ckBody(14.5.sp, 21.sp), color = c.t3, modifier = Modifier.padding(horizontal = 4.dp))
+            } else {
+                val scroll = rememberScrollState()
+                LaunchedEffect(output) { scroll.scrollTo(scroll.maxValue) }
+                Box(
+                    Modifier.fillMaxWidth().heightIn(max = 360.dp).clip(RoundedCornerShape(16.dp)).background(c.termBg)
+                        .border(1.dp, c.line, RoundedCornerShape(16.dp)).verticalScroll(scroll).padding(12.dp),
+                ) {
+                    Text(output, style = androidx.compose.ui.text.TextStyle(fontFamily = DshFonts.mono, fontSize = 12.sp, lineHeight = 17.sp), color = c.termText)
                 }
             }
         },

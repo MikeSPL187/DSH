@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Экраны запуска: запуск Host и доступ к файлам. ru / en. -->
+<resources>
+    <string name="st_failed_title">Host didn\'t start</string>
+    <string name="st_failed_lead">Linux is installed, but the agent didn\'t respond. Try again or open the app — the log and diagnostics are in Settings.</string>
+    <string name="st_log">Latest output</string>
+    <string name="st_copy">Copy report</string>
+    <string name="st_open_anyway">Open without Host</string>
+    <string name="st_access_lead">All-files access is off. Turn it back on, or work in a private folder inside DSH.</string>
+</resources>

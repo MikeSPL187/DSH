@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pcp_back">Back</string>
+    <string name="pcp_bridge_disconnected">Bridge not connected</string>
+    <string name="pcp_full_ui_failed">Full UI · failed to load</string>
+    <string name="pcp_full_ui_web">Full UI · real Web UI</string>
+    <string name="pcp_refresh">Refresh</string>
+    <string name="pcp_ui_unavailable">Plugin UI is not available yet</string>
+    <string name="pcp_bridge_retry">Bridge is not connected. Retry once the Host is ready.</string>
+    <string name="pcp_full_ui_start_failed">Full UI failed to start</string>
+    <string name="pcp_retry">Retry</string>
+    <string name="pwi_host_not_running">Host is not running; the full UI cannot be opened</string>
+</resources>

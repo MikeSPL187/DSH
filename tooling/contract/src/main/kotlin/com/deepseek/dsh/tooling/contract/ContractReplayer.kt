@@ -1,12 +1,13 @@
 package com.deepseek.dsh.tooling.contract
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.security.MessageDigest
 
 /**
- * v4.0 设计文档 §5.6: 契约验证与回放器
+ * Проверка и воспроизведение контракта.
  */
 @Serializable
 data class ContractFixture(
@@ -27,6 +28,13 @@ data class FixtureEvent(
 class ContractReplayer(
     private val json: Json = Json { ignoreUnknownKeys = true }
 ) {
+    /** Каноническое кодирование: порядок полей постоянный, значения по умолчанию пропускаются — у набора событий одно байтовое представление. */
+    private val canonicalJson = Json { encodeDefaults = false; explicitNulls = false; prettyPrint = false }
+
+    /**
+     * Прочитать и проверить образец: [ContractFixture.expectedDigest] должен совпадать с [eventsDigest] (аудит F-19).
+     * Изменённые mockEvents отклоняются, а не воспроизводятся как действующий контракт.
+     */
     fun loadAndVerifyFixture(fixtureFile: File): Result<ContractFixture> {
         if (!fixtureFile.exists()) {
             return Result.failure(IllegalArgumentException("Fixture not found: ${fixtureFile.absolutePath}"))
@@ -35,11 +43,26 @@ class ContractReplayer(
         return try {
             val content = fixtureFile.readText(Charsets.UTF_8)
             val fixture = json.decodeFromString<ContractFixture>(content)
-            Result.success(fixture)
+            val actual = eventsDigest(fixture.mockEvents)
+            if (!MessageDigest.isEqual(
+                    actual.toByteArray(),
+                    fixture.expectedDigest.removePrefix("sha256:").lowercase().toByteArray(),
+                )
+            ) {
+                Result.failure(
+                    IllegalStateException("Fixture digest mismatch: expected ${fixture.expectedDigest}, actual $actual"),
+                )
+            } else {
+                Result.success(fixture)
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
+    /** SHA-256 mockEvents: хэш канонического массива JSON (hex в нижнем регистре). */
+    fun eventsDigest(events: List<FixtureEvent>): String =
+        calculateDigest(canonicalJson.encodeToString(ListSerializer(FixtureEvent.serializer()), events))
 
     fun calculateDigest(content: String): String {
         val digest = MessageDigest.getInstance("SHA-256")

@@ -1,19 +1,16 @@
 package com.deepseek.dsh
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.deepseek.dsh.core.bridge.BridgeNativeCompanion
 import kotlinx.serialization.json.JsonObject
 
-/** 「可安装原生伴侣」的底部提示卡。 */
+/** Подсказка снизу «Можно установить нативный компаньон». */
 @Composable
 internal fun CompanionAvailableCard(
     companion: BridgeNativeCompanion,
@@ -30,40 +27,23 @@ internal fun CompanionAvailableCard(
     onGoInstall: () -> Unit,
     onIgnore: () -> Unit,
 ) {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = RoundedCornerShape(12.dp),
-        modifier = modifier,
-    ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(
-                        R.string.companion_available_title,
-                        companion.name ?: companion.pluginId,
-                    ),
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                Text(
-                    text = stringResource(R.string.companion_available_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+    // Карточка в стиле DSH: у установленного плагина есть нативная часть (APK) со своими экранами.
+    com.deepseek.dsh.core.designsystem.kit.StCard(modifier.shadow(12.dp, RoundedCornerShape(22.dp))) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            com.deepseek.dsh.core.designsystem.kit.Gic(com.deepseek.dsh.core.designsystem.DshGlyphs.Puzzle, com.deepseek.dsh.core.designsystem.kit.Tone.Plain)
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.companion_available_title, companion.name ?: companion.pluginId), style = com.deepseek.dsh.core.designsystem.Dsh.type.bodyMedium, color = com.deepseek.dsh.core.designsystem.Dsh.colors.t1)
+                Text(stringResource(R.string.companion_available_desc), style = com.deepseek.dsh.core.designsystem.Dsh.type.footnote, color = com.deepseek.dsh.core.designsystem.Dsh.colors.t3)
             }
-            TextButton(onClick = onGoInstall) {
-                Text(stringResource(R.string.companion_go_install))
-            }
-            TextButton(onClick = onIgnore) {
-                Text(stringResource(R.string.companion_ignore))
-            }
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            com.deepseek.dsh.core.designsystem.kit.KBtn(stringResource(R.string.companion_ignore), onIgnore, Modifier.weight(1f))
+            com.deepseek.dsh.core.designsystem.kit.KBtn(stringResource(R.string.companion_go_install), onGoInstall, Modifier.weight(1f), kind = com.deepseek.dsh.core.designsystem.kit.BtnKind.Primary)
         }
     }
 }
 
-/** 插件整岛 Web UI 与 companion 原生浮层。 */
+/** Веб-интерфейс плагина во весь экран и нативные окна компаньонов. */
 @Composable
 internal fun PluginIslandOverlays() {
     if (com.deepseek.dsh.plugin.nativesdk.slots.SlotRegistry
@@ -91,18 +71,13 @@ internal fun PluginIslandOverlays() {
     }
 }
 
-/** 登录 / API Key 两个对话框。 */
+/** Окно входа: войти в аккаунт или добавить API-ключ (в «Настройках → Модели»). */
 @Composable
 internal fun SignInDialogs(
     showSignIn: Boolean,
     onDismissSignIn: () -> Unit,
     onAddKey: () -> Unit,
     onSignIn: () -> Unit,
-    showApiKey: Boolean,
-    apiKeyInput: String,
-    onApiKeyChange: (String) -> Unit,
-    onDismissApiKey: () -> Unit,
-    onSubmitApiKey: () -> Unit,
 ) {
     if (showSignIn) {
         com.deepseek.dsh.core.designsystem.DshDialog(
@@ -117,42 +92,11 @@ internal fun SignInDialogs(
                     enabled = true,
                     onClick = onAddKey,
                 )
-                Spacer(modifier = Modifier.width(8.dp))
                 com.deepseek.dsh.core.designsystem.DshDialogButton(
                     text = stringResource(R.string.onboarding_login),
                     primary = true,
                     enabled = true,
                     onClick = onSignIn,
-                )
-            },
-        )
-    }
-    if (showApiKey) {
-        com.deepseek.dsh.core.designsystem.DshDialog(
-            onDismiss = onDismissApiKey,
-            title = stringResource(R.string.onboarding_key_title),
-            closeLabel = stringResource(R.string.action_close),
-            description = stringResource(R.string.onboarding_key_desc),
-            footer = {
-                com.deepseek.dsh.core.designsystem.DshDialogButton(
-                    text = stringResource(R.string.action_cancel),
-                    primary = false,
-                    enabled = true,
-                    onClick = onDismissApiKey,
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                com.deepseek.dsh.core.designsystem.DshDialogButton(
-                    text = stringResource(R.string.onboarding_login),
-                    primary = true,
-                    enabled = apiKeyInput.isNotBlank(),
-                    onClick = onSubmitApiKey,
-                )
-            },
-            content = {
-                com.deepseek.dsh.core.designsystem.DshTextInput(
-                    value = apiKeyInput,
-                    onValueChange = onApiKeyChange,
-                    placeholder = stringResource(R.string.onboarding_key_placeholder),
                 )
             },
         )

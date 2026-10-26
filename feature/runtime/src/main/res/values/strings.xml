@@ -1,172 +1,67 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">DSH</string>
-    <string name="channel_runtime_name">DSH Host Runtime</string>
-    <string name="channel_runtime_desc">Keep local Linux user-space container and DSH Agent running in background</string>
-    <string name="channel_notify_name">DSH Device Notifications</string>
-
-    <!-- Navigation Titles -->
-    <string name="nav_chat">Chat</string>
-    <string name="nav_sessions">Sessions</string>
-    <string name="nav_files">Files</string>
-    <string name="nav_plugins">Plugins</string>
-    <string name="nav_hosts">Hosts</string>
-    <string name="nav_approval">Approvals</string>
-    <string name="nav_settings">Settings</string>
-    <string name="nav_runtime">Runtime</string>
-    <string name="nav_new_session">New Session</string>
-
-    <!-- First-run onboarding (desktop onboarding copy, phone-adapted layout) -->
-    <string name="onb_welcome">Welcome to</string>
-    <string name="onb_brand">DeepSeek Harness</string>
-    <string name="onb_introduction">DeepSeek Harness works in a local folder and uses tools to read and write files on your computer. It can help you research and organize information, create documents and spreadsheets, write code, troubleshoot issues, and more.</string>
-    <string name="onb_start">Get started</string>
-    <string name="onb_credit">Add credits</string>
-    <string name="onb_credit_description">DeepSeek Harness charges credits based on the tokens used by models and tools. Add credits in advance to keep your tasks running without interruption. Your balance is only used while the agent is working on a task.</string>
-    <string name="onb_top_up">Add credits</string>
-    <string name="onb_later">Next</string>
-    <string name="onb_funded_top_up">Add credits</string>
-    <string name="onb_purpose_prefix">What would you like</string>
-    <string name="onb_purpose_suffix">to help with?</string>
-    <string name="onb_purpose_description">We’ll tailor the interface and tools to fit the way you work.</string>
-    <string name="onb_office">Office &amp; creative work</string>
-    <string name="onb_office_description">Edit documents, organize data, create presentations, and more</string>
-    <string name="onb_development">Coding &amp; development</string>
-    <string name="onb_development_description">Edit code, debug issues, run commands, manage project files, and more</string>
-    <string name="onb_continue">Continue</string>
-    <string name="onb_process">How much detail would you like to see?</string>
-    <string name="onb_process_description">This only changes how progress is shown, not what DeepSeek Harness can do.</string>
-    <string name="onb_compact">Results only</string>
-    <string name="onb_compact_description">See just the results in a clean, simple interface</string>
-    <string name="onb_standard">Key details</string>
-    <string name="onb_standard_description">Focus on results, with only the most important steps and actions shown</string>
-    <string name="onb_detailed">Full details</string>
-    <string name="onb_detailed_description">See the full process for easier debugging and troubleshooting</string>
-    <string name="onb_enter">Open app</string>
-    <string name="onb_back">Back</string>
-    <string name="onb_skip">Skip</string>
-    <string name="onb_skip_title">Skip setup?</string>
-    <string name="onb_skip_description">You can change how progress, performance, and usage are displayed, or enable Coding Tools, anytime in Settings → General.</string>
-    <string name="onb_keep_setting">Continue setup</string>
-    <string name="onb_no_credit_title">Skip adding credits?</string>
-    <string name="onb_no_credit_description">DeepSeek Harness can’t start new tasks without credits. You can add them later in Settings → Account.</string>
-    <string name="onb_understood">Got it</string>
-    <string name="onb_go_top_up">Add credits</string>
-    <string name="onb_close">Close</string>
-
-    <!-- Welcome & Chat Screen -->
-    <string name="chat_welcome_title">Hi, I am DSH Agent</string>
-    <string name="chat_welcome_desc">What would you like to build on your phone today?</string>
-    <string name="chip_init_workspace">New Workspace</string>
-    <string name="chip_organize_docs">Organize Documents</string>
-    <string name="chip_automation">Schedule Tasks</string>
-    <string name="chip_run_cli">Run CLI Commands</string>
-    <string name="chat_input_placeholder">Message your local Agent...</string>
-    <string name="chat_thinking">Reasoning &amp; executing tools...</string>
-    <string name="tool_executed_summary">Executed tools in local environment</string>
-    <string name="action_copy">Copy</string>
-    <string name="action_like">Like</string>
-    <string name="action_dislike">Dislike</string>
-    <string name="tag_local_processing">Local Container</string>
-
-    <!-- Reasoning Levels -->
-    <string name="reasoning_fast">Fast</string>
-    <string name="reasoning_deep_think">DeepThink</string>
-    <string name="reasoning_max">Max Reasoning</string>
-
-    <!-- Composer Dock -->
-    <string name="stat_tok_per_sec">%1$.1f tok/s</string>
-    <string name="stat_context_cache">Context %1$d%% · Cache %2$d%%</string>
-
-    <!-- Drawer -->
-    <string name="drawer_user_name">DeepSeek User</string>
-    <string name="drawer_account_tag">Official OAuth</string>
-    <string name="drawer_balance">Balance: %1$s</string>
-    <string name="drawer_nav_plugins">Plugins</string>
-    <string name="drawer_nav_schedule">Scheduled Automation</string>
-    <string name="drawer_nav_hosts">Remote Host Control</string>
-    <string name="drawer_nav_surface">Built-in Surface Adapter</string>
-    <string name="drawer_nav_approvals">System Approvals</string>
-    <string name="drawer_nav_settings">Preferences &amp; Settings</string>
-    <string name="drawer_section_project">Project &amp; Workspace</string>
-    <string name="drawer_section_history">History Sessions</string>
-    <string name="action_search">Search</string>
-
-    <!-- Plugins Screen -->
-    <string name="plugins_title">Plugins</string>
-    <string name="plugins_subtitle">Install, enable and configure plugins</string>
-    <string name="action_add_plugin">Add Plugin</string>
-    <string name="plugin_dialog_title">Add Plugin</string>
-    <string name="plugin_dialog_desc">Enter plugin npm package name (e.g. dsh-subscription-oauth), as following dsh plugin add in documentation.</string>
-    <string name="plugin_dialog_hint">e.g. dsh-subscription-oauth</string>
-    <string name="plugin_dialog_source">Source: Official npm / Mirrors</string>
-    <string name="action_fill_example">Fill Example</string>
-    <string name="action_install">Install</string>
-    <string name="action_close">Close</string>
-    <string name="action_open">Open</string>
-    <string name="action_open_overlay">Float</string>
-    <string name="action_try">Try</string>
-    <string name="plugin_install_submitted">Submitted install task to local Host: %1$s</string>
-
-    <!-- Files Screen -->
-    <string name="files_title">Workspace Files (Shared Directory)</string>
-    <string name="files_subtitle">Mounted to container: /workspace | %1$s</string>
-    <string name="files_empty">Workspace is empty. Files produced by Agent will appear here directly.</string>
-    <string name="files_folder">Folder</string>
-
-    <!-- Hosts Screen -->
-    <string name="hosts_title">Hosts &amp; Connections</string>
-    <string name="hosts_subtitle">Local first; remote connection is optional (v4.0 §11)</string>
-    <string name="action_scan_pair">Scan QR Code</string>
-    <string name="host_tag_local">Local Environment</string>
-    <string name="host_desc_local">127.0.0.1 (Phone User Space)</string>
-
-    <!-- Approval Screen -->
-    <string name="approval_title">System &amp; High-Risk Approvals</string>
-    <string name="approval_subtitle">Strictly govern Agent actions under your control (v4.0 §6.5)</string>
-    <string name="approval_empty">No pending high-risk tool calls or external writes</string>
-    <string name="approval_status_pending">Pending</string>
-    <string name="approval_status_submitting">Submitting</string>
-    <string name="approval_status_confirmed">Approved</string>
-    <string name="approval_status_rejected">Rejected</string>
-    <string name="action_deny">Deny</string>
-    <string name="action_approve">Approve</string>
-
-    <!-- Settings Screen -->
-    <string name="settings_title">Settings &amp; Preferences</string>
-    <string name="settings_subtitle">Model, local Linux container policy, workspace, and security</string>
-    <string name="settings_group_account">Account &amp; Authorization (OAuth)</string>
-    <string name="settings_group_model">Model &amp; Reasoning</string>
-    <string name="settings_group_lifecycle">Local Container &amp; Lifecycle</string>
-    <string name="settings_group_storage">Files &amp; Storage</string>
-    <string name="settings_group_security">System Safety &amp; Protection</string>
-    <string name="settings_group_maintenance">Maintenance &amp; Diagnostics</string>
-
-    <string name="setting_default_model">Default Model</string>
-    <string name="setting_default_reasoning">Default Reasoning Level</string>
-    <string name="setting_idle_sleep">Idle Auto Sleep</string>
-    <string name="setting_idle_sleep_desc">Stop container after %1$d minutes idle to save battery</string>
-    <string name="setting_keep_alive">Task Keep Alive</string>
-    <string name="setting_keep_alive_desc">Enable foreground service and wake lock during task runs</string>
-    <string name="setting_workspace_path">Workspace Real Directory</string>
-    <string name="setting_high_risk_confirm">High-Risk Tool Confirmation</string>
-    <string name="setting_high_risk_confirm_desc">Require popup approval before executing shell or overwriting files</string>
-    <string name="setting_create_backup">Create User Data Snapshot</string>
-    <string name="setting_create_backup_desc">Backup $DSH_HOME (sessions, config, credentials, and plugins)</string>
-    <string name="setting_export_diag">Export Scrubbed Diagnostics</string>
-    <string name="setting_export_diag_desc">Automatically sanitize tokens and keys into a diagnostic zip</string>
-
     <!-- Runtime Control Screen -->
-    <string name="runtime_title">Local Linux Runtime Control</string>
-    <string name="runtime_phase">Phase: %1$s</string>
-    <string name="runtime_port">Port: %1$s</string>
-    <string name="runtime_token">Token: %1$s</string>
-    <string name="action_start_container">Start DSH Container</string>
-    <string name="action_stop_container">Stop DSH Container</string>
-    <string name="onb_auth_title">Get started</string>
-    <string name="onb_auth_desc">Sign in with a DeepSeek account or add an API key to begin. Your projects and files stay on this device.</string>
-    <string name="onb_auth_login">Sign in</string>
-    <string name="onb_auth_add_key">Add API key</string>
-    <string name="onb_auth_later">Later</string>
-    <string name="onb_welcome_desc">Build potential. Explore intelligence.</string>
+    <string name="ob_back">Back</string>
+    <string name="ob_tagline">A coding agent that works right on your phone</string>
+    <string name="ob_feat_linux">Real Linux</string>
+    <string name="ob_feat_linux_sub">Terminal, git, Python and Node without a computer</string>
+    <string name="ob_feat_agent">The agent does the work</string>
+    <string name="ob_feat_agent_sub">Reads the project, edits code and checks the build itself</string>
+    <string name="ob_feat_control">You stay in control</string>
+    <string name="ob_feat_control_sub">Edits and deletions only with your consent</string>
+    <string name="ob_start">Get started</string>
+    <string name="ob_restore">Restore from backup</string>
+    <string name="ob_step">Step %1$d of %2$d</string>
+    <string name="ob_model_title">Connect a model</string>
+    <string name="ob_model_lead">DSH works with DeepSeek using your API key. You pay the provider only for what you use.</string>
+    <string name="ob_prov_custom">Custom API</string>
+    <string name="ob_key_label">API key</string>
+    <string name="ob_key_label_custom">API address and key</string>
+    <string name="ob_key_ph_custom">API key</string>
+    <string name="ob_url_ph">https://api.example.com/v1</string>
+    <string name="ob_show_key">Show key</string>
+    <string name="ob_hide_key">Hide key</string>
+    <string name="ob_paste">Paste</string>
+    <string name="ob_key_idle">The key is kept in Android secure storage</string>
+    <string name="ob_key_busy">Checking the key…</string>
+    <string name="ob_key_ok_balance">Key works · balance %1$s</string>
+    <string name="ob_key_ok">Key works</string>
+    <string name="ob_key_ok_models">Key works · models: %1$d</string>
+    <string name="ob_key_bad">The key did not work — make sure you copied all of it</string>
+    <string name="ob_key_offline">No connection — the key will be checked once online</string>
+    <string name="ob_url_bad">The address must start with https://</string>
+    <string name="ob_where">Where do I get a key?</string>
+    <string name="ob_continue">Continue</string>
+    <string name="ob_skip_key">Skip — I’ll connect later</string>
+    <string name="ob_ws_title">Where to keep projects</string>
+    <string name="ob_ws_lead">The agent reads and changes files here. You can change this later in settings.</string>
+    <string name="ob_ws_private">Inside DSH</string>
+    <string name="ob_recommended">Recommended</string>
+    <string name="ob_ws_private_sub">Private: other apps can’t see the files. No permissions needed.</string>
+    <string name="ob_ws_shared">Phone storage</string>
+    <string name="ob_ws_shared_sub">Files are visible to other apps. Needs access to all files.</string>
+    <string name="ob_ws_note">Android will ask for “Access to all files”</string>
+    <string name="ob_allow">Allow access</string>
+    <string name="ob_env_title">Installing Linux</string>
+    <string name="ob_env_done">All set</string>
+    <string name="ob_env_failed">Linux did not install</string>
+    <string name="ob_env_lead">Debian with git, Python and Node. This happens once — you can minimize the app, the install keeps going.</string>
+    <string name="ob_eta_s">≈ %1$d s</string>
+    <string name="ob_eta_min">≈ %1$d min</string>
+    <string name="ob_ready">done</string>
+    <string name="ob_stage_download">Download</string>
+    <string name="ob_stage_unpack">Unpacking</string>
+    <string name="ob_stage_check">Check</string>
+    <string name="ob_of">%1$s of %2$s</string>
+    <string name="ob_notify">Notify when ready</string>
+    <string name="ob_notify_sub">One notification</string>
+    <string name="ob_installing">Installing…</string>
+    <string name="ob_begin">Start working</string>
+    <string name="ob_retry">Retry</string>
+    <string name="ob_notify_title">DSH is ready</string>
+    <string name="ob_notify_text">Linux is installed — you can start.</string>
+    <string name="ob_err_tls">Could not establish a secure connection. Check the date and time on the phone, or try another network.</string>
+    <string name="ob_err_offline">No internet connection. Connect and tap “Retry”.</string>
+    <string name="ob_err_space">Not enough free space: Linux needs about 1.5 GB.</string>
+    <string name="ob_err_generic">Something went wrong while installing. Tap “Retry”.</string>
 </resources>

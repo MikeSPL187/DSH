@@ -3,11 +3,10 @@ package com.deepseek.dsh.runtime.host
 import java.util.regex.Pattern
 
 /**
- * v4.0 设计文档 §4.3:
- * 端口随机回环；解析 stdout 的 `dsh web:` URL 与 token
- * 例如:
+ * Порт — случайный на loopback; из stdout разбираются URL `dsh web:` и токен,
+ * например:
  * "dsh web: listening on http://127.0.0.1:45321/?token=a8f9c1b7e4..."
- * 或 "dsh web: listening on http://localhost:45321/?token=..."
+ * или "dsh web: listening on http://localhost:45321/?token=..."
  */
 object ProcessOutputParser {
 

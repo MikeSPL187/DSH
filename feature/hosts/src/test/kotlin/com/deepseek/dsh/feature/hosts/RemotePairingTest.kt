@@ -14,7 +14,7 @@ class RemotePairingTest {
         val validQr = """
             {
                 "v": 1,
-                "name": "办公电脑 DSH",
+                "name": "Work PC DSH",
                 "url": "https://192.168.1.100:8443",
                 "fp": "SHA256:abcd1234ef5678",
                 "pair": "PAIR-9988",
@@ -26,7 +26,7 @@ class RemotePairingTest {
         assertTrue(parsed.isSuccess)
         val payload = parsed.getOrNull()
         assertNotNull(payload)
-        assertEquals("办公电脑 DSH", payload!!.name)
+        assertEquals("Work PC DSH", payload!!.name)
         assertEquals("https://192.168.1.100:8443", payload.url)
         assertEquals("SHA256:abcd1234ef5678", payload.fp)
         assertEquals("PAIR-9988", payload.pair)
@@ -39,7 +39,7 @@ class RemotePairingTest {
         val expiredQr = """
             {
                 "v": 1,
-                "name": "过期主机",
+                "name": "Expired host",
                 "url": "https://192.168.1.100:8443",
                 "fp": "SHA256:abcd1234ef5678",
                 "pair": "PAIR-9988",

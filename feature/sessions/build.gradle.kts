@@ -26,7 +26,6 @@ android {
 
 dependencies {
     implementation(project(":core:model"))
-    implementation(project(":core:ui"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:data"))
     implementation(project(":core:protocol"))
@@ -35,4 +34,5 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.activity.compose)
 }

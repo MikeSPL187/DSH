@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Терминал (#screen-terminal). ru / en. -->
+<resources>
+    <string name="tm_title">Терминал</string>
+    <string name="tm_font">Размер шрифта</string>
+    <string name="tm_font_toast">Шрифт %1$s pt</string>
+    <string name="tm_clear">Очистить</string>
+    <string name="tm_add">Новая вкладка</string>
+    <string name="tm_add_toast">Новая вкладка %1$s</string>
+    <string name="tm_placeholder">Команда или help</string>
+    <string name="tm_placeholder_ro">Только просмотр</string>
+    <string name="tm_input">Команда</string>
+    <string name="tm_run">Выполнить</string>
+    <string name="tm_send">Отправить программе</string>
+    <string name="tm_stop">Остановить (Ctrl+C)</string>
+    <string name="tm_sec">%1$s с</string>
+    <string name="tm_min_sec">%1$d мин %2$d с</string>
+    <string name="tm_code">код %1$d</string>
+    <string name="tm_interrupted">прервано</string>
+    <string name="tm_explain">Объяснить</string>
+    <string name="tm_copy">Копировать</string>
+    <string name="tm_copied">Скопировано</string>
+    <string name="tm_retry">Повторить</string>
+    <string name="tm_explain_wait">Разбираю вывод…</string>
+    <string name="tm_explain_nokey">Нужен ключ DeepSeek — добавьте его в Настройках → Модели.</string>
+    <string name="tm_explain_badkey">Ключ DeepSeek не подходит — замените его в Настройках → Модели.</string>
+    <string name="tm_explain_balance">На балансе DeepSeek закончились средства.</string>
+    <string name="tm_explain_offline">Нет связи с DeepSeek. Проверьте сеть и повторите.</string>
+    <string name="tm_explain_prompt">Ты помощник в терминале Linux на телефоне (приложение DSH). Пользователь выполнил команду, и она завершилась с ошибкой. Коротко, в 1–3 предложениях, объясни причину и что сделать. Без Markdown. Отвечай по-русски. Если одна команда исправит проблему, добавь последней строкой: FIX: &lt;команда&gt;.</string>
+    <string name="tm_connecting">Подключение к Linux…</string>
+    <string name="tm_sub_connecting">Подключение…</string>
+    <string name="tm_sub_offline">Нет подключения</string>
+    <string name="tm_no_session">Терминал открывается в папке сессии. Начните сессию в чате — и возвращайтесь.</string>
+    <string name="tm_unavailable">Терминал недоступен: Linux не отвечает.</string>
+    <string name="tm_closed">Оболочка завершилась.</string>
+    <string name="tm_reopen">Открыть заново</string>
+    <string name="tm_try_again">Повторить</string>
+    <string name="tm_empty">Здесь появятся команды и их вывод.
+Начните с help или ls.</string>
+    <string name="tm_tab_close">Закрыть вкладку</string>
+    <string name="tm_tab_close_sub">Процесс оболочки будет остановлен</string>
+</resources>

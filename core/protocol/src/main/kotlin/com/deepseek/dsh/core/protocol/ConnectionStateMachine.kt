@@ -6,12 +6,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.Serializable
 
 /**
- * v4.0 设计文档 §5.3: 连接状态机
+ * Машина состояний соединения с Host.
  *
  * Idle -> Resolving -> Authenticating -> Handshaking -> Ready
  * Ready -> Degraded -> Retrying -> Authenticating
  * Authenticating -> FatalAuth (401/403)
- * Retrying -> FatalNetwork (超限)
+ * Retrying -> FatalNetwork (попытки исчерпаны)
  * Ready -> Closed
  */
 @Serializable
@@ -59,11 +59,8 @@ class ConnectionStateMachine {
     }
 
     @Synchronized
-    fun getGeneration(): Long = currentGeneration
-
-    @Synchronized
     fun transitionTo(newState: ConnectionState): Boolean {
-        // 丢弃旧 generation 的状态跃迁
+        // Переходы от прошлого поколения соединения игнорируются.
         val targetGen = when (newState) {
             is ConnectionState.Idle -> currentGeneration
             is ConnectionState.Resolving -> newState.generation

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cleartext HTTP is allowed only for the on-device Host on the loopback interface
+  (http://127.0.0.1:<port>). Everything else - plugin/rootfs downloads, remote Hosts,
+  market indexes - must use HTTPS with system CAs (user-installed CAs are not trusted).
+  To reach a desktop Host over plain HTTP, use an SSH tunnel to 127.0.0.1 or a TLS proxy.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

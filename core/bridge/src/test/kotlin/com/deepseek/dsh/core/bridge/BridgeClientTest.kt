@@ -20,14 +20,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * bridge/v1 客户端契约测试。
+ * Контрактные тесты клиента bridge/v1.
  *
- * 用一个拦截器伪造 Host 响应，因此测试覆盖的是解码、协商、降级与错误映射，
- * 不依赖真实 Host，也不需要网络。
+ * Ответы Host подделывает перехватчик: проверяются разбор, согласование, запасные пути и коды ошибок,
+ * без настоящего Host и без сети.
  */
 class BridgeClientTest {
 
-    /** 用固定的响应队列构造一个 OkHttpClient。 */
+    /** OkHttpClient с заданной очередью ответов. */
     private fun clientWith(
         vararg responses: Pair<Int, String>,
         recorder: MutableList<String> = mutableListOf(),
@@ -124,7 +124,7 @@ class BridgeClientTest {
             { "ok": true, "provider": "client-slots", "version": 1,
               "data": { "slot": "plugins.item",
                         "registrations": [ { "slot": "plugins.item", "id": "agent-loop", "order": 30,
-                                             "label": "Agent 循环", "package": "pkg",
+                                             "label": "Agent loop", "package": "pkg",
                                              "render": { "kind": "component", "componentId": "agent-loop" } } ],
                         "emptySlots": [] },
               "warnings": [] }
@@ -157,8 +157,8 @@ class BridgeClientTest {
 
     @Test
     fun `a 404 means the bridge plugin is absent, not that the Host is down`() = runBlocking {
-        // 回归：404 曾被报成 transport/unreachable，于是插件页提示去查网络，
-        // 而真正要做的是在设置里安装插件。
+        // Регрессия: 404 сообщался как transport/unreachable, и страница плагинов советовала проверить сеть,
+        // хотя нужно было установить плагин в настройках.
         val client = BridgeClient("http://127.0.0.1:43121", clientWith(404 to "not found"))
         val result = client.query("client-slots", "list") { it }
         assertTrue(result is BridgeResult.Failure)

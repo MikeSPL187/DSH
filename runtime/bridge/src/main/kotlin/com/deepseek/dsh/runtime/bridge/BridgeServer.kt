@@ -13,35 +13,63 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
-import java.io.BufferedReader
 import java.io.File
-import java.io.InputStreamReader
-import java.io.PrintWriter
+import java.io.IOException
+import java.io.InputStream
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
-import java.util.concurrent.Executors
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.Semaphore
+import java.util.concurrent.SynchronousQueue
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 
 /**
- * v4.0 设计文档 §10.2:
- * 本地回环 BridgeServer (127.0.0.1 随机端口)，承载 Node 容器侧 dsh-android-bridge 插件发来的 JSON-RPC。
+ * Локальный BridgeServer на loopback (127.0.0.1, случайный порт): принимает JSON-RPC
+ * от плагина dsh-android-bridge в контейнере Node.
  *
- * 鉴权：每个请求必须携带 [BridgeRequest.auth]，其值由 [BridgeAuth] 在每次 Host
- * 启动时轮换并写入 guest 的 `/root/.dsh/.bridge_token`。未配置 token 时拒绝所有
- * 请求（fail closed），不允许退化成无鉴权模式。
+ * Авторизация: каждый запрос несёт [BridgeRequest.auth]; значение [BridgeAuth] меняет при каждом запуске
+ * Host и пишет в `/root/.dsh/.bridge_token` гостя. Без заданного токена отклоняются все
+ * запросы (fail closed), режима без авторизации нет.
+ *
+ * Пределы ресурсов (аудит F-06/N-04): к порту loopback может подключиться любое приложение, токен защищает только RPC,
+ * но не сами accept/readLine. Поэтому: число одновременных соединений ограничено (сверх — сразу закрываются), первая строка
+ * должна прийти быстро, длина строки ограничена, неавторизованное соединение с неразборным содержимым сразу рвётся,
+ * вывод процессов ограничен (поток stdout не раздует память приложения).
+ *
+ * @param workspacePath папка, к которой в Host привязан `/workspace`; совпадает с Host.
  */
 class BridgeServer(
     private val context: Context,
     private val tokenFile: File? = null,
-    private val port: Int = 0 // 0 = 随机可用端口
+    private val port: Int = 0, // 0 — случайный свободный порт
+    private val workspacePath: String? = null,
+    private val limits: Limits = Limits(),
 ) {
+    /** Пределы соединений и вывода; тесты могут уменьшить. */
+    data class Limits(
+        val maxClients: Int = 32,
+        val firstLineTimeoutMs: Int = 15_000,
+        val idleTimeoutMs: Int = 60_000,
+        val maxLineBytes: Int = 4 * 1024 * 1024,
+        val maxOutputChars: Int = 8 * 1024 * 1024,
+        val maxProcessTimeoutMs: Long = 30L * 60 * 1000,
+    )
+
     private var serverSocket: ServerSocket? = null
-    private val executor = Executors.newCachedThreadPool()
+    private val clientPermits = Semaphore(limits.maxClients)
+    private val activeClients = ConcurrentHashMap.newKeySet<Socket>()
+    private val executor = ThreadPoolExecutor(
+        0, limits.maxClients, 30, TimeUnit.SECONDS, SynchronousQueue(),
+    ) { runnable -> Thread(runnable, "dsh-bridge-client").apply { isDaemon = true } }
     private val json = Json { ignoreUnknownKeys = true }
+    @Volatile
     private var isRunning = false
 
-    /** 本次 Host 启动使用的 token；[start] 之前为 null，此时拒绝所有请求。 */
+    /** Токен этого запуска Host; до [start] — null, и все запросы отклоняются. */
     @Volatile
     private var expectedToken: String? = null
 
@@ -51,29 +79,45 @@ class BridgeServer(
     fun start(): Int {
         if (isRunning) return localPort
 
-        // 每次 Host 启动轮换 token，并写到 guest 的 DSH_HOME。Host 侧补丁按请求
-        // 携带；没有 token 文件就拒绝服务，不能因为「忘了传 token」退化成无鉴权。
+        // При каждом запуске Host токен меняется и пишется в DSH_HOME гостя. Патчи Host передают его
+        // в запросах; нет файла токена — отказ: «забыли передать токен» не должно превращаться в режим без авторизации.
         expectedToken = tokenFile?.let { file ->
             BridgeAuth.newToken().also { BridgeAuth.writeTokenFile(file, it) }
         }
 
-        // 显式绑定 127.0.0.1：ServerSocket(port) 默认绑定所有网卡，仅靠注释声称
-        // loopback 不成立；桥的能力是设备级命令，绝不能对局域网开放。
+        // Явная привязка к 127.0.0.1: ServerSocket(port) по умолчанию слушает все интерфейсы, и одного комментария
+        // «loopback» мало; возможности моста — команды уровня устройства, в локальную сеть их открывать нельзя.
         val ss = ServerSocket()
         ss.bind(InetSocketAddress(InetAddress.getByName("127.0.0.1"), port))
         serverSocket = ss
         isRunning = true
 
-        executor.execute {
+        Thread({
             while (isRunning && !ss.isClosed) {
-                try {
-                    val client = ss.accept()
-                    executor.execute { handleClient(client) }
+                val client = try {
+                    ss.accept()
                 } catch (_: Exception) {
                     break
                 }
+                // Соединения сверх предела закрываются сразу, а не ждут в очереди, занимая память и потоки.
+                if (!clientPermits.tryAcquire()) {
+                    runCatching { client.close() }
+                    continue
+                }
+                try {
+                    executor.execute {
+                        try {
+                            handleClient(client)
+                        } finally {
+                            clientPermits.release()
+                        }
+                    }
+                } catch (_: RejectedExecutionException) {
+                    clientPermits.release()
+                    runCatching { client.close() }
+                }
             }
-        }
+        }, "dsh-bridge-accept").apply { isDaemon = true }.start()
         return ss.localPort
     }
 
@@ -84,31 +128,62 @@ class BridgeServer(
             serverSocket?.close()
         } catch (_: Exception) {}
         serverSocket = null
+        activeClients.forEach { runCatching { it.close() } }
         executor.shutdownNow()
     }
 
     private fun handleClient(socket: Socket) {
-        socket.use { s ->
-            val reader = BufferedReader(InputStreamReader(s.getInputStream()))
-            val writer = PrintWriter(s.getOutputStream(), true)
-
-            var line: String?
-            while (reader.readLine().also { line = it } != null) {
-                val reqStr = line ?: continue
-                try {
-                    val request = json.decodeFromString<BridgeRequest>(reqStr)
+        activeClients.add(socket)
+        try {
+            socket.use { s ->
+                s.soTimeout = limits.firstLineTimeoutMs
+                val input = s.getInputStream().buffered()
+                val writer = s.getOutputStream().bufferedWriter(Charsets.UTF_8)
+                fun send(response: BridgeResponse) {
+                    writer.write(json.encodeToString(BridgeResponse.serializer(), response))
+                    writer.write("\n")
+                    writer.flush()
+                }
+                var authenticated = false
+                while (isRunning) {
+                    // Таймаут, слишком длинная строка и EOF завершают соединение.
+                    val line = readBoundedLine(input, limits.maxLineBytes) ?: return
+                    if (line.isBlank()) continue
+                    val request = runCatching { json.decodeFromString<BridgeRequest>(line) }.getOrNull()
+                    if (request == null) {
+                        // Неавторизованному соединению ошибка разбора не возвращается — сразу разрыв.
+                        if (!authenticated) return
+                        send(BridgeResponse(id = "error", error = BridgeError(code = -32700, message = "Parse error")))
+                        continue
+                    }
                     val response = dispatchRequest(request)
-                    writer.println(json.encodeToString(BridgeResponse.serializer(), response))
-                    // 鉴权失败直接断开，不给同一连接继续试 token 的机会。
+                    send(response)
+                    // При ошибке авторизации — разрыв, перебирать токены в том же соединении нельзя.
                     if (response.error?.code == BridgeAuth.UNAUTHORIZED_CODE) return
-                } catch (e: Exception) {
-                    val err = BridgeResponse(
-                        id = "error",
-                        error = BridgeError(code = -32700, message = "Parse error: ${e.message}")
-                    )
-                    writer.println(json.encodeToString(BridgeResponse.serializer(), err))
+                    authenticated = true
+                    s.soTimeout = limits.idleTimeoutMs
                 }
             }
+        } catch (_: IOException) {
+            // Таймаут, разрыв с той стороны или слишком длинная строка: соединение уже закрыто.
+        } finally {
+            activeClients.remove(socket)
+        }
+    }
+
+    /** Прочитать строку (до `\n`, без `\r`); длиннее [maxBytes] — исключение, EOF без данных — null. */
+    private fun readBoundedLine(input: InputStream, maxBytes: Int): String? {
+        val buffer = java.io.ByteArrayOutputStream()
+        while (true) {
+            val next = input.read()
+            if (next == -1) {
+                return if (buffer.size() == 0) null else buffer.toString(Charsets.UTF_8.name())
+            }
+            if (next == '\n'.code) {
+                return buffer.toString(Charsets.UTF_8.name()).removeSuffix("\r")
+            }
+            buffer.write(next)
+            if (buffer.size() > maxBytes) throw IOException("bridge request line too long")
         }
     }
 
@@ -135,6 +210,15 @@ class BridgeServer(
                 }
 
                 BridgeMethod.GET_CLIPBOARD.methodName -> {
+                    if (!BridgePolicy.isClipboardReadAllowed(context)) {
+                        return BridgeResponse(
+                            id = request.id,
+                            error = BridgeError(
+                                code = CLIPBOARD_DENIED_CODE,
+                                message = "Clipboard access is disabled in DSH settings (Mobile runtime)",
+                            ),
+                        )
+                    }
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                     val text = clipboard?.primaryClip?.getItemAt(0)?.text?.toString() ?: ""
                     val res = buildJsonObject { put("text", text) }
@@ -150,7 +234,7 @@ class BridgeServer(
                 }
 
                 BridgeMethod.SHOW_NOTIFICATION.methodName -> {
-                    val title = (request.params as? JsonObject)?.get("title")?.jsonPrimitive?.content ?: "DSH 提示"
+                    val title = (request.params as? JsonObject)?.get("title")?.jsonPrimitive?.content ?: com.deepseek.dsh.core.model.Tr.t("DSH notice", "Уведомление DSH")
                     val content = (request.params as? JsonObject)?.get("content")?.jsonPrimitive?.content ?: ""
                     showNotification(title, content)
                     val res = buildJsonObject { put("success", true) }
@@ -164,7 +248,7 @@ class BridgeServer(
                         putExtra(Intent.EXTRA_TEXT, text)
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK
                     }
-                    context.startActivity(Intent.createChooser(intent, "分享").apply {
+                    context.startActivity(Intent.createChooser(intent, com.deepseek.dsh.core.model.Tr.t("Share", "Поделиться")).apply {
                         flags = Intent.FLAG_ACTIVITY_NEW_TASK
                     })
                     val res = buildJsonObject { put("success", true) }
@@ -205,18 +289,16 @@ class BridgeServer(
 
 
     /**
-     * 执行一条 bash 工具命令。
+     * Выполнить команду инструмента bash.
      *
-     * 必须走 proot 里的 `/bin/sh`：Agent 的 bash 工具面对的是工作区（`/workspace`），
-     * 需要 rootfs 里的 git/diff/grep 等工具链；早期实现用 Android 的 `/system/bin/sh`，
-     * 导致 git 不存在、工作区路径也不匹配，还会让 workspace/changes 收不到改动。
+     * Только через `/bin/sh` в proot: инструмент bash агента работает с рабочей папкой (`/workspace`)
+     * и нуждается в git/diff/grep из rootfs; раньше использовался `/system/bin/sh` Android —
+     * не было git, пути рабочей папки не совпадали, и workspace/changes не видел изменений.
      */
     private fun execShell(command: String, cwd: String, timeoutMs: Long): JsonObject {
         val nativeLib = context.applicationInfo.nativeLibraryDir
         val rootfs = java.io.File(context.filesDir, "rootfs").absolutePath
-        val visibleWorkspace = java.io.File(
-            android.os.Environment.getExternalStorageDirectory(), "Documents/DSH-Workspace"
-        ).absolutePath
+        val visibleWorkspace = resolvedWorkspacePath()
         val passwd = java.io.File(context.filesDir, "runtime/etc/passwd").absolutePath
         val group = java.io.File(context.filesDir, "runtime/etc/group").absolutePath
         val env = mutableListOf(
@@ -248,37 +330,17 @@ class BridgeServer(
         val builder = ProcessBuilder(proot)
         builder.redirectErrorStream(false)
         builder.environment()["PROOT_LOADER"] = "$nativeLib/libproot-loader.so"
-        // libproot.so 依赖 nativeLibraryDir 里的 libtalloc 等库；直接 exec 时必须显式给
-        // LD_LIBRARY_PATH，否则会报 "CANNOT LINK EXECUTABLE ... libtalloc.so not found"。
+        // libproot.so зависит от libtalloc и других библиотек в nativeLibraryDir; при прямом exec нужно явно задать
+        // LD_LIBRARY_PATH, иначе «CANNOT LINK EXECUTABLE ... libtalloc.so not found».
         builder.environment()["LD_LIBRARY_PATH"] = nativeLib
         builder.environment()["PROOT_TMP_DIR"] =
             java.io.File(context.cacheDir, "proot-tmp").apply { mkdirs() }.absolutePath
-        val process = builder.start()
-        val stdout = StringBuilder()
-        val stderr = StringBuilder()
-        val outThread = Thread {
-            runCatching { process.inputStream.bufferedReader().use { r -> r.forEachLine { stdout.appendLine(it) } } }
-        }
-        val errThread = Thread {
-            runCatching { process.errorStream.bufferedReader().use { r -> r.forEachLine { stderr.appendLine(it) } } }
-        }
-        outThread.start(); errThread.start()
-        val finished = process.waitFor(timeoutMs.coerceAtLeast(1_000), java.util.concurrent.TimeUnit.MILLISECONDS)
-        if (!finished) process.destroyForcibly()
-        outThread.join(2_000); errThread.join(2_000)
-        return buildJsonObject {
-            put("exitCode", if (finished) process.exitValue() else -1)
-            put("stdout", stdout.toString())
-            put("stderr", stderr.toString())
-            put("timedOut", !finished)
-        }
+        return runProcess(builder, timeoutMs)
     }
     private fun execProot(argv: List<String>, cwd: String, timeoutMs: Long): JsonObject {
         val nativeLib = context.applicationInfo.nativeLibraryDir
         val rootfs = java.io.File(context.filesDir, "rootfs").absolutePath
-        val visible = java.io.File(
-            android.os.Environment.getExternalStorageDirectory(), "Documents/DSH-Workspace"
-        ).absolutePath
+        val visible = resolvedWorkspacePath()
         val command = mutableListOf(
             "$nativeLib/libproot.so", "-r", rootfs,
             "-b", "/proc", "-b", "/dev", "-b", "/sys",
@@ -293,27 +355,71 @@ class BridgeServer(
         return runProcess(builder, timeoutMs)
     }
 
-    private fun runProcess(builder: ProcessBuilder, timeoutMs: Long): JsonObject {
+    /** Совпадает с привязкой `/workspace` Host; не передано — общая рабочая папка по умолчанию. */
+    private fun resolvedWorkspacePath(): String = (
+        workspacePath?.takeIf { it.isNotBlank() }
+            ?: java.io.File(android.os.Environment.getExternalStorageDirectory(), "Documents/DSH-Workspace").absolutePath
+        ).also {
+            // `-b путь:/workspace`: двоеточие в пути proot принял бы за разделитель и смонтировал папку в чужое место.
+            require(':' !in it) { "workspace path must not contain ':'" }
+        }
+
+    /**
+     * Запустить процесс и собрать вывод. Вывод обрезается по пределу символов, но канал читается до конца (иначе процесс
+     * встанет на заполненном канале); по таймауту — принудительное завершение; результат читается после окончания потоков чтения, без гонок.
+     */
+    internal fun runProcess(builder: ProcessBuilder, timeoutMs: Long): JsonObject {
+        val effectiveTimeout = timeoutMs.coerceIn(1_000, limits.maxProcessTimeoutMs)
         val process = builder.start()
-        val stdout = StringBuilder()
-        val stderr = StringBuilder()
-        val outThread = Thread { runCatching { process.inputStream.bufferedReader().use { r -> r.forEachLine { stdout.appendLine(it) } } } }
-        val errThread = Thread { runCatching { process.errorStream.bufferedReader().use { r -> r.forEachLine { stderr.appendLine(it) } } } }
+        val stdout = BoundedText(limits.maxOutputChars)
+        val stderr = BoundedText(limits.maxOutputChars)
+        val outThread = Thread { stdout.drain(process.inputStream) }.apply { isDaemon = true }
+        val errThread = Thread { stderr.drain(process.errorStream) }.apply { isDaemon = true }
         outThread.start(); errThread.start()
-        val finished = process.waitFor(timeoutMs.coerceAtLeast(1_000), java.util.concurrent.TimeUnit.MILLISECONDS)
+        val finished = process.waitFor(effectiveTimeout, TimeUnit.MILLISECONDS)
         if (!finished) process.destroyForcibly()
         outThread.join(2_000); errThread.join(2_000)
         return buildJsonObject {
             put("exitCode", if (finished) process.exitValue() else -1)
-            put("stdout", stdout.toString())
-            put("stderr", stderr.toString())
+            put("stdout", stdout.text())
+            put("stderr", stderr.text())
             put("timedOut", !finished)
+            if (stdout.truncated || stderr.truncated) put("truncated", true)
         }
+    }
+
+    /** Потокобезопасный ограниченный сборщик вывода. */
+    internal class BoundedText(private val limit: Int) {
+        private val builder = StringBuilder()
+        @Volatile
+        var truncated = false
+            private set
+
+        fun drain(stream: InputStream) {
+            runCatching {
+                stream.bufferedReader(Charsets.UTF_8).use { reader ->
+                    val chunk = CharArray(8 * 1024)
+                    while (true) {
+                        val read = reader.read(chunk)
+                        if (read < 0) break
+                        synchronized(this) {
+                            val room = limit - builder.length
+                            if (room > 0) builder.append(chunk, 0, minOf(room, read))
+                            if (read > room) truncated = true
+                        }
+                    }
+                }
+            }
+        }
+
+        @Synchronized
+        fun text(): String =
+            if (truncated) builder.toString() + "\n[output truncated at $limit chars]" else builder.toString()
     }    private fun showNotification(title: String, content: String) {
         val channelId = "dsh_bridge_notify"
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "DSH 设备通知", NotificationManager.IMPORTANCE_DEFAULT)
+            val channel = NotificationChannel(channelId, com.deepseek.dsh.core.model.Tr.t("DSH device notifications", "Уведомления DSH"), NotificationManager.IMPORTANCE_DEFAULT)
             nm.createNotificationChannel(channel)
         }
         val notification = NotificationCompat.Builder(context, channelId)
@@ -329,3 +435,6 @@ class BridgeServer(
 
 
 
+
+/** Код ошибки моста: чтение буфера обмена запрещено настройкой пользователя. */
+internal const val CLIPBOARD_DENIED_CODE = -32010

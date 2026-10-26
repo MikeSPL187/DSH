@@ -5,45 +5,44 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import java.io.File
 
 /**
- * bridge 插件的发布信息（APK 内置）。
+ * Сведения о выпуске bridge-плагина (встроены в APK).
  *
- * 插件本身不进 APK：它从 GitHub 的 tag 源码归档安装。APK 只带这张小清单，说明
- * 「安装源在哪里」与「首次打包时的基准版本」，因此插件发版不需要重打 APK，也不需要
- * 重下 rootfs。
+ * Сам плагин в APK не входит: он ставится из архива исходников тега на GitHub. В APK только этот маленький список:
+ * «откуда ставить» и «базовая версия при первой сборке», поэтому выпуск плагина не требует ни новой сборки APK,
+ * ни новой загрузки rootfs.
  */
 @Serializable
 data class BridgePluginManifest(
-    /** 包名，必须与插件仓库 `package.json` 的 name 一致。 */
+    /** Имя пакета; должно совпадать с name в `package.json` репозитория плагина. */
     val packageName: String = DEFAULT_PACKAGE,
     /**
-     * 基准版本，与 rootfs 版本串里的 `-bridge` 段同义。
+     * Базовая версия, то же, что часть `-bridge` в строке версии rootfs.
      *
-     * 它**不是**更新目标：更新目标永远是插件仓库的最新发布 tag —— 这份清单随
-     * APK 发布，会落后于插件仓库。字段保留是为了离线时说明「打包时用的是哪一版」。
+     * Это **не** цель обновления: цель всегда — последний тег выпуска в репозитории плагина; этот список
+     * выходит вместе с APK и отстаёт от репозитория. Поле оставлено, чтобы без сети сказать, «какая версия была при сборке».
      */
     val version: String = "",
-    /** 安装源：GitHub 仓库地址，安装时按 `<repo>` 的 `v<version>` tag 下载归档。 */
+    /** Источник: адрес репозитория GitHub; при установке скачивается архив тега `v<version>` из `<repo>`. */
     val repository: String = "",
 ) {
     companion object {
-        /** 与插件仓库保持一致的默认包名。 */
+        /** Имя пакета по умолчанию — как в репозитории плагина. */
         const val DEFAULT_PACKAGE = "dsh-mobile-bridge-plugin"
 
-        /** 内置清单在 assets 里的路径。 */
+        /** Путь встроенного списка в assets. */
         const val ASSET = "bridge-plugin.json"
 
         private val json = Json { ignoreUnknownKeys = true }
 
         /**
-         * 读取 APK 内置清单。
-         * @param context 应用上下文。
-         * @return 清单；缺失或损坏时返回 null，调用方据此隐藏更新入口。
+         * Прочитать встроенный в APK список.
+         * @param context контекст приложения.
+         * @return список; нет или повреждён — null, тогда вход обновления скрывается.
          */
         fun load(context: Context): BridgePluginManifest? = runCatching {
             val raw = context.assets.open(ASSET).bufferedReader().use { it.readText() }
@@ -53,12 +52,12 @@ data class BridgePluginManifest(
 }
 
 /**
- * rootfs 内的 bridge 插件安装器。
+ * Установщик bridge-плагина внутри rootfs.
  *
- * 安装 = 下载已发布的 tag 源码归档 → 校验 → 解压到 profile 的 `node_modules`。
- * 不在 Host 里跑 `dsh plugin add`：那条路依赖 proot 内的 git/pnpm 与 DNS，实测在
- * 手机上不可用（proot 内解析不到 github.com），而且 Host 的 pnpm 会重写 profile
- * 清单 —— 插件实际由 web-app 层的 patch 行挂载，profile 清单不是它的家。
+ * Установка = скачать архив исходников выпущенного тега → проверить → распаковать в `node_modules` профиля.
+ * `dsh plugin add` в Host не запускается: этот путь зависит от git/pnpm и DNS внутри proot и на телефоне
+ * не работает (проверено: github.com из proot не разрешается), а pnpm в Host переписывает список
+ * профиля — плагин на деле подключается строкой патча слоя web-app, список профиля ему не дом.
  */
 class BridgePluginInstaller(
     private val context: Context,
@@ -67,17 +66,17 @@ class BridgePluginInstaller(
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    /** profile 目录；DSH 在 rootfs 内的固定位置。 */
+    /** Папка профиля; постоянное место DSH в rootfs. */
     private val profileDir: File
         get() = File(layout.rootfsDir, "root/.dsh/profiles/web")
 
     /**
-     * 读取 rootfs 内已安装的插件版本。
+     * Версия плагина, установленного в rootfs.
      *
-     * 直接读安装目录的 `package.json`：这是实际落盘的内容，比问 DSH 更快，也
-     * 不依赖 Host 正在运行。
-     * @param packageName 目标包名。
-     * @return 版本号；未安装或读不到时为 null。
+     * Читается `package.json` в папке установки: это то, что реально на диске, быстрее, чем спрашивать DSH,
+     * и не зависит от того, запущен ли Host.
+     * @param packageName имя пакета.
+     * @return версия; не установлено или не прочитать — null.
      */
     fun installedVersion(packageName: String = BridgePluginManifest.DEFAULT_PACKAGE): String? {
         val manifest = File(profileDir, "node_modules/$packageName/package.json")
@@ -91,15 +90,15 @@ class BridgePluginInstaller(
     }
 
     /**
-     * 把插件的某个已发布版本装进 rootfs。
+     * Поставить в rootfs выпущенную версию плагина.
      *
-     * 目标版本来自插件仓库的最新 release，而不是 APK 内置清单：清单随 APK 发布，
-     * 必然落后于插件仓库。安装前先校验归档的包名/版本/入口，任何一步失败都不会
-     * 改动已安装的插件。
-     * @param repository GitHub 仓库地址（APK 清单里的 `repository`）。
-     * @param version 已发布版本，例如 `1.1.0`。
-     * @param onProgress 进度与步骤文案。
-     * @return 成功后读到的插件版本。
+     * Целевая версия — последний выпуск репозитория плагина, а не встроенный список APK: список выходит с APK
+     * и неизбежно отстаёт. До установки проверяются имя пакета, версия и вход в архиве; ошибка любого шага
+     * установленный плагин не меняет.
+     * @param repository адрес репозитория GitHub (`repository` из списка APK).
+     * @param version выпущенная версия, например `1.1.0`.
+     * @param onProgress ход и подписи шагов.
+     * @return версия плагина, прочитанная после успеха.
      */
     suspend fun installFromRelease(
         repository: String,
@@ -110,43 +109,43 @@ class BridgePluginInstaller(
         val rootfsInstalled = File(layout.rootfsDir, "etc/os-release").isFile ||
             File(layout.rootfsDir, "usr/bin/env").isFile
         if (!rootfsInstalled) {
-            return@withContext Result.failure(IllegalStateException("rootfs 未安装，无法更新插件"))
+            return@withContext Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("rootfs is not installed; cannot update the plugin", "rootfs не установлен — обновить плагин нельзя")))
         }
         if (!profileDir.isDirectory) {
             return@withContext Result.failure(
-                IllegalStateException("Host profile 尚未初始化：请先启动一次 Host 再更新插件")
+                IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Host profile is not initialized: start the Host once before updating the plugin", "Профиль Host не инициализирован: запустите Host хотя бы раз, затем обновите плагин"))
             )
         }
         if (BridgeReleaseDownloader.archiveUrl(repository, targetVersion) == null) {
             return@withContext Result.failure(
-                IllegalStateException("插件安装源或目标版本不可用：$repository#v$targetVersion")
+                IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Plugin source or target version is unavailable: $repository#v$targetVersion", "Источник плагина или версия недоступны: $repository#v$targetVersion"))
             )
         }
 
         ensureProfilePresetLink(profileDir)
 
-        // 上次中断可能留下 staging/backup 目录；它们不是安装的一部分，先清掉，
-        // 免得坏掉的半装版本被下一次替换当成现状。
+        // Прерванный прошлый раз мог оставить папки staging/backup; это не часть установки — сначала убрать,
+        // чтобы сломанная полуустановка не сошла за текущее состояние при следующей замене.
         val nodeModules = File(profileDir, "node_modules").apply { mkdirs() }
         nodeModules.listFiles()
             ?.filter { it.name.startsWith(".dsh-plugin-") }
-            ?.forEach { runCatching { it.deleteRecursively() } }
+            ?.forEach { runCatching { SafeFiles.deleteTree(it) } }
 
-        onProgress(0.02f, "准备下载插件 $targetVersion…")
+        onProgress(0.02f, com.deepseek.dsh.core.model.Tr.t("Preparing to download plugin $targetVersion…", "Подготовка загрузки плагина $targetVersion…"))
         val archive = try {
             downloader.download(repository, targetVersion) { fraction, step ->
                 onProgress(0.02f + fraction * 0.5f, step)
             }
         } catch (error: Exception) {
             return@withContext Result.failure(
-                IllegalStateException("插件归档下载失败：${error.message}")
+                IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Plugin archive download failed: ${error.message}", "Не удалось скачать архив плагина: ${error.message}"))
             )
         }
 
-        onProgress(0.55f, "校验插件归档…")
+        onProgress(0.55f, com.deepseek.dsh.core.model.Tr.t("Verifying plugin archive…", "Проверка архива плагина…"))
         val target = File(nodeModules, BridgePluginManifest.DEFAULT_PACKAGE)
         val staging = File(nodeModules, ".dsh-plugin-incoming")
-        staging.deleteRecursively()
+        SafeFiles.deleteTree(staging)
         val contents = try {
             BridgePluginArchive.extract(
                 archive = archive.inputStream(),
@@ -155,60 +154,65 @@ class BridgePluginInstaller(
                 expectedVersion = targetVersion,
             )
         } catch (error: Exception) {
-            staging.deleteRecursively()
+            SafeFiles.deleteTree(staging)
             return@withContext Result.failure(
-                IllegalStateException("插件归档校验失败：${error.message}")
+                IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Plugin archive verification failed: ${error.message}", "Архив плагина не прошёл проверку: ${error.message}"))
             )
         }
 
-        // 运行时依赖必须在 Host 的模块解析路径上已经存在，否则插件装上也会
-        // 在 import 阶段失败。这里提前失败，已安装的插件保持不动。
+        // Зависимости времени выполнения должны уже быть на пути разбора модулей Host, иначе плагин
+        // упадёт на import. Здесь ошибка раньше, а установленный плагин остаётся нетронутым.
         val missingDependencies = contents.dependencies.keys.filterNot { dependency ->
             File(nodeModules, dependency).exists()
         }
         if (missingDependencies.isNotEmpty()) {
-            staging.deleteRecursively()
+            SafeFiles.deleteTree(staging)
             return@withContext Result.failure(
                 IllegalStateException(
-                    "插件依赖 ${missingDependencies.joinToString()} 未随运行时提供；" +
-                        "请先更新 Rootfs 镜像，再更新插件"
+                    com.deepseek.dsh.core.model.Tr.t(
+                        "Plugin dependencies ${missingDependencies.joinToString()} are not shipped with the runtime; update the Rootfs image first, then the plugin",
+                        "Зависимости плагина ${missingDependencies.joinToString()} отсутствуют в среде; сначала обновите образ Rootfs, затем плагин"
+                    )
                 )
             )
         }
 
-        onProgress(0.8f, "替换已安装的插件…")
+        onProgress(0.8f, com.deepseek.dsh.core.model.Tr.t("Replacing the installed plugin…", "Замена установленного плагина…"))
         try {
             replaceDirectory(target = target, staging = staging)
         } catch (error: Exception) {
-            staging.deleteRecursively()
+            SafeFiles.deleteTree(staging)
             return@withContext Result.failure(
-                IllegalStateException("替换插件文件失败：${error.message}")
+                IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Failed to replace plugin files: ${error.message}", "Не удалось заменить файлы плагина: ${error.message}"))
             )
         }
 
-        onProgress(0.92f, "读取已安装版本…")
+        onProgress(0.92f, com.deepseek.dsh.core.model.Tr.t("Reading installed version…", "Чтение установленной версии…"))
         val installed = installedVersion()
         if (installed != targetVersion) {
             return@withContext Result.failure(
                 IllegalStateException(
-                    "插件文件已替换，但读到的版本是 ${installed ?: "未知"}（期望 $targetVersion）"
+                    com.deepseek.dsh.core.model.Tr.t(
+                        "Plugin files were replaced, but the installed version reads ${installed ?: "unknown"} (expected $targetVersion)",
+                        "Файлы плагина заменены, но установлена версия ${installed ?: "неизвестно"} (ожидалась $targetVersion)"
+                    )
                 )
             )
         }
-        onProgress(1f, "插件已更新到 $installed")
+        onProgress(1f, com.deepseek.dsh.core.model.Tr.t("Plugin updated to $installed", "Плагин обновлён до $installed"))
         Result.success(installed)
     }
 
     /**
-     * 是否把 bridge 插件登记成 profile 的 bundle。
+     * Записать ли bridge-плагин как bundle профиля.
      *
-     * bridge 的挂载点在 `dsh-web-app/cordis.patch.yml`，不依赖 profile 的
-     * `package.json`/`bundles`；往 profile 写会在重启时把用户/官方安装的痕迹
-     * 冲掉（此前每次启动都把 profile 恢复成模板，原因就在这里）。因此这里只读
-     * 不写：确认插件目录存在即可，写 profile 的职责交给 Host 自己的安装路径。
+     * Мост подключается в `dsh-web-app/cordis.patch.yml` и не зависит от `package.json`/`bundles`
+     * профиля; запись в профиль при перезапуске стёрла бы следы установок пользователя и официальных
+     * (раньше из-за этого профиль при каждом запуске возвращался к шаблону). Поэтому здесь только чтение,
+     * без записи: достаточно убедиться, что папка плагина есть, а профиль пишет сам Host своим путём установки.
      *
-     * @param packageName 目标包名。
-     * @return 插件目录是否存在。
+     * @param packageName имя пакета.
+     * @return есть ли папка плагина.
      */
     fun ensureProfileEntry(
         packageName: String = BridgePluginManifest.DEFAULT_PACKAGE,
@@ -219,43 +223,43 @@ class BridgePluginInstaller(
     }
 
     /**
-     * 用 [staging] 整目录替换 [target]。
+     * Заменить [target] целиком папкой [staging].
      *
-     * 先把旧目录改名让位，再让新目录就位：任何一步失败都会把旧目录放回去，
-     * 因此「已安装的插件」要么是旧的、要么是新的，不会消失。
-     * @param target 已安装的插件目录。
-     * @param staging 已经校验过的新插件目录。
+     * Сначала старая папка переименовывается в сторону, потом новая встаёт на место: при ошибке старая возвращается,
+     * поэтому «установленный плагин» — либо старый, либо новый, но не пропадает.
+     * @param target папка установленного плагина.
+     * @param staging проверенная папка нового плагина.
      */
     private fun replaceDirectory(target: File, staging: File) {
-        val parent = target.parentFile ?: throw IllegalStateException("插件目录没有父目录")
+        val parent = target.parentFile ?: throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Plugin directory has no parent", "У папки плагина нет родительской папки"))
         val backup = File(parent, ".dsh-plugin-previous-${System.nanoTime()}")
         val hadPrevious = target.exists()
         if (hadPrevious && !target.renameTo(backup)) {
-            throw IllegalStateException("无法移开已安装的插件目录")
+            throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Cannot move the installed plugin directory aside", "Не удалось отодвинуть папку установленного плагина"))
         }
         if (!staging.renameTo(target)) {
             if (hadPrevious) backup.renameTo(target)
-            throw IllegalStateException("无法把新插件目录放到安装位置")
+            throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Cannot move the new plugin directory into place", "Не удалось поместить новую папку плагина на место"))
         }
-        if (hadPrevious) backup.deleteRecursively()
+        if (hadPrevious) SafeFiles.deleteTree(backup)
     }
 }
 
 /**
- * 确保 profile 的 `node_modules/@deepseek-ai` 指向 Host 安装自带的 @deepseek-ai。
+ * Убедиться, что `node_modules/@deepseek-ai` профиля указывает на @deepseek-ai из установки Host.
  *
- * profile 里的 bundle 与 bridge 插件都按名字解析 `@deepseek-ai/<name>`，而手机上没有
- * pnpm 源；这个符号链接是它们唯一的解析锚点。启动流程与插件安装都需要它，
- * 因此只在这里定义一次。
- * @param profileDir `root/.dsh/profiles/web`。
+ * Bundle профиля и bridge-плагин разбирают `@deepseek-ai/<name>` по имени, а источника pnpm на телефоне
+ * нет; эта символическая ссылка — их единственная опора. Она нужна и запуску, и установке плагинов,
+ * поэтому определена только здесь.
+ * @param profileDir `root/.dsh/profiles/web`.
  */
 internal fun ensureProfilePresetLink(profileDir: File) {
     val nodeModules = File(profileDir, "node_modules").apply { mkdirs() }
     val presetLink = File(nodeModules, "@deepseek-ai")
-    // 旧版本/手工排查留下的备份目录必须清掉：Host 会把它们当作独立包扫描，
-    // 在设置和插件页里显示重复条目。
-    File(nodeModules, "@deepseek-ai.merged").deleteRecursively()
-    // profiles/web -> profiles -> .dsh -> root -> rootfs 根
+    // Резервные папки от старых версий и ручной отладки надо убрать: Host считает их отдельными пакетами
+    // и показывает дубли в настройках и на странице плагинов.
+    SafeFiles.deleteTree(File(nodeModules, "@deepseek-ai.merged"))
+    // profiles/web -> profiles -> .dsh -> root -> корень rootfs
     val installed = File(
         profileDir,
         "../../../../usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai",
@@ -263,23 +267,23 @@ internal fun ensureProfilePresetLink(profileDir: File) {
     if (!installed.isDirectory) return
 
     val presetPath = presetLink.toPath()
-    // 悬空符号链接：link 文件还在，但目标已经不存在（rootfs 升级换掉目录、或旧
-    // 相对深度的链接）。不先删掉，下面的 createSymbolicLink 会因「已存在」失败，
-    // 而失败一被吞掉，profile 就永远解析不到 @deepseek-ai/*——Host 启动时报
-    // 「N required plugins did not activate」，端口永远不出现。
+    // Висящая ссылка: файл ссылки есть, а цели нет (обновление rootfs заменило папку или
+    // ссылка старой относительной глубины). Если не удалить, createSymbolicLink ниже упадёт с «уже существует»,
+    // ошибка будет проглочена, и профиль навсегда перестанет находить @deepseek-ai/* — Host при запуске напишет
+    // «N required plugins did not activate», и порт не появится никогда.
     if (java.nio.file.Files.isSymbolicLink(presetPath) && !presetLink.exists()) {
         runCatching { java.nio.file.Files.deleteIfExists(presetPath) }
     }
 
-    // 新 rootfs 自带一个真实的 @deepseek-ai 目录（只有 cosmokit/schemastery
-    // 这类 hoisted 包）。它不是链接，Host 按名字解析官方 bundle 会失败。
-    // 复制整个目录会打乱 profile 的依赖布局，改用符号链接：先备份真实目录，
-    // 链接失败时再恢复并用复制兜底。
-    // 链接位于 `node_modules/@deepseek-ai`，比 profileDir 多一层。
+    // Новый rootfs приносит настоящую папку @deepseek-ai (только поднятые пакеты вроде cosmokit/schemastery).
+    // Это не ссылка, и Host не разберёт по имени официальные bundle.
+    // Копирование всей папки сломало бы раскладку зависимостей профиля, поэтому — ссылка: настоящая папка в резерв,
+    // если ссылка не создалась — вернуть её и подстраховаться копированием.
+    // Ссылка лежит в `node_modules/@deepseek-ai`, на уровень глубже profileDir.
     val installedLinkTarget = "../../../../../usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai"
     if (presetLink.exists() && !java.nio.file.Files.isSymbolicLink(presetPath)) {
         val backup = File(nodeModules, "@deepseek-ai.local")
-        if (backup.exists()) backup.deleteRecursively()
+        if (backup.exists()) SafeFiles.deleteTree(backup)
         if (!presetLink.renameTo(backup)) return
         val linked = runCatching {
             java.nio.file.Files.createSymbolicLink(
@@ -288,16 +292,16 @@ internal fun ensureProfilePresetLink(profileDir: File) {
             )
         }.isSuccess
         if (linked) {
-            backup.deleteRecursively()
+            SafeFiles.deleteTree(backup)
             return
         }
-        // 链接不可用（文件系统限制）时恢复原目录，并合并缺失的包。
+        // Ссылки недоступны (ограничение файловой системы): вернуть исходную папку и добавить недостающие пакеты.
         backup.renameTo(presetLink)
         mergeInstalledPackages(installed, presetLink)
         return
     }
     if (presetLink.exists()) {
-        File(nodeModules, "@deepseek-ai.local").deleteRecursively()
+        SafeFiles.deleteTree(File(nodeModules, "@deepseek-ai.local"))
         return
     }
     val linked = runCatching {
@@ -307,20 +311,20 @@ internal fun ensureProfilePresetLink(profileDir: File) {
         )
     }.isSuccess
     if (linked) return
-    // 符号链接不可用：退化成真实目录 + 复制已安装包。不能悄悄什么都不做，
-    // 否则 profile 缺官方 bundle，Host 启动必然失败（用户只看到一直 STARTING）。
+    // Ссылки недоступны: настоящая папка + копия установленных пакетов. Молча ничего не делать нельзя,
+    // иначе в профиле нет официальных bundle, и Host не запустится (пользователь видит вечный STARTING).
     presetLink.mkdirs()
     mergeInstalledPackages(installed, presetLink)
 }
 
-/** 把 [installed] 里有、[target] 里没有的包复制过去（符号链接不可用时的兜底）。 */
+/** Скопировать пакеты, которые есть в [installed], но нет в [target] (запасной путь без ссылок). */
 private fun mergeInstalledPackages(installed: File, target: File) {
     installed.listFiles()?.forEach { source ->
         val destination = File(target, source.name)
         if (destination.exists()) return@forEach
         runCatching {
             if (source.isDirectory) {
-                source.copyRecursively(destination, overwrite = false)
+                SafeFiles.copyTree(source, destination, overwrite = false)
             } else {
                 source.copyTo(destination, overwrite = false)
             }

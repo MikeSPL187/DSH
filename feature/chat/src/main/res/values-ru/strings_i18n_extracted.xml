@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chat_default_workspace">Рабочая папка по умолчанию</string>
+    <string name="chat_preset_standard_label">Стандартный режим</string>
+    <string name="chat_run_failed">Ошибка выполнения</string>
+    <string name="chat_voice_recognizing">Распознавание…</string>
+    <string name="chat_voice_stop_recognize">Остановить и распознать</string>
+</resources>

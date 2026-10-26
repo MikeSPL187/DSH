@@ -33,6 +33,17 @@ object DshNotifications {
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setAutoCancel(true)
+            // Нажатие открывает приложение (раньше уведомление никуда не вело).
+            .setContentIntent(
+                context.packageManager.getLaunchIntentForPackage(context.packageName)?.let { launch ->
+                    android.app.PendingIntent.getActivity(
+                        context,
+                        0,
+                        launch.addFlags(android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                        android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
+                    )
+                },
+            )
             .build()
         runCatching {
             context.getSystemService(NotificationManager::class.java)

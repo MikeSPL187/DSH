@@ -7,132 +7,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.deepseek.dsh.core.data.DshRepository
-import com.deepseek.dsh.feature.settings.ModelProviderUi
-import com.deepseek.dsh.feature.settings.parseModelProviders
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import org.json.JSONArray
-import org.json.JSONObject
 
 /**
- * 一次模型 provider 数据刷新：provider 目录、设置文档、凭据状态。
- *
- * 放在 MainAppHost 之外，避免把这段非组合代码算进那个已经贴着 ART 校验上限的
- * 巨型 Composable。
- */
-internal fun refreshModelProviderData(
-    scope: CoroutineScope,
-    repository: DshRepository,
-    hostId: String,
-    onProviderIds: (List<String>) -> Unit,
-    onSettingsRaw: (String?) -> Unit,
-    onProvidersRaw: (String?) -> Unit,
-    onCredentialsRaw: (String?) -> Unit,
-) {
-    scope.launch {
-        val registeredRaw = repository.rpcRaw(hostId, "llm/listProviders", "{}").getOrNull()
-        onProviderIds(
-            runCatching {
-                val root = kotlinx.serialization.json.Json.parseToJsonElement(registeredRaw.orEmpty())
-                val value = ((root as? kotlinx.serialization.json.JsonObject)
-                    ?.get("result") as? kotlinx.serialization.json.JsonObject)?.get("value")
-                (value as? kotlinx.serialization.json.JsonArray)
-                    ?.mapNotNull { item ->
-                        ((item as? kotlinx.serialization.json.JsonObject)
-                            ?.get("id") as? kotlinx.serialization.json.JsonPrimitive)?.content
-                    }
-                    .orEmpty()
-            }.getOrDefault(emptyList()),
-        )
-        val settingsRaw = repository.rpcRaw(hostId, "settings/describe", "{}").getOrNull()
-        val providersRaw = repository.rpcRaw(hostId, "llm/listConfigurableProviders", "{}").getOrNull()
-        onSettingsRaw(settingsRaw)
-        onProvidersRaw(providersRaw)
-        val providerRefs = parseModelProviders(
-            providersRaw,
-            settingsRaw,
-            null,
-            repository.officialSettingsNamespaces(),
-        ).map { it.keyRef }.distinct()
-        val refsJson = providerRefs.joinToString(prefix = "{\"refs\":[", postfix = "]}") { "\"$it\"" }
-        onCredentialsRaw(repository.rpcRaw(hostId, "credentials/describe", refsJson).getOrNull())
-    }
-}
-
-/** 保存一个模型 provider：凭据、设置字段（apiKeyEnv/api/baseURL/models）。 */
-internal fun saveModelProvider(
-    scope: CoroutineScope,
-    repository: DshRepository,
-    hostId: String,
-    provider: ModelProviderUi,
-    key: String,
-    baseUrl: String,
-    models: List<String>,
-    onSettingsRaw: (String?) -> Unit,
-    onCredentialsRaw: (String?) -> Unit,
-) {
-    scope.launch {
-        if (key.isNotBlank()) {
-            val credArgs = JSONObject().put("ref", provider.keyRef).put("value", key).toString()
-            repository.rpcRaw(hostId, "credentials/set", credArgs)
-        }
-        if (provider.settingsNs.isNotBlank()) {
-            val ops = JSONArray()
-            if (key.isNotBlank()) {
-                ops.put(
-                    JSONObject()
-                        .put("op", "set")
-                        .put("path", JSONArray(provider.settingsPath + "apiKeyEnv"))
-                        .put("value", provider.keyRef),
-                )
-            }
-            // 非适配器自带的路由必须声明线协议，否则 Host 会以 settings/rejected
-            // 拒绝整个 provider。
-            if (!provider.declared) {
-                ops.put(
-                    JSONObject()
-                        .put("op", "set")
-                        .put("path", JSONArray(provider.settingsPath + "api"))
-                        .put("value", wireProtocolFor(provider.id)),
-                )
-            }
-            if (baseUrl.isNotBlank()) {
-                ops.put(
-                    JSONObject()
-                        .put("op", "set")
-                        .put("path", JSONArray(provider.settingsPath + "baseURL"))
-                        .put("value", baseUrl),
-                )
-            }
-            if (models.isNotEmpty()) {
-                val modelArray = JSONArray()
-                models.forEach { model ->
-                    modelArray.put(JSONObject().put("id", model).put("name", model))
-                }
-                ops.put(
-                    JSONObject()
-                        .put("op", "set")
-                        .put("path", JSONArray(provider.settingsPath + "models"))
-                        .put("value", modelArray),
-                )
-            }
-            val args = JSONObject()
-                .put("ns", provider.settingsNs)
-                .put("ops", ops)
-                .put("expectedRevision", JSONObject.NULL)
-                .toString()
-            repository.rpcRaw(hostId, "settings/mutate", args)
-        }
-        onSettingsRaw(repository.rpcRaw(hostId, "settings/describe", "{}").getOrNull())
-        val refsJson = "{\"refs\":[\"${provider.keyRef}\"]}"
-        onCredentialsRaw(repository.rpcRaw(hostId, "credentials/describe", refsJson).getOrNull())
-        repository.refreshModelCatalog(hostId)
-    }
-}
-
-/**
- * 界面语言控制器：选择值 + 切换动作（写 per-app locale 并同步 Host）。
- * @param hostId 当前 Host；为空时只切本地界面语言。
+ * Язык интерфейса: выбранное значение и переключение (язык приложения + язык Host).
+ * @param hostId текущий Host; пусто — меняется только язык интерфейса.
  */
 @Composable
 internal fun rememberAppLanguage(
@@ -146,17 +26,17 @@ internal fun rememberAppLanguage(
         selection = next
         AppLanguage.apply(context, next)
         scope.launch {
-            repository.syncHostLocale(hostId, AppLanguage.effectiveTag(context))
+            repository.hostSettings.syncHostLocale(hostId)
         }
     }
     return selection to change
 }
 
 /**
- * 「添加插件」的完整安装流程：Host 安装 → App 兜底安装 → 重启 Host → 刷新目录。
+ * Полная установка «Добавить плагин»: установка Host → запасной установщик приложения → перезапуск Host → обновление каталога.
  *
- * 从 PluginsScreen 的 `onInstallPlugin` 回调里搬出来：落盘的每一步进度都通过
- * [onProgress] 回传，状态刷新通过回调交给调用方。
+ * Каждый шаг сообщается через [onProgress], обновление состояния
+ * — через колбэки вызывающего.
  */
 internal suspend fun installPluginWithProgress(
     context: android.content.Context,
@@ -168,11 +48,11 @@ internal suspend fun installPluginWithProgress(
     onManagedPackages: (Set<String>) -> Unit,
     onNativeCompanion: (com.deepseek.dsh.core.bridge.BridgeNativeCompanion?) -> Unit,
 ): Result<String> {
-    // 安装耗时以秒计：先报一个「已受理」，再让安装器把每一步透传给对话框。
+    // Установка идёт секунды: сначала «Принято», затем установщик сообщает каждый шаг.
     onProgress(0.02f, context.getString(R.string.plugins_install_preparing))
     val hostRes = kotlinx.coroutines.coroutineScope {
         val progressJob = launch {
-            repository.installProgressFlow.collect { progress ->
+            repository.plugins.installProgressFlow.collect { progress ->
                 if (progress == null) return@collect
                 val label = when (progress.phase) {
                     "installing" -> if (progress.total > 1) {
@@ -195,13 +75,13 @@ internal suspend fun installPluginWithProgress(
             }
         }
         try {
-            repository.installPlugin(hostId, pkgName)
+            repository.plugins.installPlugin(hostId, pkgName)
         } finally {
             progressJob.cancel()
         }
     }
-    // Host 内 pnpm 依赖 proot 的 rename/unlink/mkdtemp，这台设备上全部返回 ENOSYS。
-    // 失败后改用 App 自己的文件与网络能力完成同一件事，再重启 Host 加载。
+    // pnpm в Host использует rename/unlink/mkdtemp под proot — здесь они возвращают ENOSYS.
+    // Тогда то же делает приложение своими файлами и сетью, а Host перезапускается.
     val usedFallback = hostRes.isFailure
     val result = if (hostRes.isSuccess) {
         onProgress(0.6f, context.getString(R.string.plugins_install_progress_title))
@@ -216,8 +96,8 @@ internal suspend fun installPluginWithProgress(
         onSuccess = { installed ->
             var restartFailure: Throwable? = null
             if (usedFallback) {
-                // 文件已就位，重启 Host 才会让新插件进入 Loader。重启失败不能当成
-                // 安装成功：界面会显示「已装」，但 Host 里并没有加载它。
+                // Файлы на месте, но плагин попадёт в Loader только после перезапуска Host. Ошибка
+                // перезапуска — не успех: экран показал бы «Установлен», а Host его не загрузил.
                 onProgress(0.85f, context.getString(R.string.plugins_install_restarting))
                 restartFailure = com.deepseek.dsh.runtime.host.HostRuntimeHolder.restartHost
                     ?.invoke()
@@ -225,13 +105,13 @@ internal suspend fun installPluginWithProgress(
                 kotlinx.coroutines.delay(1_200)
             }
             onManagedPackages(runCatching { installer.managedPackages() }.getOrDefault(emptySet()))
-            repository.refreshPluginInventory(hostId)
-            repository.refreshBridgePluginCatalog()
-            repository.refreshPluginSettingsPages()
-            // 反向联动：这个 JS 插件有原生伴侣 APK 的话，提示可装。
+            repository.plugins.refreshPluginInventory(hostId)
+            repository.plugins.refreshBridgePluginCatalog()
+            repository.plugins.refreshPluginSettingsPages()
+            // Если у JS-плагина есть нативный компаньон APK — подсказать установить.
             runCatching {
                 val pkg = installed.substringAfterLast('/').substringBefore('@').ifBlank { installed }
-                val companion = repository.bridge()?.nativeCompanionFor(pkg)
+                val companion = repository.plugins.bridge()?.nativeCompanionFor(pkg)
                 if (companion is com.deepseek.dsh.core.bridge.BridgeResult.Success &&
                     companion.value != null
                 ) {

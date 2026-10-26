@@ -6,14 +6,14 @@ import com.deepseek.dsh.plugin.nativesdk.host.PluginHostApi
 import com.deepseek.dsh.plugin.nativesdk.host.PluginStorage
 
 /**
- * 组装一个 [PluginHostApi] 实例。
+ * Собрать экземпляр [PluginHostApi].
  *
- * 这是个通用宿主桥的**最简可工作**装配：dispatch 走 bridge，openUrl 走系统
- * 浏览器，storage 用内存命名空间（持久化可后续换成 DataStore）。插件 id 与
- * 声明能力在真实加载伴侣 APK 时按 descriptor 填入；这里给一个「总线级」实例，
- * 让落点容器在没有具体插件在场时也能安全工作（dispatch 直接发给 Host）。
+ * **Минимальная рабочая** сборка общего моста хоста: dispatch — через мост, openUrl — в системный
+ * браузер, storage — пространства в памяти (постоянное хранение можно заменить на DataStore). id плагина и
+ * объявленные возможности подставляются из descriptor при загрузке компаньона; здесь — экземпляр «уровня шины»,
+ * с которым места вставки безопасны и без конкретного плагина (dispatch уходит прямо в Host).
  *
- * @param dispatcher 把 dispatchEvent 转发给 bridge `dispatch` op 的实现。
+ * @param dispatcher передача dispatchEvent в операцию `dispatch` моста.
  */
 @Composable
 fun rememberNativeHostApi(
@@ -29,7 +29,7 @@ fun rememberNativeHostApi(
             ),
             themeProvider = { theme },
             dispatcher = dispatcher,
-            urlOpener = { /* 由 App 注入系统浏览器打开 */ },
+            urlOpener = { /* системный браузер подставляет приложение */ },
             urlAllowlist = { true },
             storageBackend = InMemoryPluginStorage,
             audit = { _, _ -> },
@@ -37,7 +37,7 @@ fun rememberNativeHostApi(
     }
 }
 
-/** 内存版键值存储（进程内）；持久化版本后续接 DataStore。 */
+/** Хранилище ключ-значение в памяти процесса; постоянное — позже через DataStore. */
 private object InMemoryPluginStorage : PluginStorage {
     private val map = java.util.concurrent.ConcurrentHashMap<String, String>()
     override fun get(key: String): String? = map[key]

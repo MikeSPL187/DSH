@@ -14,11 +14,11 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 /**
- * 落点贡献的能力桥包装：在普通 [PluginHostApi] 上补齐 [PluginRpcHost]。
+ * Обёртка моста возможностей для вкладов в места: к обычному [PluginHostApi] добавляется [PluginRpcHost].
  *
- * slot 贡献（composer dock、设置页落点等）与整页原生页面一样，需要读取插件
- * 既有的 Host 状态。RPC 实现统一来自 [NativeHost.rpcHandler]（App 注入的
- * pluginRpc），不新增协议；未连接 Host 时返回可读失败。
+ * Вкладам в слоты (док поля ввода, места в настройках и т. п.), как и нативным страницам, нужно читать
+ * существующее состояние Host. Реализация RPC одна — [NativeHost.rpcHandler] (pluginRpc от приложения),
+ * нового протокола нет; без связи с Host — понятная ошибка.
  */
 internal class SlotBridgeHost(
     private val delegate: PluginHostApi,
@@ -34,7 +34,7 @@ internal class SlotBridgeHost(
         scope.launch {
             val handler = NativeHost.modelSelectHandler
             if (handler == null) {
-                onResult(Result.failure(IllegalStateException("当前页面不支持切换模型")))
+                onResult(Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("This page does not support switching models", "На этой странице нельзя сменить модель"))))
                 return@launch
             }
             onResult(handler(provider, model, reasoningEffort))
@@ -45,7 +45,7 @@ internal class SlotBridgeHost(
         scope.launch {
             val handler = NativeHost.rpcHandler
             if (handler == null) {
-                onResult(Result.failure(IllegalStateException("Host 未连接")))
+                onResult(Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Host is not connected", "Host не подключён"))))
                 return@launch
             }
             onResult(handler(method, payload).map { Json.parseToJsonElement(it) })

@@ -4,42 +4,58 @@ import android.content.Context
 import com.deepseek.dsh.plugin.nativesdk.contract.DshUiPlugin
 
 /**
- * 伴侣渲染器装载器：把伴侣 APK 的插件类加载进 App 进程。
+ * Загрузчик компаньона: классы плагина из APK компаньона загружаются в процесс приложения.
  *
- * 伴侣 APK 是独立进程；它 `init` 块里的 `SlotRegistry.register(...)` 只在它自己的
- * 进程生效。要在 App 的落点容器里渲染，必须把伴侣的类加载进 **App 进程**——用
- * `createPackageContext` 拿到伴侣的 ClassLoader，反射实例化它的 Service 持有的
- * 插件类，让它在 App 进程里跑一遍注册。
+ * Компаньон — отдельный процесс; `SlotRegistry.register(...)` в его блоке `init` действует только
+ * в его процессе. Чтобы рисовать в местах вставки приложения, классы нужно загрузить в **процесс приложения**:
+ * `createPackageContext` даёт ClassLoader компаньона, рефлексией создаётся класс плагина
+ * его Service, и регистрация выполняется в процессе приложения.
  *
- * 安全前提：只装载已通过 ABI 门禁 + 验签的 READY 插件。
+ * Условие безопасности: загружаются только READY-плагины, прошедшие проверку ABI и одобренные пользователем
+ * (pin [NativePluginTrustStore] совпадает); перед загрузкой подпись читается ещё раз — APK могли подменить после сканирования.
  */
 class NativePluginLoader(private val context: Context) {
 
     /**
-     * 把一个 READY 状态的伴侣插件装载进 App 进程。
+     * Загрузить READY-компаньон в процесс приложения.
      *
-     * 找到它的入口 Service 类名，用伴侣的 ClassLoader 加载并实例化其 [DshUiPlugin]，
-     * 触发它的 `init` 块在 App 进程里注册落点贡献/工具渲染器/页面。
+     * Находит класс входного Service, загружает и создаёт его [DshUiPlugin] через ClassLoader компаньона —
+     * блок `init` регистрирует вклады в места вставки, отрисовщики инструментов и страницы в процессе приложения.
      *
-     * @return 装载成功的插件实例；失败返回 null（该插件降级 Web 界面）。
+     * @return загруженный плагин; null при ошибке (плагин работает через веб-интерфейс).
      */
     /**
-     * 同一个插件在进程内只加载一次。
+     * Плагин загружается в процесс один раз.
      *
-     * 每次回前台/重扫都会重新 `loader.load()`；DexClassLoader 会生成新的类加载器，
-     * 而旧实例在 SlotRegistry 里的贡献不会消失。新旧两个类加载器各自有一套
-     * `DockData` 等同名类，插件自己的 Render 里 `as DockData` 就会抛
-     * ClassCastException（订阅插件的 dock 崩溃）。缓存实例后重扫直接复用，
-     * 不重复注册贡献；插件升级后由 App 进程重启生效。
+     * Каждый возврат на передний план и пересканирование снова вызывают `loader.load()`; DexClassLoader создаёт
+     * новый загрузчик классов, а вклады старого экземпляра в SlotRegistry остаются. У двух загрузчиков свои
+     * одноимённые классы вроде `DockData`, и `as DockData` в Render плагина выбрасывает
+     * ClassCastException (так падал док плагина подписок). С кэшем экземпляра пересканирование его переиспользует
+     * и не регистрирует вклады повторно; обновлённый плагин заработает после перезапуска процесса.
      */
     private companion object {
-        /** 进程级缓存：MainAppHost 每次重扫都会 new NativePluginLoader，缓存不能放在实例上。 */
+        /** Кэш на уровне процесса: MainAppHost создаёт NativePluginLoader на каждое сканирование, в экземпляре кэш не удержать. */
         val loadedPlugins = java.util.concurrent.ConcurrentHashMap<String, DshUiPlugin>()
     }
 
     fun load(plugin: InstalledNativePlugin): DshUiPlugin? {
-        loadedPlugins[plugin.pluginId]?.let { return it }
         if (plugin.status != InstalledNativePlugin.Status.READY) return null
+        val cacheKey = plugin.packageName + "/" + plugin.signatureFingerprint
+        loadedPlugins[cacheKey]?.let { return it }
+        // TOCTOU: между сканированием и загрузкой APK мог обновиться с другим подписантом — верим текущему состоянию системы.
+        val currentFingerprint = NativePluginDiscovery.signingFingerprint(
+            context.packageManager,
+            plugin.packageName,
+        )
+        if (currentFingerprint == null ||
+            !java.security.MessageDigest.isEqual(
+                currentFingerprint.toByteArray(),
+                plugin.signatureFingerprint.lowercase().toByteArray(),
+            )
+        ) {
+            android.util.Log.w("NativePluginLoader", "signature changed before load: ${plugin.packageName}")
+            return null
+        }
         return try {
             // The companion packages the SDK for compilation, but at runtime the host
             // must own the single copy of DshUiPlugin, PageRegistry and Compose. A
@@ -58,24 +74,23 @@ class NativePluginLoader(private val context: Context) {
                 loadViaService(pluginContext.classLoader, plugin)
             }.getOrNull()
             if (viaPackage != null) {
-                loadedPlugins[plugin.pluginId] = viaPackage
+                loadedPlugins[cacheKey] = viaPackage
                 return viaPackage
             }
             val appInfo = pluginContext.applicationInfo
             val dexPath = (listOf(appInfo.sourceDir) + appInfo.splitSourceDirs.orEmpty())
                 .joinToString(java.io.File.pathSeparator)
-            val classLoader = dalvik.system.DexClassLoader(
+            // PathClassLoader, а не DexClassLoader(…, optimizedDirectory = null, …): на Android 8.0
+            // DexClassLoader делает `new File(optimizedDirectory)` и падает NPE — companion-плагины
+            // на Android 8 не загружались совсем (найдено на эмуляторе API 26).
+            val classLoader = dalvik.system.PathClassLoader(
                 dexPath,
-                null,
                 appInfo.nativeLibraryDir,
                 context.classLoader,
             )
-            // 约定：插件入口类是 `<service 类全名去掉 Service 后缀>` 不一定可靠；
-            // 直接读 service 类名，找它同包里实现 DshUiPlugin 的类太绕。改为约定：
-            // 插件在 service 类里暴露一个静态 `plugin()` 工厂，或 service 名推 plugin 类名。
-            // 这里采用「service 类名 + Plugin 后缀约定」之外的稳妥做法：反射 service 类，
-            // 调它的伴生/静态方法。最稳妥：插件按契约提供一个入口类名 meta-data。
+            // Вход в плагин ищется по Service компаньона (см. pluginFromService).
             val viaDex = loadViaService(classLoader, plugin)
+            if (viaDex != null) loadedPlugins[cacheKey] = viaDex
             viaDex
         } catch (error: Throwable) {
             android.util.Log.w("NativePluginLoader", "failed to load ${plugin.packageName}", error)
@@ -84,21 +99,21 @@ class NativePluginLoader(private val context: Context) {
     }
 
     /**
-     * 经伴侣的 Service 类拿到插件实例。
+     * Экземпляр плагина через класс Service компаньона.
      *
-     * 约定（写进 SDK 文档）：伴侣的 Service 类提供一个 `@JvmStatic fun plugin(): DshUiPlugin`，
-     * 或者 Service 类本身的名约定 `<X>PluginService` 对应插件类 `<X>Plugin`。两种都试。
+     * Договорённость (в документации SDK): у класса Service есть `@JvmStatic fun plugin(): DshUiPlugin`,
+     * или имя Service вида `<X>PluginService` соответствует классу плагина `<X>Plugin`. Пробуются оба.
      */
     private fun loadViaService(classLoader: ClassLoader, plugin: InstalledNativePlugin): DshUiPlugin? {
         val serviceClassName = plugin.serviceComponent.className
-        // ① 先试 service 类的静态 plugin() 工厂。
+        // 1. Сначала статическая фабрика plugin() у класса Service.
         runCatching {
             val serviceClass = classLoader.loadClass(serviceClassName)
             val factory = serviceClass.getMethod("plugin").apply { isAccessible = true }
             val instance = factory.invoke(null)
             if (instance is DshUiPlugin) return instance
         }
-        // ② 退回类名约定：…PluginService → …Plugin。
+        // 2. Иначе по имени класса: …PluginService → …Plugin.
         val pluginClassName = serviceClassName.removeSuffix("Service")
         if (pluginClassName != serviceClassName) {
             runCatching {

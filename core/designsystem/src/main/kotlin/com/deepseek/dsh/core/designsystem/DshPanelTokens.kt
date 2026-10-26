@@ -70,72 +70,48 @@ data class DshPanelColors(
     val dialogFill: Color get() = bgLayer2
 }
 
-/** Light-theme panel tokens. */
-val DshLightPanelColors = DshPanelColors(
-    isDark = false,
-    labelPrimary = Color(0xFF0F1115),
-    labelSecondary = Color(0xFF61666B),
-    labelTertiary = Color(0xFF81858C),
-    labelCaption = Color(0xFFADB2B8),
-    labelPrimaryForeground = Color(0xFFFFFFFF),
-    menuIcon = Color(0xFF353638),
-    bgBase = Color(0xFFFFFFFF),
-    bgLayer2 = Color(0xFFFFFFFF),
-    bgLayer3 = Color(0xFFFFFFFF),
-    bgModulePlatform = Color(0xFFF5F6F7),
-    bgMask1 = Color(0x3D000000),
-    borderL1 = Color(0x0A000000),
-    borderL2 = Color(0x1A000000),
-    borderL3 = Color(0x1F000000),
-    borderL4 = Color(0x29000000),
-    interactiveHover = Color(0x0F263148),
-    interactiveHoverDanger = Color(0x0DEC1313),
-    interactiveActive = Color(0x1A263148),
-    stateErrorPrimary = Color(0xFFEC1313),
-    menuSurfaceFill = Color(0x94F8F9FA),
-    menuGroupHeaderFill = Color(0xF0F8F9FA),
-    skeleton = Color(0x0A000000),
-    buttonPrimaryFill = Color(0xFF0F1115),
-    buttonPrimaryHover = Color(0xFF43454A),
-    switchThumb = Color(0xFFFFFFFF),
+/** Панельные токены, выведенные из палитры DSH (см. [DshColors]). */
+private fun panelFrom(c: DshColors) = DshPanelColors(
+    isDark = c.isDark,
+    labelPrimary = c.t1,
+    labelSecondary = c.t2,
+    labelTertiary = c.t3,
+    labelCaption = c.t3,
+    labelPrimaryForeground = c.onAccent,
+    menuIcon = c.t2,
+    bgBase = c.bg,
+    bgLayer2 = c.s1,
+    bgLayer3 = c.s2,
+    bgModulePlatform = c.s2,
+    bgMask1 = c.scrim,
+    borderL1 = c.line,
+    borderL2 = c.line,
+    borderL3 = c.s3,
+    borderL4 = c.t3.copy(alpha = 0.4f),
+    interactiveHover = c.t1.copy(alpha = 0.05f),
+    interactiveHoverDanger = c.dangerSoft,
+    interactiveActive = c.t1.copy(alpha = 0.09f),
+    stateErrorPrimary = c.danger,
+    menuSurfaceFill = c.glass,
+    menuGroupHeaderFill = c.s1.copy(alpha = 0.94f),
+    skeleton = c.s2,
+    buttonPrimaryFill = c.accent,
+    buttonPrimaryHover = c.accent2,
+    switchThumb = androidx.compose.ui.graphics.Color.White,
 )
 
+/** Light-theme panel tokens. */
+val DshLightPanelColors = panelFrom(DshPorcelain)
+
 /** Dark-theme panel tokens. */
-val DshDarkPanelColors = DshPanelColors(
-    isDark = true,
-    labelPrimary = Color(0xFFF9FAFB),
-    labelSecondary = Color(0xFFCFD3D6),
-    labelTertiary = Color(0xFFADB2B8),
-    labelCaption = Color(0xFF81858C),
-    labelPrimaryForeground = Color(0xFF0F1115),
-    menuIcon = Color(0xFFEBEEF2),
-    bgBase = Color(0xFF151517),
-    bgLayer2 = Color(0xFF2C2C2E),
-    bgLayer3 = Color(0xFF353638),
-    bgModulePlatform = Color(0xFF353638),
-    bgMask1 = Color(0x80000000),
-    borderL1 = Color(0x0FFFFFFF),
-    borderL2 = Color(0x1FFFFFFF),
-    borderL3 = Color(0x29FFFFFF),
-    borderL4 = Color(0x33FFFFFF),
-    interactiveHover = Color(0x14FFFFFF),
-    interactiveHoverDanger = Color(0x26F25A5A),
-    interactiveActive = Color(0x24FFFFFF),
-    stateErrorPrimary = Color(0xFFF25A5A),
-    menuSurfaceFill = Color(0x7343454A),
-    menuGroupHeaderFill = Color(0xF0303136),
-    skeleton = Color(0x14FFFFFF),
-    buttonPrimaryFill = Color(0xFFF9FAFB),
-    buttonPrimaryHover = Color(0xFFEBEEF2),
-    switchThumb = Color(0xFFADB2B8),
-)
+val DshDarkPanelColors = panelFrom(DshGraphite)
 
 /** Resolve the panel tokens for the current light/dark mode. */
 @Composable
 fun dshPanelColors(): DshPanelColors {
     val provided = LocalDshPanelColors.current
-    // DshTheme 会按实际主题 provide；未被 provide（默认 light）时，深色系统仍取暗色，
-    // 保持预览与旧调用点的行为。
+    // DshTheme задаёт значение по фактической теме; без него (по умолчанию light) тёмная система
+    // всё равно получает тёмные цвета — как в превью и старых местах вызова.
     return if (provided.isDark || !isSystemInDarkTheme()) {
         provided
     } else {

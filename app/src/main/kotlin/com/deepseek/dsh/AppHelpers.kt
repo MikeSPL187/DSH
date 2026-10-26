@@ -1,110 +1,13 @@
 package com.deepseek.dsh
 
-import com.deepseek.dsh.core.designsystem.DshIcons
-import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.json.contentOrNull
-import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
-import androidx.activity.compose.setContent
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material.icons.filled.Widgets
-import androidx.compose.material3.Button
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDrawerState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.deepseek.dsh.core.designsystem.DshTheme
-import com.deepseek.dsh.core.model.ChatMessage
-import com.deepseek.dsh.core.model.MessageRole
-import com.deepseek.dsh.core.model.SessionInfo
-import com.deepseek.dsh.core.model.SurfaceItem
-import com.deepseek.dsh.core.model.isThirdPartyPlugin
-import com.deepseek.dsh.core.model.SurfaceKind
-import com.deepseek.dsh.feature.chat.ModernChatScreen
-import com.deepseek.dsh.feature.files.FilesScreen
-import com.deepseek.dsh.feature.files.WorkspaceManager
-import com.deepseek.dsh.feature.sessions.ModernNavigationDrawerContent
-import com.deepseek.dsh.plugin.surface.PluginOverlayContainer
-import com.deepseek.dsh.plugin.surface.SurfaceCatalogStore
-import com.deepseek.dsh.plugin.surface.SurfaceSheet
-import com.deepseek.dsh.runtime.host.DefaultHostRuntimeManager
-import com.deepseek.dsh.runtime.host.HostProcessRunner
-import com.deepseek.dsh.runtime.host.HostRuntimeHolder
-import com.deepseek.dsh.runtime.host.HostRuntimeManager
-import com.deepseek.dsh.runtime.host.RuntimeLayout
-import com.deepseek.dsh.runtime.host.RuntimePhase
-import kotlinx.coroutines.launch
 import java.io.File
 
 
-internal fun formatAmount(raw: String): String {
-    val clean = raw.removePrefix("¥").trim()
-    val num = clean.toDoubleOrNull() ?: return "¥$raw"
-    return String.format(java.util.Locale.US, "¥%.2f", num)
-}
-
 /**
- * Host 会话目录名：`--workspace-<escaped>--`，非 ASCII 码点转义为 `~XXXX`。
- * 与 Host 实际落盘规则一致，用于在 Android 侧预建会话目录。
+ * Имя папки сессии в Host: `--workspace-<escaped>--`, не-ASCII символы — `~XXXX`.
+ * Совпадает с правилом Host: по нему приложение заранее создаёт папку сессии.
  */
 internal fun workspaceSessionDirName(workspaceName: String): String {
     val escaped = buildString {
@@ -120,17 +23,11 @@ internal fun workspaceSessionDirName(workspaceName: String): String {
     return "--workspace-$escaped--"
 }
 
-/** 从 workspace/create|rename 的 response 中取 workspaceId。 */
-internal fun parseWorkspaceId(raw: String?): String? {
-    if (raw.isNullOrBlank()) return null
-    return Regex("\"workspaceId\"\\s*:\\s*\"([^\"]+)\"").find(raw)?.groupValues?.getOrNull(1)
-}
-
 /**
- * 通用插件目录自愈：插件在 proot 里第一次 mkdir 可能失败（ENOENT/ENOSYS），
- * 从错误里取出它要创建的目录，用 App 进程创建后重试一次。
+ * Самовосстановление папок плагинов: первый mkdir плагина под proot может упасть
+ * (ENOENT/ENOSYS) — берём нужную папку из текста ошибки, создаём её и повторяем один раз.
  *
- * 不按插件名适配：只接受 rootfs 内的 `.dsh/` 路径，任何插件都适用。
+ * Без привязки к плагину: принимаются только пути `.dsh/` внутри rootfs.
  */
 internal fun ensureMissingPluginDir(context: android.content.Context, message: String?): Boolean {
     if (message.isNullOrBlank()) return false
@@ -142,4 +39,36 @@ internal fun ensureMissingPluginDir(context: android.content.Context, message: S
 }
 
 
-/** App 侧记住的实验性 bundle 选择（profile 清单会被 Host 启动重置）。 */
+/** Выбор экспериментальных bundle на стороне приложения (Host сбрасывает профиль при запуске). */
+
+/** Открыть ссылку в браузере. Ссылки могут прийти от Host: только http(s), и без падения, если браузера нет. */
+internal fun openWebLink(context: android.content.Context, url: String) {
+    val uri = android.net.Uri.parse(url)
+    if (uri.scheme != "https" && uri.scheme != "http") return
+    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(intent) }
+}
+
+/**
+ * Следить за папкой [path], пока [enabled]: создание, удаление, перемещение и запись файлов
+ * вызывают [onChange] (из фонового потока FileObserver — менять только снимковое состояние).
+ */
+@androidx.compose.runtime.Composable
+internal fun WatchDirectory(path: String, enabled: Boolean, onChange: () -> Unit) {
+    val latest = androidx.compose.runtime.rememberUpdatedState(onChange)
+    androidx.compose.runtime.DisposableEffect(path, enabled) {
+        val mask = android.os.FileObserver.CREATE or android.os.FileObserver.DELETE or
+            android.os.FileObserver.MOVED_FROM or android.os.FileObserver.MOVED_TO or
+            android.os.FileObserver.MOVE_SELF or android.os.FileObserver.ATTRIB or android.os.FileObserver.CLOSE_WRITE
+        val observer = if (!enabled) null else directoryObserver(java.io.File(path), mask) { latest.value() }.apply { startWatching() }
+        onDispose { observer?.stopWatching() }
+    }
+}
+
+private fun directoryObserver(dir: java.io.File, mask: Int, onEvent: () -> Unit): android.os.FileObserver =
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+        object : android.os.FileObserver(dir, mask) { override fun onEvent(event: Int, path: String?) = onEvent() }
+    } else {
+        @Suppress("DEPRECATION")
+        object : android.os.FileObserver(dir.absolutePath, mask) { override fun onEvent(event: Int, path: String?) = onEvent() }
+    }

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_restore_done">Restored files: %1$d</string>
+    <string name="settings_restore_failed">Couldn\'t restore — this isn\'t a DSH backup</string>
+    <string name="settings_key_dots">Key ••••%1$s</string>
+    <string name="settings_uptime_hm">%1$d h %2$d min</string>
+    <string name="settings_uptime_m">%1$d min</string>
+</resources>

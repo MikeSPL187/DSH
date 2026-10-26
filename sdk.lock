@@ -1,0 +1,5 @@
+# Pinned dsh-mobile-plugin-sdk revision used for this app build (audit F-14/N-15).
+# The app consumes the SDK as a Gradle composite build; building against a moving
+# branch makes the APK irreproducible. Update deliberately and re-run the tests.
+repository=https://github.com/EricFL1998/dsh-mobile-plugin-sdk.git
+commit=e2fe80a6c403f86770e10628f9d832fd849685e4

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Меню (#drawer). ru / en. -->
+<resources>
+    <string name="dw_host_on">Host работает</string>
+    <string name="dw_host_off">Host не запущен</string>
+    <string name="dw_search">Поиск</string>
+    <string name="dw_clear">Очистить поиск</string>
+    <string name="dw_new">Новая сессия</string>
+    <string name="dw_project">Проект</string>
+    <string name="dw_update">Обновление %1$s</string>
+    <string name="dw_plugins">Плагины</string>
+    <string name="dw_automation">Автоматизация</string>
+    <string name="dw_found">Найдено</string>
+    <string name="dw_nothing">Ничего не найдено</string>
+    <string name="dw_pinned">Закреплено</string>
+    <string name="dw_today">Сегодня</string>
+    <string name="dw_yesterday">Вчера</string>
+    <string name="dw_week">На этой неделе</string>
+    <string name="dw_earlier">Раньше</string>
+    <string name="dw_no_archived">В архиве пусто</string>
+    <string name="dw_empty">Сессий пока нет. Начните новую — она появится здесь.</string>
+    <string name="dw_back_to_sessions">К сессиям</string>
+    <string name="dw_archive">Архив · %1$d</string>
+    <string name="dw_waiting">Ждёт вашего решения</string>
+    <string name="dw_running">Агент работает</string>
+    <string name="dw_settings">Настройки</string>
+    <string name="dw_new_project">Новый проект</string>
+    <string name="dw_rename">Переименовать</string>
+    <string name="dw_move_up">Переместить выше</string>
+    <string name="dw_move_down">Переместить ниже</string>
+    <string name="dw_delete_project">Удалить проект</string>
+    <string name="dw_pin">Закрепить</string>
+    <string name="dw_unpin">Открепить</string>
+    <string name="dw_fork">Продолжить в новой сессии</string>
+    <string name="dw_fork_sub">Копия переписки, исходная не меняется</string>
+    <string name="dw_to_archive">В архив</string>
+    <string name="dw_unarchive">Вернуть из архива</string>
+    <plurals name="dw_sessions">
+        <item quantity="one">%1$d сессия</item>
+        <item quantity="few">%1$d сессии</item>
+        <item quantity="many">%1$d сессий</item>
+        <item quantity="other">%1$d сессии</item>
+    </plurals>
+</resources>

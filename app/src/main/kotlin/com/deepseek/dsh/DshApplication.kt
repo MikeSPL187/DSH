@@ -10,7 +10,6 @@ import androidx.room.Room
 import com.deepseek.dsh.core.data.DefaultSettingsRepository
 import com.deepseek.dsh.core.data.DshDatabase
 import com.deepseek.dsh.core.data.DshRepository
-import com.deepseek.dsh.core.protocol.HostAuthenticator
 import com.deepseek.dsh.core.protocol.HostCookieJar
 import com.deepseek.dsh.core.protocol.RemoteClient
 import kotlinx.coroutines.CoroutineScope
@@ -23,12 +22,12 @@ import java.util.concurrent.TimeUnit
 class DshApplication : Application() {
 
     /**
-     * WebSocket 读线程的 EOF 兜底。
+     * Защита от EOF в потоке чтения WebSocket.
      *
-     * Host 被系统回收时，长连接会以 EOF 结束，而 OkHttp 4 的读线程在个别 teardown
-     * 竞态里会把 `EOFException` 直接抛到线程外，导致进程崩溃。这类异常表示「连接
-     * 已经断开」，没有业务含义，记录日志后让进程继续存活（重连逻辑会在后续调用中
-     * 重新建立连接）。其它未捕获异常仍然走默认崩溃路径，保持可观测。
+     * Когда система останавливает Host, долгие соединения кончаются EOF, а поток чтения OkHttp 4
+     * в редкой гонке при закрытии выбрасывает `EOFException` наружу, и процесс падает. Это лишь
+     * «соединение уже закрыто»: пишем в журнал и живём дальше (переподключение произойдёт
+     * при следующем вызове). Остальные необработанные исключения падают как обычно.
      */
     private fun installTransportEofGuard() {
         val previous = Thread.getDefaultUncaughtExceptionHandler()
@@ -60,7 +59,12 @@ class DshApplication : Application() {
             applicationContext,
             DshDatabase::class.java,
             "dsh_app.db"
-        ).fallbackToDestructiveMigration().build()
+        )
+            // Явные миграции вместо «молча удалить базу» (аудит F-03/N-13). Разрушающая пересборка —
+            // только с базы разработки v1 без известной схемы; дальше каждая версия — с Migration.
+            .addMigrations(*com.deepseek.dsh.core.data.DshMigrations.ALL)
+            .fallbackToDestructiveMigrationFrom(true, 1)
+            .build()
     }
 
     val cookieJar by lazy { HostCookieJar() }
@@ -83,11 +87,11 @@ class DshApplication : Application() {
     }
 
     /**
-     * 正在运行的本地 Host 的 loopback 端口与启动 token。
+     * Порт loopback и токен запуска работающего локального Host.
      *
-     * WebView 岛屿要自己发请求（插件的 RPC、资源），不能借用 App 的 OkHttp 会话，
-     * 所以把这一对值留在这里：岛屿用 `?token=` 换到同一份 cookie，之后与 App 看到
-     * 的是同一个 Host、同一个会话。未绑定时为 0/null。
+     * WebView-островки шлют запросы сами (RPC и ресурсы плагинов) и не могут взять сессию
+     * OkHttp приложения, поэтому пара хранится здесь: островок меняет `?token=` на тот же cookie
+     * и видит тот же Host и ту же сессию. Пока Host не привязан — 0/null.
      */
     @Volatile
     var localHostPort: Int = 0
@@ -98,39 +102,29 @@ class DshApplication : Application() {
         private set
 
     /**
-     * 将仓库客户端绑定到本地 Host 运行时实际报告的 loopback 端口，并用启动
-     * token 换取访问 cookie；UI 的所有数据请求随后都走这个真实地址。
+     * Привязать клиент репозитория к порту loopback, который сообщил локальный Host, и обменять
+     * токен запуска на cookie; дальше все запросы интерфейса идут по этому адресу.
      */
     suspend fun bindLocalHost(port: Int, token: String?) {
-        // 占位端口 1 表示还没有真正可用的 Host：不要绑定，避免把 UI 的
-        // 所有请求/流指向一个必然拒绝连接的地址。
+        // Порт 1 — заглушка, Host ещё не готов: не привязываем, иначе все запросы и потоки
+        // ушли бы на адрес, который заведомо отклонит соединение.
         if (port <= 1) return
         val baseUrl = "http://127.0.0.1:$port"
         localHostPort = port
         localHostToken = token
         defaultClient.updateBaseUrl(baseUrl)
-        // bridge 与 Remote API 共用同一个回环地址与会话 CookieJar；先绑地址，
-        // 再换 token，这样 bridge 的第一次请求就带着已建立的会话。
-        dshRepository.bindBridge(baseUrl, com.deepseek.dsh.core.bridge.BridgeRegistry(baseUrl, okHttpClient))
+        // Мост и Remote API делят один адрес loopback и CookieJar сессии: сначала адрес,
+        // потом обмен токена — так первый запрос моста уже идёт с сессией.
+        dshRepository.plugins.bindBridge(com.deepseek.dsh.core.bridge.BridgeRegistry(baseUrl, okHttpClient))
         if (!token.isNullOrBlank()) {
             val res = defaultClient.authenticate(baseUrl, token)
-            // 同步认证状态到 Android 系统 CookieManager，供 WebView / WebIslandContainer 使用
+            // Состояние входа — в системный CookieManager для WebView и WebIslandContainer.
             try {
                 val cm = android.webkit.CookieManager.getInstance()
                 cm.setAcceptCookie(true)
-                // 也可以直接在后台预热触发一次 Web 交换
+                // И сразу обмен для WebView в фоне.
             } catch (_: Throwable) {}
         }
-    }
-
-    fun unbindLocalHost() {
-        localHostPort = 0
-        localHostToken = null
-        defaultClient.updateBaseUrl("http://127.0.0.1:1")
-        dshRepository.bindBridge(
-            "http://127.0.0.1:1",
-            com.deepseek.dsh.core.bridge.BridgeRegistry("http://127.0.0.1:1", okHttpClient),
-        )
     }
 
     val dshRepository: DshRepository by lazy {
@@ -144,16 +138,34 @@ class DshApplication : Application() {
     val settingsRepository: DefaultSettingsRepository by lazy {
         DefaultSettingsRepository(
             dao = database.dshDao(),
-            scope = applicationScope
+            scope = applicationScope,
+            secretCipher = com.deepseek.dsh.core.data.SecretCipher.androidKeystore(),
         )
     }
 
+    override fun attachBaseContext(base: android.content.Context) {
+        super.attachBaseContext(AppLanguage.wrap(base))
+    }
+
     override fun onCreate() {
+        // Сначала запись сбоев, поверх — защита от EOF: проглоченный разрыв не даёт отчёта о сбое.
+        TestCrashRecorder.install(this)
         installTransportEofGuard()
         super.onCreate()
+        com.deepseek.dsh.runtime.host.HostStrings.init(this)
+        com.deepseek.dsh.feature.settings.logic.ApiKeyVault.init(this)
+        com.deepseek.dsh.feature.settings.logic.DshUserPrefs.init(this)
+        com.deepseek.dsh.feature.settings.logic.ToolCallLog.init(this)
+        com.deepseek.dsh.feature.settings.logic.ToolPolicy.init(this)
+        com.deepseek.dsh.feature.settings.logic.AutomationStore.init(this)
+        AutomationScheduler.rescheduleAll(this)
+        // Тексты из модулей без Context следуют за языком интерфейса, а не только за системным.
+        com.deepseek.dsh.core.model.Tr.language = {
+            resources.configuration.locales[0]?.language ?: java.util.Locale.getDefault().language
+        }
         runtimeLayout = RuntimeLayout(
             baseDir = filesDir,
-            nativeLibraryDir = java.io.File(applicationInfo.nativeLibraryDir)
+            nativeLibraryDir = java.io.File(applicationInfo.nativeLibraryDir ?: filesDir.absolutePath)
         )
         runtimeManager = DefaultHostRuntimeManager(
             context = applicationContext,
@@ -161,14 +173,14 @@ class DshApplication : Application() {
             runner = hostRunner
         )
         HostRuntimeHolder.manager = runtimeManager
-        // App 打开即开始预热点 Host（Activity/Compose 之前）；不常驻后台。
+        HostRuntimeHolder.hasRunningTasks = { dshRepository.runningSessionIdsFlow.value.isNotEmpty() }
+        // Host прогревается сразу при открытии (до Activity и Compose); в фоне не живёт.
         if (java.io.File(filesDir, "rootfs/etc/os-release").exists()) {
-            val workspace = java.io.File(
-                android.os.Environment.getExternalStorageDirectory(),
-                "Documents/DSH-Workspace"
-            )
+            val workspace = StorageAccess.workspaceRoot(this)
+            // До запуска Host: папка его сессий переименовывается вместе с папкой проекта.
+            runCatching { migrateDefaultWorkspace(workspace, java.io.File(filesDir, HOST_SESSIONS_DIR)) }
             applicationScope.launch(Dispatchers.IO) {
-                runCatching { runtimeManager.start(workspace.absolutePath) }
+                runCatching { runtimeManager.warmUp(workspace.absolutePath) }
             }
         }
     }

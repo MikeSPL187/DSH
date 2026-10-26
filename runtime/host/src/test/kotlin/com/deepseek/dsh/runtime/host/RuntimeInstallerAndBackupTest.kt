@@ -25,7 +25,7 @@ class RuntimeInstallerAndBackupTest {
             )
             val installer = RootfsInstaller(layout)
 
-            // 构造一个符合契约的最小 rootfs tar.gz（etc/os-release + usr/bin/env）。
+            // Минимальный rootfs tar.gz по контракту (etc/os-release + usr/bin/env).
             val archive = File(tempDir, "rootfs.tar.gz")
             FileOutputStream(archive).use { fileOut ->
                 GzipCompressorOutputStream(fileOut).use { gzip ->

@@ -7,21 +7,21 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 
 /**
- * 思考过程翻译（`cotTranslation` Remote）的模型。
+ * Модель перевода рассуждений (`cotTranslation`).
  *
- * 官方客户端读 `limits()` 得到可用的翻译服务、当前偏好与单段上限，再逐段调用
- * `translate(request)`；译文缓存在客户端，重新展开不重复请求。
+ * `limits()` даёт доступные сервисы, выбранный сервис и предел фрагмента; затем
+ * `translate(request)` вызывается по фрагментам; перевод кэширует интерфейс.
  */
 
-/** `cotTranslation/limits` 的结果。 */
+/** Ответ `cotTranslation/limits`. */
 data class CotTranslationLimits(
-    /** 单段最大字符数；超过要切开。 */
+    /** Предел символов во фрагменте; длиннее — режется. */
     val maxTextChars: Int,
-    /** 当前偏好的翻译服务（bing/google/deepseek-account/deepseek-official）。 */
+    /** Выбранный сервис (bing/google/deepseek-account/deepseek-official). */
     val provider: String,
-    /** 目标语言；`auto` 跟随界面语言。 */
+    /** Язык перевода; `auto` — язык интерфейса. */
     val targetLanguage: String,
-    /** 当前部署下可用的服务。 */
+    /** Доступные сервисы. */
     val availableProviders: List<String>,
 )
 

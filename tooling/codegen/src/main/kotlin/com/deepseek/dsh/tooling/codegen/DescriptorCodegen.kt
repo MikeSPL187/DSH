@@ -3,8 +3,7 @@ package com.deepseek.dsh.tooling.codegen
 import kotlinx.serialization.Serializable
 
 /**
- * v4.0 设计文档 §5.2:
- * ctx.typert.local 导出 InvocationDescriptor IR 数据结构
+ * Структуры IR InvocationDescriptor, которые экспортирует ctx.typert.local.
  */
 @Serializable
 data class InvocationDescriptor(

@@ -11,11 +11,11 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * 插件最新版本的查询与缓存。
+ * Запрос последней версии плагина и кэш.
  *
- * 缓存不是性能优化，而是可用性约束：未授权的 GitHub API 每小时只有 60 次额度，
- * 设置页每刷新一次就问一次，没有缓存时很快会把自己限流，之后连「有没有更新」
- * 都判断不了。
+ * Кэш — не оптимизация, а условие работоспособности: у GitHub API без авторизации 60 запросов в час,
+ * настройки спрашивают при каждом обновлении, и без кэша мы быстро упрёмся в лимит, а потом не сможем
+ * даже определить, есть ли обновление.
  */
 class BridgeReleaseCheckerTest {
 
@@ -46,7 +46,7 @@ class BridgeReleaseCheckerTest {
         val repository = "https://github.com/cachetest/failure"
         assertNull(checker.latestVersion(repository))
         assertNull(checker.latestVersion(repository))
-        // 一次查询 = API + 跳转兜底两次请求；第二次查询走缓存，不再发请求。
+        // Один запрос = API + запасная переадресация, два обращения; второй запрос — из кэша, без обращений.
         assertEquals("API and redirect are asked once per lookup", 2, calls)
     }
 

@@ -14,18 +14,18 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 /**
- * rootfs 清单的实时来源。
+ * Свежий источник манифеста rootfs.
  *
- * 清单不能随 APK 打包：它带着下载地址与 SHA-256，每次 rootfs 发版都会变，
- * 内置的那份会立刻过期，于是新装用户去下一个已经不存在（或校验不过）的地址。
+ * Манифест нельзя упаковывать в APK: в нём адреса загрузки и SHA-256, они меняются с каждым выпуском rootfs,
+ * встроенный тут же устаревает, и новые пользователи шли бы по адресу, которого нет (или с неверной суммой).
  *
- * 因此清单在运行时从 rootfs 仓库的最新 release 拉取。APK 只保留一个地址常量，
- * 它不会随发版失效。
+ * Поэтому манифест берётся при работе из последнего выпуска репозитория rootfs. В APK — только постоянный адрес,
+ * который с выпусками не устаревает.
  *
- * 三级来源，逐级降级：
- * 1. **网络**：最新 release 的 `rootfs-manifest.json`，成功后写入缓存；
- * 2. **缓存**：上一次成功拉取的清单，离线时仍然可用；
- * 3. **内置兜底**：仅用于「连一次都没成功过」的极端情况，并会明确标记为兜底。
+ * Три источника по убыванию:
+ * 1. **Сеть**: `rootfs-manifest.json` последнего выпуска; при успехе пишется в кэш;
+ * 2. **Кэш**: последний удачно загруженный манифест, доступен без сети;
+ * 3. **Встроенный запасной**: только если ни одной удачной загрузки не было, и он явно помечен как запасной.
  */
 class RootfsManifestSource(
     private val context: Context,
@@ -37,34 +37,34 @@ class RootfsManifestSource(
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    /** 清单来源，供 UI 与日志说明当前数字可信到什么程度。 */
+    /** Источник манифеста — чтобы интерфейс и журнал говорили, насколько можно верить цифрам. */
     enum class Origin {
-        /** 刚从网络拉到。 */
+        /** Только что из сети. */
         NETWORK,
 
-        /** 上一次成功拉取的缓存。 */
+        /** Кэш последней удачной загрузки. */
         CACHE,
 
-        /** APK 内置兜底；可能已过期。 */
+        /** Встроенный в APK запасной; может быть устаревшим. */
         BUNDLED,
     }
 
-    /** 一次解析结果：清单本身与它的来源。 */
+    /** Итог разбора: сам манифест и его источник. */
     data class Resolved(
         val manifest: RootfsManifest,
         val origin: Origin,
     )
 
     /**
-     * 取得当前可用的清单。
+     * Получить действующий манифест.
      *
-     * 联网失败不抛异常：清单决定的是「能不能装」，而离线时缓存或兜底通常仍能
-     * 让已装用户继续用。调用方通过 [Resolved.origin] 判断可信度。
+     * Ошибка сети — не исключение: манифест решает «можно ли ставить», а без сети кэш или запасной обычно
+     * позволяют установленным пользователям работать дальше. Насколько верить — по [Resolved.origin].
      *
-     * DSH 段与 APK 内置清单不一致的远端/缓存清单会被忽略：APK 的 rootfs 补丁
-     * 是按内置清单的 DSH 版本整文件替换的，跨版本套用会让运行树版本混杂。
-     * @param forceRefresh 跳过缓存，强制重新拉取。
-     * @return 解析结果；连兜底都没有时为 null（APK 打包损坏）。
+     * Удалённые и кэшированные манифесты с частью DSH, не совпадающей со встроенным, пропускаются: патчи rootfs APK
+     * заменяют файлы целиком по версии DSH встроенного манифеста, и применение к другой версии смешало бы версии в рабочем дереве.
+     * @param forceRefresh пропустить кэш и загрузить заново.
+     * @return итог; если нет даже запасного — null (APK собран с ошибкой).
      */
     suspend fun resolve(forceRefresh: Boolean = false): Resolved? = withContext(Dispatchers.IO) {
         val expectedDsh = bundledDshVersion()
@@ -80,10 +80,10 @@ class RootfsManifestSource(
             }
             android.util.Log.w(
                 TAG,
-                "忽略 DSH 版本不兼容的 rootfs 清单: ${remote.runtimeVersion}（期望 dsh${expectedDsh ?: "?"}）",
+                "Ignoring rootfs manifest for an incompatible DSH: ${remote.runtimeVersion} (expected dsh${expectedDsh ?: "?"})",
             )
         }
-        // 网络失败或远端不兼容：退回上一次成功的兼容缓存。
+        // Ошибка сети или несовместимый удалённый манифест: вернуться к последнему удачному совместимому кэшу.
         cachedManifest()
             ?.takeIf { compatible(it, expectedDsh) }
             ?.let { return@withContext Resolved(it, Origin.CACHE) }
@@ -91,32 +91,20 @@ class RootfsManifestSource(
         null
     }
 
-    /** APK 内置清单的 DSH 版本；缺失或格式不符时为 null。 */
+    /** Версия DSH встроенного манифеста; нет или неверный формат — null. */
     fun bundledDshVersion(): String? =
         bundledManifest()?.runtimeVersion?.let(RootfsNaming::dshVersion)
 
-    /** 这份清单的 DSH 版本是否与当前 APK 的补丁目标一致。 */
+    /** Совпадает ли версия DSH этого манифеста с целью патчей текущего APK. */
     private fun compatible(manifest: RootfsManifest, expectedDsh: String?): Boolean =
-        // 构建期已烧入 Android 补丁的镜像与 DSH 段无关：镜像里的上游文件本身
-        // 就是「最新 DSH + 补丁」，App 不会再整文件覆盖，因此可以直接接受。
+        // Образу со вшитыми при сборке патчами Android часть DSH не важна: файлы в нём уже
+        // «последний DSH + патчи», приложение не заменяет их целиком, поэтому манифест принимается сразу.
         manifest.androidPatched || RootfsNaming.isDshCompatible(manifest.runtimeVersion, expectedDsh)
 
-    /**
-     * 取得清单，失败时抛异常。
-     *
-     * 安装流程需要「装或不装」的确定答案，不能拿一个可能过期的兜底去下载。
-     * @param forceRefresh 跳过缓存。
-     * @return 清单。
-     * @throws IllegalStateException 当网络、缓存、兜底全部不可用时。
-     */
-    suspend fun requireManifest(forceRefresh: Boolean = true): RootfsManifest =
-        resolve(forceRefresh)?.manifest
-            ?: error("无法获取 rootfs 清单：网络不可用，且没有本地缓存")
-
-    /** 清单缓存文件；与 rootfs 安装标记同目录，避免污染 rootfs 本身。 */
+    /** Файл кэша манифеста; рядом с меткой установки rootfs, чтобы не засорять сам rootfs. */
     private fun cacheFile(): File = File(layout.baseDir, "runtime/${RootfsNaming.MANIFEST_CACHE_FILE}")
 
-    /** 读缓存。 */
+    /** Прочитать кэш. */
     private fun cachedManifest(): RootfsManifest? {
         val file = cacheFile()
         if (!file.isFile) return null
@@ -126,7 +114,7 @@ class RootfsManifestSource(
         }.getOrNull()
     }
 
-    /** 写缓存；失败不影响本次使用。 */
+    /** Записать кэш; ошибка на текущее использование не влияет. */
     private fun writeCache(manifest: RootfsManifest) {
         runCatching {
             val file = cacheFile()
@@ -135,7 +123,7 @@ class RootfsManifestSource(
         }
     }
 
-    /** 从 rootfs 仓库的最新 release 拉清单。 */
+    /** Загрузить манифест из последнего выпуска репозитория rootfs. */
     private fun fetchRemote(): RootfsManifest? {
         val request = Request.Builder()
             .url(resolveManifestUrl())
@@ -152,7 +140,7 @@ class RootfsManifestSource(
         }.getOrNull()
     }
 
-    /** APK 内置的兜底清单；缺失或损坏时为 null。 */
+    /** Встроенный в APK запасной манифест; нет или повреждён — null. */
     private fun bundledManifest(): RootfsManifest? = runCatching {
         val raw = context.assets.open(RootfsNaming.MANIFEST_ASSET).bufferedReader().use { it.readText() }
         json.decodeFromString(RootfsManifest.serializer(), raw)
@@ -160,11 +148,11 @@ class RootfsManifestSource(
     }.getOrNull()
 
     /**
-     * 通过 GitHub API 找到「最新 release」里清单资产的直链。
+     * Через GitHub API найти прямую ссылку на манифест в «последнем выпуске».
      *
-     * `releases/latest/download/...` 的 302 会被 CDN 缓存一段时间：刚把新版本
-     * 设为 latest 时，客户端可能还拿到上一个版本的清单。API 的 latest 则按
-     * release 状态实时返回。API 不可用时退回固定重定向地址。
+     * Переадресация 302 `releases/latest/download/...` какое-то время кэшируется CDN: сразу после того, как новый выпуск
+     * стал latest, клиент мог получить манифест прошлого. latest в API отвечает по текущему
+     * состоянию выпуска. Если API недоступен — постоянный адрес с переадресацией.
      */
     private fun resolveManifestUrl(): String {
         val apiUrl = runCatching {
@@ -190,16 +178,16 @@ class RootfsManifestSource(
     }
 
     private companion object {
-        /** Logcat tag。 */
+        /** Тег Logcat. */
         const val TAG = "DshRootfsManifest"
 
-        /** GitHub API：最新非 prerelease release。 */
+        /** GitHub API: последний выпуск, не prerelease. */
         const val RELEASE_API_URL =
             "https://api.github.com/repos/EricFL1998/deepseek-harness-mobile-rootfs/releases/latest"
 
         /**
-         * 固定重定向兜底地址；API 不可用时使用。CDN 可能短暂返回旧版本，
-         * 因此它只是兜底，不是首选。
+         * Постоянный адрес с переадресацией — когда API недоступен. CDN может ненадолго отдавать старую версию,
+         * поэтому это запасной путь, а не основной.
          */
         const val LATEST_MANIFEST_URL =
             "https://github.com/EricFL1998/deepseek-harness-mobile-rootfs/releases/latest/download/rootfs-manifest.json"
