@@ -15,20 +15,6 @@ class PluginsRepositoryTest {
     private fun plugins(host: FakeHost) = PluginsRepository(host.client, HostCalls(host.client))
 
     @Test
-    fun `credential status never needs the secret value`() = runBlocking {
-        val host = FakeHost { method, _ ->
-            if (method == "credentials/describe") {
-                hostOk("""{"DEEPSEEK_API_KEY":{"configured":true,"writable":false,"source":"env"}}""")
-            } else null
-        }
-        val status = plugins(host).credentialStatus("local", "DEEPSEEK_API_KEY")!!
-        assertTrue(status.configured)
-        assertFalse(status.writable)
-        assertEquals("env", status.source)
-        assertNull(plugins(host).credentialStatus("local", "OTHER_KEY"))
-    }
-
-    @Test
     fun `set and unset credential report what host accepted`() = runBlocking {
         val host = FakeHost { method, _ ->
             when (method) {

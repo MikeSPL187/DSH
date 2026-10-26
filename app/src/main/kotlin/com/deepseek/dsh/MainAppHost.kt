@@ -1063,8 +1063,6 @@ fun MainAppHost(
                                 },
                                 onOpenSource = { dir -> ui.filesDir = dir; ui.activePage = ActivePage.FILES },
                                 onOpenPluginUi = { id -> ui.pluginUiOpen = id },
-                                loadCredential = { ref -> dshRepository.plugins.credentialStatus(ui.activeHostId, ref) },
-                                saveCredential = { ref, value -> dshRepository.plugins.setCredential(ui.activeHostId, ref, value) },
                                 speech = SpeechHooks(
                                     catalog = { dshRepository.speech.speechCatalog(ui.activeHostId) },
                                     configure = { providerId, language -> dshRepository.speech.speechConfigure(ui.activeHostId, providerId, language) },
@@ -1187,21 +1185,14 @@ fun MainAppHost(
             showSignIn = ui.showSignInDialog,
             onDismissSignIn = { ui.showSignInDialog = false },
             onAddKey = {
+                // Ключ сохраняется только там: в Host и Keystore, с проверкой и «Показать».
                 ui.showSignInDialog = false
-                ui.showApiKeyDialog = true
+                ui.settingsInitialSection = com.deepseek.dsh.feature.settings.ui.StPage.Models
+                ui.activePage = ActivePage.SETTINGS
             },
             onSignIn = {
                 ui.showSignInDialog = false
                 hostAccount.signIn()
-            },
-            showApiKey = ui.showApiKeyDialog,
-            apiKeyInput = ui.apiKeyInput,
-            onApiKeyChange = { ui.apiKeyInput = it },
-            onDismissApiKey = { ui.showApiKeyDialog = false },
-            onSubmitApiKey = {
-                oauthManager.signInWithApiKey(ui.apiKeyInput)
-                ui.apiKeyInput = ""
-                ui.showApiKeyDialog = false
             },
         )
     

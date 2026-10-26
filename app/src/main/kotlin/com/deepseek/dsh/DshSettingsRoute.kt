@@ -263,7 +263,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
                 d.modelProviders.refresh(hostId)
                 d.modelProviders.deepSeek(d.officialNamespaces)
             } ?: return false
-            d.modelProviders.save(hostId, provider, key)
+            if (!d.modelProviders.save(hostId, provider, key)) return false
             d.oauthManager.signInWithApiKey(key)
             tick++
             return true
@@ -277,8 +277,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
                 keyConfigured = false, settingsNs = "llm-pi-ai", settingsPath = listOf("providers", id),
                 baseUrl = baseUrl, declared = false, configured = false,
             )
-            d.modelProviders.save(hostId, provider, key, baseUrl, models)
-            return true
+            return d.modelProviders.save(hostId, provider, key, baseUrl, models)
         }
 
         override fun manageKeysOnSite() { openWebLink(context, "https://platform.deepseek.com/api_keys") }

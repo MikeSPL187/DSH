@@ -71,18 +71,13 @@ internal fun PluginIslandOverlays() {
     }
 }
 
-/** Окна входа и API-ключа. */
+/** Окно входа: войти в аккаунт или добавить API-ключ (в «Настройках → Модели»). */
 @Composable
 internal fun SignInDialogs(
     showSignIn: Boolean,
     onDismissSignIn: () -> Unit,
     onAddKey: () -> Unit,
     onSignIn: () -> Unit,
-    showApiKey: Boolean,
-    apiKeyInput: String,
-    onApiKeyChange: (String) -> Unit,
-    onDismissApiKey: () -> Unit,
-    onSubmitApiKey: () -> Unit,
 ) {
     if (showSignIn) {
         com.deepseek.dsh.core.designsystem.DshDialog(
@@ -102,36 +97,6 @@ internal fun SignInDialogs(
                     primary = true,
                     enabled = true,
                     onClick = onSignIn,
-                )
-            },
-        )
-    }
-    if (showApiKey) {
-        com.deepseek.dsh.core.designsystem.DshDialog(
-            onDismiss = onDismissApiKey,
-            title = stringResource(R.string.onboarding_key_title),
-            closeLabel = stringResource(R.string.action_close),
-            description = stringResource(R.string.onboarding_key_desc),
-            footer = {
-                com.deepseek.dsh.core.designsystem.DshDialogButton(
-                    text = stringResource(R.string.action_cancel),
-                    primary = false,
-                    enabled = true,
-                    onClick = onDismissApiKey,
-                )
-                com.deepseek.dsh.core.designsystem.DshDialogButton(
-                    text = stringResource(R.string.onboarding_login),
-                    primary = true,
-                    enabled = apiKeyInput.isNotBlank(),
-                    onClick = onSubmitApiKey,
-                )
-            },
-            content = {
-                com.deepseek.dsh.core.designsystem.DshTextInput(
-                    value = apiKeyInput,
-                    onValueChange = onApiKeyChange,
-                    placeholder = stringResource(R.string.onboarding_key_placeholder),
-                    secret = true,
                 )
             },
         )

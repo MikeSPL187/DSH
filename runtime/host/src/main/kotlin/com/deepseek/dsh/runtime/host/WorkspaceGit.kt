@@ -41,7 +41,7 @@ class WorkspaceGit(private val layout: RuntimeLayout, private val workspaceRoot:
         val branch = git(project, "symbolic-ref", "--short", "HEAD")?.trim()?.ifEmpty { null }
             ?: git(project, "rev-parse", "--short", "HEAD")?.trim().orEmpty()
         val hasHead = git(project, "rev-parse", "--verify", "-q", "HEAD") != null
-        val numstat = if (hasHead) parseNumstat(git(project, "diff", "--numstat", "-z", "HEAD").orEmpty()) else emptyMap()
+        val numstat = if (hasHead) parseNumstat(git(project, "diff", "--no-ext-diff", "--no-textconv", "--numstat", "-z", "HEAD").orEmpty()) else emptyMap()
         val projectDir = File(workspaceRoot, project)
         val changes = parsePorcelain(porcelain).map { (path, kind) ->
             val stat = numstat[path]
@@ -64,7 +64,7 @@ class WorkspaceGit(private val layout: RuntimeLayout, private val workspaceRoot:
             return@withContext listOf(DiffLine.Hunk("@@ -0,0 +1,${lines.size} @@")) +
                 lines.mapIndexed { i, t -> DiffLine.Line('+', i + 1, t) }
         }
-        parseUnified(git(project, "diff", "--no-color", "-U3", "HEAD", "--", path).orEmpty())
+        parseUnified(git(project, "diff", "--no-ext-diff", "--no-textconv", "--no-color", "-U3", "HEAD", "--", path).orEmpty())
     }
 
     /** Отменить изменение файла: вернуть версию из коммита, новый файл — удалить. */
@@ -80,12 +80,13 @@ class WorkspaceGit(private val layout: RuntimeLayout, private val workspaceRoot:
     /** `git clone` в новую папку [dir] внутри проекта. */
     suspend fun clone(project: String, url: String, dir: String): Result<Unit> = withContext(Dispatchers.IO) {
         if (!available()) return@withContext Result.failure(IllegalStateException("git"))
-        val out = run(listOf(GIT, "-c", "safe.directory=*", "-C", "/workspace/$project", "clone", "--depth", "50", "--", url, dir), timeoutSec = 600)
+        val out = run(listOf(GIT) + HARDENING + listOf("-C", "/workspace/$project", "clone", "--depth", "50", "--", url, dir), timeoutSec = 600)
         if (out.first == 0) Result.success(Unit) else Result.failure(IllegalStateException(out.second.lines().lastOrNull { it.isNotBlank() } ?: "git clone"))
     }
 
     private fun git(project: String, vararg args: String): String? {
-        val (code, out) = run(listOf(GIT, "-c", "safe.directory=*", "-c", "core.quotepath=off", "-C", "/workspace/$project") + args)
+        if (!repoConfigSafe(File(workspaceRoot, project))) return null
+        val (code, out) = run(listOf(GIT) + HARDENING + listOf("-c", "core.quotepath=off", "-C", "/workspace/$project") + args)
         return if (code == 0) out else null
     }
 
@@ -109,6 +110,44 @@ class WorkspaceGit(private val layout: RuntimeLayout, private val workspaceRoot:
 
     companion object {
         private const val GIT = "/usr/bin/git"
+
+        /**
+         * Настройки поверх конфига репозитория. `safe.directory=*` нужен: в proot владелец папок —
+         * uid приложения, и git иначе отказывается работать. Но тогда git доверяет `.git/config` и хукам
+         * проекта, а их мог положить кто угодно (архив проекта, общая папка «Документы»). Всё, чем git
+         * сам запускает программы при status/diff/checkout/clone, здесь выключено.
+         */
+        internal val HARDENING = listOf(
+            "-c", "safe.directory=*",
+            "-c", "core.fsmonitor=false",
+            "-c", "core.hooksPath=/dev/null",
+            "-c", "core.pager=cat",
+            "-c", "core.editor=true",
+            "-c", "core.sshCommand=ssh",
+            "-c", "commit.gpgSign=false",
+            "-c", "protocol.ext.allow=never",
+        )
+
+        /** Секции конфига, которые запускают программы и не выключаются флагом: фильтры и включение других файлов. */
+        private val UNSAFE_SECTION = Regex("""(?im)^\s*\[\s*(filter|include|includeif)\b""")
+
+        /**
+         * Можно ли запускать git в [dir]: в его репозитории (ближайшая `.git` вверх по папкам) нет
+         * фильтров и `include`. `.git`-файл (worktree, submodule) указывает на конфиг в другом месте — отказ.
+         */
+        internal fun repoConfigSafe(dir: File): Boolean {
+            var current: File? = dir.absoluteFile
+            while (current != null) {
+                val dotGit = File(current, ".git")
+                if (dotGit.isFile) return false
+                if (dotGit.isDirectory) {
+                    val configs = listOf(File(dotGit, "config"), File(dotGit, "config.worktree"))
+                    return configs.none { it.isFile && UNSAFE_SECTION.containsMatchIn(runCatching { it.readText() }.getOrDefault("[include]")) }
+                }
+                current = current.parentFile
+            }
+            return true
+        }
         private const val MAX_LINES = 2_000
 
         /** Разбор `status --porcelain=v1 -z`: путь и вид изменения. */

@@ -31,8 +31,6 @@ class AppUiState(
     var filesDir by mutableStateOf(initialWorkspace)
 
     var showSignInDialog by mutableStateOf(false)
-    var showApiKeyDialog by mutableStateOf(false)
-    var apiKeyInput by mutableStateOf("")
     var signInPending by mutableStateOf(false)
     var signInOpenedUrl by mutableStateOf<String?>(null)
 

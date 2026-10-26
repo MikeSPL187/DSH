@@ -113,9 +113,6 @@
     <string name="onboarding_desc">Войдите через аккаунт DeepSeek или добавьте API-ключ. Проекты и файлы остаются на этом устройстве.</string>
     <string name="onboarding_add_key">Добавить API-ключ</string>
     <string name="onboarding_login">Войти</string>
-    <string name="onboarding_key_title">Добавьте API-ключ, чтобы начать</string>
-    <string name="onboarding_key_desc">Настройте официальную модель DeepSeek, чтобы начать.</string>
-    <string name="onboarding_key_placeholder">Введите API-ключ</string>
     <string name="runtime_update_title">Обновление среды</string>
     <string name="runtime_update_later">Позже</string>
     <string name="runtime_update_desc">Доступен новый rootfs: %1$s (текущий %2$s). Обновление заново скачает среду, аккаунт, сессии и рабочая папка сохранятся.</string>

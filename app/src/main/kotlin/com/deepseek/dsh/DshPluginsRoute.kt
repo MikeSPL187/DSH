@@ -77,8 +77,6 @@ internal class PluginDeps(
     val onCreateWithAgent: () -> Unit,
     val onOpenSource: (java.io.File) -> Unit,
     val onOpenPluginUi: (String) -> Unit,
-    val loadCredential: suspend (String) -> com.deepseek.dsh.core.data.PluginsRepository.CredentialStatus?,
-    val saveCredential: suspend (String, String) -> Boolean,
     val speech: SpeechHooks?,
     val onClose: () -> Unit,
 )
@@ -291,7 +289,7 @@ internal fun DshPluginsRoute(d: PluginDeps) {
         override fun dismissTrust(candidateId: String) { d.trustCandidate?.let(d.onDismissTrust) }
     }
 
-    val hooks = remember(d) { PluginUiHooks(d.loadSettings, d.saveSettings, d.loadCredential, d.saveCredential, d.speech) }
+    val hooks = remember(d) { PluginUiHooks(d.loadSettings, d.saveSettings, d.speech) }
     PluginsHomeScreen(
         plugins, catalog, onClose = d.onClose, actions = actions, trust = d.trustCandidate?.let { trustOf(context, it) }, toast = toast,
         extraSection = { id -> PluginUis.forBundle(id)?.Section(hooks) },

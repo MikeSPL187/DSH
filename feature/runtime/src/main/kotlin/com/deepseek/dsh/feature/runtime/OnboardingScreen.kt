@@ -40,6 +40,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -198,12 +199,16 @@ fun OnboardingScreen(
     }
 
     val urlOk = provider == OnboardingProvider.DEEPSEEK || baseUrl.trim().startsWith("https://")
+    // Адрес своего API, введённый до конца (поле адреса потеряло фокус или нажато «Готово»).
+    // Ключ уходит только на него: пауза в наборе `https://openai.co…` отправила бы ключ на чужой домен.
+    var committedUrl by rememberSaveable { mutableStateOf("") }
     // Проверка ключа: через 400 мс после последнего изменения, как в прототипе.
     val checkFn by rememberUpdatedState(checkKey)
-    LaunchedEffect(provider, baseUrl, key) {
+    LaunchedEffect(provider, baseUrl, committedUrl, key) {
         check = null
         checking = false
         if (key.isBlank() || !urlOk || (provider == OnboardingProvider.CUSTOM && baseUrl.isBlank())) return@LaunchedEffect
+        if (provider == OnboardingProvider.CUSTOM && baseUrl.trim() != committedUrl) return@LaunchedEffect
         delay(400)
         checking = true
         check = runCatching { checkFn(provider, baseUrl.trim(), key.trim()) }.getOrDefault(KeyCheck.Offline)
@@ -281,6 +286,7 @@ fun OnboardingScreen(
                         onProvider = { provider = it },
                         baseUrl = baseUrl,
                         onBaseUrl = { baseUrl = it },
+                        onBaseUrlCommit = { committedUrl = baseUrl.trim() },
                         key = key,
                         onKey = { key = it },
                         urlOk = urlOk,
@@ -569,6 +575,7 @@ private fun ModelStep(
     onProvider: (OnboardingProvider) -> Unit,
     baseUrl: String,
     onBaseUrl: (String) -> Unit,
+    onBaseUrlCommit: () -> Unit,
     key: String,
     onKey: (String) -> Unit,
     urlOk: Boolean,
@@ -627,6 +634,7 @@ private fun ModelStep(
                 secret = false,
                 ok = false,
                 keyboard = KeyboardType.Uri,
+                onCommit = onBaseUrlCommit,
             )
             Spacer(Modifier.height(8.dp))
         }
@@ -705,6 +713,7 @@ private fun Field(
     ok: Boolean,
     keyboard: KeyboardType,
     onPaste: (() -> Unit)? = null,
+    onCommit: (() -> Unit)? = null,
 ) {
     val c = Dsh.colors
     var focused by remember { mutableStateOf(false) }
@@ -744,7 +753,11 @@ private fun Field(
                     cursorBrush = SolidColor(c.accent),
                     visualTransformation = if (secret && !shown) PasswordVisualTransformation('•') else VisualTransformation.None,
                     keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = false, imeAction = ImeAction.Done),
-                    modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },
+                    keyboardActions = KeyboardActions(onDone = { onCommit?.invoke(); defaultKeyboardAction(ImeAction.Done) }),
+                    modifier = Modifier.fillMaxWidth().onFocusChanged {
+                        if (focused && !it.isFocused) onCommit?.invoke()
+                        focused = it.isFocused
+                    },
                 )
             }
             if (secret) {

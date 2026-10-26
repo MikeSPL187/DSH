@@ -27,7 +27,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
@@ -59,9 +58,6 @@ import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -227,8 +223,9 @@ fun DshDialogButton(
 /**
  * Поле ввода в листе: s2, радиус 16, высота от 52.
  *
- * @param secret ключ или токен: точки вместо символов, моноширинный шрифт и клавиатура без
- *   автозамены и подсказок — иначе она «исправит» ключ и запомнит его в словаре.
+ *
+ * Для ключей и токенов не подходит: у поля ключа должны быть точки и кнопка «Показать»
+ * (см. поля ключа в «Настройках» и на первом запуске).
  */
 @Composable
 fun DshTextInput(
@@ -236,7 +233,6 @@ fun DshTextInput(
     onValueChange: (String) -> Unit,
     placeholder: String,
     modifier: Modifier = Modifier,
-    secret: Boolean = false,
 ) {
     val c = Dsh.colors
     Box(
@@ -249,12 +245,10 @@ fun DshTextInput(
             onValueChange = onValueChange,
             singleLine = true,
             cursorBrush = SolidColor(c.accent),
-            keyboardOptions = if (secret) KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false) else KeyboardOptions.Default,
-            visualTransformation = if (secret) PasswordVisualTransformation('•') else VisualTransformation.None,
             textStyle = TextStyle(
-                fontFamily = if (secret) DshFonts.mono else DshFonts.body,
+                fontFamily = DshFonts.body,
                 color = c.t1,
-                fontSize = if (secret) 14.sp else 15.sp,
+                fontSize = 15.sp,
                 lineHeight = 20.sp,
             ),
             modifier = Modifier.fillMaxWidth().semantics { contentDescription = placeholder },

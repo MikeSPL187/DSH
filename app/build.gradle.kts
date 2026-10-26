@@ -153,6 +153,6 @@ dependencies {
 // их не запускаем — те же экраны проверяются в testDebugUnitTest.
 tasks.withType<Test>().configureEach {
     if (name == "testReleaseUnitTest") {
-        exclude("**/ScreensGalleryTest*", "**/DesignSystemGalleryTest*", "**/DshScreensSweepTest*")
+        exclude("**/ScreensGalleryTest*", "**/DesignSystemGalleryTest*", "**/DshScreensSweepTest*", "**/KeyCheckTargetTest*")
     }
 }

@@ -308,6 +308,9 @@ private suspend fun applyKey(
         return
     }
     val baseUrl = if (key.provider == OnboardingProvider.CUSTOM) key.baseUrl else ""
-    modelProviders.save(hostId, provider, key.key, baseUrl, key.models)
+    if (!modelProviders.save(hostId, provider, key.key, baseUrl, key.models)) {
+        android.widget.Toast.makeText(context, context.getString(R.string.onboarding_key_failed), android.widget.Toast.LENGTH_LONG).show()
+        return
+    }
     if (key.provider == OnboardingProvider.DEEPSEEK) oauthManager.signInWithApiKey(key.key)
 }

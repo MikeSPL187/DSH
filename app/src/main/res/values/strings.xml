@@ -119,9 +119,6 @@
     <string name="onboarding_desc">Sign in with a DeepSeek account or add an API key to begin. Your projects and files stay on this device.</string>
     <string name="onboarding_add_key">Add API key</string>
     <string name="onboarding_login">Sign in</string>
-    <string name="onboarding_key_title">Add an API key to get started</string>
-    <string name="onboarding_key_desc">Configure an official DeepSeek model to begin.</string>
-    <string name="onboarding_key_placeholder">Enter API key</string>
     <string name="runtime_update_title">Runtime update</string>
     <string name="runtime_update_later">Later</string>
     <string name="runtime_update_desc">New rootfs available: %1$s (current %2$s). Updating downloads the runtime again and keeps your account, sessions and workspace.</string>

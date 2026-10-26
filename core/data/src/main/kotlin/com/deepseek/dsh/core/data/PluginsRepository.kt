@@ -29,7 +29,6 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
@@ -232,22 +231,6 @@ class PluginsRepository internal constructor(
         }
     }
 
-    /**
-     * Состояние учётных данных по ссылке (`credentials/describe`) — без значения.
-     * Учётные данные живут не в документе настроек, а в области `credentials` Host.
-     * @param ref имя ссылки, например `DEEPSEEK_API_KEY`.
-     */
-    suspend fun credentialStatus(hostId: String, ref: String): CredentialStatus? {
-        val args = buildJsonObject { put("refs", buildJsonArray { add(JsonPrimitive(ref)) }) }
-        val entry = (calls.value(hostId, "credentials/describe", args) as? JsonObject)?.get(ref) as? JsonObject
-            ?: return null
-        return CredentialStatus(
-            configured = (entry["configured"] as? JsonPrimitive)?.booleanOrNull ?: false,
-            writable = (entry["writable"] as? JsonPrimitive)?.booleanOrNull ?: true,
-            source = entry.str("source"),
-        )
-    }
-
     /** Записать секрет; записанное значение больше не возвращает ни один вызов чтения. */
     suspend fun setCredential(hostId: String, ref: String, value: String): Boolean =
         credentialCallOk(hostId, "credentials/set", buildJsonObject { put("ref", ref); put("value", value) })
@@ -261,13 +244,6 @@ class PluginsRepository internal constructor(
         val root = runCatching { hostJson.parseToJsonElement(raw) as? JsonObject }.getOrNull() ?: return false
         return ((root["result"] as? JsonObject)?.get("ok") as? JsonPrimitive)?.booleanOrNull == true
     }
-
-    /** Состояние секрета; само значение до клиента не доходит никогда. */
-    data class CredentialStatus(
-        val configured: Boolean,
-        val writable: Boolean,
-        val source: String?,
-    )
 
     /**
      * Перечитать каталог плагинов из моста. Ошибка — не исключение: каталог становится

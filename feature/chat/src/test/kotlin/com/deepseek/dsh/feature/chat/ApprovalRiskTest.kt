@@ -54,4 +54,32 @@ class ApprovalRiskTest {
         assertEquals("src/Main.kt", approvalTarget("""{"file_path":"src/Main.kt"}"""))
         assertEquals(null, approvalTarget("""{"other":1}"""))
     }
+
+    @Test
+    fun `escaped quoted and indirect deletions are still destructive`() {
+        // В JSON: \\rm → \rm, \"rm\" → "rm".
+        assertEquals(ApprovalTier.DESTRUCTIVE, approvalTier("bash", """{"command":"\\rm -rf build"}"""))
+        assertEquals(ApprovalTier.DESTRUCTIVE, approvalTier("bash", """{"command":"r'm' -rf build"}"""))
+        assertEquals(ApprovalTier.DESTRUCTIVE, approvalTier("bash", """{"command":"\"rm\" -rf build"}"""))
+        assertEquals(ApprovalTier.DESTRUCTIVE, bash("sudo find . -delete"))
+        assertEquals(ApprovalTier.DESTRUCTIVE, bash("rsync -a --delete src/ dst/"))
+        assertEquals(ApprovalTier.DESTRUCTIVE, bash("python3 -c 'import shutil; shutil.rmtree(\\'src\\')'"))
+        assertEquals(ApprovalTier.DESTRUCTIVE, bash("node -e 'require(`fs`).rmSync(`src`, {recursive: true})'"))
+        assertEquals(ApprovalTier.DESTRUCTIVE, bash("git branch -D feature"))
+        assertEquals(ApprovalTier.DESTRUCTIVE, bash("git stash drop"))
+        // Команда под незнакомым ключом аргументов.
+        assertEquals(ApprovalTier.DESTRUCTIVE, approvalTier("shell_exec", """{"script":"rm -rf build"}"""))
+        assertEquals(ApprovalTier.DESTRUCTIVE, approvalTier("exec", """{"commands":["ls","rm -rf build"]}"""))
+        assertEquals(ApprovalTier.WRITE, approvalTier("exec", """{"script":"ls -la","rm":"key name only"}"""))
+    }
+
+    @Test
+    fun `plugin tool names with short delete words are destructive, similar words are not`() {
+        assertEquals(ApprovalTier.DESTRUCTIVE, approvalTier("fs_rm", """{"path":"a"}"""))
+        assertEquals(ApprovalTier.DESTRUCTIVE, approvalTier("wipe_dir", """{"path":"a"}"""))
+        assertEquals(ApprovalTier.DESTRUCTIVE, approvalTier("cache.purge", """{}"""))
+        assertEquals(ApprovalTier.WRITE, approvalTier("format_code", """{"path":"a"}"""))
+        assertEquals(ApprovalTier.WRITE, approvalTier("select_model", """{}"""))
+        assertEquals(ApprovalTier.WRITE, approvalTier("confirm_terminal", """{}"""))
+    }
 }

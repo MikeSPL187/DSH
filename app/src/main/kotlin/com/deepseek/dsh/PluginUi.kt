@@ -1,25 +1,20 @@
 package com.deepseek.dsh
 
 import androidx.compose.runtime.Composable
-import com.deepseek.dsh.core.data.PluginsRepository
 import com.deepseek.dsh.core.model.PluginSettingsDocument
 import kotlinx.serialization.json.JsonObject
 
 /**
  * Возможности Host для нативного интерфейса плагинов.
  *
- * Интерфейс плагина читает документ настроек (`configForms.get(ns)`) и учётные данные
- * (`remote.credentials`). Нативные страницы используют те же вызовы — поведение как в веб-версии.
+ * Интерфейс плагина читает документ настроек (`configForms.get(ns)`). Нативные страницы
+ * используют те же вызовы — поведение как в веб-версии.
  */
 internal data class PluginUiHooks(
     /** Прочитать форму и значения пространства настроек. */
     val loadDocument: suspend (String) -> PluginSettingsDocument?,
     /** Записать пространство настроек (с revision; при конфликте запись отклоняется). */
     val saveDocument: suspend (String, JsonObject, Int) -> Boolean,
-    /** Состояние секрета (без значения: задан ли и можно ли писать). */
-    val loadCredential: suspend (String) -> PluginsRepository.CredentialStatus?,
-    /** Записать секрет. */
-    val saveCredential: suspend (String, String) -> Boolean,
     /** Распознавание речи Host (`speech`); у плагинов, кроме голосового, null. */
     val speech: SpeechHooks? = null,
 )

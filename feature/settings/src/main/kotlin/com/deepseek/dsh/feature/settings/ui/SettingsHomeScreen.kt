@@ -26,6 +26,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -478,12 +481,16 @@ private fun KeySheet(custom: Boolean, a: SettingsActions, toast: ToastState, clo
     var shown by remember { mutableStateOf(false) }
     var state by remember { mutableStateOf<KeyState?>(null) }
     var busy by remember { mutableStateOf(false) }
-    LaunchedEffect(key, url) {
+    // Адрес своего API, введённый до конца (поле потеряло фокус или нажато «Готово»): ключ уходит только на него —
+    // пауза в наборе `https://openai.co…` отправила бы ключ на чужой домен.
+    var committedUrl by rememberSaveable { mutableStateOf("") }
+    LaunchedEffect(key, url, committedUrl) {
         state = null
         if (key.isBlank()) return@LaunchedEffect
+        if (custom && url.trim() != committedUrl) return@LaunchedEffect
         kotlinx.coroutines.delay(400)
         busy = true
-        state = a.checkKey(if (custom) url else null, key.trim())
+        state = a.checkKey(if (custom) committedUrl else null, key.trim())
         busy = false
     }
     SheetTitle(stringResource(if (custom) R.string.st_custom else R.string.st_key_replace))
@@ -491,7 +498,7 @@ private fun KeySheet(custom: Boolean, a: SettingsActions, toast: ToastState, clo
     if (custom) {
         Field(name, { name = it }, stringResource(R.string.st_custom_name))
         Spacer(Modifier.height(8.dp))
-        Field(url, { url = it }, stringResource(R.string.st_custom_url), keyboard = KeyboardType.Uri)
+        Field(url, { url = it }, stringResource(R.string.st_custom_url), keyboard = KeyboardType.Uri, onCommit = { committedUrl = url.trim() })
         Spacer(Modifier.height(8.dp))
     }
     Field(
@@ -561,8 +568,10 @@ private fun Field(
     secret: Boolean = false,
     keyboard: KeyboardType = KeyboardType.Text,
     trailing: (@Composable () -> Unit)? = null,
+    onCommit: (() -> Unit)? = null,
 ) {
     val c = Dsh.colors
+    var focused by remember { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(16.dp)).background(c.s2).padding(start = 14.dp, end = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -575,8 +584,12 @@ private fun Field(
                 textStyle = (if (secret || keyboard == KeyboardType.Password) mono(14.sp, FontWeight.Normal) else body(15.sp)).copy(color = c.t1),
                 cursorBrush = SolidColor(c.accent),
                 visualTransformation = if (secret) PasswordVisualTransformation('•') else VisualTransformation.None,
-                keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = false),
-                modifier = Modifier.fillMaxWidth().semantics { contentDescription = placeholder },
+                keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = false, imeAction = if (onCommit != null) ImeAction.Done else ImeAction.Default),
+                keyboardActions = KeyboardActions(onDone = { onCommit?.invoke(); defaultKeyboardAction(ImeAction.Done) }),
+                modifier = Modifier.fillMaxWidth().semantics { contentDescription = placeholder }.onFocusChanged {
+                    if (focused && !it.isFocused) onCommit?.invoke()
+                    focused = it.isFocused
+                },
             )
         }
         trailing?.invoke()

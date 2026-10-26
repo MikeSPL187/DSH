@@ -49,10 +49,11 @@ internal class ModelProviders(private val repository: DshRepository) {
      * @param key новый ключ; пусто — ключ не меняется.
      * @param baseUrl свой адрес API; пусто — не меняется.
      * @param models модели провайдера; пусто — не меняются.
+     * @return false — Host не принял ключ: в Keystore он не пишется, «Настройки» не покажут его сохранённым.
      */
-    suspend fun save(hostId: String, provider: ModelProviderUi, key: String, baseUrl: String = "", models: List<String> = emptyList()) {
+    suspend fun save(hostId: String, provider: ModelProviderUi, key: String, baseUrl: String = "", models: List<String> = emptyList()): Boolean {
         if (key.isNotBlank()) {
-            repository.plugins.setCredential(hostId, provider.keyRef, key)
+            if (!repository.plugins.setCredential(hostId, provider.keyRef, key)) return false
             ApiKeyVault.save(if (isDeepSeek(provider)) DEEPSEEK_VAULT_REF else provider.keyRef, key)
         }
         if (provider.settingsNs.isNotBlank()) {
@@ -70,6 +71,7 @@ internal class ModelProviders(private val repository: DshRepository) {
         }
         refresh(hostId)
         repository.hostSettings.refreshModelCatalog(hostId)
+        return true
     }
 
     /** Удалить ключ провайдера из Host и Keystore. */
