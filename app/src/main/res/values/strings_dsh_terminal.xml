@@ -39,4 +39,9 @@
 Start with help or ls.</string>
     <string name="tm_tab_close">Close tab</string>
     <string name="tm_tab_close_sub">The shell process will be stopped</string>
+    <string name="tm_paste_title">Run %1$d pasted lines?</string>
+    <string name="tm_paste_desc">The field shows only the first line, but the shell will run each of them. Check them before running.</string>
+    <string name="tm_paste_more">and %1$d more lines</string>
+    <string name="tm_paste_cancel">Cancel</string>
+    <string name="tm_paste_run">Run all</string>
 </resources>

@@ -60,5 +60,10 @@ class BridgeNotificationTest {
         assertEquals("уведомление службы Host на месте", 1, host.size)
         assertTrue("уведомлений плагинов не больше $MAX_NOTIFICATIONS: ${posted.size}", posted.size <= MAX_NOTIFICATIONS + 1)
         assertTrue(posted.all { (it.extras.getCharSequence("android.title")?.length ?: 0) <= 200 })
+        // Уведомления плагинов помечены — не выдают себя за DSH.
+        val plugin = posted - host.toSet()
+        assertTrue(plugin.isNotEmpty() && plugin.all { n ->
+            n.extras.getCharSequence("android.title").toString().let { it.startsWith("Plugin: ") || it.startsWith("Плагин: ") }
+        })
     }
 }

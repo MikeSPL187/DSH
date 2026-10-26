@@ -349,3 +349,21 @@ class TermModel(val id: String, private val clock: () -> Long = System::currentT
         }
     }
 }
+
+/**
+ * Ввод для оболочки без управляющих символов: вставленный текст с `ESC`, `^C` и т. п. уходил в PTY как есть.
+ * Переводы строк (`\r\n`, `\r`) сводятся к `\n` и остаются — их показывает [TermPaste.lines].
+ */
+object TermPaste {
+    fun clean(text: String): String = text.replace("\r\n", "\n").replace('\r', '\n')
+        .filter { it == '\n' || it == '\t' || !(it.isISOControl() || it.code in 0x80..0x9f) }
+        .trimEnd('\n')
+
+    /**
+     * Во вставке несколько строк: поле однострочное и видна только первая, а оболочка выполнит все
+     * (подмена команды при копировании со страницы сайта). Такой ввод выполняется только после подтверждения.
+     */
+    fun needsConfirm(text: String): Boolean = '\n' in clean(text)
+
+    fun lines(text: String): List<String> = clean(text).split('\n')
+}

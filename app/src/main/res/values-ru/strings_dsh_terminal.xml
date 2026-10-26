@@ -39,4 +39,9 @@
 Начните с help или ls.</string>
     <string name="tm_tab_close">Закрыть вкладку</string>
     <string name="tm_tab_close_sub">Процесс оболочки будет остановлен</string>
+    <string name="tm_paste_title">Выполнить вставленные строки (%1$d)?</string>
+    <string name="tm_paste_desc">В поле видна только первая строка, но оболочка выполнит каждую. Проверьте их перед запуском.</string>
+    <string name="tm_paste_more">и ещё строк: %1$d</string>
+    <string name="tm_paste_cancel">Отмена</string>
+    <string name="tm_paste_run">Выполнить все</string>
 </resources>

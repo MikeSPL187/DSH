@@ -234,7 +234,7 @@ class BridgeServer(
                 }
 
                 BridgeMethod.SHOW_NOTIFICATION.methodName -> {
-                    val title = (request.params as? JsonObject)?.get("title")?.jsonPrimitive?.content ?: com.deepseek.dsh.core.model.Tr.t("DSH notice", "Уведомление DSH")
+                    val title = (request.params as? JsonObject)?.get("title")?.jsonPrimitive?.content ?: com.deepseek.dsh.core.model.Tr.t("notice", "уведомление")
                     val content = (request.params as? JsonObject)?.get("content")?.jsonPrimitive?.content ?: ""
                     showNotification(title, content)
                     val res = buildJsonObject { put("success", true) }
@@ -423,7 +423,8 @@ class BridgeServer(
             nm.createNotificationChannel(channel)
         }
         val notification = NotificationCompat.Builder(context, channelId)
-            .setContentTitle(title.take(MAX_NOTIFICATION_TITLE))
+            // Пометка «Плагин:» (решение владельца): иначе плагин Host выдавал себя за DSH («Агент ждёт одобрения»).
+            .setContentTitle(com.deepseek.dsh.core.model.Tr.t("Plugin: ", "Плагин: ") + title.take(MAX_NOTIFICATION_TITLE))
             .setContentText(content.take(MAX_NOTIFICATION_TEXT))
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setAutoCancel(true)

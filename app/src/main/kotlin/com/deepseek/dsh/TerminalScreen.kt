@@ -91,6 +91,7 @@ import com.deepseek.dsh.core.designsystem.DshFonts
 import com.deepseek.dsh.core.designsystem.DshGlyphs
 import com.deepseek.dsh.core.designsystem.pressScale
 import com.deepseek.dsh.core.designsystem.kit.IconBtn
+import com.deepseek.dsh.core.designsystem.kit.BtnKind
 import com.deepseek.dsh.core.designsystem.kit.KBtn
 import com.deepseek.dsh.core.designsystem.kit.KSheet
 import com.deepseek.dsh.core.designsystem.kit.SBar
@@ -103,6 +104,7 @@ import com.deepseek.dsh.core.designsystem.kit.ToastState
 import com.deepseek.dsh.terminal.BlockState
 import com.deepseek.dsh.terminal.TermBlock
 import com.deepseek.dsh.terminal.TermModel
+import com.deepseek.dsh.terminal.TermPaste
 import com.deepseek.dsh.terminal.Tone
 import kotlinx.coroutines.delay
 import java.text.DecimalFormat
@@ -153,6 +155,8 @@ fun TerminalScreen(
     var ctrl by remember { mutableStateOf(false) }
     var alt by remember { mutableStateOf(false) }
     var tabMenu by remember { mutableStateOf<TermTab?>(null) }
+    /** Вставка из нескольких строк ждёт подтверждения (`TermPaste.needsConfirm`). */
+    var pasteConfirm by remember { mutableStateOf<String?>(null) }
     val busy = model?.live != null
     val canType = writable && status == TermStatus.Ready
 
@@ -162,8 +166,7 @@ fun TerminalScreen(
         recall = (recall + d).coerceIn(-1, history.lastIndex)
         setInput(if (recall < 0) "" else history[history.lastIndex - recall])
     }
-    fun submit() {
-        val t = input.text
+    fun send(t: String) {
         when {
             busy && t.isEmpty() -> { onRaw("\u0003"); toast.show("^C") }
             busy -> onStdin(t)
@@ -171,6 +174,11 @@ fun TerminalScreen(
             else -> onRun(t.trim())
         }
         setInput(""); recall = -1
+    }
+    fun submit() {
+        val t = input.text
+        if (TermPaste.needsConfirm(t)) { pasteConfirm = t; return }
+        send(TermPaste.clean(t))
     }
     /** Залипшие Ctrl / Alt превращают следующую букву в управляющий код. */
     fun typed(v: TextFieldValue) {
@@ -313,6 +321,32 @@ fun TerminalScreen(
             }
         }
         ToastHost(toast)
+        KSheet(pasteConfirm != null, onDismiss = { pasteConfirm = null }) {
+            val lines = remember(pasteConfirm) { pasteConfirm?.let(TermPaste::lines).orEmpty() }
+            SheetTitle(stringResource(R.string.tm_paste_title, lines.size))
+            Text(stringResource(R.string.tm_paste_desc), style = body(14.5.sp, 21.sp), color = c.t2, modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 12.dp))
+            val shown = lines.take(PASTE_PREVIEW_LINES)
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(c.termBg).border(1.dp, c.line, RoundedCornerShape(18.dp))
+                    .horizontalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 12.dp),
+            ) {
+                shown.forEach { l ->
+                    Row {
+                        Text("❯ ", style = mono(13.sp), color = c.termPrompt)
+                        Text(l.ifEmpty { " " }, style = mono(13.sp), color = c.termText, softWrap = false)
+                    }
+                }
+                if (lines.size > shown.size) Text(stringResource(R.string.tm_paste_more, lines.size - shown.size), style = body(13.sp), color = c.termDim, modifier = Modifier.padding(top = 4.dp))
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                KBtn(stringResource(R.string.tm_paste_cancel), onClick = { pasteConfirm = null }, modifier = Modifier.weight(1f), height = 48.dp)
+                KBtn(stringResource(R.string.tm_paste_run), onClick = {
+                    val t = pasteConfirm
+                    pasteConfirm = null
+                    if (t != null) send(TermPaste.clean(t))
+                }, modifier = Modifier.weight(1f), kind = BtnKind.Primary, height = 48.dp)
+            }
+        }
         KSheet(tabMenu != null, onDismiss = { tabMenu = null }) {
             val t = tabMenu
             SheetTitle(t?.title.orEmpty())
@@ -608,3 +642,6 @@ private fun mono(size: TextUnit, weight: FontWeight = FontWeight.Normal, lh: Tex
 
 private fun body(size: TextUnit, lh: TextUnit = size * 1.3f, weight: FontWeight = FontWeight.Normal) =
     TextStyle(fontFamily = DshFonts.body, fontWeight = weight, fontSize = size, lineHeight = lh, lineHeightStyle = CssLeading)
+
+/** Сколько строк вставки показать в подтверждении; остальные — «и ещё N». */
+private const val PASTE_PREVIEW_LINES = 8
