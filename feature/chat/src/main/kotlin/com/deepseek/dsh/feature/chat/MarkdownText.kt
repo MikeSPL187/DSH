@@ -150,7 +150,7 @@ private fun CodeBlock(code: String) {
 }
 
 /** Поддерживаемые блоки Markdown. */
-private sealed interface MarkdownBlock {
+internal sealed interface MarkdownBlock {
     data class Heading(val level: Int, val text: String) : MarkdownBlock
     data class Paragraph(val text: String) : MarkdownBlock
     data class ListItem(
@@ -183,7 +183,7 @@ private val tableSeparatorRegex = Regex("^\\|?\\s*:?-{2,}:?\\s*(\\|\\s*:?-{2,}:?
 private val fenceRegex = Regex("^\\s*```(.*)$")
 
 /** Разбить Markdown на блоки; незнакомое — абзацем, чтобы текст не пропал. */
-private fun parseMarkdownBlocks(text: String): List<MarkdownBlock> {
+internal fun parseMarkdownBlocks(text: String): List<MarkdownBlock> {
     val blocks = mutableListOf<MarkdownBlock>()
     val lines = text.replace("\r\n", "\n").split("\n")
     var index = 0
