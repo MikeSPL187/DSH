@@ -52,7 +52,7 @@ internal class ChangesClient(private val conn: HostConnection) : ChangesApi {
                         "HTTP ${response.code}",
                     )
                 }
-                val value = json.parseToJsonElement(response.body?.string().orEmpty())
+                val value = json.parseHostJson(response.body?.string().orEmpty())
                     as? kotlinx.serialization.json.JsonObject
                     ?: return@use RemoteResult.Failure("dsh/changes-summary", "malformed")
                 val files = (value["files"] as? kotlinx.serialization.json.JsonArray)
@@ -109,7 +109,7 @@ internal class ChangesClient(private val conn: HostConnection) : ChangesApi {
                 if (!response.isSuccessful) {
                     return@use RemoteResult.Failure("dsh/changes-diff", "HTTP ${response.code}")
                 }
-                val value = json.parseToJsonElement(response.body?.string().orEmpty())
+                val value = json.parseHostJson(response.body?.string().orEmpty())
                     as? kotlinx.serialization.json.JsonObject
                     ?: return@use RemoteResult.Failure("dsh/changes-diff", "malformed")
                 fun text(key: String) = (value[key]

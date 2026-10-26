@@ -50,7 +50,7 @@ internal class TeamClient(private val conn: HostConnection) : TeamApi {
                     )
                 }
                 val bodyStr = response.body?.string() ?: "{}"
-                val jsonElem = json.parseToJsonElement(bodyStr)
+                val jsonElem = json.parseHostJson(bodyStr)
                 val values = if (jsonElem is kotlinx.serialization.json.JsonObject) {
                     jsonElem["result"]?.let { res ->
                         if (res is kotlinx.serialization.json.JsonObject) {
@@ -136,7 +136,7 @@ internal class TeamClient(private val conn: HostConnection) : TeamApi {
             client.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
                     val bodyStr = response.body?.string() ?: "{}"
-                    val jsonElem = json.parseToJsonElement(bodyStr)
+                    val jsonElem = json.parseHostJson(bodyStr)
                     val items = if (jsonElem is kotlinx.serialization.json.JsonObject) {
                         jsonElem["result"]?.let { r ->
                             if (r is kotlinx.serialization.json.JsonObject) r["value"] as? kotlinx.serialization.json.JsonArray else null
@@ -189,7 +189,7 @@ internal class TeamClient(private val conn: HostConnection) : TeamApi {
             client.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
                     val bodyStr = response.body?.string() ?: "{}"
-                    val jsonElem = json.parseToJsonElement(bodyStr)
+                    val jsonElem = json.parseHostJson(bodyStr)
                     val items = if (jsonElem is kotlinx.serialization.json.JsonObject) {
                         jsonElem["result"]?.let { r ->
                             if (r is kotlinx.serialization.json.JsonObject) r["value"] as? kotlinx.serialization.json.JsonArray else null

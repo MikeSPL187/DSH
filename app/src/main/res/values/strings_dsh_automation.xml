@@ -2,6 +2,7 @@
 <!-- Автоматизация: тексты фонового запуска. ru / en. -->
 <resources>
     <string name="au_run_working">The agent is working in the background</string>
+    <string name="au_run_interrupted">Interrupted: the app was closed by the system</string>
     <string name="au_run_failed">Couldn\'t start</string>
     <string name="au_run_postponed">Postponed: %1$s</string>
     <string name="au_run_no_charge">the phone wasn\'t charging</string>

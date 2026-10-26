@@ -2,6 +2,7 @@
 <!-- Автоматизация: тексты фонового запуска. ru / en. -->
 <resources>
     <string name="au_run_working">Агент работает в фоне</string>
+    <string name="au_run_interrupted">Прервано: приложение было закрыто системой</string>
     <string name="au_run_failed">Не удалось запустить</string>
     <string name="au_run_postponed">Перенесён: %1$s</string>
     <string name="au_run_no_charge">телефон не заряжался</string>

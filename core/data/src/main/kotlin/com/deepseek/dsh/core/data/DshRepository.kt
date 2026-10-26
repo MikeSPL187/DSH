@@ -31,6 +31,8 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -433,8 +435,10 @@ class DshRepository(
     fun rawSessionFrames(sessionId: String): List<SessionRawFrame> = client.rawSessionFrames(sessionId)
 
     /** Полоса модов Claude Code сессии: снимок на каждую перерисовку. */
-    fun claudeCodeBand(hostId: String, sessionId: String): Flow<ClaudeCodeBandSnapshot?> =
-        client.watchClaudeCodeBand(hostId, sessionId).map(::parseBandSnapshot)
+    fun claudeCodeBand(hostId: String, sessionId: String): Flow<ClaudeCodeBandSnapshot?> = flow {
+        // Обрыв потока при перезапуске Host ронял приложение (сбор идёт в LaunchedEffect) — переподключаемся.
+        keepSubscribed { client.watchClaudeCodeBand(hostId, sessionId).collect { emit(parseBandSnapshot(it)) } }
+    }.flowOn(Dispatchers.Default)
 
     /**
      * Нажать кнопку на полосе модов.
@@ -508,14 +512,16 @@ class DshRepository(
      */
     fun subscribeRemoteEvents(hostId: String) {
         if (!subscribedHosts.add(hostId)) return
-        scope.launch(Dispatchers.IO) { client.subscribeEvents(hostId).collect { onSessionEvent(hostId, it) } }
-        scope.launch(Dispatchers.IO) { client.forwardedHostEvents(hostId).collect { onHostEvent(hostId, it) } }
-        scope.launch(Dispatchers.IO) { client.watchAccount(hostId).collect(account::onAccountView) }
-        scope.launch(Dispatchers.IO) { client.forwardedWaterfalls(hostId).collect { approvals.onWaterfall(hostId, it) } }
-        scope.launch(Dispatchers.IO) { client.forwardedEventPayloads(hostId).collect(plugins::onEventPayload) }
-        scope.launch(Dispatchers.IO) { client.sessionControl(hostId).collect(::onControlFrame) }
+        // Каждая подписка переживает обрыв и перезапуск Host (keepSubscribed): исключение потока
+        // в области приложения без обработчика роняло процесс, а оборванная подписка не возобновлялась.
+        scope.launch(Dispatchers.IO) { keepSubscribed { client.subscribeEvents(hostId).collect { onSessionEvent(hostId, it) } } }
+        scope.launch(Dispatchers.IO) { keepSubscribed { client.forwardedHostEvents(hostId).collect { onHostEvent(hostId, it) } } }
+        scope.launch(Dispatchers.IO) { keepSubscribed { client.watchAccount(hostId).collect(account::onAccountView) } }
+        scope.launch(Dispatchers.IO) { keepSubscribed { client.forwardedWaterfalls(hostId).collect { approvals.onWaterfall(hostId, it) } } }
+        scope.launch(Dispatchers.IO) { keepSubscribed { client.forwardedEventPayloads(hostId).collect(plugins::onEventPayload) } }
+        scope.launch(Dispatchers.IO) { keepSubscribed { client.sessionControl(hostId).collect(::onControlFrame) } }
         scope.launch(Dispatchers.IO) {
-            client.workspaceFollow(hostId).collect { frame ->
+            keepSubscribed { client.workspaceFollow(hostId).collect { frame ->
                 val root = runCatching { hostJson.parseToJsonElement(frame) as? JsonObject }.getOrNull()
                     ?: return@collect
                 _hostWorkspacesFlow.value = workspaceTree.apply(root)
@@ -525,7 +531,7 @@ class DshRepository(
                     delay(250)
                     refreshSessions(hostId)
                 }
-            }
+            } }
         }
     }
 

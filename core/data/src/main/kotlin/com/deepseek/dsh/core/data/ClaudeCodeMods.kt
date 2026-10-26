@@ -63,12 +63,17 @@ internal fun parseBandSnapshot(value: JsonElement?): ClaudeCodeBandSnapshot? {
     )
 }
 
+/** Глубже полоса не разбирается: дерево приходит от плагина Host, и вложенность в тысячи уровней
+ *  переполняла стек при разборе и отрисовке (падение приложения). Настоящая полоса — единицы уровней. */
+internal const val MAX_BAND_DEPTH = 32
+
 /** Разбор узла; незнакомый узел показывается как текст, чтобы содержимое не пропало. */
-internal fun parseBandNode(element: JsonElement?): BandNode? {
+internal fun parseBandNode(element: JsonElement?, depth: Int = 0): BandNode? {
+    if (depth > MAX_BAND_DEPTH) return null
     when (element) {
         null -> return null
         is JsonPrimitive -> return element.contentOrNull?.let { BandNode.Text(text = it) }
-        is JsonArray -> return BandNode.Box(children = element.mapNotNull { parseBandNode(it) })
+        is JsonArray -> return BandNode.Box(children = element.mapNotNull { parseBandNode(it, depth + 1) })
         is JsonObject -> {
             val type = (element["type"] as? JsonPrimitive)?.contentOrNull
             val props = element["props"] as? JsonObject
@@ -98,7 +103,7 @@ internal fun parseBandNode(element: JsonElement?): BandNode? {
                     border = bool("borderStyle") || bool("border"),
                     padding = maxOf(number("padding"), number("paddingX"), number("paddingY")),
                     gap = number("gap"),
-                    children = (element["children"] as? JsonArray).orEmpty().mapNotNull { parseBandNode(it) },
+                    children = (element["children"] as? JsonArray).orEmpty().mapNotNull { parseBandNode(it, depth + 1) },
                 )
             }
         }

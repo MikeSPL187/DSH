@@ -32,4 +32,18 @@ class SecretScrubberTest {
         val text = "npm ERR! code ENOENT\nnode v20.11.1 PATH=/usr/bin MAX_TOKENS_LIMIT is fine"
         assertEquals(text, SecretScrubber.scrub(text))
     }
+
+    @Test
+    fun `пароль в адресе и токен npm вычищаются`() {
+        val raw = "fatal: unable to access 'https://mike:ghs_Secret123@github.com/x/y.git/': 403\n" +
+            "npm ERR! //registry.npmjs.org/:_authToken=npm_SecretToken42\n" +
+            "remote: https://oauth2:glpat-Secret789@gitlab.com/a.git"
+        val out = SecretScrubber.scrub(raw)
+        for (secret in listOf("ghs_Secret123", "npm_SecretToken42", "glpat-Secret789")) {
+            assertFalse("в выводе остался $secret:\n$out", out.contains(secret))
+        }
+        // Адрес без пароля и порт не трогаются.
+        val plain = "GET http://127.0.0.1:8080/api ssh://git@github.com:22/x"
+        assertEquals(plain, SecretScrubber.scrub(plain))
+    }
 }

@@ -2,6 +2,7 @@ package com.deepseek.dsh.ai
 
 import com.deepseek.dsh.DEEPSEEK_VAULT_REF
 import com.deepseek.dsh.feature.settings.logic.ApiKeyVault
+import com.deepseek.dsh.runtime.host.SecretScrubber
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -30,8 +31,11 @@ object DeepSeekQuick {
      */
     suspend fun ask(system: String, user: String, maxTokens: Int, onText: (String) -> Unit = {}): Outcome = withContext(Dispatchers.IO) {
         var text = ""
+        // Вывод терминала и diff уходят к стороннему API: токены из `git push https://user:ghp_…@`,
+        // `npm ERR! … _authToken=…`, `.env` в diff вычищаются до отправки.
+        val outgoing = SecretScrubber.scrub(user)
         val code = ApiKeyVault.use(DEEPSEEK_VAULT_REF) { key ->
-            runCatching { stream(key, system, user, maxTokens) { text = it; onText(it) } }.getOrElse { -1 }
+            runCatching { stream(key, system, outgoing, maxTokens) { text = it; onText(it) } }.getOrElse { -1 }
         }
         when (code) {
             null -> Outcome.NoKey

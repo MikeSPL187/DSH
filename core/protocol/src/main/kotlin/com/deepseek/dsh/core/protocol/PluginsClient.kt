@@ -44,7 +44,7 @@ internal class PluginsClient(private val conn: HostConnection) : PluginsApi {
             client.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
                     val bodyStr = response.body?.string() ?: "{}"
-                    val jsonElem = json.parseToJsonElement(bodyStr)
+                    val jsonElem = json.parseHostJson(bodyStr)
                     val snapshotObj = if (jsonElem is kotlinx.serialization.json.JsonObject) {
                         jsonElem["result"]?.let { res ->
                             if (res is kotlinx.serialization.json.JsonObject) {
@@ -168,7 +168,7 @@ internal class PluginsClient(private val conn: HostConnection) : PluginsApi {
             client.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
                     val bodyStr = response.body?.string() ?: "{}"
-                    val jsonElem = json.parseToJsonElement(bodyStr)
+                    val jsonElem = json.parseHostJson(bodyStr)
                     val bundles = if (jsonElem is kotlinx.serialization.json.JsonObject) {
                         jsonElem["result"]?.let { r ->
                             if (r is kotlinx.serialization.json.JsonObject) r["value"] as? kotlinx.serialization.json.JsonArray else null
@@ -290,7 +290,7 @@ internal class PluginsClient(private val conn: HostConnection) : PluginsApi {
                 client.newCall(request).execute().use { response ->
                     val body = response.body?.string().orEmpty()
                     if (!response.isSuccessful) return@withContext RemoteResult.Failure("dsh/plugin/list", "HTTP ${response.code}")
-                    val root = json.parseToJsonElement(body) as? kotlinx.serialization.json.JsonObject ?: return@withContext RemoteResult.Success(emptyList())
+                    val root = json.parseHostJson(body) as? kotlinx.serialization.json.JsonObject ?: return@withContext RemoteResult.Success(emptyList())
                     val arr = (root["result"] as? kotlinx.serialization.json.JsonObject)?.get("value") as? kotlinx.serialization.json.JsonArray
                         ?: root["rows"] as? kotlinx.serialization.json.JsonArray
                         ?: return@withContext RemoteResult.Success(emptyList())
@@ -343,7 +343,7 @@ internal class PluginsClient(private val conn: HostConnection) : PluginsApi {
             client.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
                     val bodyStr = response.body?.string() ?: "{}"
-                    val jsonElem = json.parseToJsonElement(bodyStr)
+                    val jsonElem = json.parseHostJson(bodyStr)
                     val resultObj = (jsonElem as? kotlinx.serialization.json.JsonObject)?.get("result") as? kotlinx.serialization.json.JsonObject
                     val ok = resultObj?.get("ok")?.toString()?.toBooleanStrictOrNull() ?: false
                     val valueObj = resultObj?.get("value") as? kotlinx.serialization.json.JsonObject
@@ -489,7 +489,7 @@ internal class PluginsClient(private val conn: HostConnection) : PluginsApi {
             put("method", method)
             put(
                 "payload",
-                runCatching { json.parseToJsonElement(payloadJson) }.getOrNull() ?: buildJsonObject {},
+                runCatching { json.parseHostJson(payloadJson) }.getOrNull() ?: buildJsonObject {},
             )
         }.toString()
         val request = Request.Builder()

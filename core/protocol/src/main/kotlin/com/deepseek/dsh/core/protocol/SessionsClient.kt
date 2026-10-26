@@ -72,7 +72,7 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                 val bodyStr = response.body?.string() ?: "{}"
                 try {
                     // Try parsing standard DSH response or fallback to direct array
-                    val jsonElem = json.parseToJsonElement(bodyStr)
+                    val jsonElem = json.parseHostJson(bodyStr)
                     val itemsElem = if (jsonElem is kotlinx.serialization.json.JsonObject) {
                         jsonElem["result"]?.let { res ->
                             if (res is kotlinx.serialization.json.JsonObject) res["value"]?.let { v ->
@@ -129,13 +129,13 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                 }
                 val bodyStr = response.body?.string() ?: ""
                 val value = runCatching {
-                    (json.parseToJsonElement(bodyStr) as? kotlinx.serialization.json.JsonObject)
+                    (json.parseHostJson(bodyStr) as? kotlinx.serialization.json.JsonObject)
                         ?.get("result")?.let { it as? kotlinx.serialization.json.JsonObject }
                         ?.get("value") as? kotlinx.serialization.json.JsonObject
                 }.getOrNull()
                 val createdId = value?.get("sessionId")?.toString()?.trim('"')
                 val resolvedId = createdId?.takeIf { it.isNotBlank() }
-                    ?: findFirstSessionId(runCatching { json.parseToJsonElement(bodyStr) }.getOrNull())
+                    ?: findFirstSessionId(runCatching { json.parseHostJson(bodyStr) }.getOrNull())
                 if (resolvedId.isNullOrBlank()) {
                     return@withContext RemoteResult.Failure("dsh/session/create-malformed", "Host did not return sessionId")
                 }
@@ -197,7 +197,7 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                         extractRpcError(body) ?: "HTTP ${response.code}",
                     )
                 }
-                val root = runCatching { json.parseToJsonElement(body) as? kotlinx.serialization.json.JsonObject }
+                val root = runCatching { json.parseHostJson(body) as? kotlinx.serialization.json.JsonObject }
                     .getOrNull()
                 val result = root?.get("result") as? kotlinx.serialization.json.JsonObject
                 if (result?.get("ok")?.toString() == "false") {
@@ -244,7 +244,7 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                 if (!response.isSuccessful) {
                     return@use RemoteResult.Failure("dsh/session/select-permission", extractRpcError(body) ?: "HTTP ${response.code}")
                 }
-                val result = runCatching { json.parseToJsonElement(body) as? kotlinx.serialization.json.JsonObject }
+                val result = runCatching { json.parseHostJson(body) as? kotlinx.serialization.json.JsonObject }
                     .getOrNull()?.get("result") as? kotlinx.serialization.json.JsonObject
                 if (result?.get("ok")?.toString() == "false") {
                     RemoteResult.Failure("dsh/session/select-permission", extractRpcError(body) ?: "rejected by Host")
@@ -337,7 +337,7 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
             client.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
                     val bodyStr = response.body?.string() ?: "{}"
-                    val jsonElem = json.parseToJsonElement(bodyStr)
+                    val jsonElem = json.parseHostJson(bodyStr)
                     val values = if (jsonElem is kotlinx.serialization.json.JsonObject) {
                         jsonElem["result"]?.let { res ->
                             if (res is kotlinx.serialization.json.JsonObject) {
@@ -441,7 +441,7 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                     )
                 }
                 val envelope = runCatching {
-                    json.parseToJsonElement(body) as? kotlinx.serialization.json.JsonObject
+                    json.parseHostJson(body) as? kotlinx.serialization.json.JsonObject
                 }.getOrNull()
                 val result = envelope?.get("result") as? kotlinx.serialization.json.JsonObject
                 if (result != null && result["ok"]?.toString() == "false") {
@@ -490,7 +490,7 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
         }
         val index = counter.incrementAndGet()
         val type = runCatching {
-            val root = json.parseToJsonElement(text) as? kotlinx.serialization.json.JsonObject
+            val root = json.parseHostJson(text) as? kotlinx.serialization.json.JsonObject
             (root?.get("type") as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull ?: "frame"
         }.getOrDefault("frame")
         val queue = rawFrames.getOrPut(sessionId) {
@@ -557,7 +557,7 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                 webSocket: okhttp3.WebSocket, text: String) {
                 recordRawFrame(sessionId, text)
                 try {
-                    val root = json.parseToJsonElement(text) as? kotlinx.serialization.json.JsonObject ?: return
+                    val root = json.parseHostJson(text) as? kotlinx.serialization.json.JsonObject ?: return
                     if (root["type"]?.toString()?.trim('"') != "item") return
                     val value = root["value"] as? kotlinx.serialization.json.JsonObject ?: return
 
@@ -1060,7 +1060,7 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                 .build()
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@use null
-                val root = json.parseToJsonElement(response.body?.string().orEmpty())
+                val root = json.parseHostJson(response.body?.string().orEmpty())
                     as? kotlinx.serialization.json.JsonObject ?: return@use null
                 val value = ((root["result"] as? kotlinx.serialization.json.JsonObject)
                     ?.get("value")) as? kotlinx.serialization.json.JsonObject
@@ -1101,7 +1101,7 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
 
                 override fun onMessage(webSocket: okhttp3.WebSocket, text: String) {
                     runCatching {
-                        val frame = json.parseToJsonElement(text)
+                        val frame = json.parseHostJson(text)
                             as? kotlinx.serialization.json.JsonObject
                             ?: return@runCatching
                         val type = (frame["type"]
@@ -1169,7 +1169,7 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                         "HTTP ${response.code}",
                     )
                 }
-                val root = json.parseToJsonElement(response.body?.string().orEmpty())
+                val root = json.parseHostJson(response.body?.string().orEmpty())
                     as? kotlinx.serialization.json.JsonObject
                     ?: return@use RemoteResult.Success(emptyList())
                 val value = ((root["result"] as? kotlinx.serialization.json.JsonObject)
@@ -1213,7 +1213,7 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
 
                 override fun onMessage(webSocket: okhttp3.WebSocket, text: String) {
                     runCatching {
-                        val frame = json.parseToJsonElement(text)
+                        val frame = json.parseHostJson(text)
                             as? kotlinx.serialization.json.JsonObject
                             ?: return@runCatching
                         val id = (frame["streamId"]
@@ -1276,7 +1276,7 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
 
             override fun onMessage(webSocket: WebSocket, text: String) {
                 runCatching {
-                    val frame = json.parseToJsonElement(text) as? kotlinx.serialization.json.JsonObject
+                    val frame = json.parseHostJson(text) as? kotlinx.serialization.json.JsonObject
                         ?: return@runCatching
                     fun field(key: String): String? =
                         (frame[key] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull

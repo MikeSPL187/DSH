@@ -47,7 +47,7 @@ internal class JobsClient(private val conn: HostConnection) : JobsApi {
 
                     override fun onMessage(webSocket: okhttp3.WebSocket, text: String) {
                         runCatching {
-                            val frame = json.parseToJsonElement(text)
+                            val frame = json.parseHostJson(text)
                                 as? kotlinx.serialization.json.JsonObject
                                 ?: return@runCatching
                             val id = (frame["streamId"]
@@ -128,7 +128,7 @@ internal class JobsClient(private val conn: HostConnection) : JobsApi {
 
                 override fun onMessage(webSocket: okhttp3.WebSocket, text: String) {
                     runCatching {
-                        val frame = json.parseToJsonElement(text)
+                        val frame = json.parseHostJson(text)
                             as? kotlinx.serialization.json.JsonObject
                             ?: return@runCatching
                         val id = (frame["streamId"]
@@ -195,7 +195,7 @@ internal class JobsClient(private val conn: HostConnection) : JobsApi {
                 if (!response.isSuccessful) {
                     return@use RemoteResult.Failure("dsh/job-kill-failed", "HTTP ${response.code}")
                 }
-                val root = json.parseToJsonElement(response.body?.string().orEmpty())
+                val root = json.parseHostJson(response.body?.string().orEmpty())
                     as? kotlinx.serialization.json.JsonObject
                 val result = root?.get("result") as? kotlinx.serialization.json.JsonObject
                 val error = result?.get("error") as? kotlinx.serialization.json.JsonObject

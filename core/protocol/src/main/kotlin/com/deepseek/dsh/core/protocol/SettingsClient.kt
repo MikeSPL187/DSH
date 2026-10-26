@@ -34,7 +34,7 @@ internal class SettingsClient(private val conn: HostConnection) : SettingsApi {
                     return@withContext RemoteResult.Failure("dsh/model/catalog-http", "HTTP ${response.code}")
                 }
                 val bodyStr = response.body?.string() ?: "{}"
-                val root = json.parseToJsonElement(bodyStr) as? kotlinx.serialization.json.JsonObject
+                val root = json.parseHostJson(bodyStr) as? kotlinx.serialization.json.JsonObject
                 val value = (root?.get("result") as? kotlinx.serialization.json.JsonObject)
                     ?.get("value") as? kotlinx.serialization.json.JsonObject
                     ?: return@withContext RemoteResult.Failure("dsh/model/catalog-malformed", "Missing catalog value")

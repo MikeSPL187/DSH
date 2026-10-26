@@ -56,7 +56,7 @@ internal class AccountClient(private val conn: HostConnection) : AccountApi {
                     )
                 }
                 val bodyStr = response.body?.string() ?: "{}"
-                val elem = json.parseToJsonElement(bodyStr)
+                val elem = json.parseHostJson(bodyStr)
                 val result = (elem as? kotlinx.serialization.json.JsonObject)?.get("result")
                 val value = when (result) {
                     is kotlinx.serialization.json.JsonObject ->
@@ -114,7 +114,7 @@ internal class AccountClient(private val conn: HostConnection) : AccountApi {
 
                 override fun onMessage(webSocket: okhttp3.WebSocket, text: String) {
                     runCatching {
-                        val frame = json.parseToJsonElement(text) as? kotlinx.serialization.json.JsonObject
+                        val frame = json.parseHostJson(text) as? kotlinx.serialization.json.JsonObject
                             ?: return@runCatching
                         fun field(key: String): String? =
                             (frame[key] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull

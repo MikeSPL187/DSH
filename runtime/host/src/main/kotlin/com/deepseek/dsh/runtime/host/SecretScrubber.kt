@@ -20,6 +20,9 @@ object SecretScrubber {
         // Переменные окружения и строки конфигурации: DEEPSEEK_API_KEY=…, GITHUB_TOKEN: …
         Regex("""\b([A-Z][A-Z0-9_]*(?:API_?KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIALS?))(\s*[=:]\s*)(?!REDACTED)["']?[^\s"',;]+["']?""") to "$1$2REDACTED",
         Regex("""(?i)\b(dsh-web-session|session|sid)=[^;\s"']+""") to "$1=REDACTED",
+        // Пароль или токен в адресе: `fatal: unable to access 'https://user:ghp_…@github.com/…'` (git печатает его при ошибке).
+        Regex("""(?i)\b([a-z][a-z0-9+.\-]*://[^/\s:@'"]+:)[^/\s@'"]+@""") to "$1REDACTED@",
+        Regex("""(?i)(_authToken\s*=\s*)[^\s"']+""") to "$1REDACTED",
         Regex("""\bsk-[A-Za-z0-9_\-]{8,}""") to "sk-REDACTED",
         Regex("""\bgh[pousr]_[A-Za-z0-9]{20,}""") to "gh_REDACTED",
         Regex("""\bgithub_pat_[A-Za-z0-9_]{20,}""") to "github_pat_REDACTED",

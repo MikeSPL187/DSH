@@ -30,7 +30,7 @@ internal class HostConnection(
 
     /** Читаемая ошибка из ответа RPC; null, если её нет. */
     fun extractRpcError(body: String): String? {
-        val root = runCatching { json.parseToJsonElement(body) as? kotlinx.serialization.json.JsonObject }
+        val root = runCatching { json.parseHostJson(body) as? kotlinx.serialization.json.JsonObject }
             .getOrNull() ?: return null
         val error = (root["result"] as? kotlinx.serialization.json.JsonObject)?.get("error")
             as? kotlinx.serialization.json.JsonObject
@@ -43,7 +43,7 @@ internal class HostConnection(
 
     override suspend fun rpcRaw(hostId: String, method: String, argsJson: String): RemoteResult<String> =
         withContext(kotlinx.coroutines.Dispatchers.IO) {
-            val args = runCatching { json.parseToJsonElement(argsJson) }.getOrNull() ?: buildJsonObject {}
+            val args = runCatching { json.parseHostJson(argsJson) }.getOrNull() ?: buildJsonObject {}
             val payload = buildJsonObject {
                 put("type", "client-request")
                 put("rpcId", java.util.UUID.randomUUID().toString())

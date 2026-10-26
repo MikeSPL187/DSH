@@ -129,7 +129,7 @@ internal class TerminalClient(private val conn: HostConnection) : TerminalApi {
 
                 override fun onMessage(webSocket: okhttp3.WebSocket, text: String) {
                     runCatching {
-                        val frame = json.parseToJsonElement(text)
+                        val frame = json.parseHostJson(text)
                             as? kotlinx.serialization.json.JsonObject
                             ?: return@runCatching
                         val id = (frame["streamId"]

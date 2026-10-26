@@ -92,7 +92,7 @@ internal class HostEventsClient(private val conn: HostConnection) : HostEventsAp
 
                 override fun onMessage(webSocket: okhttp3.WebSocket, text: String) {
                     runCatching {
-                        val root = json.parseToJsonElement(text) as? kotlinx.serialization.json.JsonObject
+                        val root = json.parseHostJson(text) as? kotlinx.serialization.json.JsonObject
                             ?: return@runCatching
                         if (root["type"]?.toString()?.trim('"') != "item") return@runCatching
                         if (root["streamId"]?.toString()?.trim('"') != streamId) return@runCatching
@@ -180,7 +180,7 @@ internal class HostEventsClient(private val conn: HostConnection) : HostEventsAp
                 } else {
                     buildJsonObject {
                         put("kind", "result")
-                        put("value", json.parseToJsonElement(valueJson))
+                        put("value", json.parseHostJson(valueJson))
                     }
                 }
                 val payload = buildJsonObject {

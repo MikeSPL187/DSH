@@ -86,9 +86,35 @@ object AutomationRunner {
     private const val LOCAL_HOST = "local-host"
     private const val TURN_TIMEOUT_MS = 30 * 60_000L
 
+    /** Автоматизации, которые сейчас идут в этом процессе. */
+    private val active = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    /**
+     * Занять запуск [id]; false — он уже идёт. Запись «run» в истории без живого запуска осталась от убитого
+     * процесса (перезагрузка, нехватка памяти, смахивание): раньше по ней автоматизация считалась идущей
+     * и больше не запускалась никогда. Теперь такая запись отмечается ошибкой [interrupted].
+     */
+    internal fun claim(id: String, interrupted: String): Boolean {
+        if (!active.add(id)) return false
+        AutomationStore.get(id)?.history?.firstOrNull()?.takeIf { it.status == "run" }?.let { stale ->
+            AutomationStore.addRun(id, stale.copy(status = "err", result = interrupted))
+        }
+        return true
+    }
+
+    internal fun release(id: String) { active.remove(id) }
+
     suspend fun run(app: DshApplication, id: String, plannedAt: Long = System.currentTimeMillis()) {
         val a = AutomationStore.get(id) ?: return
-        if (a.history.firstOrNull()?.status == "run") return
+        if (!claim(id, app.getString(R.string.au_run_interrupted))) return
+        try {
+            runClaimed(app, id, a, plannedAt)
+        } finally {
+            release(id)
+        }
+    }
+
+    private suspend fun runClaimed(app: DshApplication, id: String, a: Automation, plannedAt: Long) {
         val started = System.currentTimeMillis()
         if (plannedAt > 0 && started - plannedAt > 60 * 60_000L) {
             AutomationStore.addRun(id, AutoRun(plannedAt, "skip", null, app.getString(R.string.au_run_postponed, conditionsText(app, a))))

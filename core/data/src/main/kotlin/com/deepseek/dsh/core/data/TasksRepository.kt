@@ -4,15 +4,19 @@ import com.deepseek.dsh.core.model.AgentTeamSummary
 import com.deepseek.dsh.core.model.AutomationTaskItem
 import com.deepseek.dsh.core.model.ScheduleInfo
 import com.deepseek.dsh.core.model.TeamTaskItem
+import com.deepseek.dsh.core.model.Tr
 import com.deepseek.dsh.core.protocol.DshClientProtocol
 import com.deepseek.dsh.core.protocol.HostJobInfo
 import com.deepseek.dsh.core.protocol.RemoteResult
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -107,7 +111,7 @@ class TasksRepository internal constructor(
         jobsSessionId = sessionId
         _jobsFlow.value = emptyList()
         jobsJob = scope.launch(Dispatchers.IO) {
-            client.jobList(hostId, sessionId).collect { _jobsFlow.value = it }
+            keepSubscribed { client.jobList(hostId, sessionId).collect { _jobsFlow.value = it } }
         }
     }
 
@@ -120,9 +124,16 @@ class TasksRepository internal constructor(
         _jobsFlow.value = emptyList()
     }
 
-    /** Вывод фонового процесса (`job/follow`). */
-    fun followJob(hostId: String, sessionId: String?, jobId: String, from: Long? = null) =
+    /**
+     * Вывод фонового процесса (`job/follow`). Обрыв соединения — не исключение у сборщика
+     * (оно роняло приложение), а последний кадр `status` «соединение потеряно»: вывод встал не молча.
+     */
+    fun followJob(hostId: String, sessionId: String?, jobId: String, from: Long? = null): Flow<String> =
         client.jobFollow(hostId, sessionId, jobId, from)
+            .catch { e ->
+                if (e is CancellationException) throw e
+                emit(buildJsonObject { put("type", "status"); put("job", buildJsonObject { put("status", Tr.t("connection lost", "соединение потеряно")) }) }.toString())
+            }
 
     /** Остановить фоновый процесс (`job/kill`). */
     suspend fun killJob(hostId: String, sessionId: String, jobId: String): String? =

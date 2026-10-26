@@ -97,4 +97,37 @@ class TermEngineTest {
         assertEquals(BlockState.Plain, blk.state)
         assertEquals("a b\n$", blk.out.plain())
     }
+
+    /** Блок с метками: вывод после эха команды идёт в него. */
+    private fun liveBlock(): TermBlock {
+        model.setupLine()
+        model.feed("\u001b]133;D;0;/r;/r\u0007")
+        val blk = model.submit("cat x")
+        model.feed("cat x\r\n")
+        return blk
+    }
+
+    @Test
+    fun cursorFarToTheRightDoesNotGrowTheLine() {
+        val blk = liveBlock()
+        // Курсор на 5 млн колонок вправо (а `ESC [ 2147483647 G` — OutOfMemoryError).
+        model.feed("\u001b[5000000Gx\u001b[2147483647Cy\t\t\r\n")
+        assertTrue(blk.out.lines.all { it.first.length <= TermLines.MAX_COLS })
+    }
+
+    @Test
+    fun veryLongLineIsWrappedNotKeptWhole() {
+        val blk = liveBlock()
+        model.feed("a".repeat(100_000) + "\r\n")
+        assertTrue(blk.out.lines.all { it.first.length <= TermLines.MAX_COLS })
+        assertEquals(100_000, blk.out.plain().count { it == 'a' })
+    }
+
+    @Test
+    fun unterminatedOscDoesNotSwallowLaterOutput() {
+        val blk = liveBlock()
+        model.feed("\u001b]" + "z".repeat(50_000))
+        model.feed("\r\nhello\r\n")
+        assertTrue(blk.out.plain().endsWith("hello"))
+    }
 }

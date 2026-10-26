@@ -423,13 +423,18 @@ class BridgeServer(
             nm.createNotificationChannel(channel)
         }
         val notification = NotificationCompat.Builder(context, channelId)
-            .setContentTitle(title)
-            .setContentText(content)
+            .setContentTitle(title.take(MAX_NOTIFICATION_TITLE))
+            .setContentText(content.take(MAX_NOTIFICATION_TEXT))
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setAutoCancel(true)
             .build()
-        nm.notify((System.currentTimeMillis() % 10000).toInt(), notification)
+        // Свой тег и несколько мест по кругу. Раньше id = время % 10000 совпадал с уведомлением службы Host (1001)
+        // и уведомлениями DSH (2000+) и заменял их, а поток вызовов исчерпывал предел системы (~50 уведомлений
+        // на приложение) — и запрос одобрения агента в фоне уже не показывался.
+        nm.notify(NOTIFICATION_TAG, notificationSlot.getAndIncrement().mod(MAX_NOTIFICATIONS), notification)
     }
+
+    private val notificationSlot = java.util.concurrent.atomic.AtomicInteger()
 }
 
 
@@ -438,3 +443,12 @@ class BridgeServer(
 
 /** Код ошибки моста: чтение буфера обмена запрещено настройкой пользователя. */
 internal const val CLIPBOARD_DENIED_CODE = -32010
+
+/** Тег уведомлений от плагинов Host: их id не пересекаются с уведомлениями самого DSH. */
+const val NOTIFICATION_TAG = "dsh_bridge"
+
+/** Сколько уведомлений плагинов видно одновременно; следующее заменяет самое старое. */
+const val MAX_NOTIFICATIONS = 5
+
+private const val MAX_NOTIFICATION_TITLE = 120
+private const val MAX_NOTIFICATION_TEXT = 1_000

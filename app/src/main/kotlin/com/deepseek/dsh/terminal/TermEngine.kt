@@ -18,6 +18,14 @@ enum class Tone { Plain, Dim, Ok, Err, Warn, Pr }
  * Полноэкранные программы (vim, top) показываются как есть, без раскладки экрана.
  */
 class TermLines(private val maxLines: Int = 3000) {
+    companion object {
+        /**
+         * Длиннее строка переносится. Без предела одна строка без перевода (`cat` минифицированного
+         * JS) или курсор `ESC [ 2000000000 G` из вывода раздували строку до гигабайт — OutOfMemoryError.
+         */
+        const val MAX_COLS = 1024
+    }
+
     private val text = ArrayList<StringBuilder>().apply { add(StringBuilder()) }
     private val tones = ArrayList<ArrayList<Tone>>().apply { add(ArrayList()) }
     private var row = 0
@@ -37,6 +45,7 @@ class TermLines(private val maxLines: Int = 3000) {
     }
 
     fun put(ch: Char) {
+        if (col >= MAX_COLS) { lf() }
         val line = text[row]
         val tl = tones[row]
         while (line.length < col) { line.append(' '); tl.add(Tone.Plain) }
@@ -56,7 +65,7 @@ class TermLines(private val maxLines: Int = 3000) {
 
     fun backspace() { if (col > 0) col-- }
 
-    fun tab() { col = (col / 8 + 1) * 8 }
+    fun tab() { col = minOf((col / 8 + 1) * 8, MAX_COLS) }
 
     /** `CSI n K`: 0 — до конца строки, 1 — от начала до курсора, 2 — всю строку. */
     fun eraseLine(mode: Int) {
@@ -79,8 +88,8 @@ class TermLines(private val maxLines: Int = 3000) {
     }
 
     fun moveRow(d: Int) { row = (row + d).coerceIn(0, text.lastIndex) }
-    fun moveCol(d: Int) { col = (col + d).coerceAtLeast(0) }
-    fun setCol(c: Int) { col = c.coerceAtLeast(0) }
+    fun moveCol(d: Int) { col = (col.toLong() + d).coerceIn(0, MAX_COLS.toLong()).toInt() }
+    fun setCol(c: Int) { col = c.coerceIn(0, MAX_COLS) }
 
     fun sgr(params: List<Int>) {
         var i = 0
@@ -204,7 +213,13 @@ class TermModel(val id: String, private val clock: () -> Long = System::currentT
             val ch = s[i]
             if (ch == '\u001b') {
                 val end = escapeEnd(s, i)
-                if (end < 0) { pending = s.substring(i); break }
+                if (end < 0) {
+                    if (s.length - i <= MAX_PENDING) { pending = s.substring(i); break }
+                    // Незакрытая последовательность длиннее любой настоящей (`cat` бинарного файла, `printf '\e]'`):
+                    // раньше весь дальнейший вывод копился в ней (тишина, рост памяти, квадратичное копирование).
+                    i++
+                    continue
+                }
                 val b = sink()
                 handleEscape(s.substring(i, end), b?.out)
                 if (b != null) touched = b
@@ -296,6 +311,9 @@ class TermModel(val id: String, private val clock: () -> Long = System::currentT
 
     companion object {
         const val SETUP_TIMEOUT_MS = 2_500L
+
+        /** Самая длинная незаконченная escape-последовательность, которую ждём из следующего куска вывода. */
+        internal const val MAX_PENDING = 8 * 1024
         const val SETUP = " [ -n \"\$BASH_VERSION\" ] && [ -z \"\$DSH_BLK\" ] && DSH_BLK=1 && " +
             "PROMPT_COMMAND='printf \"\\033]133;D;%s;%s;%s\\007\" \"\$?\" \"\$PWD\" \"\$HOME\"'" +
             "\"\${PROMPT_COMMAND:+;\$PROMPT_COMMAND}\"\r"
