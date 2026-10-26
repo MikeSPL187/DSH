@@ -22,11 +22,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.deepseek.dsh.core.protocol.SessionRawFrame
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
 
 /** Строка траектории (как строка ui-trajectory). */
 data class TrajectoryRow(
@@ -45,7 +45,8 @@ private val trajectoryJson = Json { ignoreUnknownKeys = true }
  * Строки траектории из сырых кадров: только события сессии со смыслом.
  *
  * В потоке follow два вида кадров item: `{type:'item', value:{type:'snapshot', records:[…]}}`
- * и `{type:'item', value:{type:'event', event:{…}}}`, разворачиваются оба.
+ * и `{type:'item', value:{type:'event', event:{…}}}`, разворачиваются оба. Событие,
+ * пришедшее и в снимке, и в потоке, остаётся одной строкой.
  */
 fun buildTrajectory(frames: List<SessionRawFrame>): List<TrajectoryRow> {
     val events = frames.flatMap { frame ->
@@ -55,7 +56,7 @@ fun buildTrajectory(frames: List<SessionRawFrame>): List<TrajectoryRow> {
         if (root["type"].textOrNull() != "item") return@flatMap emptyList()
         val value = root["value"] as? JsonObject ?: return@flatMap emptyList()
         when (value["type"].textOrNull()) {
-            "snapshot" -> (value["records"] as? kotlinx.serialization.json.JsonArray)
+            "snapshot" -> (value["records"] as? JsonArray)
                 ?.mapNotNull { record ->
                     ((record as? JsonObject)?.get("event") as? JsonObject)
                 }.orEmpty()
@@ -64,15 +65,25 @@ fun buildTrajectory(frames: List<SessionRawFrame>): List<TrajectoryRow> {
         }
     }
     return events.mapNotNull { event -> runCatching { trajectoryRow(event) }.getOrNull() }
+        .distinctBy { it.seq }
         .sortedBy { it.seq }
 }
 
-/** Краткий текст сообщения (data.message.content у событий user/assistant). */
-private fun textOfMessage(data: JsonObject?): String {
-    val message = data?.get("message") as? JsonObject ?: return ""
-    val content = message["content"] ?: return ""
-    return content.toString().replace("\\n", " ").take(120)
+/**
+ * Краткий текст сообщения (data.message.content у событий user/assistant): строка
+ * или части `[{type:'text', text:…}]`, в одну строку.
+ */
+internal fun textOfMessage(data: JsonObject?): String {
+    val content = (data?.get("message") as? JsonObject)?.get("content") ?: return ""
+    val text = when (content) {
+        is JsonPrimitive -> content.contentOrNull.orEmpty()
+        is JsonArray -> content.mapNotNull { (it as? JsonObject)?.get("text").textOrNull() }.joinToString(" ")
+        else -> ""
+    }
+    return text.replace(Regex("\\s+"), " ").trim().take(MESSAGE_PREVIEW_CHARS)
 }
+
+private const val MESSAGE_PREVIEW_CHARS = 80
 
 /** Строка для одного события; при неожиданной форме — null, панель не падает. */
 private fun trajectoryRow(event: JsonObject): TrajectoryRow? {
@@ -83,8 +94,7 @@ private fun trajectoryRow(event: JsonObject): TrajectoryRow? {
     val step = data?.get("step").textOrNull()?.toIntOrNull() ?: 0
     val detail = when (type) {
         "tool/call" -> data?.get("name").textOrNull().orEmpty()
-        "assistant/message" -> textOfMessage(data).take(80)
-        "user/message" -> textOfMessage(data).take(80)
+        "assistant/message", "user/message" -> textOfMessage(data)
         "request/header" -> data?.get("model").textOrNull().orEmpty()
         "turn/end" -> data?.get("reason").textOrNull().orEmpty()
         else -> ""
@@ -119,7 +129,7 @@ fun androidx.compose.foundation.layout.ColumnScope.TrajectoryBody() {
     val rows = remember(frames) { buildTrajectory(frames).takeLast(200) }
     var expandedSeq by remember { mutableStateOf<Long?>(null) }
     com.deepseek.dsh.core.designsystem.DshSheetTitle(stringResource(R.string.trajectory_title))
-    Text(stringResource(R.string.trajectory_subtitle, rows.size), style = ckBody(12.5.sp, 16.sp), color = c.t3, modifier = Modifier.padding(start = 4.dp, bottom = 10.dp).offsetUp())
+    Text(stringResource(R.string.trajectory_subtitle, rows.size), style = ckBody(12.5.sp, 16.sp), color = c.t3, modifier = Modifier.padding(start = 4.dp, bottom = 10.dp))
     if (rows.isEmpty()) {
         Text(stringResource(R.string.trajectory_empty), style = ckBody(14.sp, 19.sp), color = c.t3, modifier = Modifier.padding(4.dp))
         return
@@ -144,8 +154,6 @@ fun androidx.compose.foundation.layout.ColumnScope.TrajectoryBody() {
         }
     }
 }
-
-private fun Modifier.offsetUp() = this.then(Modifier.padding(top = 0.dp))
 
 /** Строка поля без исключений: поле может быть объектом или массивом (reason у turn/end), jsonPrimitive нельзя. */
 private fun JsonElement?.textOrNull(): String? = (this as? JsonPrimitive)?.contentOrNull
