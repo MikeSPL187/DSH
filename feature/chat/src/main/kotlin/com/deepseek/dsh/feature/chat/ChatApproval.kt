@@ -69,44 +69,6 @@ import com.deepseek.dsh.core.designsystem.DshMotion
 import com.deepseek.dsh.core.designsystem.pressScale
 import kotlinx.coroutines.delay
 
-/** Насколько рискованно действие, о котором спрашивает агент. */
-enum class ApprovalTier { WRITE, DESTRUCTIVE }
-
-/**
- * Уровень риска по имени инструмента и его аргументам: удаление и затирание —
- * необратимы, остальное — изменение файлов или запуск команды.
- */
-fun approvalTier(toolName: String, args: String?): ApprovalTier {
-    val text = (toolName + " " + args.orEmpty()).lowercase()
-    val destructive = listOf("rm -", "rm\t", "rmdir", "delete", "remove", "unlink", "truncate", "git reset --hard", "git clean", "drop table", "mkfs", "dd if=")
-    return if (destructive.any { it in text }) ApprovalTier.DESTRUCTIVE else ApprovalTier.WRITE
-}
-
-/** Команда или путь из JSON-аргументов вызова — то, что агент собирается сделать. */
-fun approvalTarget(args: String?): String? {
-    if (args.isNullOrBlank()) return null
-    val keys = listOf("command", "cmd", "path", "file_path", "filePath", "target", "url")
-    for (key in keys) {
-        val match = Regex("\"" + key + "\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").find(args) ?: continue
-        return match.groupValues[1].replace("\\\"", "\"").replace("\\n", " ").replace("\\\\", "\\").trim().ifBlank { null }
-    }
-    return args.trim().takeIf { it.length in 1..200 && !it.startsWith("{") }
-}
-
-/** Что именно будет удалено: пути из `rm`/`rmdir`/`unlink` в команде или путь инструмента удаления. */
-fun deletionTargets(toolName: String, args: String?): List<String> {
-    val target = approvalTarget(args) ?: return emptyList()
-    val n = toolName.lowercase()
-    if (!(n.contains("bash") || n.contains("shell") || n.contains("exec") || n.contains("command"))) return listOf(target)
-    val out = mutableListOf<String>()
-    target.split("&&", ";", "||", "|").forEach { part ->
-        val words = part.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
-        val i = words.indexOfFirst { it == "rm" || it == "rmdir" || it == "unlink" }
-        if (i >= 0) words.drop(i + 1).filterNot { it.startsWith("-") }.forEach { out += it.trim('"', '\'') }
-    }
-    return out.distinct()
-}
-
 /** Один путь из запроса на удаление: размер, если удалось посчитать; вне ли он проекта. */
 data class DangerTarget(val path: String, val bytes: Long?, val outside: Boolean)
 
