@@ -60,6 +60,8 @@
 Таблицы строк (`genxml.py`) пишут `values-ru` и `values`.
 
 ## Сборка и проверка
+Облачный контейнер с нуля: `bash scripts/cloud/setup.sh [--emulator]`, сборка — `scripts/cloud/gradle.sh`,
+эмулятор — `scripts/cloud/emulator.sh smoke`. Продолжение аудита и промт для новой сессии — `docs/security/NEXT_AUDIT.md`.
 ```bash
 S=/tmp/<scratchpad>   # любой каталог для логов
 ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.gradle.workers.max=2 \
