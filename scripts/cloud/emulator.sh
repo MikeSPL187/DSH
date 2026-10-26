@@ -15,7 +15,8 @@ case "${1:-smoke}" in
   stop) "$ADB" emu kill >/dev/null 2>&1 || true ;;
   smoke)
     if ! "$ADB" devices | grep -q emulator; then
-      (setsid nohup "$SDK/emulator/emulator" -avd dsh26 -no-window -no-audio -no-boot-anim -accel off \
+      # Эмулятор 37+ без KVM запускается только с явным согласием на программную эмуляцию (TCG).
+      (ANDROID_I_WANT_MY_TCG=yes setsid nohup "$SDK/emulator/emulator" -avd dsh26 -no-window -no-audio -no-boot-anim -accel off \
         -cores 4 -gpu swiftshader_indirect -no-snapshot-save > "$OUT/emulator.log" 2>&1 &)
     fi
     echo "жду загрузку (холодная — до 15 минут)…"
