@@ -306,7 +306,7 @@ class PluginBundleInstaller(
             if (published != null) {
                 onProgress(0.35f, HostStrings.get(R.string.pi_dl_built, "Downloading the built %1\$s@%2\$s…", name, version))
                 source.close()
-                return extractTarGzToStaging(download(published), budget)
+                return extractTarGzToStaging(downloadVerified(published), budget)
             }
             source.close()
             throw IllegalStateException(
@@ -316,13 +316,10 @@ class PluginBundleInstaller(
         return source
     }
 
-    /** Адрес tarball версии пакета; такой версии нет — null. */
-    private fun findPublishedTarball(name: String, version: String): String? {
+    /** `dist` опубликованной версии пакета; такой версии нет — null. */
+    private fun findPublishedTarball(name: String, version: String): JsonObject? {
         val metadata = fetchRegistryMetadata(name) ?: return null
-        return metadata["versions"]?.jsonObjectOrNull()
-            ?.get(version)?.jsonObjectOrNull()
-            ?.get("dist")?.jsonObjectOrNull()
-            ?.get("tarball")?.jsonPrimitive?.contentOrNull
+        return distOf(metadata, version)
     }
 
     /** Реестр npm: по metadata выбрать версию, затем скачать tarball. */
@@ -337,13 +334,10 @@ class PluginBundleInstaller(
             ?: throw IllegalStateException(HostStrings.get(R.string.pi_not_in_registry, "%1\$s was not found in the registry", name))
         val version = selectVersion(metadata, range)
             ?: throw IllegalStateException(HostStrings.get(R.string.pi_no_version, "%1\$s has no version matching %2\$s", name, range ?: "latest"))
-        val tarball = metadata["versions"]?.jsonObjectOrNull()
-            ?.get(version)?.jsonObjectOrNull()
-            ?.get("dist")?.jsonObjectOrNull()
-            ?.get("tarball")?.jsonPrimitive?.contentOrNull
+        val dist = distOf(metadata, version)
             ?: throw IllegalStateException(HostStrings.get(R.string.pi_no_tarball, "%1\$s@%2\$s has no tarball URL", name, version))
         onProgress(0.1f, HostStrings.get(R.string.pi_dl, "Downloading %1\$s@%2\$s…", name, version))
-        val bytes = download(tarball)
+        val bytes = downloadVerified(dist)
         onProgress(0.35f, HostStrings.get(R.string.pi_unpack_ver, "Extracting %1\$s@%2\$s…", name, version))
         return extractTarGzToStaging(bytes, budget)
     }
@@ -491,12 +485,9 @@ class PluginBundleInstaller(
             ?: throw IllegalStateException(HostStrings.get(R.string.pi_not_in_registry, "%1\$s was not found in the registry", name))
         val version = selectVersion(metadata, range)
             ?: throw IllegalStateException(HostStrings.get(R.string.pi_no_version_range, "No version matches %1\$s", range))
-        val tarball = metadata["versions"]?.jsonObjectOrNull()
-            ?.get(version)?.jsonObjectOrNull()
-            ?.get("dist")?.jsonObjectOrNull()
-            ?.get("tarball")?.jsonPrimitive?.contentOrNull
+        val dist = distOf(metadata, version)
             ?: throw IllegalStateException(HostStrings.get(R.string.pi_no_tarball_short, "No tarball URL"))
-        val bytes = download(tarball)
+        val bytes = downloadVerified(dist)
         val staging = extractTarGzToStaging(bytes, plan.budget)
         staging.use { extracted ->
             parentModules.mkdirs()
@@ -581,6 +572,28 @@ class PluginBundleInstaller(
     // ── HTTP / архивы / манифест ───────────────────────────────────────
 
     /** Скачать URL; не больше 64 МБ. */
+    /** `dist` версии из metadata реестра: адрес tarball и его хэш; адреса нет — null. */
+    private fun distOf(metadata: JsonObject, version: String): JsonObject? =
+        metadata["versions"]?.jsonObjectOrNull()?.get(version)?.jsonObjectOrNull()?.get("dist")?.jsonObjectOrNull()
+            ?.takeIf { it["tarball"]?.jsonPrimitive?.contentOrNull != null }
+
+    /**
+     * Скачать tarball из `dist` и сверить с хэшем реестра (`integrity`, иначе `shasum`).
+     * Адрес — только https; не совпал хэш или его нет — установка прерывается: код плагина
+     * запускается в Host, подменённый на зеркале или CDN архив ставить нельзя.
+     */
+    private fun downloadVerified(dist: JsonObject): ByteArray {
+        val url = dist["tarball"]!!.jsonPrimitive.content
+        require(url.startsWith("https://")) { "tarball URL must use https: $url" }
+        val bytes = download(url)
+        val integrity = dist["integrity"]?.jsonPrimitive?.contentOrNull
+        val shasum = dist["shasum"]?.jsonPrimitive?.contentOrNull
+        check(NpmIntegrity.matches(bytes, integrity, shasum)) {
+            com.deepseek.dsh.core.model.Tr.t("Package checksum does not match the registry: $url", "Контрольная сумма пакета не совпадает с реестром: $url")
+        }
+        return bytes
+    }
+
     private fun download(url: String): ByteArray {
         val request = Request.Builder()
             .url(url)
