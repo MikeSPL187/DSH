@@ -27,13 +27,6 @@ object AppLanguage {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, "system")
             ?.takeIf { it in SUPPORTED } ?: "system"
 
-    /** Действующий язык (BCP-47). */
-    fun effectiveTag(context: Context): String {
-        val selection = selection(context)
-        if (selection != "system") return selection
-        return java.util.Locale.getDefault().toLanguageTag()
-    }
-
     /**
      * Применить сохранённый выбор при запуске (повторный вызов безопасен). В Android 8–12 язык
      * уже применён в [wrap]: [applyLegacy] здесь вызвал бы бесконечный цикл

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Экраны запуска: запуск Host и доступ к файлам. ru / en / zh. -->
+<!-- Экраны запуска: запуск Host и доступ к файлам. ru / en. -->
 <resources>
     <string name="st_failed_title">Host didn\'t start</string>
     <string name="st_failed_lead">Linux is installed, but the agent didn\'t respond. Try again or open the app — the log and diagnostics are in Settings.</string>

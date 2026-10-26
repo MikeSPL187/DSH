@@ -9,7 +9,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -216,12 +215,6 @@ sealed class BridgeResult<out T> {
         val code: String,
         val message: String,
     ) : BridgeResult<Nothing>()
-
-    /** Значение при успехе, иначе null. */
-    fun valueOrNull(): T? = (this as? Success)?.value
-
-    /** Код при ошибке, иначе null. */
-    fun errorCodeOrNull(): String? = (this as? Failure)?.code
 }
 
 /** Общая настройка JSON: незнакомые поля пропускаются, новые поля Host не ломают выпущенный клиент. */
@@ -257,7 +250,4 @@ object BridgeArgs {
     /** Один параметр-объект (например, props для `render-tree`). */
     fun ofObject(key: String, value: JsonObject): Map<String, JsonElement> =
         buildJsonObject { put(key, value) }
-
-    /** Прочитать JsonElement как объект (для разборщиков). */
-    fun objectOf(element: JsonElement): JsonObject = element.jsonObject
 }

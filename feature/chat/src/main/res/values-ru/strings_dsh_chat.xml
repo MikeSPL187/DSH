@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Чат (#main прототипа). ru / en / zh. -->
+<!-- Чат (#main прототипа). ru / en. -->
 <resources>
     <string name="ck_menu">Открыть меню</string>
     <string name="ck_new_session">Новая сессия</string>

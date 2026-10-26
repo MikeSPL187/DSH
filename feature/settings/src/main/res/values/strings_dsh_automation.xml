@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Автоматизация по прототипу docs/design/dsh-prototype.html (#screen-automation). ru / en / zh. -->
+<!-- Автоматизация по прототипу docs/design/dsh-prototype.html (#screen-automation). ru / en. -->
 <resources>
     <string name="au_title">Automation</string>
     <string name="au_without_you">run without you</string>

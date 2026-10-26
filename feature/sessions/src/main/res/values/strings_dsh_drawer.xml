@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Меню (#drawer). ru / en / zh. -->
+<!-- Меню (#drawer). ru / en. -->
 <resources>
     <string name="dw_host_on">Host is running</string>
     <string name="dw_host_off">Host is not running</string>

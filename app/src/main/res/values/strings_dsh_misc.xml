@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Прочее приложения (плашки). ru / en / zh. -->
+<!-- Прочее приложения (плашки). ru / en. -->
 <resources>
     <string name="approval_waiting_banner">The agent is waiting for you · Open</string>
     <string name="drawer_untitled_session">Untitled</string>

@@ -14,10 +14,7 @@ import androidx.lifecycle.Lifecycle
 import com.deepseek.dsh.feature.runtime.KeyCheck
 import com.deepseek.dsh.feature.runtime.LinuxInstall
 import com.deepseek.dsh.feature.runtime.OnboardingKey
-import com.deepseek.dsh.feature.runtime.OnboardingProcess
 import com.deepseek.dsh.feature.runtime.OnboardingProvider
-import com.deepseek.dsh.feature.runtime.OnboardingPurpose
-import com.deepseek.dsh.feature.runtime.OnboardingResult
 import com.deepseek.dsh.feature.runtime.OnboardingScreen
 import com.deepseek.dsh.runtime.host.HostRuntimeManager
 import kotlinx.coroutines.CoroutineScope
@@ -146,12 +143,9 @@ internal fun FirstRunOnboarding(
                 if (key != null) {
                     applyKey(key, ui.activeHostId, modelProviders, dshRepository, oauthManager, context)
                 }
-                val result = OnboardingResult.of(OnboardingPurpose.DEVELOPMENT, OnboardingProcess.STANDARD, skipped = false)
-                onboardingPreferences.save(result)
-                val updated = ui.currentAppSettings.copy(
-                    showCodingView = result.developerTools,
-                    transcriptView = result.process.storageValue,
-                )
+                onboardingPreferences.markCompleted()
+                // Первый запуск включает вид работы с кодом и обычный пресет агента.
+                val updated = ui.currentAppSettings.copy(showCodingView = true, transcriptView = "standard")
                 ui.currentAppSettings = updated
                 settingsRepository.updateSettings { updated }
                 runtimeUi.showOnboarding = false

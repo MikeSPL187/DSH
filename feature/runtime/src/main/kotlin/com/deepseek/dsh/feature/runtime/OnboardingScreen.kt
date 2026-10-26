@@ -159,7 +159,7 @@ private val Languages = listOf("ru" to "Русский", "en" to "English")
  * @param onRequestShared запросить доступ ко всем файлам.
  * @param onRetryInstall повторить установку после ошибки.
  * @param notify включено ли уведомление о готовности; [onNotifyChange] — переключение.
- * @param language текущий язык (`ru`/`en`/`zh`); [onLanguage] — выбор другого.
+ * @param language текущий язык (`ru`/`en`); [onLanguage] — выбор другого.
  * @param onRestoreBackup восстановление из резервной копии; null — кнопки нет.
  * @param onFinish «Начать работу»: ключ (или null, если пропущен).
  */

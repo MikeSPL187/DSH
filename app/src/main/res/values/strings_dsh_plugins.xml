@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Плагины: тексты логики приложения. ru / en / zh. -->
+<!-- Плагины: тексты логики приложения. ru / en. -->
 <resources>
     <string name="plr_error_code">Host error: %1$s</string>
     <string name="plr_ask_prefill">"Use %1$s to "</string>

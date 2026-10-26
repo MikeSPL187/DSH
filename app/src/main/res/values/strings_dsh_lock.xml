@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Вход по отпечатку. ru / en / zh. -->
+<!-- Вход по отпечатку. ru / en. -->
 <resources>
     <string name="bio_title">DSH is locked</string>
     <string name="bio_sub">Confirm it\'s you</string>

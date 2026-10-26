@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Плагины по прототипу docs/design/dsh-prototype.html (#screen-plugins). ru / en / zh. -->
+<!-- Плагины по прототипу docs/design/dsh-prototype.html (#screen-plugins). ru / en. -->
 <resources>
     <string name="pl_title">Plugins</string>
     <string name="pl_install">Install a plugin</string>

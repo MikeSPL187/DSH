@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Терминал (#screen-terminal). ru / en / zh. -->
+<!-- Терминал (#screen-terminal). ru / en. -->
 <resources>
     <string name="tm_title">Терминал</string>
     <string name="tm_font">Размер шрифта</string>

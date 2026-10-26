@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Экраны запуска: запуск Host и доступ к файлам. ru / en / zh. -->
+<!-- Экраны запуска: запуск Host и доступ к файлам. ru / en. -->
 <resources>
     <string name="st_failed_title">Host не запустился</string>
     <string name="st_failed_lead">Linux на месте, но агент не ответил. Повторите запуск или откройте приложение — журнал и диагностика есть в Настройках.</string>

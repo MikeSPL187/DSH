@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Автоматизация: тексты фонового запуска. ru / en / zh. -->
+<!-- Автоматизация: тексты фонового запуска. ru / en. -->
 <resources>
     <string name="au_run_working">The agent is working in the background</string>
     <string name="au_run_failed">Couldn\'t start</string>
