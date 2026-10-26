@@ -97,5 +97,11 @@ ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.grad
 - `ModalBottomSheet` в Robolectric зависает — использовать `DshSheetScaffold` или рисовать содержимое напрямую.
 - `DshMotion.*()` возвращает `SpringSpec` — подходит для `slideIn/fadeIn`.
 - Новые CSS-классы прототипа не должны пересекаться со старыми (при правке прототипа).
+- Строки ресурсов — только в модуле, где они используются (`nonTransitiveRClass=true`, копии в других модулях
+  не нужны); у каждой строки `values/` есть пара в `values-ru/`.
+- Lint (`./gradlew lintDebug`) — 0 ошибок: API выше minSdk 26 (например, `LocalDate.ofInstant` — Android 14)
+  без проверки версии не вызывать; разрешения, которые нужны модулю, объявлять в его манифесте.
+- Вход по отпечатку: `BiometricLock.available()` — единственная проверка (отпечаток или код телефона);
+  без способа входа блокировка не включается, иначе из DSH не выйти.
 - Коммиты завершать строками:
   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` и `Claude-Session: <ссылка на сессию>`.
