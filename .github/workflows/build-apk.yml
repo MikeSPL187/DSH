@@ -22,16 +22,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # App 通过组合构建引用独立的 SDK 仓库；CI 里把它 checkout 到 _sdk。
-      # 固定到 sdk.lock 里的 commit，保证同一个 tag 永远构建出同一份 APK（审计 F-14/N-15）。
+      # SDK нативных плагинов — составная сборка из отдельного репозитория (в _sdk),
+      # закреплённая коммитом из sdk.lock: один тег — всегда один и тот же APK (F-14/N-15).
       - name: Read pinned SDK commit
         id: sdk
         run: echo "commit=$(sed -n 's/^commit=//p' sdk.lock)" >> "$GITHUB_OUTPUT"
 
       - name: Checkout native UI SDK
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: EricFL1998/dsh-mobile-plugin-sdk
           ref: ${{ steps.sdk.outputs.commit }}
@@ -60,28 +60,26 @@ jobs:
           echo "SIGNED_BUILD=true" >> "$GITHUB_ENV"
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: "21"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      # 发版守卫：APK 引用的 bridge / rootfs 版本必须已经真正发布。
-      # 缺失 bridge release 时，如果配置了 BRIDGE_RELEASE_TOKEN，会自动触发
-      # bridge 仓库的 release workflow；没有 token 就失败，避免 APK 指向一个
-      # 设备无法更新到的插件版本。发布链条见 RELEASING.md。
-      - name: Verify bridge and rootfs releases
+      # Перед выпуском: образ из rootfs-manifest.json существует и его SHA-256 совпадают с APK,
+      # содержимое тега bridge-плагина совпадает с contentSha256 (infra/README.md, RELEASING.md).
+      - name: Verify rootfs and bridge against APK hashes
         if: startsWith(github.ref, 'refs/tags/')
-        env:
-          BRIDGE_DISPATCH_TOKEN: ${{ secrets.BRIDGE_RELEASE_TOKEN }}
-        run: python3 .github/scripts/verify-release-coupling.py
+        run: |
+          python3 -I .github/scripts/verify-release-coupling.py
+          sh infra/rootfs/fetch-bridge.sh
 
-      # 单元测试（安装器/rootfs 事务/semver/bridge 限流/信任策略等）必须先通过。
+      # Сначала модульные тесты (установщик, транзакции rootfs, semver, мост, политика доверия).
       - name: Unit tests
         run: ./gradlew test --no-daemon --stacktrace -PdshSdkRepo="$GITHUB_WORKSPACE/_sdk"
 
@@ -109,18 +107,18 @@ jobs:
           ls -lh dist
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dsh-mobile-${{ steps.apk.outputs.flavor }}-${{ steps.apk.outputs.version }}
           path: dist/*.apk
           if-no-files-found: error
           retention-days: 30
 
+      # Релиз — `gh` раннера, без сторонних действий.
       - name: Publish APK to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v3
-        with:
-          files: dist/*.apk
-          generate_release_notes: true
-          fail_on_unmatched_files: true
-
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes
+          gh release upload "$GITHUB_REF_NAME" dist/*.apk --clobber
