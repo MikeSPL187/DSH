@@ -47,7 +47,7 @@ ARG DSH_SOURCE_COMMIT
 RUN pnpm install --frozen-lockfile \
   && DSH_CLIENT_COMMIT_HASH="$DSH_SOURCE_COMMIT" pnpm run build:artifacts \
   && mkdir -p /out/packs \
-  && pnpm -r --filter '@deepseek-ai/*' --filter '!@deepseek-ai/node-addon-system-*' \
+  && pnpm -r --no-sort --workspace-concurrency=4 --filter '@deepseek-ai/*' --filter '!@deepseek-ai/node-addon-system-*' \
        exec sh -c 'pnpm pack --pack-destination /out/packs >/dev/null' \
   && ls /out/packs | wc -l
 

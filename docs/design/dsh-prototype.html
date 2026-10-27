@@ -260,6 +260,60 @@ svg { display: block; }
 .chip { display: inline-flex; align-items: center; gap: 5px; height: 36px; padding: 0 10px; border-radius: 999px; background: var(--s2); font-size: 13px; color: var(--t2); white-space: nowrap; flex: none; }
 .chip .i { width: 14px; height: 14px; }
 .chip.accent { background: var(--accent-soft); color: color-mix(in srgb, var(--accent) 82%, var(--t1)); }
+
+/* Ссылки «@»: список кандидатов растёт вверх внутри стеклянного поля ввода */
+.mention { display: none; padding: 4px 2px 6px; margin-bottom: 4px; border-bottom: 1px solid var(--line); max-height: 292px; overflow-y: auto; scrollbar-width: none; }
+.mention.on { display: block; }
+.mn-crumb { display: flex; align-items: center; gap: 2px; padding: 0 6px 2px; overflow-x: auto; scrollbar-width: none; white-space: nowrap; font-size: 12.5px; color: var(--t3); }
+.mn-crumb button { height: 40px; padding: 0 8px; border-radius: 8px; color: var(--accent); font-size: 12.5px; }
+.mn-crumb button:active { background: var(--s2); }
+.mn-g { padding: 8px 10px 4px; font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--t3); }
+.mn-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 4px 4px 4px 8px; border-radius: 14px; text-align: left; }
+.mn-row:active, .mn-row.hl { background: var(--s2); }
+.mn-row .mic { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; flex: none; background: var(--s2); color: var(--t2); }
+.mn-row .mic.dir { background: var(--accent-soft); color: var(--accent); }
+.mn-row .mic.ses { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
+.mn-row .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.mn-row .tx b { font-weight: 500; font-size: 14.5px; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mn-row .tx small { font-size: 12.5px; color: var(--t3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mn-row .tx mark { background: none; color: var(--accent); font-weight: 600; }
+.mn-drill { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--t3); flex: none; }
+.mn-drill:active { background: var(--s3); }
+.mn-state { display: flex; align-items: center; gap: 10px; padding: 14px 12px; font-size: 13.5px; color: var(--t2); }
+.mn-state .btn { margin-left: auto; height: 36px; }
+.mn-skel { height: 48px; margin: 2px 4px; border-radius: 14px; background: linear-gradient(90deg, var(--s2), var(--s1), var(--s2)); background-size: 200% 100%; animation: mnSk 1.2s linear infinite; }
+@keyframes mnSk { to { background-position: -200% 0; } }
+.ref { display: inline-flex; align-items: center; gap: 3px; padding: 0 6px; margin: 0 1px; border-radius: 7px; background: var(--accent-soft); color: color-mix(in srgb, var(--accent) 85%, var(--t1)); font-size: .94em; line-height: 1.55; vertical-align: baseline; user-select: all; }
+.ref .i { width: 13px; height: 13px; }
+.ref.ses { background: color-mix(in srgb, var(--ok) 14%, transparent); color: color-mix(in srgb, var(--ok) 80%, var(--t1)); }
+
+/* Цель сессии над доком */
+.goalbar { position: absolute; left: 10px; right: 10px; z-index: 21; border-radius: 18px; padding: 10px 14px;
+  background: var(--glass); backdrop-filter: blur(22px) saturate(1.7); -webkit-backdrop-filter: blur(22px) saturate(1.7);
+  border: 1px solid var(--glass-line); box-shadow: var(--shadow-float); display: none; transition: bottom var(--t-snappy) var(--e-snappy); }
+.goalbar.on { display: block; }
+.gb-head { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; margin: -6px 0; text-align: left; }
+.gb-head .i { color: var(--accent); flex: none; }
+.gb-head b { flex: 1; min-width: 0; font-weight: 500; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goalbar.open .gb-head b { white-space: normal; }
+.gb-head .chev { color: var(--t3); transition: transform var(--t-snappy) var(--e-snappy); }
+.goalbar.open .gb-head .chev { transform: rotate(180deg); }
+.gb-st { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12.5px; color: var(--t3); }
+.gb-st .sd { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+.goalbar.paused .gb-st .sd { background: var(--warn); }
+.gb-bar { height: 4px; margin-top: 8px; border-radius: 2px; background: var(--s3); overflow: hidden; }
+.gb-bar i { display: block; height: 100%; background: var(--accent); border-radius: 2px; transition: width var(--t-snappy) var(--e-snappy); }
+.gb-acts { display: none; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+.goalbar.open .gb-acts { display: grid; }
+.gb-acts button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; padding: 0 10px; min-width: 0; border-radius: 12px; background: var(--s2); font-size: 13.5px; color: var(--t1); white-space: nowrap; flex: none; }
+.gb-acts button:active { background: var(--s3); }
+.gb-acts button.sure { background: color-mix(in srgb, var(--danger) 14%, transparent); color: color-mix(in srgb, var(--danger) 82%, var(--t1)); }
+.gb-edit { display: none; margin-top: 10px; }
+.goalbar.editing .gb-edit { display: block; }
+.goalbar.editing .gb-acts { display: none; }
+.gb-edit textarea { width: 100%; min-height: 72px; resize: none; border-radius: 12px; border: 1px solid var(--line); background: var(--s1); color: var(--t1); font: inherit; font-size: 14px; padding: 10px 12px; }
+.gb-edit textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.gb-edit .row { display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px; }
 .crow { display: flex; align-items: flex-end; gap: 4px; }
 .round { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; flex: none; color: var(--t1); }
 .round.plus { background: var(--s2); }
@@ -1071,6 +1125,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
     <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4.5 4.5L19 7"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 6v12M15 6v12"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
     <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.4 17.6A2 2 0 0 0 4.1 20.6h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></symbol>
     <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2"/></symbol>
@@ -1134,6 +1189,8 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <button aria-pressed="false" data-go="onboard">Первый запуск</button>
         <button aria-pressed="true" data-go="home">Главный</button>
         <button aria-pressed="false" data-go="agent">Работа агента</button>
+        <button aria-pressed="false" data-go="mention">Ссылка «@»</button>
+        <button aria-pressed="false" data-go="goal">Цель сессии</button>
         <button aria-pressed="false" data-go="drawer">Меню</button>
         <button aria-pressed="false" data-go="model">Модель</button>
         <button aria-pressed="false" data-go="plus">Вложения</button>
@@ -1214,6 +1271,19 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
           
         </div>
 
+        <div class="goalbar" id="goalbar" aria-live="polite">
+          <button class="gb-head" id="gbHead" aria-expanded="false"><svg class="i sm"><use href="#i-flow"/></svg><b id="gbText">Сборка зелёная после обновления Compose, тесты проходят</b><svg class="i sm chev"><use href="#i-chev"/></svg></button>
+          <div class="gb-st"><span class="sd"></span><span id="gbState">Цель активна · раунд 3 из 10</span></div>
+          <div class="gb-bar"><i id="gbFill" style="width:30%"></i></div>
+          <div class="gb-acts">
+            <button id="gbPause"><svg class="i xs"><use href="#i-pause"/></svg><span>Пауза</span></button>
+            <button id="gbEditBtn"><svg class="i xs"><use href="#i-pencil"/></svg>Изменить</button>
+            <button id="gbDone"><svg class="i xs"><use href="#i-check"/></svg>Готово</button>
+            <button id="gbClear"><svg class="i xs"><use href="#i-x"/></svg><span>Убрать</span></button>
+          </div>
+          <div class="gb-edit"><textarea id="gbInput" aria-label="Цель"></textarea><div class="row"><button class="btn ghost" id="gbCancel">Отмена</button><button class="btn primary" id="gbSave">Сохранить</button></div></div>
+        </div>
+
         <div class="decide" id="decide" aria-live="polite">
           <div class="dc-top"><span class="pulse"></span><b>Ждёт вашего решения</b><span class="dc-sub">удаление · 1,4 ГБ</span></div>
           <div class="dc-btns">
@@ -1225,6 +1295,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         </div>
 
         <div class="composer" id="composer">
+          <div class="mention" id="mention" role="listbox" aria-label="Файлы и сессии"></div>
           <div class="chips" id="chips">
             <button class="chip accent" data-act="model"><svg class="i"><use href="#i-cpu"/></svg>DeepSeek V4 · Высокий<svg class="i"><use href="#i-chev"/></svg></button>
             <button class="chip"><svg class="i"><use href="#i-shield"/></svg>Спрашивать</button>
@@ -3206,8 +3277,84 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   document.addEventListener("click", (e) => { if (e.target.closest('.toggle, [role="switch"]') && navigator.vibrate) try { navigator.vibrate(6); } catch (x) {} }, true);
 
   // ---------- Переключатель экранов ----------
+
+  // ── Ссылки «@»: файлы рабочей папки и сессии; выбор вставляет неделимую ссылку ──
+  const mention = $("#mention");
+  const MN_FILES = { "": [["app", 1], ["gradle", 1], ["build.gradle.kts", 0], ["settings.gradle.kts", 0], ["README.md", 0]],
+    "app/": [["app/src", 1], ["app/build.gradle.kts", 0], ["app/proguard-rules.pro", 0]],
+    "app/src/": [["app/src/main", 1], ["app/src/test", 1]],
+    "gradle/": [["gradle/libs.versions.toml", 0], ["gradle/wrapper", 1]] };
+  const MN_SESS = [["Архитектура плагинов", "пн"], ["Разбор протокола bridge", "09:20"], ["Тесты для semver", "вчера"]];
+  let mnState = null, mnFail = false;
+  const mnEsc = (t) => t.replace(/[&<>]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[ch]);
+  const mnMark = (name, q) => { const i = q ? name.toLowerCase().indexOf(q.toLowerCase()) : -1; return i < 0 ? mnEsc(name) : mnEsc(name.slice(0, i)) + "<mark>" + mnEsc(name.slice(i, i + q.length)) + "</mark>" + mnEsc(name.slice(i + q.length)); };
+  function mnToken() {
+    const sel = getSelection(); if (!sel.rangeCount) return null;
+    const node = sel.anchorNode; if (!node || node.nodeType !== 3 || !field.contains(node)) return null;
+    const before = node.textContent.slice(0, sel.anchorOffset); const m = before.match(/(^|\s)@([^\s@]*)$/);
+    return m ? { node, start: sel.anchorOffset - m[2].length - 1, end: sel.anchorOffset, q: m[2] } : null;
+  }
+  function mnRender() {
+    const t = mnToken(); if (!t) { mnClose(); return; }
+    mnState = t; mention.classList.add("on");
+    const slash = t.q.lastIndexOf("/"), dir = slash >= 0 ? t.q.slice(0, slash + 1) : "", q = t.q.slice(slash + 1);
+    if (mnFail) { mention.innerHTML = `<div class="mn-state"><svg class="i sm" style="color:var(--warn)"><use href="#i-alert"/></svg>Не удалось получить список<button class="btn ghost" id="mnRetry">Повторить</button></div>`; $("#mnRetry").onclick = () => { mnFail = false; mnLoad(); }; return; }
+    const files = (MN_FILES[dir] || []).filter(([p]) => p.slice(dir.length).toLowerCase().includes(q.toLowerCase()));
+    const sess = dir ? [] : MN_SESS.filter(([n]) => n.toLowerCase().includes(q.toLowerCase()));
+    let h = dir ? `<div class="mn-crumb"><button data-crumb="">Папка</button>${dir.split("/").filter(Boolean).map((seg, i, a) => `<svg class="i xs"><use href="#i-right"/></svg><button data-crumb="${a.slice(0, i + 1).join("/")}/">${mnEsc(seg)}</button>`).join("")}</div>` : "";
+    if (files.length) h += `<div class="mn-g">Файлы</div>` + files.map(([p, d]) => `<div class="mn-row" role="option" data-pick="${p}" data-kind="${d ? "dir" : "file"}"><span class="mic ${d ? "dir" : ""}"><svg class="i sm"><use href="#i-${d ? "folder" : "file"}"/></svg></span><span class="tx"><b>${mnMark(p.slice(dir.length) + (d ? "/" : ""), q)}</b>${dir ? "" : `<small>${d ? "папка" : "файл"}</small>`}</span>${d ? `<button class="mn-drill" data-drill="${p}/" aria-label="Открыть папку"><svg class="i sm"><use href="#i-right"/></svg></button>` : ""}</div>`).join("");
+    if (sess.length) h += `<div class="mn-g">Сессии</div>` + sess.map(([n, tm]) => `<div class="mn-row" role="option" data-pick="${n}" data-kind="ses"><span class="mic ses"><svg class="i sm"><use href="#i-msg"/></svg></span><span class="tx"><b>${mnMark(n, q)}</b><small>${tm} · DSH-Workspace</small></span></div>`).join("");
+    if (!files.length && !sess.length) h += `<div class="mn-state"><svg class="i sm" style="color:var(--t3)"><use href="#i-search"/></svg>Ничего не найдено по «${mnEsc(t.q)}»</div>`;
+    mention.innerHTML = h;
+  }
+  function mnLoad() { mention.classList.add("on"); mention.innerHTML = '<div class="mn-skel"></div><div class="mn-skel"></div><div class="mn-skel"></div>'; setTimeout(mnRender, 380); }
+  function mnClose() { mnState = null; mention.classList.remove("on"); mention.innerHTML = ""; }
+  function mnReplace(text, chip) {
+    const t = mnState; if (!t) return;
+    const range = document.createRange(); range.setStart(t.node, t.start); range.setEnd(t.node, t.end); range.deleteContents();
+    let caretNode;
+    if (chip) { range.insertNode(chip); caretNode = document.createTextNode(" "); chip.after(caretNode); }
+    else { caretNode = document.createTextNode(text); range.insertNode(caretNode); }
+    const sel = getSelection(), r = document.createRange(); r.setStart(caretNode, caretNode.textContent.length); r.collapse(true); sel.removeAllRanges(); sel.addRange(r);
+    syncSend();
+  }
+  mention.addEventListener("mousedown", (e) => e.preventDefault());
+  mention.addEventListener("click", (e) => {
+    const crumb = e.target.closest("[data-crumb]"), drill = e.target.closest("[data-drill]"), row = e.target.closest("[data-pick]");
+    if (crumb || drill) { mnReplace("@" + (crumb ? crumb.dataset.crumb : drill.dataset.drill)); mnRender(); return; }
+    if (!row) return;
+    const kind = row.dataset.kind, name = row.dataset.pick;
+    const chip = document.createElement("span"); chip.className = "ref" + (kind === "ses" ? " ses" : ""); chip.contentEditable = "false";
+    chip.innerHTML = `<svg class="i"><use href="#i-${kind === "ses" ? "msg" : kind === "dir" ? "folder" : "file"}"/></svg>${mnEsc(kind === "dir" ? name.split("/").pop() + "/" : name.split("/").pop())}`;
+    chip.title = name; mnReplace("", chip); mnClose(); toast(kind === "ses" ? "Агент получит краткое содержание сессии" : "Агент прочитает " + (kind === "dir" ? "папку" : "файл") + " при отправке");
+  });
+  field.addEventListener("input", () => { const t = mnToken(); if (t && !mnState) mnLoad(); else if (t) mnRender(); else mnClose(); });
+  field.addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== field) mnClose(); }, 120));
+  $("#sheet-plus .srcs").insertAdjacentHTML("beforeend", '<button class="src" id="srcRef"><svg class="i sm"><use href="#i-at"/></svg>Файл или сессия</button>');
+  $("#srcRef").addEventListener("click", () => { sheetClose(); setTimeout(() => mnStart(), 260); });
+  function mnStart() { field.focus(); const sel = getSelection(); const r = document.createRange(); r.selectNodeContents(field); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); const pre = field.textContent && !/\s$/.test(field.textContent) ? " @" : "@"; document.execCommand("insertText", false, pre); }
+
+  // ── Цель сессии: пауза/продолжить, изменить, готово, убрать (второе касание) ──
+  const goalbar = $("#goalbar"); let gbPaused = false, gbSureT = 0;
+  const placeGoal = () => {
+    const top = parseFloat(getComputedStyle(composer).bottom) + composer.offsetHeight;
+    goalbar.style.bottom = (top + (dock.classList.contains("away") ? 10 : 72)) + "px";
+    thread.style.paddingBottom = (top + 84 + (goalbar.classList.contains("on") ? goalbar.offsetHeight + 8 : 0)) + "px";
+  };
+  new ResizeObserver(placeGoal).observe(goalbar);
+  new ResizeObserver(placeGoal).observe(composer); new MutationObserver(placeGoal).observe(dock, { attributes: true, attributeFilter: ["class"] });
+  function gbSync() { goalbar.classList.toggle("paused", gbPaused); $("#gbState").textContent = gbPaused ? "На паузе · агент не продолжит сам" : "Цель активна · раунд 3 из 10"; $("#gbPause span").textContent = gbPaused ? "Продолжить" : "Пауза"; $("#gbPause use").setAttribute("href", gbPaused ? "#i-play" : "#i-pause"); }
+  function goalShow(on) { goalbar.classList.toggle("on", on); goalbar.classList.remove("open", "editing"); $("#gbHead").setAttribute("aria-expanded", "false"); gbPaused = false; gbSync(); placeGoal(); }
+  $("#gbHead").addEventListener("click", () => { const o = !goalbar.classList.contains("open"); goalbar.classList.toggle("open", o); goalbar.classList.remove("editing"); $("#gbHead").setAttribute("aria-expanded", String(o)); });
+  $("#gbPause").addEventListener("click", () => { gbPaused = !gbPaused; gbSync(); toast(gbPaused ? "Цель на паузе" : "Агент продолжит работу над целью"); });
+  $("#gbEditBtn").addEventListener("click", () => { goalbar.classList.add("editing"); const i = $("#gbInput"); i.value = $("#gbText").textContent; i.focus(); });
+  $("#gbCancel").addEventListener("click", () => goalbar.classList.remove("editing"));
+  $("#gbSave").addEventListener("click", () => { const v = $("#gbInput").value.trim(); if (!v) { $("#gbInput").focus(); return; } $("#gbText").textContent = v; goalbar.classList.remove("editing"); toast("Цель изменена"); });
+  $("#gbDone").addEventListener("click", () => { goalShow(false); toast("Цель отмечена выполненной"); });
+  $("#gbClear").addEventListener("click", (e) => { const b = e.currentTarget; if (b.classList.contains("sure")) { clearTimeout(gbSureT); goalShow(false); toast("Цель убрана"); return; } b.classList.add("sure"); b.querySelector("span").textContent = "Точно убрать?"; gbSureT = setTimeout(() => { b.classList.remove("sure"); b.querySelector("span").textContent = "Убрать"; }, 3000); });
   function startAgentDemo() {
     if (openSheet) sheetClose(true);
+    goalShow(false);
     hideDecision(true);
     thread.innerHTML = ""; runAgent("Сборка падает после обновления Compose. Найди причину и исправь.");
   }
@@ -3223,6 +3370,8 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     else if (g === "onboard") obOpen();
     else if (g === "home") { if (openSheet) sheetClose(true); renderHome(); }
     else if (g === "agent") startAgentDemo();
+    else if (g === "goal") { startAgentDemo(); setTimeout(() => goalShow(true), 400); }
+    else if (g === "mention") { if (openSheet) sheetClose(true); if (!$(".home", thread) && !$(".work", thread)) renderHome(); mnStart(); }
     else if (g === "danger") { if (openSheet) sheetClose(true); renderDanger(); }
     else if (g === "drawer") { if (!drawerOpen) openDrawer(); }
     else if (["terminal", "files", "plugins", "automation", "settings"].includes(g)) screenOpen(g);
