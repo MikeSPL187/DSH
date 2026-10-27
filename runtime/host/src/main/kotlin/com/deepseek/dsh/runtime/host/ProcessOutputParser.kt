@@ -10,13 +10,13 @@ import java.util.regex.Pattern
  */
 object ProcessOutputParser {
 
+    /**
+     * Только строка самого Host в начале вывода: `dsh web: <url>` или `dsh web: listening on <url>`, с токеном.
+     * Раньше подходил любой адрес loopback (H-5) — «Server at http://localhost:3000» из плагина при запуске
+     * становился адресом Host, и приложение ждало ответа не от того процесса.
+     */
     private val WEB_URL_PATTERN = Pattern.compile(
-        """dsh\s+web:\s+listening\s+on\s+(https?://(?:127\.0\.0\.1|localhost):(\d+)(?:/?[^\s]*\?token=([a-zA-Z0-9_\-]+))?)""",
-        Pattern.CASE_INSENSITIVE
-    )
-
-    private val SIMPLE_URL_PATTERN = Pattern.compile(
-        """(https?://(?:127\.0\.0\.1|localhost):(\d+)(?:/?[^\s]*\?token=([a-zA-Z0-9_\-]+))?)""",
+        """^dsh\s+web:\s+(?:listening\s+on\s+)?(https?://(?:127\.0\.0\.1|localhost):(\d+)/?[^\s]*\?token=([a-zA-Z0-9_\-]+))""",
         Pattern.CASE_INSENSITIVE
     )
 
@@ -32,14 +32,6 @@ object ProcessOutputParser {
             val url = matcher.group(1) ?: return null
             val port = matcher.group(2)?.toIntOrNull() ?: return null
             val token = matcher.group(3)
-            return ParsedEndpoint(rawUrl = url, port = port, token = token)
-        }
-
-        val simpleMatcher = SIMPLE_URL_PATTERN.matcher(line)
-        if (simpleMatcher.find()) {
-            val url = simpleMatcher.group(1) ?: return null
-            val port = simpleMatcher.group(2)?.toIntOrNull() ?: return null
-            val token = simpleMatcher.group(3)
             return ParsedEndpoint(rawUrl = url, port = port, token = token)
         }
 

@@ -624,6 +624,8 @@ internal fun androidx.compose.foundation.layout.ColumnScope.ToolDetailBody(detai
         }
     }
     val args = remember(detail.args) {
+        // Большие аргументы (содержимое файла для записи) не форматируются: и разбор, и один огромный Text подвешивали лист.
+        if (detail.args.length > MAX_DETAIL_CHARS) return@remember detail.args
         runCatching {
             PrettyArgsJson.encodeToString(kotlinx.serialization.json.JsonElement.serializer(), kotlinx.serialization.json.Json.parseHostJson(detail.args))
         }.getOrElse { detail.args }
@@ -635,8 +637,17 @@ internal fun androidx.compose.foundation.layout.ColumnScope.ToolDetailBody(detai
     )
 }
 
+/** Сколько символов аргументов и вывода показывает лист деталей (H-4): дальше — пометка, что текст длиннее. */
+internal const val MAX_DETAIL_CHARS = 64 * 1024
+
+/** Текст для листа деталей: не длиннее [MAX_DETAIL_CHARS]; null вторым — показан целиком. */
+internal fun detailText(text: String): Pair<String, Int?> =
+    if (text.length <= MAX_DETAIL_CHARS) text to null
+    else text.take(MAX_DETAIL_CHARS) to text.length
+
 @Composable
-private fun CodeSection(label: String, text: String) {
+private fun CodeSection(label: String, full: String) {
+    val (text, totalChars) = remember(full) { detailText(full) }
     val c = Dsh.colors
     Text(
         label.uppercase(), style = ckBody(12.sp, 15.sp).copy(letterSpacing = androidx.compose.ui.unit.TextUnit(0.06f, androidx.compose.ui.unit.TextUnitType.Em)), color = c.t3,
@@ -648,6 +659,10 @@ private fun CodeSection(label: String, text: String) {
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.codeBg).border(1.dp, c.line, RoundedCornerShape(14.dp)).padding(12.dp),
         )
     }
+    if (totalChars != null) Text(
+        stringResource(R.string.tool_detail_truncated, MAX_DETAIL_CHARS / 1024, (totalChars + 1023) / 1024),
+        style = ckBody(12.sp, 16.sp), color = c.t3, modifier = Modifier.padding(start = 4.dp, top = 6.dp),
+    )
 }
 
 /**

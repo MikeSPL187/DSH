@@ -122,4 +122,5 @@
     <string name="chat_approval_reject">Отклонить</string>
     <string name="chat_approval_allow_once">Разрешить</string>
     <string name="chat_approval_armed_hint">Нажмите ещё раз в течение 3 секунд</string>
+    <string name="tool_detail_truncated">Показаны первые %1$d КБ из %2$d КБ</string>
 </resources>

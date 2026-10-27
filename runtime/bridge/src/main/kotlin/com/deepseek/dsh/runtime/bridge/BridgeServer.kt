@@ -75,6 +75,9 @@ class BridgeServer(
 
     val localPort: Int get() = serverSocket?.localPort ?: 0
 
+    /** Уведомление «Плагин: …»; тесты подменяют. */
+    internal var notifier: (title: String, content: String) -> Unit = { title, content -> showNotification(title, content) }
+
     @Synchronized
     fun start(): Int {
         if (isRunning) return localPort
@@ -229,6 +232,19 @@ class BridgeServer(
 
                 BridgeMethod.SET_CLIPBOARD.methodName -> {
                     val text = (request.params as? JsonObject)?.get("text")?.jsonPrimitive?.content ?: ""
+                    if (text.length > MAX_CLIPBOARD_CHARS) {
+                        return BridgeResponse(
+                            id = request.id,
+                            error = BridgeError(code = -32602, message = "clipboard text longer than $MAX_CLIPBOARD_CHARS characters"),
+                        )
+                    }
+                    // H-1: попытка записи в буфер видна всегда (до Android 13 система её не показывает) — иначе плагин Host
+                    // молча подменял бы скопированный адрес или команду.
+                    notifier(
+                        com.deepseek.dsh.core.model.Tr.t("copied to the clipboard", "скопировал в буфер обмена"),
+                        text.lineSequence().firstOrNull().orEmpty().take(CLIPBOARD_NOTICE_PREVIEW) +
+                            if (text.length > CLIPBOARD_NOTICE_PREVIEW || text.contains('\n')) "…" else "",
+                    )
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                     clipboard?.setPrimaryClip(ClipData.newPlainText("DSH", text))
                     val res = buildJsonObject { put("success", true) }
@@ -452,6 +468,11 @@ const val NOTIFICATION_TAG = "dsh_bridge"
 
 /** Сколько уведомлений плагинов видно одновременно; следующее заменяет самое старое. */
 const val MAX_NOTIFICATIONS = 5
+
+/** Текст в буфер от плагина: больше — отказ (транзакция Binder на ~1 МБ роняет вызов). */
+internal const val MAX_CLIPBOARD_CHARS = 256 * 1024
+
+private const val CLIPBOARD_NOTICE_PREVIEW = 120
 
 private const val MAX_NOTIFICATION_TITLE = 120
 private const val MAX_NOTIFICATION_TEXT = 1_000

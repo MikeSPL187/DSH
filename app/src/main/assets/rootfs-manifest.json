@@ -1,9 +1,9 @@
 {
   "rootfsName": "dsh-rootfs",
-  "runtimeVersion": "1.0.11-dsh0.2.1-rc.2-bridge2.0.7",
-  "releaseTag": "rootfs-v1.0.11",
+  "runtimeVersion": "2.0.0-dsh0.2.1-rc.2-bridge2.0.7",
+  "releaseTag": "rootfs-v2.0.0",
   "bridgeVersion": "2.0.7",
-  "baseDistro": "debian-12-slim",
+  "baseDistro": "debian-13-slim",
   "libc": "glibc",
   "pageSize": "16k-compatible",
   "archiveFormat": "tar.gz",
@@ -16,13 +16,14 @@
     "git"
   ],
   "downloadUrls": {
-    "x86_64": "https://github.com/EricFL1998/deepseek-harness-mobile-rootfs/releases/download/rootfs-v1.0.11/rootfs-x86_64.bin",
-    "arm64-v8a": "https://github.com/EricFL1998/deepseek-harness-mobile-rootfs/releases/download/rootfs-v1.0.11/rootfs-arm64-v8a.bin"
+    "x86_64": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.0/rootfs-x86_64.bin",
+    "arm64-v8a": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.0/rootfs-arm64-v8a.bin"
   },
   "downloadSha256": {
-    "x86_64": "1FF82436532DECE0668A8A7CAA0792A6D07E699A9613DC6EFDA3653C886B6928",
-    "arm64-v8a": "56F9AD508431BDA95F3863E68E838FF966FBAD99B9587CFEDDA23D132F84BCDF"
+    "x86_64": "9A8BDE2A63DE7BF90596805CFF4F4FFF20E3B8B3AF29C6B8DC75A5F18734578A",
+    "arm64-v8a": "819EC29356943718568171C6A4383B25776F2C47E68629A9169C689EC4C352D6"
   },
-  "archiveSizeBytes": 306407282,
-  "prootLibrary": "libproot.so"
+  "archiveSizeBytes": 299021794,
+  "prootLibrary": "libproot.so",
+  "androidPatched": true
 }

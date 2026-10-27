@@ -131,3 +131,25 @@ class TermEngineTest {
         assertTrue(blk.out.plain().endsWith("hello"))
     }
 }
+
+/** H-3: память и пересборка вывода терминала ограничены. */
+class TermLimitsTest {
+    @Test
+    fun blocksPerTabAreCapped() {
+        val model = TermModel("t") { 0L }
+        repeat(TermModel.MAX_BLOCKS + 50) { model.submit("echo $it") }
+        assertEquals(TermModel.MAX_BLOCKS, model.blocks.size)
+        assertEquals("echo ${TermModel.MAX_BLOCKS + 49}", model.blocks.last().cmd)
+    }
+
+    @Test
+    fun tailAndLastLineDoNotNeedWholeOutput() {
+        val out = TermLines()
+        repeat(1000) { out.put('a'); out.lf() }
+        "progress 42%".forEach { out.put(it) }
+        out.lf()
+        assertEquals(10, out.tail(10).size)
+        assertEquals("progress 42%", out.lastNonBlank())
+        assertEquals(42, TermModel.lastPercent(out))
+    }
+}

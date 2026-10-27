@@ -38,6 +38,15 @@ class TermLines(private val maxLines: Int = 3000) {
 
     fun isBlank(): Boolean = text.all { it.isBlank() }
 
+    val lineCount: Int get() = text.size
+
+    /** Последние [n] строк — без пересборки всего вывода на каждый кусок (H-3). */
+    fun tail(n: Int): List<Pair<String, List<Tone>>> =
+        (maxOf(0, text.size - n) until text.size).map { text[it].toString() to tones[it] }
+
+    /** Последняя непустая строка: проход с конца, а не копия всех строк. */
+    fun lastNonBlank(): String? = text.lastOrNull { it.isNotBlank() }?.toString()
+
     fun plain(): String = text.joinToString("\n") { it.toString().trimEnd() }.trimEnd('\n', ' ')
 
     fun clear() {
@@ -187,6 +196,8 @@ class TermModel(val id: String, private val clock: () -> Long = System::currentT
         val b = TermBlock(nextId++, cmd, clock())
         if (!integrated) b.state = BlockState.Plain
         blocks.add(b)
+        // H-3: блоки вкладки не копятся без предела (каждый — до 3000 строк); самые старые уходят.
+        if (blocks.size > MAX_BLOCKS) blocks.removeRange(0, blocks.size - MAX_BLOCKS)
         echoPending = true
         return b
     }
@@ -314,6 +325,10 @@ class TermModel(val id: String, private val clock: () -> Long = System::currentT
 
         /** Самая длинная незаконченная escape-последовательность, которую ждём из следующего куска вывода. */
         internal const val MAX_PENDING = 8 * 1024
+        /** Сколько блоков (команд) хранит вкладка. */
+        internal const val MAX_BLOCKS = 200
+        /** Пока команда идёт, рисуется хвост вывода: весь блок пересобирается только по её завершении. */
+        const val LIVE_TAIL_LINES = 400
         const val SETUP = " [ -n \"\$BASH_VERSION\" ] && [ -z \"\$DSH_BLK\" ] && DSH_BLK=1 && " +
             "PROMPT_COMMAND='printf \"\\033]133;D;%s;%s;%s\\007\" \"\$?\" \"\$PWD\" \"\$HOME\"'" +
             "\"\${PROMPT_COMMAND:+;\$PROMPT_COMMAND}\"\r"
@@ -344,7 +359,7 @@ class TermModel(val id: String, private val clock: () -> Long = System::currentT
         private val PERCENT = Regex("""(\d{1,3})\s?%""")
 
         internal fun lastPercent(out: TermLines): Int? {
-            val last = out.lines.lastOrNull { it.first.isNotBlank() }?.first ?: return null
+            val last = out.lastNonBlank() ?: return null
             return PERCENT.findAll(last).lastOrNull()?.groupValues?.get(1)?.toIntOrNull()?.takeIf { it in 0..100 }
         }
     }

@@ -22,9 +22,9 @@
 
 В приложении: `PROOT_LOADER` и `LD_LIBRARY_PATH=<nativeLibraryDir>`.
 
-Текущие файлы в `jniLibs` — пакеты Termux proot 5.1.107.98, talloc 2.5.0, libandroid-shmem 0.7 с той же
-правкой `DT_NEEDED`. Замена на сборку CI: запустить workflow «Proot» с `release`, сверить
-`jniLibs.SHA256SUMS` релиза и закоммитить библиотеки из `jniLibs.tar.gz`.
+Текущие файлы в `jniLibs` — сборка CI: proot 5.1.107.101, talloc 2.5.0, libandroid-shmem 0.7, релиз
+[`proot-v5.1.107.101`](https://github.com/MikeSPL187/DSH/releases/tag/proot-v5.1.107.101) (суммы — `jniLibs.SHA256SUMS`).
+Новая версия: запустить workflow «Proot» с `release`, сверить суммы и закоммитить библиотеки из `jniLibs.tar.gz`.
 
 ## Исходники (GPL-2.0, LGPL-3.0)
 

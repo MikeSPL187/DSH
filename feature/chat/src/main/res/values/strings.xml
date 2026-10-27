@@ -132,4 +132,5 @@
     <string name="chat_approval_reject">Decline</string>
     <string name="chat_approval_allow_once">Allow</string>
     <string name="chat_approval_armed_hint">Tap again within 3 seconds to confirm</string>
+    <string name="tool_detail_truncated">Showing the first %1$d KB of %2$d KB</string>
 </resources>

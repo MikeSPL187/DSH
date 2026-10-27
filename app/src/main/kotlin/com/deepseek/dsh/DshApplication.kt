@@ -135,7 +135,7 @@ class DshApplication : Application() {
             dao = database.dshDao(),
             client = defaultClient,
             scope = applicationScope
-        )
+        ).also { it.approvals.approvalPolicy = ::toolApprovalPolicy }
     }
 
     val settingsRepository: DefaultSettingsRepository by lazy {

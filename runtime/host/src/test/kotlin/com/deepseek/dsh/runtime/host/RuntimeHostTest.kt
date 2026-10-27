@@ -26,6 +26,17 @@ class RuntimeHostTest {
 
         val line3 = "Unrelated log line from runtime"
         assertNull(ProcessOutputParser.parseLine(line3))
+
+        // Строка, которую печатает Host на самом деле (`dsh web: ${authenticatedUrl}`).
+        assertEquals(40123, ProcessOutputParser.parseLine("dsh web: http://127.0.0.1:40123/?token=t0k-EN_1")?.port)
+    }
+
+    /** H-5: адрес loopback из вывода плагина при запуске — не адрес Host. */
+    @Test
+    fun foreignLoopbackUrlIsNotTheHost() {
+        assertNull(ProcessOutputParser.parseLine("Server at http://localhost:3000/"))
+        assertNull(ProcessOutputParser.parseLine("[plugin] open http://127.0.0.1:9229/?token=abc"))
+        assertNull(ProcessOutputParser.parseLine("dsh web: listening on 0.0.0.0 over plain HTTP; restrict this port"))
     }
 
     @Test

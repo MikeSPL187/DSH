@@ -41,7 +41,10 @@ internal class HostEventsClient(private val conn: HostConnection) : HostEventsAp
         kotlinx.coroutines.flow.MutableSharedFlow<ForwardedEvent>(extraBufferCapacity = 64)
 
     @Volatile
-    private var forwardedClientId: String? = null
+    internal var forwardedClientId: String? = null
+
+    /** Пауза между повторами ответа на waterfall; тесты уменьшают. */
+    internal var answerRetryDelayMs = 1_000L
 
     /**
      * Имена событий, пересылаемых Host (поток Gateway `$events`).
@@ -171,37 +174,46 @@ internal class HostEventsClient(private val conn: HostConnection) : HostEventsAp
 
     /** На waterfall, которые клиент не обрабатывает, — `next`: Host продолжит по умолчанию. */
     private fun answerForwardedEvent(eventId: String, valueJson: String?) {
-        val clientId = forwardedClientId ?: return
+        if (forwardedClientId == null) return
         if (!answeredWaterfalls.add(eventId)) return
         forwardedScope.launch {
-            runCatching {
-                val outcome = if (valueJson == null) {
-                    buildJsonObject { put("kind", "next") }
-                } else {
-                    buildJsonObject {
-                        put("kind", "result")
-                        put("value", json.parseHostJson(valueJson))
-                    }
-                }
-                val payload = buildJsonObject {
-                    put("type", "client-request")
-                    put("rpcId", java.util.UUID.randomUUID().toString())
-                    put("method", "\$events/result")
-                    put("payload", buildJsonObject {
-                        put("args", buildJsonObject {
-                            put("clientId", clientId)
-                            put("eventId", eventId)
-                            put("outcome", outcome)
-                        })
-                    })
-                }
-                val request = okhttp3.Request.Builder()
-                    .url("$baseUrl/api/\$events/result")
-                    .post(payload.toString().toRequestBody(mediaTypeJson))
-                    .build()
-                client.newCall(request).execute().close()
+            // H-2: у шлюза Host нет своего срока — недошедший ответ оставил бы ход агента висеть. Несколько попыток;
+            // не дошло — событие снова можно ответить (Host доставит его заново после переподключения).
+            val delivered = (0 until ANSWER_ATTEMPTS).any { attempt ->
+                if (attempt > 0) kotlinx.coroutines.delay(answerRetryDelayMs * attempt)
+                val clientId = forwardedClientId ?: return@any false
+                runCatching { postForwardedAnswer(clientId, eventId, valueJson) }.getOrDefault(false)
+            }
+            if (!delivered) answeredWaterfalls.remove(eventId)
+        }
+    }
+
+    private fun postForwardedAnswer(clientId: String, eventId: String, valueJson: String?): Boolean {
+        val outcome = if (valueJson == null) {
+            buildJsonObject { put("kind", "next") }
+        } else {
+            buildJsonObject {
+                put("kind", "result")
+                put("value", json.parseHostJson(valueJson))
             }
         }
+        val payload = buildJsonObject {
+            put("type", "client-request")
+            put("rpcId", java.util.UUID.randomUUID().toString())
+            put("method", "\$events/result")
+            put("payload", buildJsonObject {
+                put("args", buildJsonObject {
+                    put("clientId", clientId)
+                    put("eventId", eventId)
+                    put("outcome", outcome)
+                })
+            })
+        }
+        val request = okhttp3.Request.Builder()
+            .url("$baseUrl/api/\$events/result")
+            .post(payload.toString().toRequestBody(mediaTypeJson))
+            .build()
+        return client.newCall(request).execute().use { it.isSuccessful }
     }
 
     /** Отправка ответа приложения на waterfall. */
@@ -212,3 +224,6 @@ internal class HostEventsClient(private val conn: HostConnection) : HostEventsAp
     override fun answerWaterfall(hostId: String, eventId: String, valueJson: String?) =
         answerForwardedEvent(eventId, valueJson)
 }
+
+/** Попыток доставить ответ на waterfall (H-2). */
+private const val ANSWER_ATTEMPTS = 3

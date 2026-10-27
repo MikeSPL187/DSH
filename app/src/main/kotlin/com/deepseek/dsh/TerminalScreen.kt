@@ -596,12 +596,16 @@ private fun KeyCap(label: String, on: Boolean = false, enabled: Boolean = true, 
 
 /** Вывод с цветами `.d/.g/.r/.y/.b`; пустые строки в конце убираются. */
 private fun styled(b: TermBlock, plain: Color, dim: Color, ok: Color, err: Color, warn: Color, pr: Color): AnnotatedString {
-    val lines = b.out.lines.map { (t, tones) ->
+    // H-3: у идущей команды — хвост вывода (на `npm install` блок перестраивался целиком на каждый кусок).
+    val hidden = if (b.state == BlockState.Live) maxOf(0, b.out.lineCount - TermModel.LIVE_TAIL_LINES) else 0
+    val source = if (hidden > 0) b.out.tail(TermModel.LIVE_TAIL_LINES) else b.out.lines
+    val lines = source.map { (t, tones) ->
         val line = t.trimEnd()
         // Сообщение самой оболочки об ошибке («bash: adb: команда не найдена») — красным, как `.r`.
         if (b.state == BlockState.Err && SHELL_ERR.containsMatchIn(line) && tones.all { it == Tone.Plain }) line to List(line.length) { Tone.Err } else line to tones
     }.dropLastWhile { it.first.isEmpty() }
     return buildAnnotatedString {
+        if (hidden > 0) pushStyleAndAppend(SpanStyle(color = dim), "⋯\n")
         lines.forEachIndexed { li, (t, tones) ->
             if (li > 0) append('\n')
             var i = 0
