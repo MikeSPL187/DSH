@@ -196,17 +196,20 @@ fun MainAppHost(
 
     val repoMessages by dshRepository.getMessages(ui.activeHostId, ui.selectedSessionId ?: "")
         .collectAsState(initial = emptyList())
-    val messages = remember(repoMessages, pendingMessages.toList()) {
+    val messages = remember(repoMessages, pendingMessages.toList(), ui.selectedSessionId) {
         // Эхо user/message от Host и мгновенный пузырь могут быть одновременно:
         // дубли по содержимому убираются.
         val echoed = repoMessages.filter { it.role == MessageRole.USER }.takeLast(16)
+        val openSession = ui.selectedSessionId ?: PENDING_SESSION
         repoMessages + pendingMessages.filter { pending ->
+            // Неотправленное сообщение видно только в своей сессии.
+            pending.sessionId == openSession &&
             // Эхом считается тот же текст в пределах 60 с — повторную отправку
-            // того же текста пользователем не глотаем.
-            echoed.none { real ->
+            // того же текста пользователем не глотаем. Неотправленное эхом не считается.
+            (pending.failed || echoed.none { real ->
                 real.content.trim() == pending.content.trim() &&
                     kotlin.math.abs(real.createdAt - pending.createdAt) < 60_000
-            }
+            })
         }
     }
 

@@ -141,7 +141,9 @@ data class ChatMessage(
     val role: MessageRole,
     val content: String,
     val seq: Long = 0,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    /** Своё сообщение, которое Host не принял: в чате с пометкой «Не отправлено» и «Повторить». */
+    val failed: Boolean = false,
 )
 
 @Serializable

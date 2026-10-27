@@ -139,6 +139,9 @@
     <string name="time_hours">%1$d ч</string>
     <string name="time_days">%1$d д</string>
     <string name="session_create_failed">Не удалось создать сессию. Проверьте состояние Host.</string>
+    <string name="stop_failed">Не удалось остановить агента: Host не подтвердил. Агент продолжает работать — нажмите «Стоп» ещё раз.</string>
+    <string name="send_failed_toast">Сообщение не отправлено: %1$s</string>
+    <string name="cmd_images_skipped">Картинки не отправляются вместе с командой</string>
     <string name="no_active_session_fast">Нет активной сессии, быстрый режим не переключить</string>
     <string name="plugin_install_failed">Ошибка установки</string>
     <string name="plugin_toggle_failed">%1$s: ошибка, Host не отвечает</string>

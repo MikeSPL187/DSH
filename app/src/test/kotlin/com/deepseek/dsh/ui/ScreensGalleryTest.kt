@@ -286,6 +286,25 @@ class ScreensGalleryTest {
         )
     }
 
+    /** G-02: Host не принял сообщение — пузырь остаётся с «Не отправлено» и «Повторить». */
+    private fun renderNotSent(name: String, dark: Boolean) = render(name, dark = dark) {
+        com.deepseek.dsh.feature.chat.ModernChatScreen(
+            messages = listOf(
+                msg("m1", com.deepseek.dsh.core.model.MessageRole.USER, "Привет! Что умеешь?"),
+                msg("a1", com.deepseek.dsh.core.model.MessageRole.ASSISTANT, "Читаю и правлю код, запускаю команды в терминале, работаю с git."),
+                msg("m2", com.deepseek.dsh.core.model.MessageRole.USER, "Собери проект и прогони тесты, а затем покажи, какие файлы изменились за последний коммит")
+                    .copy(failed = true),
+            ),
+            onSendMessage = {},
+        )
+    }
+
+    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    @Test fun chatNotSentNarrow() = renderNotSent("15_chat_not_sent_360", dark = false)
+    @Config(qualifiers = "ru-w390dp-h844dp-xxhdpi")
+    @Test fun chatNotSentDark() = renderNotSent("15b_chat_not_sent_390_dark", dark = true)
+    @Test fun chatNotSentWide() = renderNotSent("15c_chat_not_sent_412", dark = false)
+
     // «Плагины», «Автоматизация» и «Настройки» снимает DshScreensSweepTest (все ширины и темы).
 
     /** Лист поверх затемнённого экрана — как его видит пользователь. */

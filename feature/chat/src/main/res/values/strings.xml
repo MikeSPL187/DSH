@@ -52,6 +52,8 @@
 
     <!-- Chat status & recording -->
     <string name="chat_creating_session">Creating session…</string>
+    <string name="chat_not_sent">Not sent</string>
+    <string name="chat_retry_send">Retry</string>
     <string name="chat_translating">Translating reasoning…</string>
     <string name="chat_view_original">View original</string>
     <string name="chat_view_translation">View translation</string>

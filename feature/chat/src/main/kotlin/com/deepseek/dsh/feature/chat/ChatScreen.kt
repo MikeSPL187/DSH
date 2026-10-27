@@ -145,6 +145,8 @@ private fun commandHintRes(token: String): Int? = when (token) {
 fun ModernChatScreen(
     messages: List<ChatMessage>,
     onSendMessage: (String) -> Unit,
+    /** «Повторить» у сообщения, которое Host не принял (id пузыря). */
+    onRetryMessage: (String) -> Unit = {},
     isSending: Boolean = false,
     /** Текст ответа, который печатается сейчас (база при переподключении + живые фрагменты); пусто — нет. */
     streamingText: String = "",
@@ -379,8 +381,9 @@ fun ModernChatScreen(
             .joinToString(" ") { it.asMessageReference() }
             .let { block -> if (block.isBlank()) "" else block + "\n\n" }
         // В поле — локализованная команда (/цель); отправляется команда Host (/goal).
+        // Команда — первой: текст, начинающийся с @вложения, Host принял бы за обычный prompt.
         val commandPrefix = activeCommandToken?.let { "/$it " } ?: ""
-        val text = attachmentBlock + commandPrefix + inputText.trim()
+        val text = commandPrefix + attachmentBlock + inputText.trim()
         inputText = ""
         activeCommandToken = null
         onSendMessage(text)
@@ -705,7 +708,11 @@ fun ModernChatScreen(
                                         // Картинки пользователя — над пузырём.
                                         val refs = messageImages[m.messageId]
                                         if (!refs.isNullOrEmpty()) MessageImagesRow(images = refs, modifier = Modifier.padding(start = 16.dp))
-                                        UserBubble(m.content, Modifier.padding(top = 6.dp, bottom = 22.dp))
+                                        UserBubble(
+                                            m.content,
+                                            Modifier.padding(top = 6.dp, bottom = 22.dp),
+                                            onRetry = if (m.failed) { { onRetryMessage(m.messageId) } } else null,
+                                        )
                                     }
                                     MessageRole.ASSISTANT -> {
                                         // Итог «Изменения» — перед последним ответом, как в прототипе.

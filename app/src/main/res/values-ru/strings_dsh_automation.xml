@@ -10,6 +10,7 @@
     <string name="au_run_phone_busy">Android отложил запуск</string>
     <string name="au_run_no_host">Host не запустился</string>
     <string name="au_run_no_session">Не удалось начать сессию: %1$s</string>
+    <string name="au_run_send_failed">Не удалось отправить задание: %1$s</string>
     <string name="au_run_no_perm">Не удалось задать права сессии — запуск не начат</string>
     <string name="au_run_read_only">Ничего не меняй в файлах — только прочитай и пришли итог.</string>
     <string name="au_run_timeout">Не уложился в 30 минут — остановлен</string>

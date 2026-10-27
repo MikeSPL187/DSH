@@ -82,4 +82,24 @@ class ApprovalRiskTest {
         assertEquals(ApprovalTier.WRITE, approvalTier("select_model", """{}"""))
         assertEquals(ApprovalTier.WRITE, approvalTier("confirm_terminal", """{}"""))
     }
+
+    /** G-04: аргументы раскрываются JSON-парсером, а не регулярным выражением. */
+    @Test
+    fun `json escapes and string arguments cannot hide a deletion`() {
+        // В JSON: \t — табуляция между rm и флагом, \/ — косая черта, r — буква r.
+        assertEquals(ApprovalTier.DESTRUCTIVE, approvalTier("bash", """{"command":"rm\t-rf ~"}"""))
+        assertEquals(ApprovalTier.DESTRUCTIVE, approvalTier("bash", """{"command":"\/bin\/rm -rf ~"}"""))
+        assertEquals(ApprovalTier.DESTRUCTIVE, approvalTier("bash", """{"command":"rm -rf ~"}"""))
+        // Host прислал аргументы строкой (toolArgsText отдаёт её содержимое) — внутри снова JSON.
+        assertEquals(ApprovalTier.DESTRUCTIVE, approvalTier("bash", """{"command":"rm\t-rf ~","description":"list"}"""))
+        assertEquals(ApprovalTier.DESTRUCTIVE, approvalTier("bash", """"{\"command\":\"rm\\t-rf ~\"}""""))
+        assertEquals(ApprovalTier.DESTRUCTIVE, approvalTier("bash", "rm -rf ~"))
+        // Первый ключ безобиден, удаление — во втором.
+        assertEquals(ApprovalTier.DESTRUCTIVE, approvalTier("bash", """{"command":"ls","then":"rm -rf build"}"""))
+        // Не разбирается, но похоже на JSON — спросить.
+        assertEquals(ApprovalTier.DESTRUCTIVE, approvalTier("bash", """{"command":"ls" """))
+        assertEquals(ApprovalTier.WRITE, approvalTier("bash", """{"command":"ls\t-la"}"""))
+        assertEquals("rm -rf ~", approvalTarget("""{"command":"rm\t-rf ~"}""").orEmpty().replace('\t', ' '))
+        assertEquals(listOf("~"), deletionTargets("bash", """{"input":{"command":"\/bin\/rm -rf ~"}}"""))
+    }
 }

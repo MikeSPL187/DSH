@@ -198,9 +198,14 @@ class DshRepository(
         return accepted
     }
 
+    /**
+     * Остановить ход. Сессия перестаёт считаться идущей только после согласия Host: при сбое
+     * агент продолжает работать, и «Агент работает» не должен пропасть.
+     */
     suspend fun cancelSession(hostId: String, sessionId: String): Boolean {
-        runningSessionIdsFlow.update { it - sessionId }
-        return client.cancelSession(hostId, sessionId)
+        val stopped = client.cancelSession(hostId, sessionId)
+        if (stopped) runningSessionIdsFlow.update { it - sessionId }
+        return stopped
     }
 
     suspend fun answerUserQuestion(hostId: String, sessionId: String, callId: String, questionId: String, selected: String) {
@@ -287,29 +292,19 @@ class DshRepository(
         }
 
     /**
-     * Отправить сообщение. В историю оно попадёт, когда Host проиграет его обратно
-     * (`user/message` после claim): своя оптимистичная запись дала бы дубль с другим id.
-     * Мгновенный пузырь показывает вызывающий. Если Host отклонит prompt, в чат
-     * записывается видимая ошибка.
+     * Отправить сообщение и дождаться ответа Host. В историю оно попадёт, когда Host проиграет
+     * его обратно (`user/message` после claim): своя оптимистичная запись дала бы дубль с другим id.
+     * Мгновенный пузырь показывает вызывающий; при отказе он же оставляет сообщение с «Повторить» —
+     * текст и вложения пользователя не теряются.
      */
-    fun sendMessage(hostId: String, sessionId: String, content: String, images: List<PromptImagePart> = emptyList()) {
-        scope.launch(Dispatchers.IO) {
-            dao.touchSession(hostId, sessionId, System.currentTimeMillis())
-            val result = client.sendMessage(hostId, sessionId, content, images)
-            if (result is RemoteResult.Failure) {
-                val now = System.currentTimeMillis()
-                dao.insertMessages(listOf(MessageEntity(
-                    hostId = hostId,
-                    sessionId = sessionId,
-                    messageId = "msg_error_$now",
-                    role = MessageRole.ASSISTANT.name,
-                    seq = 0L,
-                    contentJson = "⚠️ " + Tr.t("Send failed: ${result.message}", "Не удалось отправить: ${result.message}"),
-                    createdAt = now,
-                    status = "error",
-                )))
-            }
-        }
+    suspend fun sendMessage(
+        hostId: String,
+        sessionId: String,
+        content: String,
+        images: List<PromptImagePart> = emptyList(),
+    ): Result<Unit> = kotlinx.coroutines.withContext(Dispatchers.IO) {
+        dao.touchSession(hostId, sessionId, System.currentTimeMillis())
+        client.sendMessage(hostId, sessionId, content, images).toResult().map { }
     }
 
     /** Догрузить более раннюю историю (при прокрутке к началу); false — истории больше нет. */

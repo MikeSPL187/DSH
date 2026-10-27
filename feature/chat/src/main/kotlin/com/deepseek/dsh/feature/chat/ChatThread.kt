@@ -74,14 +74,32 @@ import kotlinx.coroutines.launch
 
 /** Пузырь пользователя `.msg-user`: до 82 % ширины, s2, радиусы 22/22/6/22. */
 @Composable
-fun UserBubble(text: String, modifier: Modifier = Modifier) {
+fun UserBubble(text: String, modifier: Modifier = Modifier, onRetry: (() -> Unit)? = null) {
     val c = Dsh.colors
-    BoxWithConstraints(modifier.fillMaxWidth()) {
-        Box(
-            Modifier.align(Alignment.CenterEnd).widthIn(max = maxWidth * 0.82f)
-                .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp, bottomEnd = 6.dp, bottomStart = 22.dp))
-                .background(c.s2).padding(horizontal = 15.dp, vertical = 11.dp),
-        ) { Text(text, style = ckBody(16.sp, 23.2.sp), color = c.t1) }
+    Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            Box(
+                Modifier.align(Alignment.CenterEnd).widthIn(max = maxWidth * 0.82f)
+                    .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp, bottomEnd = 6.dp, bottomStart = 22.dp))
+                    .background(c.s2).padding(horizontal = 15.dp, vertical = 11.dp),
+            ) { Text(text, style = ckBody(16.sp, 23.2.sp), color = c.t1) }
+        }
+        // Host не принял сообщение: пометка и «Повторить» (кнопка как `.nb-btn` полосы «Нет соединения»).
+        if (onRetry != null) Row(
+            Modifier.padding(top = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Icon(DshGlyphs.xs("alert"), null, tint = c.danger, modifier = Modifier.size(15.dp))
+            Text(stringResource(R.string.chat_not_sent), style = ckBody(12.5.sp, 16.sp), color = c.danger)
+            Box(
+                Modifier.height(40.dp).clip(RoundedCornerShape(11.dp)).background(c.s2)
+                    .clickable(role = Role.Button, onClick = onRetry).padding(horizontal = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(stringResource(R.string.chat_retry_send), style = ckBody(13.5.sp).copy(fontWeight = FontWeight.Medium), color = c.accent)
+            }
+        }
     }
 }
 

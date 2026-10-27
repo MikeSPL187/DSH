@@ -632,15 +632,12 @@ private fun RecentCard(f: File, changed: Boolean, onClick: () -> Unit) {
 private fun DocView(f: File, path: String, change: GitChange?, onDiff: () -> Unit, onAsk: () -> Unit, onAttach: () -> Unit, onMore: () -> Unit) {
     val c = Dsh.colors
     val ext = f.name.substringAfterLast('.', "").lowercase()
-    val content by produceState<Pair<List<String>, Boolean>?>(null, f) {
+    val content by produceState<ViewText?>(null, f) {
         value = withContext(Dispatchers.IO) {
             when {
                 ext in ImageExt -> null
-                !looksText(f) -> emptyList<String>() to false
-                else -> {
-                    val lines = runCatching { f.bufferedReader().useLines { it.take(MAX_VIEW_LINES + 1).toList() } }.getOrDefault(emptyList())
-                    lines.take(MAX_VIEW_LINES) to (lines.size > MAX_VIEW_LINES)
-                }
+                !looksText(f) -> ViewText(emptyList(), false)
+                else -> runCatching { readViewText(f) }.getOrDefault(ViewText(emptyList(), false))
             }
         }
     }
@@ -685,17 +682,16 @@ private fun DocView(f: File, path: String, change: GitChange?, onDiff: () -> Uni
         when {
             ext in ImageExt -> ImagePreview(f)
             data == null -> Unit
-            data.first.isEmpty() && !data.second && f.length() > 0 -> Empty(stringResource(R.string.fs_binary))
+            data.lines.isEmpty() && !data.truncated && f.length() > 0 -> Empty(stringResource(R.string.fs_binary))
             else -> {
-                CodeBlock(data.first.ifEmpty { listOf("") }, ext)
-                if (data.second) Text(stringResource(R.string.fs_too_big, MAX_VIEW_LINES), style = TextStyle(fontFamily = DshFonts.body, fontSize = 12.5.sp), color = c.t3, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
+                CodeBlock(data.lines.ifEmpty { listOf("") }, ext)
+                if (data.truncated) Text(stringResource(R.string.fs_too_big, data.lines.size), style = TextStyle(fontFamily = DshFonts.body, fontSize = 12.5.sp), color = c.t3, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
             }
         }
         Spacer(Modifier.navigationBarsPadding())
     }
 }
 
-private const val MAX_VIEW_LINES = 3000
 
 /** Кнопка `.fv-acts`: 44 dp, s1 с обводкой; главная — акцент. */
 @Composable
@@ -732,7 +728,10 @@ private fun CodeBlock(lines: List<String>, ext: String) {
     val c = Dsh.colors
     val style = Mono.copy(fontSize = 12.5.sp, lineHeight = 21.25.sp)
     val numbers = remember(lines) { (1..lines.size).joinToString("\n") }
-    val text = remember(lines, ext, c) { highlight(lines, ext, c) }
+    // Подсветка — в фоне: на 3000 строк регулярные выражения в composition заметно тормозят кадр.
+    val text by produceState(AnnotatedString(lines.joinToString("\n")), lines, ext, c) {
+        value = withContext(Dispatchers.Default) { highlight(lines, ext, c) }
+    }
     Row(
         Modifier
             .fillMaxWidth()

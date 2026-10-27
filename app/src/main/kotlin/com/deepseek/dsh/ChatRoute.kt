@@ -171,6 +171,7 @@ internal fun ChatRoute(d: ChatDeps) {
             withSession { repository.answerUserQuestion(hostId, it, callId, questionId, selected) }
         },
         onSendMessage = send,
+        onRetryMessage = d.sender::retry,
         isSending = runtimeUi.isSending,
         workspaceName = d.workspaceLabel,
         workspaceNames = d.workspaceNames,
@@ -181,7 +182,12 @@ internal fun ChatRoute(d: ChatDeps) {
         },
         onWorkspaceClick = d.onOpenDrawer,
         isThinking = sessionId != null && sessionId in d.runningSessionIds,
-        onStopClick = { withSession { repository.cancelSession(hostId, it) } },
+        onStopClick = {
+            withSession {
+                // Host не подтвердил остановку — агент продолжает работать: сказать, а не прятать индикатор.
+                if (!repository.cancelSession(hostId, it)) toast(context.getString(R.string.stop_failed), long = true)
+            }
+        },
         selectedModel = model.name,
         selectedModelId = model.id,
         onNativeModelSelect = { provider, modelId, effort ->

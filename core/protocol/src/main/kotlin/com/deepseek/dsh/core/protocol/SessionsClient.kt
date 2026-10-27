@@ -271,7 +271,7 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                 .url("$baseUrl/api/session/cancel")
                 .post(payload.toRequestBody(mediaTypeJson))
                 .build()
-            runCatching { client.newCall(request).execute().use { it.isSuccessful } }.getOrDefault(false)
+            runCatching { client.newCall(request).execute().use(::hostAccepted) }.getOrDefault(false)
         }
 
     override suspend fun answerUserQuestion(
@@ -307,8 +307,17 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
             .post(payload.toRequestBody(mediaTypeJson))
             .build()
         runCatching {
-            client.newCall(request).execute().use { it.isSuccessful }
+            client.newCall(request).execute().use(::hostAccepted)
         }.getOrDefault(false)
+    }
+
+    /** HTTP 200 и Host не ответил `ok: false`: отказ Host — не успех (G-03, G-22). */
+    private fun hostAccepted(response: okhttp3.Response): Boolean {
+        if (!response.isSuccessful) return false
+        val body = response.body?.string().orEmpty()
+        val result = runCatching { (json.parseHostJson(body) as? kotlinx.serialization.json.JsonObject)?.get("result") }
+            .getOrNull() as? kotlinx.serialization.json.JsonObject
+        return (result?.get("ok") as? kotlinx.serialization.json.JsonPrimitive)?.content != "false"
     }
 
     override suspend fun getSessionStats(

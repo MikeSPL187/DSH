@@ -1,5 +1,12 @@
 package com.deepseek.dsh.feature.chat
 
+import com.deepseek.dsh.core.protocol.parseHostJson
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+
 /** Насколько рискованно действие, о котором спрашивает агент. */
 enum class ApprovalTier { WRITE, DESTRUCTIVE }
 
@@ -18,8 +25,13 @@ fun approvalTier(toolName: String, args: String?): ApprovalTier {
     val nameTokens = name.split(Regex("[^a-z0-9]+")).filter { it.isNotEmpty() }
     val destructive = when {
         DESTRUCTIVE_TOOL_WORDS.any { it in name } || nameTokens.any { it in DESTRUCTIVE_TOOL_TOKENS } -> true
-        // Команда под незнакомым ключом (`script`, `commands: […]`) — проверяются все строки аргументов.
-        isShellTool(name) -> isDestructiveCommand(approvalTarget(args) ?: jsonStrings(args).ifEmpty { listOf(args.orEmpty()) }.joinToString("\n"))
+        // Проверяются все строки аргументов (команда под незнакомым ключом, `script`, `commands: […]`),
+        // раскрытые JSON-парсером: `\t`, `\/`, `\u0072m` и аргументы строкой JSON — так же, как их увидит оболочка.
+        // Не разобрать то, что похоже на JSON, — спросить: пропуск хуже лишней тревоги.
+        isShellTool(name) -> {
+            val strings = argStrings(args)
+            strings == null || isDestructiveCommand(strings.joinToString("\n"))
+        }
         else -> false
     }
     return if (destructive) ApprovalTier.DESTRUCTIVE else ApprovalTier.WRITE
@@ -34,27 +46,50 @@ internal fun isShellTool(name: String): Boolean {
 /** Команда или путь из JSON-аргументов вызова — то, что агент собирается сделать. */
 fun approvalTarget(args: String?): String? {
     if (args.isNullOrBlank()) return null
+    var root = parseArgs(args) ?: return args.trim().takeIf { it.length in 1..200 && !looksJson(it) }
+    // Аргументы строкой JSON: `"{\"command\":…}"`.
+    if (root is JsonPrimitive && root.isString && looksJson(root.content)) parseArgs(root.content)?.let { root = it }
+    if (root is JsonPrimitive) return if (root.isString) root.content.replace('\n', ' ').trim().ifBlank { null } else null
+    // Первый известный ключ (в порядке TARGET_KEYS) на любой глубине: `{"input":{"command":…}}`.
     for (key in TARGET_KEYS) {
-        val match = Regex("\"" + key + "\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").find(args) ?: continue
-        return match.groupValues[1].replace("\\\"", "\"").replace("\\n", " ").replace("\\\\", "\\").trim().ifBlank { null }
+        findString(root, key)?.let { return it.replace('\n', ' ').trim().ifBlank { null } }
     }
-    return args.trim().takeIf { it.length in 1..200 && !it.startsWith("{") }
+    return null
 }
 
-/** Все строковые значения JSON-аргументов (без ключей), на любой глубине; не JSON — пусто. */
-private fun jsonStrings(args: String?): List<String> {
+/**
+ * Все строки аргументов, раскрытые JSON-парсером. Аргументы бывают строкой JSON внутри строки
+ * (`"{\"command\":…}"`) — такая строка разбирается ещё раз. Не JSON — сам текст;
+ * похоже на JSON, но не разбирается, — null (риск не оценить).
+ */
+private fun argStrings(args: String?): List<String>? {
     if (args.isNullOrBlank()) return emptyList()
-    val root = runCatching { kotlinx.serialization.json.Json.parseToJsonElement(args) }.getOrNull() ?: return emptyList()
+    val root = parseArgs(args) ?: return if (looksJson(args)) null else listOf(args)
     val out = mutableListOf<String>()
-    fun walk(e: kotlinx.serialization.json.JsonElement) {
+    fun walk(e: JsonElement, depth: Int) {
         when (e) {
-            is kotlinx.serialization.json.JsonObject -> e.values.forEach(::walk)
-            is kotlinx.serialization.json.JsonArray -> e.forEach(::walk)
-            is kotlinx.serialization.json.JsonPrimitive -> if (e.isString) out += e.content
+            is JsonObject -> e.values.forEach { walk(it, depth) }
+            is JsonArray -> e.forEach { walk(it, depth) }
+            is JsonPrimitive -> if (e.isString) {
+                val nested = if (depth < 3 && looksJson(e.content)) parseArgs(e.content) else null
+                if (nested != null && nested !is JsonPrimitive) walk(nested, depth + 1) else out += e.content
+            }
         }
     }
-    walk(root)
+    walk(root, 0)
     return out
+}
+
+private fun looksJson(text: String): Boolean = text.trimStart().let { it.startsWith("{") || it.startsWith("[") || it.startsWith("\"") }
+
+/** JSON аргументов с пределом вложенности (E-21); null — не JSON. */
+private fun parseArgs(args: String): JsonElement? = runCatching { Json.parseHostJson(args) }.getOrNull()
+
+private fun findString(e: JsonElement, key: String): String? = when (e) {
+    is JsonObject -> (e[key] as? JsonPrimitive)?.takeIf { it.isString }?.content
+        ?: e.values.firstNotNullOfOrNull { findString(it, key) }
+    is JsonArray -> e.firstNotNullOfOrNull { findString(it, key) }
+    else -> null
 }
 
 /**

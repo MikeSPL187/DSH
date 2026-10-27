@@ -43,6 +43,8 @@
     <string name="cmd_export_desc">Скачать журнал сессии ZIP-архивом</string>
     <string name="action_cancel">Отмена</string>
     <string name="chat_creating_session">Создание сессии…</string>
+    <string name="chat_not_sent">Не отправлено</string>
+    <string name="chat_retry_send">Повторить</string>
     <string name="chat_translating">Перевод рассуждений…</string>
     <string name="chat_view_original">Показать оригинал</string>
     <string name="chat_view_translation">Показать перевод</string>

@@ -43,7 +43,7 @@
     <string name="fs_to_chat">To chat</string>
     <string name="fs_more_btn">More</string>
     <string name="fs_binary">This is a binary file — open it in another app</string>
-    <string name="fs_too_big">Large file — showing the first %1$d lines</string>
+    <string name="fs_too_big">Large file — showing the beginning (%1$d lines)</string>
     <string name="fs_fa_ask">Ask DSH about the file</string>
     <string name="fs_fa_attach">Attach to message</string>
     <string name="fs_fa_share">Share</string>

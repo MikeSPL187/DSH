@@ -7,6 +7,7 @@ import com.deepseek.dsh.core.model.ChatMessage
 import com.deepseek.dsh.core.model.MessageRole
 import com.deepseek.dsh.feature.chat.ChatAttachment
 import com.deepseek.dsh.runtime.host.HostRuntimeManager
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.io.File
@@ -14,12 +15,16 @@ import java.io.File
 /** Модель для новой сессии: id в каталоге Host и провайдер. */
 data class ModelChoice(val modelId: String, val providerId: String)
 
+/** Сессии ещё нет: пузырь первого сообщения новой сессии. */
+internal const val PENDING_SESSION = "pending"
+
 /**
  * Отправка сообщения из чата: «/команда» — Host (`commands/execute`, неизвестная команда
  * уходит обычным сообщением), иначе prompt в текущую сессию или новую (создаётся с первым
  * сообщением, при сбое Host перезапускается один раз). Картинки-вложения уходят частью
  * prompt (base64), файлы — ссылками «@путь». Пока ответ не пришёл, сообщение видно в
- * [pendingMessages]; при ошибке текст не теряется.
+ * [pendingMessages]. Отказ Host или сети — не потеря: пузырь остаётся с пометкой
+ * «Не отправлено» и кнопкой «Повторить», которая отправляет тот же текст и те же картинки.
  */
 class ChatSender(
     private val context: Context,
@@ -32,166 +37,163 @@ class ChatSender(
     private val attachments: SnapshotStateList<ChatAttachment>,
     private val workspaceRoot: () -> File,
 ) {
+    /** Что отправить: текст пузыря, текст для Host (с префиксом плана), картинки и модель новой сессии. */
+    private data class Outgoing(
+        val text: String,
+        val prompt: String,
+        val images: List<Triple<File, String, String>>,
+        val model: ModelChoice,
+    )
+
+    /** Неотправленные сообщения: id пузыря → что отправить по «Повторить». */
+    private val failed = mutableMapOf<String, Outgoing>()
+
     fun send(text: String, model: ModelChoice) {
-        // Слэш-команда идёт в commands/execute; незнакомую Host
-        // отправляем обычным prompt.
+        // Слэш-команда идёт в commands/execute; незнакомую Host отправляем обычным prompt.
         val commandLine = text.trim()
         val commandSession = ui.selectedSessionId
-        val handledAsCommand = commandLine.startsWith("/") &&
-            commandSession != null
-        if (handledAsCommand) {
-            val sid = commandSession!!
+        if (commandLine.startsWith("/") && commandSession != null) {
+            // Вложения уже в тексте команды (@путь); картинки команде не передать — сказать, а не
+            // оставлять их в поле: иначе они молча ушли бы со следующим сообщением.
+            if (attachments.any { imageTypeOf(it.displayName) != null }) toast(context.getString(R.string.cmd_images_skipped))
+            attachments.clear()
             scope.launch {
-                val result = repository.commands.executeHostCommand(
-                    ui.activeHostId, sid, commandLine,
-                )
+                val result = repository.commands.executeHostCommand(ui.activeHostId, commandSession, commandLine)
                 if (result != null) {
-                    val message = result.text ?: result.kind
-                    android.widget.Toast.makeText(
-                        context,
-                        message,
-                        android.widget.Toast.LENGTH_SHORT,
-                    ).show()
-                    repository.refreshSessionStats(
-                        ui.activeHostId, sid,
-                    )
+                    toast(result.text ?: result.kind)
+                    repository.refreshSessionStats(ui.activeHostId, commandSession)
                 } else {
-                    // Host не знает команды — отправить как сообщение.
-                    runCatching {
-                        repository.sendMessage(
-                            ui.activeHostId, sid, commandLine,
-                        )
-                    }
+                    // Host не знает команды (или не ответил) — отправить как сообщение; сбой виден в пузыре.
+                    dispatch(Outgoing(commandLine, commandLine, emptyList(), model))
                 }
             }
+            return
         }
-        if (!handledAsCommand) {
-        val localId = "local_${System.nanoTime()}"
-        val isPlanPrompt = runtimeUi.chatPlanMode
-        val outgoingText = if (isPlanPrompt) {
-            context.getString(R.string.plan_prompt_prefix) + text
-        } else {
-            text
-        }
+        val prompt = if (runtimeUi.chatPlanMode) context.getString(R.string.plan_prompt_prefix) + text else text
         // Картинки уходят частью image внутри prompt (base64) — модель с
         // поддержкой изображений видит их; остальные файлы — ссылкой @.
-        val outgoingAttachments = attachments.toList()
-        val outgoingImages = outgoingAttachments.mapNotNull { attachment ->
-            val name = attachment.displayName
-            val extension = name.substringAfterLast('.', "").lowercase()
-            val mediaType = when (extension) {
-                "png" -> "image/png"
-                "jpg", "jpeg" -> "image/jpeg"
-                "webp" -> "image/webp"
-                "gif" -> "image/gif"
-                else -> return@mapNotNull null
-            }
+        val images = attachments.mapNotNull { attachment ->
+            val mediaType = imageTypeOf(attachment.displayName) ?: return@mapNotNull null
             // Путь может быть от корня рабочих папок или от папки сессии
             // (вложения копируются в <root>/<workspaceName>/attachments).
             val relative = attachment.workspaceRelativePath
             val file = listOf(
-                java.io.File(relative),
-                java.io.File(workspaceRoot(), relative),
-                java.io.File(java.io.File(workspaceRoot(), runtimeUi.activeWorkspaceName), relative),
-            ).firstOrNull { it.isFile }
-            if (file == null) return@mapNotNull null
+                File(relative),
+                File(workspaceRoot(), relative),
+                File(File(workspaceRoot(), runtimeUi.activeWorkspaceName), relative),
+            ).firstOrNull { it.isFile } ?: return@mapNotNull null
             // Кодирование (и уменьшение) — в фоне, перед отправкой.
-            Triple(file, mediaType, name)
+            Triple(file, mediaType, attachment.displayName)
         }
         attachments.clear()
+        dispatch(Outgoing(text, prompt, images, model))
+    }
+
+    /** «Повторить» у неотправленного сообщения. */
+    fun retry(messageId: String) {
+        val outgoing = failed.remove(messageId) ?: return
+        pendingMessages.removeAll { it.messageId == messageId }
+        dispatch(outgoing)
+    }
+
+    private fun dispatch(outgoing: Outgoing) {
+        val localId = "local_${System.nanoTime()}"
         pendingMessages.add(
             ChatMessage(
                 hostId = ui.activeHostId,
-                sessionId = ui.selectedSessionId ?: "pending",
+                sessionId = ui.selectedSessionId ?: PENDING_SESSION,
                 messageId = localId,
                 role = MessageRole.USER,
-                content = text,
-                createdAt = System.currentTimeMillis()
-            )
+                content = outgoing.text,
+                createdAt = System.currentTimeMillis(),
+            ),
         )
         runtimeUi.isSending = true
         scope.launch {
-            try {
-            var sid = ui.selectedSessionId
-            var createdSession = false
-            // Открытая сессия используется всегда. liveSessionIds значит только
-            // «идёт ход» и пустеет после хода: раньше по нему каждое второе сообщение
-            // создавало новую сессию (казалось, что сессия меняется, а ответа нет).
-            if (sid == null) {
-                suspend fun createOnce(): String? = repository.createSession(
-                    ui.activeHostId,
-                    text.take(24),
-                    "/workspace/${runtimeUi.activeWorkspaceName}",
-                    (ui.pendingAgentPreset ?: ui.currentAppSettings.transcriptView).takeIf { it.isNotBlank() }
-                ).getOrNull()?.sessionId
-                sid = createOnce()
-                if (sid == null) {
-                    // Host мог упасть или ещё не готов: один перезапуск и повтор.
-                    runtimeManager.start(workspaceRoot().absolutePath)
-                    kotlinx.coroutines.delay(10000)
-                    sid = createOnce()
-                }
-                if (sid != null) {
-                    // mkdir Host под proot может вернуть ENOENT — папку сессии создаёт приложение.
-                    // Не-ASCII символы имени рабочей папки Host заменяет на ~XXXX.
-                    java.io.File(
-                        context.filesDir,
-                        "$HOST_SESSIONS_DIR/${workspaceSessionDirName(runtimeUi.activeWorkspaceName)}/$sid"
-                    ).mkdirs()
-                    ui.selectedSessionId = sid
-                    createdSession = true
-                }
-            }
-            if (sid != null) {
-                // Выбор модели в modelSelection пишется только для новой сессии;
-                // у существующей не перезаписывается (раньше провайдер каждый раз брался
-                // из аккаунта, у Kimi и моделей подписки он ломался, и ответ был пустым).
-                if (createdSession) {
-                    repository.selectModel(
-                        ui.activeHostId,
-                        sid,
-                        model.modelId,
-                        model.providerId,
-                    )
-                }
-                val encodedImages = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    outgoingImages.mapNotNull { (file, mediaType, name) ->
-                        runCatching { PromptImageEncoder.encode(file, mediaType, name) }.getOrNull()
-                    }
-                }
-                repository.sendMessage(ui.activeHostId, sid, outgoingText, encodedImages)
-            } else {
-                android.widget.Toast.makeText(
-                    context, context.getString(R.string.session_create_failed), android.widget.Toast.LENGTH_LONG
-                ).show()
-                // Keep what the user typed visible: the composer is
-                // already cleared, so dropping the bubble loses the text.
-                pendingMessages.add(
-                    ChatMessage(
-                        hostId = ui.activeHostId,
-                        sessionId = "pending",
-                        messageId = "local_failed_${System.nanoTime()}",
-                        role = MessageRole.USER,
-                        content = text,
-                        createdAt = System.currentTimeMillis(),
-                    )
-                )
-                pendingMessages.add(
-                    ChatMessage(
-                        hostId = ui.activeHostId,
-                        sessionId = "pending",
-                        messageId = "local_error_${System.nanoTime()}",
-                        role = MessageRole.ASSISTANT,
-                        content = "⚠️ " + context.getString(R.string.session_create_failed),
-                        createdAt = System.currentTimeMillis(),
-                    )
-                )
-            }
+            val error = try {
+                deliver(outgoing, localId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                e.message.orEmpty()
             } finally {
-                pendingMessages.removeAll { it.messageId == localId }
                 runtimeUi.isSending = false
             }
-        }
+            val index = pendingMessages.indexOfFirst { it.messageId == localId }
+            if (error == null) {
+                if (index >= 0) pendingMessages.removeAt(index)
+            } else {
+                // Пузырь остаётся: текст пользователя не теряется, «Повторить» отправит его снова.
+                if (index >= 0) pendingMessages[index] = pendingMessages[index].copy(failed = true)
+                failed[localId] = outgoing
+                toast(context.getString(R.string.send_failed_toast, error).trimEnd(' ', ':'), long = true)
+            }
         }
     }
+
+    /** Отправить; null — Host принял prompt, иначе причина отказа. */
+    private suspend fun deliver(outgoing: Outgoing, localId: String): String? {
+        var sid = ui.selectedSessionId
+        var createdSession = false
+        // Открытая сессия используется всегда. liveSessionIds значит только
+        // «идёт ход» и пустеет после хода: раньше по нему каждое второе сообщение
+        // создавало новую сессию (казалось, что сессия меняется, а ответа нет).
+        if (sid == null) {
+            suspend fun createOnce(): String? = repository.createSession(
+                ui.activeHostId,
+                outgoing.text.take(24),
+                "/workspace/${runtimeUi.activeWorkspaceName}",
+                (ui.pendingAgentPreset ?: ui.currentAppSettings.transcriptView).takeIf { it.isNotBlank() },
+            ).getOrNull()?.sessionId
+            sid = createOnce()
+            if (sid == null) {
+                // Host мог упасть или ещё не готов: один перезапуск и повтор.
+                runtimeManager.start(workspaceRoot().absolutePath)
+                kotlinx.coroutines.delay(10000)
+                sid = createOnce()
+            }
+            if (sid == null) return context.getString(R.string.session_create_failed)
+            // mkdir Host под proot может вернуть ENOENT — папку сессии создаёт приложение.
+            // Не-ASCII символы имени рабочей папки Host заменяет на ~XXXX.
+            File(
+                context.filesDir,
+                "$HOST_SESSIONS_DIR/${workspaceSessionDirName(runtimeUi.activeWorkspaceName)}/$sid",
+            ).mkdirs()
+            ui.selectedSessionId = sid
+            createdSession = true
+            // Пузырь переходит в новую сессию, чтобы не пропасть с экрана до эха Host.
+            val index = pendingMessages.indexOfFirst { it.messageId == localId }
+            if (index >= 0) pendingMessages[index] = pendingMessages[index].copy(sessionId = sid)
+            failed.keys.toList().forEach { id ->
+                val i = pendingMessages.indexOfFirst { it.messageId == id && it.sessionId == PENDING_SESSION }
+                if (i >= 0) pendingMessages[i] = pendingMessages[i].copy(sessionId = sid)
+            }
+        }
+        // Выбор модели в modelSelection пишется только для новой сессии;
+        // у существующей не перезаписывается (раньше провайдер каждый раз брался
+        // из аккаунта, у Kimi и моделей подписки он ломался, и ответ был пустым).
+        if (createdSession) {
+            repository.selectModel(ui.activeHostId, sid, outgoing.model.modelId, outgoing.model.providerId)
+        }
+        val encodedImages = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            outgoing.images.mapNotNull { (file, mediaType, name) ->
+                runCatching { PromptImageEncoder.encode(file, mediaType, name) }.getOrNull()
+            }
+        }
+        return repository.sendMessage(ui.activeHostId, sid, outgoing.prompt, encodedImages)
+            .exceptionOrNull()?.let { it.message.orEmpty() }
+    }
+
+    private fun toast(text: String, long: Boolean = false) = android.widget.Toast.makeText(
+        context, text, if (long) android.widget.Toast.LENGTH_LONG else android.widget.Toast.LENGTH_SHORT,
+    ).show()
+}
+
+/** Тип картинки, которая уходит частью image внутри prompt; null — файл уходит ссылкой @. */
+private fun imageTypeOf(name: String): String? = when (name.substringAfterLast('.', "").lowercase()) {
+    "png" -> "image/png"
+    "jpg", "jpeg" -> "image/jpeg"
+    "webp" -> "image/webp"
+    "gif" -> "image/gif"
+    else -> null
 }

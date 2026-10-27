@@ -145,6 +145,9 @@
     <string name="time_hours">%1$d h</string>
     <string name="time_days">%1$d d</string>
     <string name="session_create_failed">Could not create session. Check the Host status.</string>
+    <string name="stop_failed">Could not stop the agent: Host did not confirm. The agent keeps working — tap Stop again.</string>
+    <string name="send_failed_toast">Message not sent: %1$s</string>
+    <string name="cmd_images_skipped">Images are not sent with a command</string>
     <string name="no_active_session_fast">No active session; cannot toggle fast mode</string>
     <string name="plugin_install_failed">Install failed</string>
     <string name="plugin_toggle_failed">%1$s failed: Host is not responding</string>

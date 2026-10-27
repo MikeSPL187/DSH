@@ -42,7 +42,7 @@
     <string name="fs_to_chat">В чат</string>
     <string name="fs_more_btn">Ещё</string>
     <string name="fs_binary">Это двоичный файл — откройте его в другом приложении</string>
-    <string name="fs_too_big">Файл большой — показаны первые %1$d строк</string>
+    <string name="fs_too_big">Файл большой — показано начало (%1$d строк)</string>
     <string name="fs_fa_ask">Спросить DSH о файле</string>
     <string name="fs_fa_attach">Прикрепить к сообщению</string>
     <string name="fs_fa_share">Поделиться</string>

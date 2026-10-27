@@ -155,7 +155,9 @@ object AutomationRunner {
             append(a.prompt.trim())
             if (a.perm == "read") append("\n\n").append(app.getString(R.string.au_run_read_only))
         }
-        repo.sendMessage(LOCAL_HOST, sid, prompt)
+        repo.sendMessage(LOCAL_HOST, sid, prompt).onFailure {
+            return@withContext Outcome(false, app.getString(R.string.au_run_send_failed, it.message.orEmpty()), sid, false)
+        }
         // Ход начался — и закончился.
         withTimeoutOrNull(90_000) { repo.runningSessionIdsFlow.first { sid in it } }
         val done = withTimeoutOrNull(TURN_TIMEOUT_MS) { repo.runningSessionIdsFlow.first { sid !in it } } != null
