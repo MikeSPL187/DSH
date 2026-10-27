@@ -46,7 +46,7 @@ ARG DSH_SOURCE_COMMIT
 RUN pnpm install --frozen-lockfile \
   && DSH_CLIENT_COMMIT_HASH="$DSH_SOURCE_COMMIT" pnpm run build:artifacts \
   && pnpm --filter @deepseek-ai/dsh deploy --prod --config.inject-workspace-packages=true \
-       --config.allow-unused-patches=true --config.node-linker=hoisted /out/dsh
+       --config.allow-unused-patches=true --config.strict-dep-builds=false --config.node-linker=hoisted /out/dsh
 
 # Агент в образе: сторонние зависимости — `npm ci` по нашему package-lock, затем каждый пакет
 # `@deepseek-ai/*` и сам `@deepseek-ai/dsh` заменяются нашей сборкой (пакет без нашей копии — ошибка);

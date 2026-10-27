@@ -56,9 +56,10 @@ jobs:
       - name: Дерево установки
         working-directory: agent
         run: |
-          # Строго по общему lockfile; патчи dev-зависимостей (electron, exceljs…) в prod-дерево не входят.
+          # Строго по общему lockfile; патчи dev-зависимостей (electron, exceljs…) в prod-дерево не входят;
+          # postinstall subprocess-local (бит исполнения spawn-helper node-pty) не нужен: node-pty образа ставит npm ci.
           pnpm --filter @deepseek-ai/dsh deploy --prod --config.inject-workspace-packages=true \
-            --config.allow-unused-patches=true --config.node-linker=hoisted ../out/dsh
+            --config.allow-unused-patches=true --config.strict-dep-builds=false --config.node-linker=hoisted ../out/dsh
           ls ../out/dsh ../out/dsh/node_modules/@deepseek-ai | head -50
           du -sh ../out/dsh
 
