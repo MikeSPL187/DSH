@@ -640,6 +640,31 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .dz-btns .btn { height: 52px; border-radius: 16px; font-size: 16px; }
 .dz-note { margin: 8px 0 0; text-align: center; font-size: 12px; color: var(--t3); }
 
+/* Субагенты: лист со списком и плашка в разговоре субагента */
+.sa-sub { margin: -8px 4px 12px; font-size: 13.5px; color: var(--t3); }
+.sa-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; padding: 8px 10px; border-radius: 16px; text-align: left; }
+.sa-row:active { background: var(--s2); }
+.sa-row + .sa-row { margin-top: 2px; }
+.sa-st { width: 14px; display: grid; place-items: center; flex: none; }
+.sa-st i { width: 8px; height: 8px; border-radius: 50%; background: var(--t3); }
+.sa-st i.ok { background: var(--ok); }
+.sa-st i.run { width: 12px; height: 12px; background: none; border: 2px solid var(--accent-soft); border-top-color: var(--accent); animation: saSpin .9s linear infinite; }
+@keyframes saSpin { to { transform: rotate(360deg); } }
+.sa-row .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sa-row .tx b { font-weight: 500; font-size: 15px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.sa-row .tx small { font-size: 12.5px; color: var(--t3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sa-row .mode { flex: none; align-self: center; display: inline-flex; align-items: center; height: 24px; font-size: 11.5px; font-weight: 600; padding: 0 9px; border-radius: 999px; background: var(--s2); color: var(--t2); }
+.sa-row .mode.cont { background: var(--accent-soft); color: color-mix(in srgb, var(--accent) 82%, var(--t1)); }
+.sa-row .i.go { color: var(--t3); flex: none; }
+.sa-band { position: absolute; left: 10px; right: 10px; z-index: 21; display: none; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: 18px;
+  background: var(--glass); backdrop-filter: blur(22px) saturate(1.7); -webkit-backdrop-filter: blur(22px) saturate(1.7); border: 1px solid var(--glass-line); box-shadow: var(--shadow-float); }
+.sa-band.on { display: flex; }
+.dock button[hidden] { display: none; }
+.sa-band .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sa-band .tx b { font-weight: 500; font-size: 14px; }
+.sa-band .tx small { font-size: 12.5px; color: var(--t3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sa-band .btn { height: 40px; flex: none; }
+
 /* Проверка плана агента: документ и решение */
 .pv-hic { width: 52px; height: 52px; border-radius: 17px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
 .pv-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
@@ -1215,6 +1240,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <button aria-pressed="false" data-go="mention">Ссылка «@»</button>
         <button aria-pressed="false" data-go="goal">Цель сессии</button>
         <button aria-pressed="false" data-go="plan">Проверка плана</button>
+        <button aria-pressed="false" data-go="subagents">Субагенты</button>
         <button aria-pressed="false" data-go="drawer">Меню</button>
         <button aria-pressed="false" data-go="model">Модель</button>
         <button aria-pressed="false" data-go="plus">Вложения</button>
@@ -1292,6 +1318,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <div class="dock" id="dock" role="toolbar" aria-label="Инструменты">
           <button data-act="files"><svg class="i sm"><use href="#i-folder"/></svg><span class="lbl">Файлы</span><span class="badge" id="filesBadge">2</span></button>
           <button data-act="terminal"><svg class="i sm"><use href="#i-term"/></svg><span class="lbl">Терминал</span></button>
+          <button data-act="subagents" id="dockSa" hidden><svg class="i sm"><use href="#i-flow"/></svg><span class="lbl">Агенты</span><span class="badge">3</span></button>
           
         </div>
 
@@ -1308,6 +1335,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
           <div class="gb-edit"><textarea id="gbInput" aria-label="Цель"></textarea><div class="row"><button class="btn ghost" id="gbCancel">Отмена</button><button class="btn primary" id="gbSave">Сохранить</button></div></div>
         </div>
 
+        <div class="sa-band" id="saBand"><span class="tx"><b>Субагент · Проверка тестов</b><small>из «Сборка падает после обновления Compose»</small></span><button class="btn ghost" id="saBack">К сессии</button></div>
         <div class="decide" id="decide" aria-live="polite">
           <div class="dc-top"><span class="pulse"></span><b>Ждёт вашего решения</b><span class="dc-sub">удаление · 1,4 ГБ</span></div>
           <div class="dc-btns">
@@ -1445,6 +1473,16 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         </div>
         <p class="mhint" id="mhint">Совет: <span class="kbd">@</span> — упомянуть файл, <span class="kbd">/</span> — команды</p>
         <div class="attach-bar" id="attachBar"><button class="btn primary big" id="attachBtn">Прикрепить</button></div>
+      </section>
+
+      <!-- Лист: субагенты -->
+      <section class="sheet" id="sheet-subagents" aria-label="Субагенты">
+        <div class="grab"></div>
+        <h3>Субагенты</h3>
+        <p class="sa-sub">3 в этой сессии · 1 работает</p>
+        <button class="sa-row" data-sa="Проверка тестов"><span class="sa-st"><i class="run"></i></span><span class="tx"><b>Проверка тестов</b><small>работает · 2 мин</small></span><span class="mode cont">продолжаемый</span><svg class="i sm go"><use href="#i-right"/></svg></button>
+        <button class="sa-row" data-sa="Поиск устаревших API"><span class="sa-st"><i class="ok"></i></span><span class="tx"><b>Поиск устаревших API</b><small>готово · 5 мин назад</small></span><span class="mode">разовый</span><svg class="i sm go"><use href="#i-right"/></svg></button>
+        <button class="sa-row" data-sa="Codex: ревью diff"><span class="sa-st"><i></i></span><span class="tx"><b>Codex: ревью diff</b><small>внешний · вчера</small></span><span class="mode">внешний</span></button>
       </section>
 
       <!-- Лист: модель -->
@@ -2092,6 +2130,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     const a = b.dataset.act;
     if (a === "drawer") openDrawer();
     else if (a === "new") { if (drawerOpen) closeDrawer(); renderHome(); }
+    else if (a === "subagents") sheetOpen("subagents");
     else if (a === "planOpen") screenOpen("plan");
     else if (a === "agent") { if (drawerOpen) closeDrawer(); startAgentDemo(); }
     else if (a === "danger") { if (drawerOpen) closeDrawer(); toChat(true); renderDanger(); }
@@ -3425,9 +3464,21 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     $("#pvFb").classList.remove("on"); $("#pvFbText").value = ""; $("#pvMore").textContent = "Доработать"; $("#pvGo").textContent = "Выполнить план";
   });
   $("#pvCopy").addEventListener("click", () => toast("План скопирован"));
+
+  // ── Субагенты: «Агенты» в доке, лист, разговор субагента с плашкой «К сессии» ──
+  const saBand = $("#saBand");
+  const placeBand = () => { saBand.style.top = (parseFloat(getComputedStyle(topbar).height) + 8) + "px"; };
+  $$("#sheet-subagents .sa-row[data-sa]").forEach((r) => r.addEventListener("click", () => {
+    if (!r.querySelector(".go")) { toast("Внешняя задача: разговора в DSH нет"); return; }
+    sheetClose(); placeBand(); saBand.querySelector("b").textContent = "Субагент · " + r.dataset.sa; saBand.classList.add("on");
+    $("#title b").textContent = r.dataset.sa; requestAnimationFrame(() => { thread.style.paddingTop = (saBand.offsetTop + saBand.offsetHeight + 12) + "px"; });
+    thread.innerHTML = '<div class="msg-user"><p>Прогони модульные тесты app и собери список упавших</p></div><div class="msg-ai"><p>Запустил <code>./gradlew :app:testDebugUnitTest</code>. Упали 2 теста в <code>ChatLogicTest</code>: оба ждут старый формат даты.</p></div>';
+  }));
+  $("#saBack").addEventListener("click", () => { saBand.classList.remove("on"); thread.style.paddingTop = ""; startAgentDemo(); $("#dockSa").hidden = false; });
   function startAgentDemo() {
     if (openSheet) sheetClose(true);
     goalShow(false);
+    saBand.classList.remove("on"); $("#dockSa").hidden = true;
     hideDecision(true);
     thread.innerHTML = ""; runAgent("Сборка падает после обновления Compose. Найди причину и исправь.");
   }
@@ -3444,6 +3495,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     else if (g === "home") { if (openSheet) sheetClose(true); renderHome(); }
     else if (g === "agent") startAgentDemo();
     else if (g === "plan") { startAgentDemo(); setTimeout(() => { thread.insertAdjacentHTML("beforeend", '<button class="plan-card" data-act="planOpen"><span class="pc-ic"><svg class="i sm"><use href="#i-tasks"/></svg></span><span class="tx"><b>План: обновить Kotlin и починить сборку</b><small>4 шага · ждёт вашего решения</small></span><span class="go">Проверить</span></button>'); }, 600); setTimeout(() => screenOpen("plan"), 1400); }
+    else if (g === "subagents") { startAgentDemo(); $("#dockSa").hidden = false; setTimeout(() => sheetOpen("subagents"), 900); }
     else if (g === "goal") { startAgentDemo(); setTimeout(() => goalShow(true), 400); }
     else if (g === "mention") { if (openSheet) sheetClose(true); if (!$(".home", thread) && !$(".work", thread)) renderHome(); mnStart(); }
     else if (g === "danger") { if (openSheet) sheetClose(true); renderDanger(); }
