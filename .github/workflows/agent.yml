@@ -46,7 +46,12 @@ jobs:
 
       - name: Сборка
         working-directory: agent
-        run: pnpm run build:artifacts
+        env:
+          # Версия клиента вшивает коммит исходников: agent/ — тег dsh-v0.2.1-rc.2 upstream (см. third_party/README.md).
+          DSH_CLIENT_COMMIT_HASH: 687f282e8625c6b8d11ff58211a90524be2e4317
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          pnpm run build:artifacts
 
       - name: Дерево установки
         working-directory: agent
