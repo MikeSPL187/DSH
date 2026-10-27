@@ -11,3 +11,10 @@
 
 Пакет SDK `com.deepseek.dsh.plugin.nativesdk`, действие `com.deepseek.dsh.action.PLUGIN_UI` и разрешение
 `com.deepseek.dsh.permission.BIND_PLUGIN` — контракт с уже собранными нативными плагинами; их имена не менять (G-49).
+
+## Агент
+
+`agent/` — исходники агента DSH: https://github.com/deepseek-ai/deepseek-harness, тег `dsh-v0.2.1-rc.2`
+(коммит `687f282e8625c6b8d11ff58211a90524be2e4317`), MIT (`agent/LICENSE`, сторонние — `agent/THIRD_PARTY_NOTICES.md`).
+Без `docs/`, `snapshots/`, `.agents/`, `.github/` (документация и данные проверок upstream, в сборку не входят).
+Собирается нашим CI (workflow «Agent»), зависимости — `agent/pnpm-lock.yaml`. Наши изменения — коммитами в `agent/`.
