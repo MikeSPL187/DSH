@@ -20,4 +20,4 @@
 Собирается нашим CI (workflow «Agent» и стадия `agent-build` образа `infra/rootfs`), зависимости — `agent/pnpm-lock.yaml`.
 Наши изменения — коммитами в `agent/`; поведение под Android включается только при `DSH_ANDROID=1`
 (fs-local, storage-json, atomic-write, spill-local, subprocess-local, tool-fs-search, tool-bash, app-boot,
-client-modules, speech-to-text-sensevoice), `pnpm-workspace.yaml` — разрешение postinstall `subprocess-local` для deploy.
+client-modules, speech-to-text-sensevoice).

@@ -43,38 +43,43 @@ RUN npm install -g --no-audit --no-fund --ignore-scripts /tmp/pnpm-build.tgz && 
 COPY --from=agent-src . /src
 WORKDIR /src
 ARG DSH_SOURCE_COMMIT
+# Каждый пакет `@deepseek-ai/*` — архивом `pnpm pack`, как при публикации в npm (те же `files`).
 RUN pnpm install --frozen-lockfile \
   && DSH_CLIENT_COMMIT_HASH="$DSH_SOURCE_COMMIT" pnpm run build:artifacts \
-  && pnpm --filter @deepseek-ai/dsh deploy --prod --config.inject-workspace-packages=true \
-       --config.allow-unused-patches=true --config.strict-dep-builds=false --config.node-linker=hoisted /out/dsh
+  && mkdir -p /out/packs \
+  && pnpm -r --filter '@deepseek-ai/*' --filter '!@deepseek-ai/node-addon-system-*' \
+       exec sh -c 'pnpm pack --pack-destination /out/packs >/dev/null' \
+  && ls /out/packs | wc -l
 
 # Агент в образе: сторонние зависимости — `npm ci` по нашему package-lock, затем каждый пакет
-# `@deepseek-ai/*` и сам `@deepseek-ai/dsh` заменяются нашей сборкой (пакет без нашей копии — ошибка);
-# вложенные node_modules (свои версии зависимостей по lockfile) и опубликованные package.json остаются.
+# `@deepseek-ai/*` и сам `@deepseek-ai/dsh` заменяются содержимым нашего архива той же версии (пакета без
+# нашего архива быть не может — сборка падает), опубликованные package.json и вложенные node_modules
+# (свои версии зависимостей по lockfile) остаются. Исключение — `libreoffice-kit*`: готовые движки
+# из отдельного репозитория DeepSeek, в исходниках agent/ их нет, и `node-addon-system-<платформа>` —
+# статический лаунчер Landlock и flock-аддоны (полная нативная сборка с musl пока не в нашем CI);
+# оба ставятся из npm по integrity lockfile.
 # Здесь же — bundle входа Host (esbuild — dev-зависимость того же lockfile): ~1200 открытий файлов
 # модулей при запуске сводятся к одному.
 FROM ${NODE_IMAGE} AS agent
 ARG AGENT_DIR=/usr/local/lib/node_modules/@deepseek-ai/dsh
-COPY --from=agent-build /out/dsh /out/dsh
+COPY --from=agent-build /out/packs /out/packs
 COPY agent/package.json agent/package-lock.json /tmp/agent/
 RUN set -eu; \
-    node -e 'const r = f => require(f); const a = r("/out/dsh/package.json"), b = r("/tmp/agent/package.json"); \
-      const keys = m => JSON.stringify(Object.keys(m ?? {}).sort()); \
-      if (a.name !== b.name || a.version !== b.version || keys(a.dependencies) !== keys(b.dependencies)) \
-        throw new Error("source build " + a.name + "@" + a.version + " does not match infra/rootfs/agent/package.json");'; \
     mkdir -p "$AGENT_DIR"; \
     cp /tmp/agent/package.json /tmp/agent/package-lock.json "$AGENT_DIR/"; \
     cd "$AGENT_DIR"; \
     npm ci --no-audit --no-fund; \
-    cp -a /out/dsh/lib "$AGENT_DIR/lib"; \
-    count=0; \
-    for installed in node_modules/@deepseek-ai/*/; do \
-      name=$(basename "$installed"); \
-      ours="/out/dsh/node_modules/@deepseek-ai/$name"; \
-      [ -f "$ours/package.json" ] || { echo "no source build for @deepseek-ai/$name" >&2; exit 1; }; \
-      find "$installed" -mindepth 1 -maxdepth 1 ! -name node_modules -exec rm -rf {} +; \
-      tar -C "$ours" --exclude=./node_modules --exclude=./package.json -cf - . | tar -C "$installed" -xf -; \
-      count=$((count + 1)); \
+    overlay() { \
+      pack="/out/packs/$(node -p 'const p = require(process.argv[1]); p.name.slice(1).replace("/", "-") + "-" + p.version + ".tgz"' "$1/package.json")"; \
+      [ -f "$pack" ] || { echo "no source build: $pack" >&2; exit 1; }; \
+      find "$1" -mindepth 1 -maxdepth 1 ! -name node_modules ! -name package.json ! -name package-lock.json -exec rm -rf {} +; \
+      tar -xzf "$pack" -C "$1" --strip-components=1 --no-same-owner --exclude=package/package.json; \
+    }; \
+    overlay "$AGENT_DIR"; \
+    count=1; \
+    for installed in $(find node_modules -type d -path '*/node_modules/@deepseek-ai/*' -prune); do \
+      case "$(basename "$installed")" in libreoffice-kit*|node-addon-system-*) continue ;; esac; \
+      overlay "$installed"; count=$((count + 1)); \
     done; \
     echo "replaced $count @deepseek-ai packages with the source build"; \
     rm -rf /out
@@ -82,7 +87,7 @@ WORKDIR /usr/local/lib/node_modules/@deepseek-ai/dsh/lib
 RUN ../node_modules/.bin/esbuild bin.js --bundle --platform=node --format=esm --target=node24 \
       --outfile=host.bundle.mjs --external:*.node --external:node:* --log-level=warning \
   && ls -lh host.bundle.mjs
-# В образ — без dev-зависимостей (esbuild и прочее только для сборки), но с теми же патчами.
+# В образ — без dev-зависимостей (esbuild и прочее только для сборки).
 RUN cd .. && npm prune --omit=dev --no-audit --no-fund
 
 FROM ${NODE_IMAGE}
