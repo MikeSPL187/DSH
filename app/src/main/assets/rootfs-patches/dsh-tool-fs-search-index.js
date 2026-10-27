@@ -828,7 +828,7 @@ function applyGlobTool(ctx, caps) {
 				const root = input.path === void 0 ? "." : toWorkdirRelative(input.path, exec.agent?.session.header.cwd ?? "/workspace");
 				const pattern = input.pattern ?? "**/*";
 				const searchRoot = input.path ?? ".";
-				const findCommand = pattern.includes("**") ? `find ${shq(searchRoot)} -type f` : `find ${shq(searchRoot)} -type f -name ${shq(pattern)}`;
+				const findCommand = pattern.includes("**") ? `find ${shq(searchPath(searchRoot))} -type f` : `find ${shq(searchPath(searchRoot))} -type f -name ${shq(pattern)}`;
 				const bridged = await androidBridgeShell(findCommand, exec.agent?.session.header.cwd ?? "/workspace");
 				const paths = String(bridged.stdout ?? "").split("\n").filter((line) => line.length > 0).map((line) => toWorkdirRelative(line, exec.agent?.session.header.cwd ?? "/workspace"));
 				return { root, paths };
@@ -1151,7 +1151,7 @@ function applyGrepTool(ctx, caps) {
 			if (process.env.DSH_ANDROID_BRIDGE_PORT) {
 				const parsed = parseGrepArgs(args);
 				const searchRoot = parsed.path ?? ".";
-				const command = `grep -rn -- ${shq(parsed.pattern)} ${shq(searchRoot)} || true`;
+				const command = `grep -rn -- ${shq(parsed.pattern)} ${shq(searchPath(searchRoot))} || true`;
 				const bridged = await androidBridgeShell(command, exec.agent?.session.header.cwd ?? "/workspace");
 				const workdir = exec.agent?.session.header.cwd ?? "/workspace";
 				const matches = [];
@@ -1295,7 +1295,8 @@ async function apply(ctx, config) {
 //#endregion
 export { Config, GLOB_MAX_RESULTS, GLOB_VCS_EXCLUDES, GREP_MAX_LINE_BYTES, GREP_MAX_MATCHES, RAW_OUTPUT_MAX_BYTES, SEARCH_GRACE_MS, SEARCH_META_MAX_BYTES, SEARCH_STDERR_MAX_BYTES, SEARCH_TIMEOUT_MS, SearchError, apply, applyGlobTool, applyGrepTool, buildGlobCommand, buildGrepCommand, formatGlobOutput, formatGrepMatches, formatGrepOutput, inject, name, parseGlobArgs, parseGrepArgs, parseGrepMatches, presentGlobCall, presentGlobResult, presentGrepCall, presentGrepResult, previewLine, resolveRgPath, runRipgrep, sampleAcrossTopLevel, toWorkdirRelative, trySaveFormattedResult };
 
-function shq(value) { return JSON.stringify(String(value)); }
+function searchPath(value) { const path = String(value); return path.startsWith("-") ? "./" + path : path; }
+function shq(value) { return "'" + String(value).replaceAll("'", "'\\''") + "'"; }
 async function androidBridgeShell(command, cwd, timeoutMs = 120000) {
 	const net = await import("node:net");
 	const fs = await import("node:fs");

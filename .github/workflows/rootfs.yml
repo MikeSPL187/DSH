@@ -51,6 +51,7 @@ jobs:
 
       - name: Патчи совпадают с файлами APK
         run: |
+          node infra/rootfs/tests/fs-search-quote.test.mjs
           python3 -I infra/rootfs/make-patches.py
           git diff --exit-code -- infra/rootfs/patches
 

@@ -255,7 +255,9 @@ class DefaultHostRuntimeManager(
         // 39: инструмент bash снова выполняется в контейнере Host (не через android_exec_shell); параметры
         // proot Host совпадают с DSHA (-0 / --kill-on-exit / -L / привязки system, apex, fd).
         // fs-search по-прежнему через мост устройства: он делает find/grep в proot на стороне Android.
-        val patchRevision = "39"
+        // 40: fs-search под Android экранирует шаблон и путь одинарными кавычками (раньше JSON.stringify — `$(…)` в шаблоне
+        // выполнялся через android_exec_shell), путь «-…» не становится опцией find (G-52).
+        val patchRevision = "40"
         if (patchMarker.isFile && patchMarker.readText().trim() == patchRevision) return
         val patches = mapOf(
             "rootfs-patches/dsh-app-boot-index.js" to
