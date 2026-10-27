@@ -1,7 +1,7 @@
 name: Rootfs
 
 # Образ Linux для DSH (infra/rootfs). Каждое изменение рецепта собирается для x86_64 и arm64 —
-# проверка, что образ собирается и патчи ложатся. Релиз (rootfs-v<версия> в этом репозитории) —
+# проверка, что образ собирается. Агент в образе — наша сборка из agent/ (контекст `agent-src`). Релиз (rootfs-v<версия> в этом репозитории) —
 # только вручную: SHA-256 из rootfs-manifest.json релиза затем вшивается в APK
 # (app/src/main/assets/rootfs-manifest.json), другим путём телефон образ не примет.
 #
@@ -11,6 +11,7 @@ on:
   push:
     paths:
       - 'infra/rootfs/**'
+      - 'agent/**'
       - 'app/src/main/assets/bridge-plugin.json'
       - 'scripts/bridge-plugin-digest.py'
       - 'third_party/bridge-plugin/**'
@@ -49,16 +50,13 @@ jobs:
       - name: Bridge-плагин (проверка contentSha256 из APK)
         run: sh infra/rootfs/prepare-bridge.sh
 
-      - name: Патчи совпадают с файлами APK
-        run: |
-          node infra/rootfs/tests/fs-search-quote.test.mjs
-          python3 -I infra/rootfs/make-patches.py
-          git diff --exit-code -- infra/rootfs/patches
+      - name: Тесты Android-файлов APK
+        run: node infra/rootfs/tests/fs-search-quote.test.mjs
 
       - name: Сборка образа
         run: |
           BRIDGE_VERSION=$(python3 -I -c 'import json; print(json.load(open("app/src/main/assets/bridge-plugin.json"))["version"])')
-          docker build --pull --build-arg DSH_VERSION="$DSH_VERSION" --build-arg BRIDGE_VERSION="$BRIDGE_VERSION" \
+          docker build --pull --build-context agent-src=agent --build-arg DSH_VERSION="$DSH_VERSION" --build-arg BRIDGE_VERSION="$BRIDGE_VERSION" \
             -t dsh-rootfs:${{ matrix.arch }} infra/rootfs
           docker create --name rootfs dsh-rootfs:${{ matrix.arch }}
           mkdir -p output
@@ -107,7 +105,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ROOTFS_VERSION: ${{ inputs.rootfs_version }}
         run: |
-          gh release create "rootfs-v$ROOTFS_VERSION" dist/* \
+          # GITHUB_TOKEN не создаёт тег на коммите, где workflow отличаются от основной ветки (нужно право
+          # workflows). Тег, поставленный заранее на этот коммит, используется как есть; без него — черновик,
+          # его публикует владелец (тег создаётся при публикации).
+          tag="rootfs-v$ROOTFS_VERSION"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+            test "$(git ls-remote --tags origin "refs/tags/$tag^{}" | cut -f1)" = "$GITHUB_SHA" \
+              || test "$(git ls-remote --tags origin "refs/tags/$tag" | cut -f1)" = "$GITHUB_SHA"
+            mode=--verify-tag
+          else
+            mode=--draft
+          fi
+          gh release create "$tag" dist/* $mode \
             --target "$GITHUB_SHA" \
             --title "Rootfs v$ROOTFS_VERSION (DSH $DSH_VERSION, Debian 13)" \
-            --notes "Образ Linux для DSH: Debian 13 slim, Node 24, pnpm, Python 3, git, агент @deepseek-ai/dsh@$DSH_VERSION с Android-патчами, bridge-плагин. SHA-256 — в rootfs-manifest.json и SHA256SUMS, список пакетов — sbom-*.tar.gz. Телефон принимает образ, только когда его SHA-256 вшит в APK."
+            --notes "Образ Linux для DSH: Debian 13 slim, Node 24, pnpm, Python 3, git, агент DSH $DSH_VERSION, собранный из исходников agent/ этого репозитория, bridge-плагин. SHA-256 — в rootfs-manifest.json и SHA256SUMS, список пакетов — sbom-*.tar.gz. Телефон принимает образ, только когда его SHA-256 вшит в APK."

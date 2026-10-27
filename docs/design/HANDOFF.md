@@ -120,8 +120,8 @@ ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.grad
   (многострочная вставка — только после подтверждения); уведомления от плагинов — с пометкой «Плагин:».
 - Всё, что попадает в Linux на телефоне (образ, агент, плагин, pnpm, proot), — только из `infra/` нашим CI,
   по digest/integrity/lockfile и с SHA-256 в APK; никаких `npm install -g` «последней» версии, `pnpm add` git-тега
-  и правок файлов агента на телефоне. Правка агента — в `app/src/main/assets/rootfs-patches` и
-  `python3 -I infra/rootfs/make-patches.py` (CI сверяет, что диффы дают те же файлы); порядок — `infra/README.md`.
+  и правок файлов агента на телефоне. Правка агента — в исходниках `agent/` (образ собирает агента из них);
+  порядок — `infra/README.md`.
 - Сеть Host — только через `AgentNetworkProxy` (переменные `*_PROXY` в `agentProxyEnv`); новый нужный агенту домен —
   в `AgentNetworkPolicy.BASE_HOSTS` или пусть его объявит плагин; секреты (пароль прокси) в журналы не писать.
 - Четвёртый круг (`docs/SECURITY_FIXES_REPORT.ru.md` §4в): действие, которое меняет состояние Host (отправка, «Стоп»,
@@ -149,7 +149,7 @@ ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.grad
   без способа входа блокировка не включается, иначе из DSH не выйти.
 - Агент (`agent/`, наш форк): поведение под Android правится только в исходниках TS и включается проверкой
   `process.env.DSH_ANDROID === '1'` (переменную ставит `DefaultHostRuntimeManager`), без ветки upstream остаётся как было.
-  Новые патчи-диффы к собранному JS в `infra/rootfs/patches` не добавлять. Значения от модели передавать отдельными
+  Патчей-диффов к собранному JS больше нет и не добавлять. Значения от модели передавать отдельными
   элементами argv, без оболочки (G-52).
 - Коммиты завершать строками:
   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` и `Claude-Session: <ссылка на сессию>`.

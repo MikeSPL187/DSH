@@ -2,49 +2,82 @@
 #
 # Всё, что попадает в образ, закреплено содержимым, а не именем:
 #   - базовый образ — по digest;
-#   - агент и все его зависимости — `agent/package-lock.json` (integrity каждого пакета), `npm ci`;
+#   - агент — наша сборка из исходников `agent/` (форк, pnpm по `agent/pnpm-lock.yaml`), сторонние
+#     зависимости — `infra/rootfs/agent/package-lock.json` (integrity каждого пакета), `npm ci`;
 #   - pnpm — tarball с integrity из реестра;
 #   - bridge-плагин — папка `build/bridge-plugin`, которую CI кладёт сюда только после проверки
 #     contentSha256 из `app/src/main/assets/bridge-plugin.json`; его зависимости — `profile/pnpm-lock.yaml`;
 #   - пакеты Debian — подписи apt (ключи из закреплённого базового образа), список версий — в SBOM.
-# Android-патчи агента наложены при сборке (`patches/android`), в манифесте `androidPatched: true`:
+# Android-поведение агента — в его исходниках (переменная DSH_ANDROID=1), в манифесте `androidPatched: true`:
 # приложение не переписывает файлы агента своими копиями.
 ARG NODE_IMAGE=node:24.22.1-trixie-slim@sha256:43b9ba1142b8dcf33fa8f922ca1be85714adc444e0586c7cf7726daaeabc1bea
 ARG DSH_VERSION=0.2.1-rc.2
-ARG DSH_INTEGRITY=sha512-tvY+yhfKRifthbqPe/OK0AYxM5ZkvqfYq/jMYgJcEUxiRRL1Vwra3Ti5TB6AXgSWQdiPHYh/Vp6SJa9yHwMNuw==
+# Коммит upstream, от которого отходит agent/ (версия клиента вшивает его, см. third_party/README.md).
+ARG DSH_SOURCE_COMMIT=687f282e8625c6b8d11ff58211a90524be2e4317
+ARG BUILD_PNPM_VERSION=11.28.5
+ARG BUILD_PNPM_INTEGRITY=sha512-SEVj0wtMKtJ8tIqpT/KzAtvOvI/2vyiBbCWJiG4UbOf3bzVPO8GkOOb16XaMMCqgpvet2CMpA81M+BQmy8FNng==
 ARG PNPM_VERSION=10.34.9
 ARG PNPM_INTEGRITY=sha512-9JtajqD97bRLs8DB1ldQkqU8KVDZW3rRXfEfF5dId6LeOgHAfpNOmyjOcW5RwJqUlixzBtCb4uHksYqMh2L9Mg==
 ARG BRIDGE_VERSION=2.0.7
 
 # Скачать tarball из реестра npm и сверить integrity; иначе сборка падает.
 FROM ${NODE_IMAGE} AS fetch
-ARG DSH_VERSION
-ARG DSH_INTEGRITY
 ARG PNPM_VERSION
 ARG PNPM_INTEGRITY
+ARG BUILD_PNPM_VERSION
+ARG BUILD_PNPM_INTEGRITY
 WORKDIR /fetch
 COPY fetch-npm.js /fetch/fetch-npm.js
-RUN node fetch-npm.js "https://registry.npmjs.org/@deepseek-ai/dsh/-/dsh-${DSH_VERSION}.tgz" "${DSH_INTEGRITY}" dsh.tgz \
-  && node fetch-npm.js "https://registry.npmjs.org/pnpm/-/pnpm-${PNPM_VERSION}.tgz" "${PNPM_INTEGRITY}" pnpm.tgz
+RUN node fetch-npm.js "https://registry.npmjs.org/pnpm/-/pnpm-${PNPM_VERSION}.tgz" "${PNPM_INTEGRITY}" pnpm.tgz \
+  && node fetch-npm.js "https://registry.npmjs.org/pnpm/-/pnpm-${BUILD_PNPM_VERSION}.tgz" "${BUILD_PNPM_INTEGRITY}" pnpm-build.tgz
 
-# Агент: tarball + наш lockfile, затем патчи. Здесь же — bundle входа Host (esbuild — dev-зависимость
-# того же lockfile): ~1200 открытий файлов модулей при запуске сводятся к одному.
-FROM ${NODE_IMAGE} AS agent
+# Агент из исходников (контекст `agent-src` = каталог agent/ репозитория): зависимости сборки строго по
+# agent/pnpm-lock.yaml, сборка — скриптами самого репозитория, итог — дерево установки `@deepseek-ai/dsh`.
+FROM ${NODE_IMAGE} AS agent-build
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends patch \
+  && apt-get install -y --no-install-recommends git python3 ca-certificates gcc libc6-dev make \
   && rm -rf /var/lib/apt/lists/*
+COPY --from=fetch /fetch/pnpm-build.tgz /tmp/pnpm-build.tgz
+RUN npm install -g --no-audit --no-fund --ignore-scripts /tmp/pnpm-build.tgz && rm /tmp/pnpm-build.tgz
+COPY --from=agent-src . /src
+WORKDIR /src
+ARG DSH_SOURCE_COMMIT
+RUN pnpm install --frozen-lockfile \
+  && DSH_CLIENT_COMMIT_HASH="$DSH_SOURCE_COMMIT" pnpm run build:artifacts \
+  && pnpm --filter @deepseek-ai/dsh deploy --prod --config.inject-workspace-packages=true \
+       --config.allow-unused-patches=true --config.node-linker=hoisted /out/dsh
+
+# Агент в образе: сторонние зависимости — `npm ci` по нашему package-lock, затем каждый пакет
+# `@deepseek-ai/*` и сам `@deepseek-ai/dsh` заменяются нашей сборкой (пакет без нашей копии — ошибка);
+# вложенные node_modules (свои версии зависимостей по lockfile) и опубликованные package.json остаются.
+# Здесь же — bundle входа Host (esbuild — dev-зависимость того же lockfile): ~1200 открытий файлов
+# модулей при запуске сводятся к одному.
+FROM ${NODE_IMAGE} AS agent
 ARG AGENT_DIR=/usr/local/lib/node_modules/@deepseek-ai/dsh
-COPY --from=fetch /fetch/dsh.tgz /tmp/dsh.tgz
+COPY --from=agent-build /out/dsh /out/dsh
 COPY agent/package.json agent/package-lock.json /tmp/agent/
-RUN mkdir -p "$AGENT_DIR" \
-  && tar -xzf /tmp/dsh.tgz -C "$AGENT_DIR" --strip-components=1 --no-same-owner \
-  && cmp "$AGENT_DIR/package.json" /tmp/agent/package.json \
-  && cp /tmp/agent/package-lock.json "$AGENT_DIR/" \
-  && cd "$AGENT_DIR" && npm ci --no-audit --no-fund
-COPY patches /patches
-COPY apply-patches.sh /apply-patches.sh
-RUN sh /apply-patches.sh
+RUN set -eu; \
+    node -e 'const r = f => require(f); const a = r("/out/dsh/package.json"), b = r("/tmp/agent/package.json"); \
+      const keys = m => JSON.stringify(Object.keys(m ?? {}).sort()); \
+      if (a.name !== b.name || a.version !== b.version || keys(a.dependencies) !== keys(b.dependencies)) \
+        throw new Error("source build " + a.name + "@" + a.version + " does not match infra/rootfs/agent/package.json");'; \
+    mkdir -p "$AGENT_DIR"; \
+    cp /tmp/agent/package.json /tmp/agent/package-lock.json "$AGENT_DIR/"; \
+    cd "$AGENT_DIR"; \
+    npm ci --no-audit --no-fund; \
+    cp -a /out/dsh/lib "$AGENT_DIR/lib"; \
+    count=0; \
+    for installed in node_modules/@deepseek-ai/*/; do \
+      name=$(basename "$installed"); \
+      ours="/out/dsh/node_modules/@deepseek-ai/$name"; \
+      [ -f "$ours/package.json" ] || { echo "no source build for @deepseek-ai/$name" >&2; exit 1; }; \
+      find "$installed" -mindepth 1 -maxdepth 1 ! -name node_modules -exec rm -rf {} +; \
+      tar -C "$ours" --exclude=./node_modules --exclude=./package.json -cf - . | tar -C "$installed" -xf -; \
+      count=$((count + 1)); \
+    done; \
+    echo "replaced $count @deepseek-ai packages with the source build"; \
+    rm -rf /out
 WORKDIR /usr/local/lib/node_modules/@deepseek-ai/dsh/lib
 RUN ../node_modules/.bin/esbuild bin.js --bundle --platform=node --format=esm --target=node24 \
       --outfile=host.bundle.mjs --external:*.node --external:node:* --log-level=warning \
