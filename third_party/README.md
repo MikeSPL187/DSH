@@ -17,4 +17,7 @@
 `agent/` — исходники агента DSH: https://github.com/deepseek-ai/deepseek-harness, тег `dsh-v0.2.1-rc.2`
 (коммит `687f282e8625c6b8d11ff58211a90524be2e4317`), MIT (`agent/LICENSE`, сторонние — `agent/THIRD_PARTY_NOTICES.md`).
 Без `docs/`, `snapshots/`, `.agents/`, `.github/` (документация и данные проверок upstream, в сборку не входят).
-Собирается нашим CI (workflow «Agent»), зависимости — `agent/pnpm-lock.yaml`. Наши изменения — коммитами в `agent/`.
+Собирается нашим CI (workflow «Agent» и стадия `agent-build` образа `infra/rootfs`), зависимости — `agent/pnpm-lock.yaml`.
+Наши изменения — коммитами в `agent/`; поведение под Android включается только при `DSH_ANDROID=1`
+(fs-local, storage-json, atomic-write, spill-local, subprocess-local, tool-fs-search, tool-bash, app-boot,
+client-modules, speech-to-text-sensevoice), `pnpm-workspace.yaml` — разрешение postinstall `subprocess-local` для deploy.
