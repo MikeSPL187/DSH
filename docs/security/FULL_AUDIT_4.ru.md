@@ -178,7 +178,7 @@
 
 | Тема | Принятое решение |
 |---|---|
-| Чистка репозитория | Удалить `test-plugin/` (оставить два маленьких `package.json`-образца в ресурсах `TestPluginPeerRangesTest`), `site/` (страница upstream), `_feasibility/` (черновики upstream). |
+| Чистка репозитория | ✅ Сделано: удалены `test-plugin/` (~380 файлов чужих плагинов), `site/` с его workflow `pages.yml`, `_feasibility/`; `TestPluginPeerRangesTest` читает два образца (имя, версия, peer-диапазоны) из `runtime/host/src/test/resources/peer-ranges/`. |
 | Репозитории | В аккаунте **MikeSPL187** (позже можно перенести в организацию): `DSH` (приложение), `DSH-rootfs` (сборка образа), `DSH-bridge-plugin`, `DSH-plugin-sdk`, `DSH-agent` (форк агента). Все — с защищённой основной веткой. |
 | Агент | Свой форк `@deepseek-ai/dsh` (вариант «а»): правки из `app/src/main/assets/rootfs-patches/` — коммитами в форк на TypeScript, стабильные выпуски, закреплённые зависимости с integrity. После переноса — патчи из APK удалить. |
 | Linux | Debian 13 slim; Node 24 LTS (точная версия и хэш, последний патч); Python и git — из Debian 13; pnpm — закреплённая версия. Образ собирает наш CI, в релизе — список пакетов (SBOM) и SHA-256. |
