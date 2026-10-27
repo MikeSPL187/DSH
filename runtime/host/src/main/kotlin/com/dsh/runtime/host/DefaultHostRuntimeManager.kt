@@ -21,6 +21,18 @@ class DefaultHostRuntimeManager(
 ) : HostRuntimeManager {
 
     private var bridgeServer: BridgeServer? = null
+
+    /**
+     * Прокси сети агента (G-50, гигиена): запускается с первым Host и живёт, пока жив процесс — его адрес с
+     * паролем уходит в окружение каждого запуска Host. Что пропускать, решает [AgentNetworkPolicy].
+     */
+    private val networkProxy by lazy {
+        AgentNetworkPolicy.init(context)
+        AgentNetworkProxy(
+            decide = { host -> AgentNetworkPolicy.isAllowed(host) },
+            onBlocked = { host -> AgentNetworkPolicy.noteBlocked(host) },
+        ).also { it.start() }
+    }
     private val lifecycle = HostLifecycleLock()
 
     /** Источник манифеста: свежая загрузка, при ошибке — кэш, в крайнем случае — из APK. */
@@ -924,9 +936,12 @@ class DefaultHostRuntimeManager(
             "registry.npmmirror.com",
         )
         writeHostsFile(infraHosts)
+        AgentNetworkPolicy.addDynamic(infraHosts)
         backgroundScope.launch {
             runCatching {
                 val declared = scanDeclaredHosts()
+                // Домены, объявленные плагинами Host, нужны им для работы — сеть агента их пропускает.
+                AgentNetworkPolicy.addDynamic(declared)
                 if (declared.isNotEmpty()) {
                     writeHostsFile((infraHosts + declared).distinct().take(160))
                 }
@@ -973,7 +988,7 @@ class DefaultHostRuntimeManager(
             userWorkspacePath = workspacePath,
             customEnv = mapOf(
                 "DSH_ANDROID_BRIDGE_PORT" to bridgePort.toString()
-            )
+            ) + agentProxyEnv(networkProxy.url)
         )
         val cmd = ProotCommandBuilder.build(launchConfig)
         // Запуск через shell: прямой exec proot унаследовал бы окружение компоновщика процесса приложения,
@@ -982,7 +997,7 @@ class DefaultHostRuntimeManager(
 
         HostLog.rotate(layout.logsDir, "host_", ".log", HostLog.KEEP_LOGS)
         val log = HostLog(File(layout.logsDir, "host_${System.currentTimeMillis()}.log"))
-        log.append("[CMD]", cmd.joinToString(" "))
+        log.append("[CMD]", cmd.joinToString(" ").replace(networkProxy.token, "****"))
         val endpointDeferred = CompletableDeferred<ProcessOutputParser.ParsedEndpoint>()
 
         // Пока готовились, пришла остановка (восстановление копии, авто-сон, «Стоп»): процесс не поднимаем.

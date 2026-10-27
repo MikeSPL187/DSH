@@ -67,7 +67,7 @@
     <string name="fs_name_taken">Такое имя уже есть в этой папке</string>
     <string name="fs_name_bad">Имя не может содержать «/»</string>
     <string name="fs_clone_failed">Не удалось клонировать: %1$s</string>
-    <string name="fs_cloned">Репозиторий скачан</string>
+    <string name="fs_cloned">Репозиторий скачан. Новые чаты в проекте — «Только чтение», пока вы не выберете другие права</string>
     <string name="fs_delete_title">Удалить «%1$s»?</string>
     <string name="fs_delete_dir_lead">Папка удалится со всем содержимым. Вернуть можно только из git.</string>
     <string name="fs_delete_lead">Файл удалится с телефона. Вернуть можно только из git.</string>

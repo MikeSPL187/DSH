@@ -134,6 +134,16 @@ class DshScreensSweepTest {
             } + listOf(
                 "st-nokey" to @Composable { SettingsHomeScreen(SettingsUi(appVersion = "1.1.0", androidVersion = "Android 14"), onClose = {}) },
                 "st-host-off" to @Composable { SettingsHomeScreen(st.copy(hostRunning = false), onClose = {}, initialPage = StPage.Host) },
+                "st-agent-net" to @Composable {
+                    SettingsHomeScreen(
+                        st.copy(
+                            networkBlocked = listOf("openrouter.ai", "artifacts.very-long-internal-registry-name.corp.example.com"),
+                            networkAllowed = listOf("api.moonshot.cn"),
+                        ),
+                        onClose = {}, initialPage = StPage.Agent,
+                    )
+                },
+                "st-agent-net-full" to @Composable { SettingsHomeScreen(st.copy(networkFull = true, networkAllowed = listOf("api.moonshot.cn")), onClose = {}, initialPage = StPage.Agent) },
             ),
         ),
     )

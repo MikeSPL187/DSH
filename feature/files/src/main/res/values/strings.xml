@@ -68,7 +68,7 @@
     <string name="fs_name_taken">This name already exists here</string>
     <string name="fs_name_bad">A name can’t contain “/”</string>
     <string name="fs_clone_failed">Could not clone: %1$s</string>
-    <string name="fs_cloned">Repository downloaded</string>
+    <string name="fs_cloned">Repository downloaded. New chats in this project start read-only until you choose other permissions</string>
     <string name="fs_delete_title">Delete “%1$s”?</string>
     <string name="fs_delete_dir_lead">The folder and everything in it will be deleted. Only git can bring it back.</string>
     <string name="fs_delete_lead">The file will be deleted from the phone. Only git can bring it back.</string>

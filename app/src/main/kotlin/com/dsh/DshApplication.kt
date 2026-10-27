@@ -160,6 +160,7 @@ class DshApplication : Application() {
         com.dsh.feature.settings.logic.DshUserPrefs.init(this)
         com.dsh.feature.settings.logic.ToolCallLog.init(this)
         com.dsh.feature.settings.logic.ToolPolicy.init(this)
+        com.dsh.runtime.host.AgentNetworkPolicy.init(this)
         com.dsh.feature.settings.logic.AutomationStore.init(this)
         AutomationScheduler.rescheduleAll(this)
         // Тексты из модулей без Context следуют за языком интерфейса, а не только за системным.

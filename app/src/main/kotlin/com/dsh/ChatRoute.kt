@@ -239,6 +239,12 @@ internal fun ChatRoute(d: ChatDeps) {
         onPermissionSelected = { preset ->
             // Сессии ещё нет — права применятся к новой сессии с первым сообщением (G-23).
             if (ui.selectedSessionId == null) ui.pendingPermissionPreset = preset.hostId()
+            // Права шире «Только чтения» в проекте с клонированным кодом — пользователь доверяет проекту (G-50).
+            if (preset != PermissionPreset.READ_ONLY) {
+                (context.applicationContext as? DshApplication)?.runtimeLayout?.let { layout ->
+                    scope.launch(kotlinx.coroutines.Dispatchers.IO) { com.dsh.runtime.host.ClonedProjects.trust(layout, runtimeUi.activeWorkspaceName) }
+                }
+            }
             withSession {
                 if (!repository.selectPermissionPreset(hostId, it, preset.hostId())) {
                     toast(context.getString(R.string.perm_switch_failed), long = true)

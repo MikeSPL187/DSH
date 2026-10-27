@@ -81,7 +81,10 @@ class WorkspaceGit(private val layout: RuntimeLayout, private val workspaceRoot:
     suspend fun clone(project: String, url: String, dir: String): Result<Unit> = withContext(Dispatchers.IO) {
         if (!available()) return@withContext Result.failure(IllegalStateException("git"))
         val out = run(listOf(GIT) + HARDENING + listOf("-C", "/workspace/$project", "clone", "--depth", "50", "--", url, dir), timeoutSec = 600)
-        if (out.first == 0) Result.success(Unit) else Result.failure(IllegalStateException(out.second.lines().lastOrNull { it.isNotBlank() } ?: "git clone"))
+        if (out.first != 0) return@withContext Result.failure(IllegalStateException(out.second.lines().lastOrNull { it.isNotBlank() } ?: "git clone"))
+        // Чужой код в проекте: новые чаты — «Только чтение», пока пользователь не выберет другие права (G-50).
+        ClonedProjects.add(layout, project)
+        Result.success(Unit)
     }
 
     private fun git(project: String, vararg args: String): String? {

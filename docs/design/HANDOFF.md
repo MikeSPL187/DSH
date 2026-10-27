@@ -122,6 +122,8 @@ ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.grad
   по digest/integrity/lockfile и с SHA-256 в APK; никаких `npm install -g` «последней» версии, `pnpm add` git-тега
   и правок файлов агента на телефоне. Правка агента — в `app/src/main/assets/rootfs-patches` и
   `python3 -I infra/rootfs/make-patches.py` (CI сверяет, что диффы дают те же файлы); порядок — `infra/README.md`.
+- Сеть Host — только через `AgentNetworkProxy` (переменные `*_PROXY` в `agentProxyEnv`); новый нужный агенту домен —
+  в `AgentNetworkPolicy.BASE_HOSTS` или пусть его объявит плагин; секреты (пароль прокси) в журналы не писать.
 - Четвёртый круг (`docs/SECURITY_FIXES_REPORT.ru.md` §4в): действие, которое меняет состояние Host (отправка, «Стоп»,
   ответ на вопрос, архив, переименование), ждёт ответа и смотрит `result.ok` — HTTP 200 ещё не согласие; локальное
   состояние («идёт», пузырь, кэш) меняется только после согласия, при отказе — видимая ошибка и повтор (`ChatMessage.failed`

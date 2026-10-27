@@ -8,6 +8,8 @@ import com.dsh.core.data.DshRepository
 import com.dsh.feature.settings.ModelProviderUi
 import com.dsh.feature.settings.logic.ApiKeyVault
 import com.dsh.feature.settings.parseModelProviders
+import com.dsh.runtime.host.AgentNetworkPolicy
+import com.dsh.runtime.host.hostOf
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -30,6 +32,8 @@ internal class ModelProviders(private val repository: DshRepository) {
     fun list(officialNamespaces: Set<String>): List<ModelProviderUi> =
         runCatching { parseModelProviders(providersRaw, settingsRaw, credentialsRaw, officialNamespaces) }
             .getOrDefault(emptyList())
+            // Адреса настроенных провайдеров нужны агенту — сеть агента их пропускает (G-50).
+            .also { providers -> AgentNetworkPolicy.addDynamic(providers.flatMap { listOf(it.baseUrl, it.defaultBaseUrl) }) }
 
     /** Провайдер DeepSeek из каталога Host (свой API-ключ). */
     fun deepSeek(officialNamespaces: Set<String>): ModelProviderUi? = list(officialNamespaces).firstOrNull(::isDeepSeek)
@@ -62,7 +66,11 @@ internal class ModelProviders(private val repository: DshRepository) {
                 if (key.isNotBlank()) add(path + "apiKeyEnv" to JsonPrimitive(provider.keyRef))
                 // Маршрут не из адаптера обязан объявить протокол, иначе Host отклонит весь провайдер.
                 if (!provider.declared) add(path + "api" to JsonPrimitive(wireProtocolFor(provider.id)))
-                if (baseUrl.isNotBlank()) add(path + "baseURL" to JsonPrimitive(baseUrl))
+                if (baseUrl.isNotBlank()) {
+                    add(path + "baseURL" to JsonPrimitive(baseUrl))
+                    // Свой адрес API — разрешён сети агента и после перезапуска, ещё до чтения настроек (G-50).
+                    hostOf(baseUrl)?.let { AgentNetworkPolicy.allowHost(it) }
+                }
                 if (models.isNotEmpty()) {
                     add(path + "models" to JsonArray(models.map { buildJsonObject { put("id", it); put("name", it) } }))
                 }

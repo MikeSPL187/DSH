@@ -45,3 +45,13 @@ internal fun toolArgsText(element: kotlinx.serialization.json.JsonElement?): Str
     element is kotlinx.serialization.json.JsonPrimitive && element.isString -> element.content
     else -> element.toString()
 }
+
+/**
+ * Права нового чата в проекте с клонированным чужим кодом (G-50): «Только чтение», если чата ещё нет и
+ * пользователь не выбрал права сам; иначе null — ничего не менять.
+ */
+internal fun clonedProjectPreset(cloned: Boolean, sessionId: String?, pending: String?): String? =
+    if (cloned && sessionId == null && pending == null) READ_ONLY_PRESET else null
+
+/** Пресет прав Host «Только чтение». */
+internal const val READ_ONLY_PRESET = "read_only"

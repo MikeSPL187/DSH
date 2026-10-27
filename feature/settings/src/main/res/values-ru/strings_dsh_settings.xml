@@ -135,6 +135,15 @@
     <string name="st_third_party">Сторонние плагины</string>
     <string name="st_third_party_sub">Выключено: плагины из npm, GitHub и рынка не ставятся — их код работает с правами приложения</string>
     <string name="st_third_party_on_sub">Включено: можно ставить плагины из npm, GitHub и рынка. Ставьте только от тех, кому доверяете</string>
+    <string name="st_net">Сеть агента</string>
+    <string name="st_net_full">Полный доступ к сети</string>
+    <string name="st_net_full_sub">Выключено: только провайдеры моделей, npm, PyPI, GitHub, GitLab, Debian и адреса плагинов</string>
+    <string name="st_net_full_on_sub">Включено: агент и его команды ходят на любые адреса</string>
+    <string name="st_net_blocked">Не пропущен</string>
+    <string name="st_net_allowed">Разрешён вами</string>
+    <string name="st_net_allow">Разрешить</string>
+    <string name="st_net_remove">Убрать</string>
+    <string name="st_net_note">Список действует и на команды терминала. Это гигиена, а не защита: программа в Linux может соединиться напрямую, в обход списка.</string>
     <string name="st_clip_on">Агент сможет читать буфер обмена</string>
     <string name="st_clip_off">Буфер обмена закрыт для агента</string>
     <string name="st_sessions">Сессии</string>

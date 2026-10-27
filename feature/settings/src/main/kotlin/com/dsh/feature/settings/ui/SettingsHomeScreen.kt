@@ -138,6 +138,10 @@ data class SettingsUi(
     val clipboard: Boolean = false,
     /** Плагины Host из сети (npm, GitHub, рынок) разрешены (G-48). */
     val thirdPartyPlugins: Boolean = false,
+    /** Сеть агента (G-50): полный доступ, недавно не пропущенные адреса, разрешённые пользователем. */
+    val networkFull: Boolean = false,
+    val networkBlocked: List<String> = emptyList(),
+    val networkAllowed: List<String> = emptyList(),
     val workspaceShared: Boolean = false,
     // Оформление
     val theme: String = "system",
@@ -194,6 +198,9 @@ interface SettingsActions {
     fun setAutoApprove(auto: Boolean) {}
     fun setClipboard(on: Boolean) {}
     fun setThirdPartyPlugins(on: Boolean) {}
+    fun setNetworkFull(on: Boolean) {}
+    fun allowNetworkHost(host: String) {}
+    fun removeNetworkHost(host: String) {}
     fun setWorkspaceShared(shared: Boolean) {}
     suspend fun restartHost(): Boolean = true
     suspend fun setHostRunning(run: Boolean): Boolean = true
@@ -692,6 +699,23 @@ private fun ThemeCard(kind: String, label: String, on: Boolean, modifier: Modifi
 
 // ---------- Агент ----------
 
+/** Сколько адресов сети агента показывать в каждом списке. */
+private const val MAX_NET_ROWS = 8
+
+/** Длинный адрес — с конца: значимая часть домена справа, перенос по буквам нечитаем. */
+internal fun shortHost(host: String, max: Int = 16): String {
+    if (host.length <= max) return host
+    val labels = host.split('.')
+    var tail = labels.last()
+    for (label in labels.dropLast(1).asReversed()) {
+        if (tail.length + label.length + 1 > max - 1) break
+        tail = "$label.$tail"
+    }
+    // Одна часть длиннее всей строки — тогда просто последние символы.
+    // U+2060 не даёт перенести строку сразу после многоточия.
+    return "…\u2060" + if (tail.length < max / 2) host.takeLast(max - 1) else tail
+}
+
 @Composable
 private fun AgentPage(ui: SettingsUi, a: SettingsActions, toast: ToastState, go: (StPage) -> Unit) {
     val opened = stringResource(R.string.st_clip_on)
@@ -716,6 +740,29 @@ private fun AgentPage(ui: SettingsUi, a: SettingsActions, toast: ToastState, go:
                     sub = stringResource(if (ui.thirdPartyPlugins) R.string.st_third_party_on_sub else R.string.st_third_party_sub))
             }
         }
+        // Сеть агента (G-50): по умолчанию только нужные адреса; это гигиена, а не граница — так и написано.
+        GLabel(stringResource(R.string.st_net))
+        Gl {
+            row {
+                StToggle(stringResource(R.string.st_net_full), ui.networkFull, { on -> a.setNetworkFull(on) }, DshGlyphs.Globe, Si.c7,
+                    sub = stringResource(if (ui.networkFull) R.string.st_net_full_on_sub else R.string.st_net_full_sub))
+            }
+            if (!ui.networkFull) ui.networkBlocked.take(MAX_NET_ROWS).forEach { host ->
+                row {
+                    StRow(shortHost(host), icon = DshGlyphs.Slash, tile = Si.c5, sub = stringResource(R.string.st_net_blocked)) {
+                        KBtn(stringResource(R.string.st_net_allow), { a.allowNetworkHost(host) }, height = 36.dp, radius = 12.dp, fontSize = 14.sp, horizontal = 14.dp)
+                    }
+                }
+            }
+            ui.networkAllowed.take(MAX_NET_ROWS).forEach { host ->
+                row {
+                    StRow(shortHost(host), icon = DshGlyphs.Check, tile = Si.c3, sub = stringResource(R.string.st_net_allowed)) {
+                        KBtn(stringResource(R.string.st_net_remove), { a.removeNetworkHost(host) }, height = 36.dp, radius = 12.dp, fontSize = 14.sp, horizontal = 14.dp)
+                    }
+                }
+            }
+        }
+        SubNote(stringResource(R.string.st_net_note))
         GLabel(stringResource(R.string.st_sessions))
         Gl {
             row { StRow(stringResource(R.string.st_compress), icon = DshGlyphs.Flow, tile = Si.c1, value = stringResource(R.string.st_compress_auto)) }

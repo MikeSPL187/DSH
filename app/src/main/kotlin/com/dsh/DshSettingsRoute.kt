@@ -1,5 +1,6 @@
 package com.dsh
 
+import com.dsh.runtime.host.AgentNetworkPolicy
 import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -167,6 +168,10 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
     }
     var clipboard by remember { mutableStateOf(BridgePolicy.isClipboardReadAllowed(context)) }
     var thirdPartyPlugins by remember { mutableStateOf(BridgePolicy.isThirdPartyPluginsAllowed(context)) }
+    val networkChanges by AgentNetworkPolicy.changes.collectAsState()
+    val networkBlocked by AgentNetworkPolicy.recentBlocked.collectAsState()
+    val networkFull = remember(networkChanges) { AgentNetworkPolicy.isFullAccess() }
+    val networkAllowed = remember(networkChanges) { AgentNetworkPolicy.userHosts().sorted() }
     val (language, setLanguage) = rememberAppLanguage(d.repository, hostId, scope)
     val update by UpdateCenter.update.collectAsState()
     val currentVersion = remember { UpdateCenter.currentVersion(context) }
@@ -254,6 +259,9 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         autoApprove = approveState(),
         clipboard = clipboard,
         thirdPartyPlugins = thirdPartyPlugins,
+        networkFull = networkFull,
+        networkBlocked = networkBlocked,
+        networkAllowed = networkAllowed,
         workspaceShared = sharedWs,
         theme = HostTheme.preference,
         language = language.takeIf { it in setOf("ru", "en") } ?: Locale.getDefault().language,
@@ -349,6 +357,9 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
 
         override fun setClipboard(on: Boolean) { BridgePolicy.setClipboardReadAllowed(context, on); clipboard = on }
         override fun setThirdPartyPlugins(on: Boolean) { BridgePolicy.setThirdPartyPluginsAllowed(context, on); thirdPartyPlugins = on }
+        override fun setNetworkFull(on: Boolean) = AgentNetworkPolicy.setFullAccess(on)
+        override fun allowNetworkHost(host: String) = AgentNetworkPolicy.allowHost(host)
+        override fun removeNetworkHost(host: String) = AgentNetworkPolicy.removeHost(host)
 
         override fun setWorkspaceShared(shared: Boolean) {
             // Общая папка — только когда доступ уже выдан (G-32): раньше переключатель показывал «общая»,

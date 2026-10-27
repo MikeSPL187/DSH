@@ -180,6 +180,14 @@ fun MainAppHost(
         // Права «до первого сообщения» — только для новой сессии; отправка уже взяла их с собой.
         if (ui.selectedSessionId != null) ui.pendingPermissionPreset = null
     }
+    // Новый чат в проекте с клонированным чужим кодом — «Только чтение» (G-50), пока пользователь не выберет другое.
+    LaunchedEffect(ui.selectedSessionId, runtimeUi.activeWorkspaceName) {
+        clonedProjectPreset(
+            cloned = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.dsh.runtime.host.ClonedProjects.contains(layout, runtimeUi.activeWorkspaceName) },
+            sessionId = ui.selectedSessionId,
+            pending = ui.pendingPermissionPreset,
+        )?.let { ui.pendingPermissionPreset = it }
+    }
     val liveSessionIds by dshRepository.liveSessionIdsFlow.collectAsState()
     val runningSessionIds by dshRepository.runningSessionIdsFlow.collectAsState()
     val unreadSessionIds by dshRepository.unreadSessionIdsFlow.collectAsState()
@@ -572,7 +580,10 @@ fun MainAppHost(
             },
             created = object : CreatedProjectsLog {
                 override fun add(name: String) = com.dsh.runtime.host.CreatedProjects.add(layout, name)
-                override fun rename(from: String, to: String) = com.dsh.runtime.host.CreatedProjects.rename(layout, from, to)
+                override fun rename(from: String, to: String) {
+                    com.dsh.runtime.host.CreatedProjects.rename(layout, from, to)
+                    com.dsh.runtime.host.ClonedProjects.rename(layout, from, to)
+                }
             },
             hostIdOf = { path -> dshRepository.hostWorkspacesFlow.value.forFolder(path, activeWorkspace)?.id },
         )
