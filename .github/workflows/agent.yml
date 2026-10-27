@@ -56,7 +56,9 @@ jobs:
       - name: Дерево установки
         working-directory: agent
         run: |
-          pnpm --filter @deepseek-ai/dsh deploy --prod --legacy --config.node-linker=hoisted ../out/dsh
+          # Строго по общему lockfile; патчи dev-зависимостей (electron, exceljs…) в prod-дерево не входят.
+          pnpm --filter @deepseek-ai/dsh deploy --prod --config.inject-workspace-packages=true \
+            --config.allow-unused-patches=true --config.node-linker=hoisted ../out/dsh
           ls ../out/dsh ../out/dsh/node_modules/@deepseek-ai | head -50
           du -sh ../out/dsh
 
