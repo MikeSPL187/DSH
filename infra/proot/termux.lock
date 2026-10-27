@@ -1,0 +1,5 @@
+# Сборка proot/talloc/libandroid-shmem для APK (.github/workflows/proot.yml).
+# termux-packages: рецепты и SHA-256 исходников (TERMUX_PKG_SHA256 в packages/*/build.sh).
+TERMUX_PACKAGES_COMMIT=febf94ef0e732cbaf8daea140ea98596bb415dc2
+# Образ сборщика Termux (NDK и инструменты) — по digest.
+TERMUX_BUILDER_IMAGE=ghcr.io/termux/package-builder@sha256:e2de051a518d8b188c59c4a1ecf357d373b9ccf48d6c06d7681fdc3f61a77287

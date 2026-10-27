@@ -1,0 +1,111 @@
+name: Rootfs
+
+# Образ Linux для DSH (infra/rootfs). Каждое изменение рецепта собирается для x86_64 и arm64 —
+# проверка, что образ собирается и патчи ложатся. Релиз (rootfs-v<версия> в этом репозитории) —
+# только вручную: SHA-256 из rootfs-manifest.json релиза затем вшивается в APK
+# (app/src/main/assets/rootfs-manifest.json), другим путём телефон образ не примет.
+#
+# Действия GitHub закреплены по SHA коммита; сторонних действий нет (релиз — `gh` раннера).
+
+on:
+  push:
+    paths:
+      - 'infra/rootfs/**'
+      - 'app/src/main/assets/bridge-plugin.json'
+      - 'scripts/bridge-plugin-digest.py'
+      - '.github/workflows/rootfs.yml'
+  workflow_dispatch:
+    inputs:
+      rootfs_version:
+        description: 'Версия образа для релиза (например 2.0.0). Пусто — только сборка, без релиза.'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rootfs-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DSH_VERSION: 0.2.1-rc.2
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Bridge-плагин (проверка contentSha256 из APK)
+        run: sh infra/rootfs/fetch-bridge.sh
+
+      - name: Патчи совпадают с файлами APK
+        run: |
+          python3 -I infra/rootfs/make-patches.py
+          git diff --exit-code -- infra/rootfs/patches
+
+      - name: Сборка образа
+        run: |
+          BRIDGE_VERSION=$(python3 -I -c 'import json; print(json.load(open("app/src/main/assets/bridge-plugin.json"))["version"])')
+          docker build --pull --build-arg DSH_VERSION="$DSH_VERSION" --build-arg BRIDGE_VERSION="$BRIDGE_VERSION" \
+            -t dsh-rootfs:${{ matrix.arch }} infra/rootfs
+          docker create --name rootfs dsh-rootfs:${{ matrix.arch }}
+          mkdir -p output
+          docker export -o output/rootfs-${{ matrix.arch }}.tar rootfs
+          docker cp rootfs:/opt/dsh/sbom output/sbom-${{ matrix.arch }}
+          docker rm rootfs
+          sha256sum output/rootfs-${{ matrix.arch }}.tar
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: rootfs-${{ matrix.arch }}
+          path: output/
+          retention-days: 3
+
+  release:
+    if: github.event_name == 'workflow_dispatch' && inputs.rootfs_version != ''
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          path: tars
+          merge-multiple: true
+
+      - name: Упаковка и манифест
+        env:
+          ROOTFS_VERSION: ${{ inputs.rootfs_version }}
+        run: |
+          echo "$ROOTFS_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'
+          BRIDGE_VERSION=$(python3 -I -c 'import json; print(json.load(open("app/src/main/assets/bridge-plugin.json"))["version"])')
+          python3 -I infra/rootfs/package_rootfs.py "$DSH_VERSION" "$ROOTFS_VERSION" "$BRIDGE_VERSION" \
+            tars/rootfs-x86_64.tar tars/rootfs-arm64.tar "$GITHUB_REPOSITORY" dist
+          for arch in x86_64 arm64; do
+            tar -czf "dist/sbom-$arch.tar.gz" -C tars "sbom-$arch"
+          done
+          (cd dist && sha256sum * > SHA256SUMS)
+          cat dist/rootfs-manifest.json dist/SHA256SUMS
+
+      - name: Релиз rootfs-v${{ inputs.rootfs_version }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROOTFS_VERSION: ${{ inputs.rootfs_version }}
+        run: |
+          gh release create "rootfs-v$ROOTFS_VERSION" dist/* \
+            --target "$GITHUB_SHA" \
+            --title "Rootfs v$ROOTFS_VERSION (DSH $DSH_VERSION, Debian 13)" \
+            --notes "Образ Linux для DSH: Debian 13 slim, Node 24, pnpm, Python 3, git, агент @deepseek-ai/dsh@$DSH_VERSION с Android-патчами, bridge-плагин. SHA-256 — в rootfs-manifest.json и SHA256SUMS, список пакетов — sbom-*.tar.gz. Телефон принимает образ, только когда его SHA-256 вшит в APK."

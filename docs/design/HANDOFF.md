@@ -118,6 +118,10 @@ ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.grad
   с `HostService.NOTIFICATION_ID` и `DshNotifications`); состояние «идёт» в хранилище после смерти процесса — не правда,
   сверять с памятью процесса; текст наружу к модели (DeepSeek) — через `SecretScrubber`; ввод в терминал — через `TermPaste`
   (многострочная вставка — только после подтверждения); уведомления от плагинов — с пометкой «Плагин:».
+- Всё, что попадает в Linux на телефоне (образ, агент, плагин, pnpm, proot), — только из `infra/` нашим CI,
+  по digest/integrity/lockfile и с SHA-256 в APK; никаких `npm install -g` «последней» версии, `pnpm add` git-тега
+  и правок файлов агента на телефоне. Правка агента — в `app/src/main/assets/rootfs-patches` и
+  `python3 -I infra/rootfs/make-patches.py` (CI сверяет, что диффы дают те же файлы); порядок — `infra/README.md`.
 - Четвёртый круг (`docs/SECURITY_FIXES_REPORT.ru.md` §4в): действие, которое меняет состояние Host (отправка, «Стоп»,
   ответ на вопрос, архив, переименование), ждёт ответа и смотрит `result.ok` — HTTP 200 ещё не согласие; локальное
   состояние («идёт», пузырь, кэш) меняется только после согласия, при отказе — видимая ошибка и повтор (`ChatMessage.failed`
