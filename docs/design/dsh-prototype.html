@@ -639,6 +639,28 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .dz-btns { display: grid; grid-template-columns: 1fr 1.35fr; gap: 8px; }
 .dz-btns .btn { height: 52px; border-radius: 16px; font-size: 16px; }
 .dz-note { margin: 8px 0 0; text-align: center; font-size: 12px; color: var(--t3); }
+
+/* Проверка плана агента: документ и решение */
+.pv-hic { width: 52px; height: 52px; border-radius: 17px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
+.pv-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.pv-meta span { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 999px; background: var(--s2); font-size: 12.5px; color: var(--t2); }
+.pv-doc { margin-top: 18px; padding: 16px 16px 6px; border-radius: 22px; background: var(--s1); border: 1px solid var(--line); font-size: 15px; line-height: 1.55; }
+.pv-doc h3 { margin: 0 0 8px; font-family: var(--font-display); font-weight: 600; font-size: 17px; }
+.pv-doc h3:not(:first-child) { margin-top: 18px; }
+.pv-doc ol, .pv-doc ul { margin: 0 0 10px; padding-left: 22px; }
+.pv-doc li { margin: 4px 0; }
+.pv-doc code { font-family: var(--font-mono); font-size: .9em; background: var(--code-bg); border-radius: 6px; padding: 1px 5px; overflow-wrap: anywhere; }
+.pv-doc p { margin: 0 0 10px; color: var(--t2); }
+.pv-fb { display: none; margin-bottom: 10px; }
+.pv-fb.on { display: block; }
+.pv-fb textarea { width: 100%; min-height: 84px; resize: none; border-radius: 14px; border: 1px solid var(--line); background: var(--s1); color: var(--t1); font: inherit; font-size: 15px; padding: 12px 14px; }
+.pv-fb textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.plan-card { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 12px 12px 14px; margin: 6px 0 4px; border-radius: 18px; background: var(--s1); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); text-align: left; }
+.plan-card .pc-ic { width: 36px; height: 36px; border-radius: 11px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; flex: none; }
+.plan-card .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.plan-card b { font-weight: 500; font-size: 15px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.plan-card small { font-size: 12.5px; color: var(--t3); }
+.plan-card .go { height: 40px; padding: 0 14px; border-radius: 12px; background: var(--accent); color: var(--on-accent); font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; flex: none; }
 .glabel.gsplit { display: flex; justify-content: space-between; }
 .glabel.gsplit span:last-child { text-transform: none; letter-spacing: 0; font-size: 12.5px; }
 .gr.pick { width: 100%; text-align: left; transition: background .2s; }
@@ -1192,6 +1214,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <button aria-pressed="false" data-go="agent">Работа агента</button>
         <button aria-pressed="false" data-go="mention">Ссылка «@»</button>
         <button aria-pressed="false" data-go="goal">Цель сессии</button>
+        <button aria-pressed="false" data-go="plan">Проверка плана</button>
         <button aria-pressed="false" data-go="drawer">Меню</button>
         <button aria-pressed="false" data-go="model">Модель</button>
         <button aria-pressed="false" data-go="plus">Вложения</button>
@@ -1442,6 +1465,40 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       </section>
 
 <!-- Экран: запрос на удаление -->
+      <section class="screen" id="screen-plan" aria-label="Проверка плана">
+        <header class="sbar">
+          <button class="iconbtn" data-act="back" aria-label="Назад"><svg class="i"><use href="#i-left"/></svg></button>
+          <div class="title"><b>План агента</b><span><i class="live"></i>Сборка падает после обновления Compose</span></div>
+          <button class="iconbtn" id="pvCopy" aria-label="Скопировать план"><svg class="i sm"><use href="#i-copy"/></svg></button>
+        </header>
+        <div class="dz-scroll">
+          <div class="dz-hero">
+            <span class="pv-hic"><svg class="i"><use href="#i-tasks"/></svg></span>
+            <h2>Обновить Kotlin и починить сборку</h2>
+            <p>Агент ничего не менял: сначала проверьте план. После «Выполнить» он начнёт править файлы.</p>
+            <div class="pv-meta"><span><svg class="i xs"><use href="#i-tasks"/></svg>4 шага</span><span><svg class="i xs"><use href="#i-file"/></svg>2 файла</span><span><svg class="i xs"><use href="#i-term"/></svg>сборка и тесты</span></div>
+          </div>
+          <div class="pv-doc">
+            <h3>Причина</h3>
+            <p>Compose Compiler 1.5.14 требует Kotlin 2.0.21, а в проекте 1.9.24.</p>
+            <h3>Шаги</h3>
+            <ol>
+              <li>Поднять <code>kotlin</code> до 2.0.21 в <code>gradle/libs.versions.toml</code></li>
+              <li>Подключить плагин <code>org.jetbrains.kotlin.plugin.compose</code> в <code>app/build.gradle.kts</code></li>
+              <li>Удалить устаревший <code>composeOptions.kotlinCompilerExtensionVersion</code></li>
+              <li>Собрать <code>:app:assembleDebug</code> и прогнать тесты</li>
+            </ol>
+            <h3>Риски</h3>
+            <ul><li>Предупреждения новых проверок Kotlin 2 — исправлю, если сборка их сделает ошибками</li></ul>
+          </div>
+        </div>
+        <div class="dz-bar">
+          <div class="pv-fb" id="pvFb"><textarea id="pvFbText" aria-label="Что изменить в плане" placeholder="Что изменить: шаги, порядок, ограничения…"></textarea></div>
+          <div class="dz-btns"><button class="btn ghost" id="pvMore">Доработать</button><button class="btn primary" id="pvGo">Выполнить план</button></div>
+          <p class="dz-note" id="pvNote">Агент останется в режиме плана, пока вы не согласитесь</p>
+        </div>
+      </section>
+
       <section class="screen" id="screen-danger" aria-label="Запрос на удаление">
         <header class="sbar">
           <button class="iconbtn" data-act="back" aria-label="Назад"><svg class="i"><use href="#i-left"/></svg></button>
@@ -2035,6 +2092,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     const a = b.dataset.act;
     if (a === "drawer") openDrawer();
     else if (a === "new") { if (drawerOpen) closeDrawer(); renderHome(); }
+    else if (a === "planOpen") screenOpen("plan");
     else if (a === "agent") { if (drawerOpen) closeDrawer(); startAgentDemo(); }
     else if (a === "danger") { if (drawerOpen) closeDrawer(); toChat(true); renderDanger(); }
     else if (a === "close") sheetClose();
@@ -3353,6 +3411,20 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   $("#gbSave").addEventListener("click", () => { const v = $("#gbInput").value.trim(); if (!v) { $("#gbInput").focus(); return; } $("#gbText").textContent = v; goalbar.classList.remove("editing"); toast("Цель изменена"); });
   $("#gbDone").addEventListener("click", () => { goalShow(false); toast("Цель отмечена выполненной"); });
   $("#gbClear").addEventListener("click", (e) => { const b = e.currentTarget; if (b.classList.contains("sure")) { clearTimeout(gbSureT); goalShow(false); toast("Цель убрана"); return; } b.classList.add("sure"); b.querySelector("span").textContent = "Точно убрать?"; gbSureT = setTimeout(() => { b.classList.remove("sure"); b.querySelector("span").textContent = "Убрать"; }, 3000); });
+
+  // ── Проверка плана: «Выполнить план» / «Доработать» с замечаниями ──
+  $("#pvMore").addEventListener("click", () => {
+    const fb = $("#pvFb");
+    if (!fb.classList.contains("on")) { fb.classList.add("on"); $("#pvMore").textContent = "Отмена"; $("#pvGo").textContent = "Отправить"; $("#pvNote").textContent = "Замечания уйдут агенту, он пришлёт новый план"; $("#pvFbText").focus(); return; }
+    fb.classList.remove("on"); $("#pvMore").textContent = "Доработать"; $("#pvGo").textContent = "Выполнить план"; $("#pvNote").textContent = "Агент останется в режиме плана, пока вы не согласитесь";
+  });
+  $("#pvGo").addEventListener("click", () => {
+    const fb = $("#pvFb").classList.contains("on");
+    if (fb && !$("#pvFbText").value.trim()) { $("#pvFbText").focus(); return; }
+    screenClose(); toast(fb ? "Замечания отправлены — агент дорабатывает план" : "План принят — агент начинает работу");
+    $("#pvFb").classList.remove("on"); $("#pvFbText").value = ""; $("#pvMore").textContent = "Доработать"; $("#pvGo").textContent = "Выполнить план";
+  });
+  $("#pvCopy").addEventListener("click", () => toast("План скопирован"));
   function startAgentDemo() {
     if (openSheet) sheetClose(true);
     goalShow(false);
@@ -3371,6 +3443,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     else if (g === "onboard") obOpen();
     else if (g === "home") { if (openSheet) sheetClose(true); renderHome(); }
     else if (g === "agent") startAgentDemo();
+    else if (g === "plan") { startAgentDemo(); setTimeout(() => { thread.insertAdjacentHTML("beforeend", '<button class="plan-card" data-act="planOpen"><span class="pc-ic"><svg class="i sm"><use href="#i-tasks"/></svg></span><span class="tx"><b>План: обновить Kotlin и починить сборку</b><small>4 шага · ждёт вашего решения</small></span><span class="go">Проверить</span></button>'); }, 600); setTimeout(() => screenOpen("plan"), 1400); }
     else if (g === "goal") { startAgentDemo(); setTimeout(() => goalShow(true), 400); }
     else if (g === "mention") { if (openSheet) sheetClose(true); if (!$(".home", thread) && !$(".work", thread)) renderHome(); mnStart(); }
     else if (g === "danger") { if (openSheet) sheetClose(true); renderDanger(); }
