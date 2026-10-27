@@ -141,7 +141,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
 
     // Место на телефоне.
     var storage by remember { mutableStateOf<StorageUsage?>(null) }
-    LaunchedEffect(tick) { storage = withContext(Dispatchers.IO) { StorageScanner.scan(context, d.layout.rootfsDir, d.workspace) } }
+    LaunchedEffect(tick) { storage = withContext(Dispatchers.IO) { StorageScanner.scan(context, d.layout.rootfsDir, d.workspace, d.layout.logsDir) } }
 
     // Рабочая папка и тема — живые значения, без перезапуска экрана.
     var sharedWs by remember { mutableStateOf(!StorageAccess.usesPrivateWorkspace(context)) }
@@ -154,21 +154,38 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
     val reasoningLabels = reasoningLevels.map { context.getString(it.labelResId) }
     val reasoningIndex = reasoningLevels.indexOfFirst { it.name == settings.defaultReasoningLevel }.coerceAtLeast(0)
 
+    // Восстановление в два шага (G-05): распаковать и показать, что заменится (и чья копия), затем перенести.
+    var restorePlan by remember { mutableStateOf<com.deepseek.dsh.runtime.host.RestorePlan?>(null) }
     val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
-            runCatching { d.runtimeManager.stop() }
-            val r = withContext(Dispatchers.IO) {
-                runCatching { context.contentResolver.openInputStream(uri)!!.use { d.backup.restoreUserDataBackup(it).getOrThrow() } }
-            }
-            runCatching { d.runtimeManager.start(d.workspace.absolutePath) }
-            toast.show(
-                r.fold(
-                    { context.getString(R.string.settings_restore_done, it) },
-                    { context.getString(R.string.settings_restore_failed) },
-                ),
-            )
+            withContext(Dispatchers.IO) {
+                runCatching { context.contentResolver.openInputStream(uri)!!.use { d.backup.prepareRestore(it).getOrThrow() } }
+            }.onSuccess { restorePlan = it }.onFailure { toast.show(context.getString(R.string.settings_restore_failed)) }
         }
+    }
+    restorePlan?.let { plan ->
+        RestoreConfirmDialog(
+            plan = plan,
+            onCancel = {
+                restorePlan = null
+                d.backup.discardRestore(plan)
+            },
+            onConfirm = {
+                restorePlan = null
+                scope.launch {
+                    runCatching { d.runtimeManager.stop() }
+                    val r = d.backup.applyRestore(plan)
+                    runCatching { d.runtimeManager.start(d.workspace.absolutePath) }
+                    toast.show(
+                        r.fold(
+                            { context.getString(R.string.settings_restore_done, it) },
+                            { context.getString(R.string.settings_restore_apply_failed) },
+                        ),
+                    )
+                }
+            },
+        )
     }
 
     val rootfs = remember(d.runtimeUi.installedRootfsVersion) { com.deepseek.dsh.runtime.host.RootfsVersion.parse(d.runtimeUi.installedRootfsVersion) }
@@ -340,7 +357,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         }
 
         override suspend fun clean(kind: String): Long {
-            val freed = withContext(Dispatchers.IO) { StorageScanner.clean(context, kind) }
+            val freed = withContext(Dispatchers.IO) { StorageScanner.clean(context, kind, d.layout.logsDir) }
             tick++
             return freed
         }

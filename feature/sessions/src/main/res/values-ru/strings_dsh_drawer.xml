@@ -9,6 +9,7 @@
     <string name="dw_project">Проект</string>
     <string name="dw_update">Обновление %1$s</string>
     <string name="dw_plugins">Плагины</string>
+    <string name="dw_plugins_trust">Проверить: %1$d</string>
     <string name="dw_automation">Автоматизация</string>
     <string name="dw_found">Найдено</string>
     <string name="dw_nothing">Ничего не найдено</string>

@@ -66,6 +66,8 @@
     <string name="pl_signature">Подпись</string>
     <string name="pl_package">Пакет</string>
     <string name="pl_cert">Сертификат</string>
+    <string name="pl_cert_sha256">Сертификат подписи · SHA-256</string>
+    <string name="pl_cert_unverified">Самоподписанный, издатель не проверен — сверьте с отпечатком, который опубликовал автор</string>
     <string name="pl_cert_new">Новый сертификат</string>
     <string name="pl_cert_was">Доверенный</string>
     <string name="pl_trusted_at">Доверено</string>
@@ -96,7 +98,6 @@
     <string name="pl_trust">Доверять</string>
     <string name="pl_trust_lead">Нативный плагин работает внутри DSH и получает те же права, что и приложение. Устанавливайте только от тех, кому доверяете.</string>
     <string name="pl_trust_changed">Подпись изменилась с прошлого раза — это может быть подмена.</string>
-    <string name="pl_publisher">Издатель</string>
     <string name="pl_requests">Запрашивает</string>
     <string name="pl_trust_note">DSH запомнит подпись. Если в обновлении она изменится, плагин будет заблокирован.</string>
     <plurals name="pl_on">

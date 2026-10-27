@@ -1,5 +1,7 @@
 package com.deepseek.dsh
 
+import android.os.Build
+
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -125,6 +127,12 @@ class MainActivity : ComponentActivity() {
                             isAppearanceLightNavigationBars = !effectiveDark
                         }
                     }
+                    val locked = biometricGateActive()
+                    // Миниатюра в «Недавних» при включённой блокировке не показывает переписку (Android 13+).
+                    androidx.compose.runtime.SideEffect {
+                        if (Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(!com.deepseek.dsh.feature.settings.logic.DshUserPrefs.biometric)
+                    }
+                    LockedContent(locked) {
                     MainAppHost(
                         context = applicationContext,
                         runtimeManager = runtimeManager,
@@ -139,6 +147,7 @@ class MainActivity : ComponentActivity() {
                     )
                     // Отстающий bridge-плагин — окно после запуска; необязательное обновление rootfs — только в настройках.
                     BridgeUpdatePrompt()
+                    }
                     BiometricGate()
                 }
             }

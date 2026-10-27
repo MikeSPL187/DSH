@@ -53,7 +53,7 @@ class HostProcessRunner(
     suspend fun launchProcess(
         command: List<String>,
         workingDir: File,
-        logFile: File? = null,
+        log: HostLog? = null,
         environment: Map<String, String> = emptyMap(),
         onEndpointFound: ((ProcessOutputParser.ParsedEndpoint) -> Unit)? = null
     ): Result<Process> = withContext(Dispatchers.IO) {
@@ -110,9 +110,7 @@ class HostProcessRunner(
                     while (reader.readLine().also { line = it } != null) {
                         val current = line ?: continue
                         appendLogLine(current)
-                        if (logFile != null) {
-                            runCatching { logFile.appendText("[STDOUT] $current\n") }
-                        }
+                        log?.append("[STDOUT]", current)
                         val endpoint = ProcessOutputParser.parseLine(current)
                         if (endpoint != null) {
                             publishStatus { status ->
@@ -146,9 +144,7 @@ class HostProcessRunner(
                     while (reader.readLine().also { line = it } != null) {
                         val current = line ?: continue
                         appendLogLine(current)
-                        if (logFile != null) {
-                            runCatching { logFile.appendText("[STDERR] $current\n") }
-                        }
+                        log?.append("[STDERR]", current)
                     }
                 }
             }

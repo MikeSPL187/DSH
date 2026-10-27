@@ -26,6 +26,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import com.deepseek.dsh.core.designsystem.Dsh
 import com.deepseek.dsh.core.designsystem.DshGlyphs
@@ -73,11 +75,38 @@ object BiometricLock {
     }
 }
 
+/** Закрыт ли сейчас DSH экраном блокировки. */
+@Composable
+fun biometricGateActive(): Boolean {
+    val context = LocalContext.current
+    val available = remember { BiometricLock.available(context) }
+    return DshUserPrefs.biometric && BiometricLock.locked && available
+}
+
+/**
+ * Основной интерфейс под замком (G-07): у него нет семантики — TalkBack и службы специальных возможностей не читают
+ * чат и не нажимают «Разрешить» в одобрении, — ввод с клавиатуры и «Назад» до него не доходят, фокус снят
+ * (клавиатура закрывается). Состояние экранов при этом сохраняется: после входа всё как было.
+ */
+@Composable
+fun LockedContent(locked: Boolean, content: @Composable () -> Unit) {
+    val focus = androidx.compose.ui.platform.LocalFocusManager.current
+    LaunchedEffect(locked) { if (locked) focus.clearFocus(force = true) }
+    Box(
+        if (locked) {
+            Modifier.fillMaxSize()
+                .clearAndSetSemantics { }
+                .onPreviewKeyEvent { true }
+        } else Modifier.fillMaxSize(),
+    ) { content() }
+}
+
 @Composable
 fun BiometricGate() {
-    if (!DshUserPrefs.biometric || !BiometricLock.locked) return
+    if (!biometricGateActive()) return
     val context = LocalContext.current
-    if (!remember { BiometricLock.available(context) }) return
+    // «Назад» под замком не закрывает листы под ним — DSH уходит в фон, как с экрана блокировки.
+    androidx.activity.compose.BackHandler { (context as? android.app.Activity)?.moveTaskToBack(true) }
     var asking by remember { mutableStateOf(false) }
     val title = stringResource(R.string.bio_title)
     val sub = stringResource(R.string.bio_sub)

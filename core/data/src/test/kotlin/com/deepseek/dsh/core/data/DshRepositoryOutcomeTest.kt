@@ -37,4 +37,25 @@ class DshRepositoryOutcomeTest {
         assertTrue(repo.cancelSession("local", "s1"))
         assertEquals(emptySet<String>(), repo.runningSessionIdsFlow.value)
     }
+
+    /** G-11: HTTP 200 с `ok:false` — отказ Host, локальная база не меняется. */
+    @Test
+    fun hostRejectionIsNotSuccess() = runBlocking {
+        var reply = """{"result":{"ok":false,"error":{"code":"workspace/not-found"}}}"""
+        val fakes = RepositoryFakes { method, _ -> if (method == "rpcRaw") RemoteResult.Success(reply) else null }
+        val repo = fakes.repository()
+        assertFalse(repo.setSessionArchived("local", "s1", archived = true))
+        assertFalse("updateSessionArchived" in fakes.daoCalls)
+        assertFalse(repo.setSessionPinned("local", "s1", pinned = true))
+        assertFalse(repo.renameSession("local", "s1", "Новое имя"))
+        assertFalse(repo.createWorkspace("local", "/workspace/Proj"))
+        assertFalse(repo.deleteWorkspace("local", "w1"))
+        assertFalse(repo.moveWorkspace("local", "w1", null))
+        assertTrue(repo.workspaceRename("local", "w1", "Proj").isFailure)
+
+        reply = """{"result":{"ok":true,"value":null}}"""
+        assertTrue(repo.setSessionArchived("local", "s1", archived = true))
+        assertTrue("updateSessionArchived" in fakes.daoCalls)
+        assertTrue(repo.workspaceRename("local", "w1", "Proj").isSuccess)
+    }
 }

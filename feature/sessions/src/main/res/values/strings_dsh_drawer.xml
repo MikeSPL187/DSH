@@ -9,6 +9,7 @@
     <string name="dw_project">Project</string>
     <string name="dw_update">Update %1$s</string>
     <string name="dw_plugins">Plugins</string>
+    <string name="dw_plugins_trust">Review: %1$d</string>
     <string name="dw_automation">Automation</string>
     <string name="dw_found">Found</string>
     <string name="dw_nothing">Nothing found</string>

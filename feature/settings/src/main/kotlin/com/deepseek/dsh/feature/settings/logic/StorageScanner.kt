@@ -4,16 +4,18 @@ import com.deepseek.dsh.core.designsystem.kit.*
 import android.content.Context
 import android.os.StatFs
 import com.deepseek.dsh.feature.settings.ui.StorageUsage
+import com.deepseek.dsh.runtime.host.SafeFiles
 import java.io.File
 
 /**
  * Сколько места занимает DSH: Linux (rootfs), проекты (рабочая папка), кэш и прочее.
- * Журналы — файлы `*.log` старше 7 дней, их и кэш можно очистить.
+ * Журналы — файлы папки журналов приложения старше 7 дней, их и кэш можно очистить (G-10: только известные
+ * папки, без перехода по ссылкам, без временной папки proot, которой пользуется работающий Host).
  */
 object StorageScanner {
     private const val WEEK = 7 * 86_400_000L
 
-    fun scan(context: Context, rootfs: File?, workspace: File?): StorageUsage {
+    fun scan(context: Context, rootfs: File?, workspace: File?, logsDir: File): StorageUsage {
         val files = context.filesDir.parentFile ?: context.filesDir
         val linux = rootfs?.let(::size) ?: 0L
         val projects = workspace?.takeIf { it.exists() }?.let(::size) ?: 0L
@@ -21,27 +23,38 @@ object StorageScanner {
         val all = size(files)
         val inside = { f: File? -> f != null && f.absolutePath.startsWith(files.absolutePath) }
         val other = (all - (if (inside(rootfs)) linux else 0) - (if (inside(workspace)) projects else 0) - size(context.cacheDir)).coerceAtLeast(0)
-        val logs = oldLogs(files).sumOf { it.length() }
+        val logs = oldLogs(logsDir).sumOf { it.length() }
         val device = runCatching { StatFs(context.filesDir.absolutePath).totalBytes }.getOrDefault(0L)
         return StorageUsage(linux, projects, cache, other, logs, device)
     }
 
     /** Очистить: `cache` — кэш приложения, `logs` — старые журналы. Возвращает освобождённые байты. */
-    fun clean(context: Context, kind: String): Long = when (kind) {
-        "cache" -> listOfNotNull(context.cacheDir, context.externalCacheDir).sumOf { dir ->
-            val before = size(dir)
-            dir.listFiles()?.forEach { it.deleteRecursively() }
-            before - size(dir)
-        }
-        "logs" -> oldLogs(context.filesDir.parentFile ?: context.filesDir).sumOf { f -> val l = f.length(); if (f.delete()) l else 0L }
+    fun clean(context: Context, kind: String, logsDir: File): Long = when (kind) {
+        "cache" -> cleanCache(listOfNotNull(context.cacheDir, context.externalCacheDir))
+        "logs" -> oldLogs(logsDir).sumOf { f -> val l = f.length(); if (f.delete()) l else 0L }
         else -> 0L
     }
 
-    private fun oldLogs(root: File): List<File> {
-        val cut = System.currentTimeMillis() - WEEK
-        return root.walkTopDown().onEnter { !it.name.startsWith("rootfs") }
-            .filter { it.isFile && (it.name.endsWith(".log") || it.parentFile?.name == "logs") && it.lastModified() < cut }.toList()
+    /**
+     * Удалить содержимое папок кэша: [SafeFiles.deleteTree] не идёт по ссылкам (раньше `deleteRecursively`
+     * через ссылку мог стереть чужое — D-01), временные папки работающего Host ([KEEP_IN_CACHE]) не трогаются.
+     */
+    internal fun cleanCache(dirs: List<File>): Long = dirs.sumOf { dir ->
+        val before = size(dir)
+        dir.listFiles()?.filter { it.name !in KEEP_IN_CACHE }?.forEach { SafeFiles.deleteTree(it) }
+        before - size(dir)
     }
+
+    /** Журналы и архивы диагностики приложения старше недели — только в его папке журналов, без вложенных папок. */
+    internal fun oldLogs(logsDir: File): List<File> {
+        val cut = System.currentTimeMillis() - WEEK
+        return logsDir.listFiles()?.filter {
+            java.nio.file.Files.isRegularFile(it.toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS) && it.lastModified() < cut
+        }.orEmpty()
+    }
+
+    /** Временные папки proot и моста: их держит работающий Host. */
+    private val KEEP_IN_CACHE = setOf("proot-tmp")
 
     /** Размер папки без перехода по символьным ссылкам (rootfs полон ими). */
     fun size(f: File): Long {

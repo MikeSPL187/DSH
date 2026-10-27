@@ -76,26 +76,46 @@ internal fun FirstRunOnboarding(
     // «Восстановить из резервной копии»: та же копия, что делают Настройки (без ключей).
     val toast = com.deepseek.dsh.core.designsystem.kit.rememberToast()
     var restoring by remember { mutableStateOf(false) }
+    // Восстановление в два шага (G-05): распаковать и показать, что заменится (и чья копия), затем перенести.
+    var restorePlan by remember { mutableStateOf<com.deepseek.dsh.runtime.host.RestorePlan?>(null) }
     val restoreLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.OpenDocument(),
     ) { uri ->
         if (uri == null || backup == null || restoring) return@rememberLauncherForActivityResult
         restoring = true
         scope.launch {
-            val wasRunning = runCatching { runtimeManager.getStatus().phase == com.deepseek.dsh.runtime.host.RuntimePhase.RUNNING }.getOrDefault(false)
-            if (wasRunning) runCatching { runtimeManager.stop() }
-            val r = withContext(Dispatchers.IO) {
-                runCatching { context.contentResolver.openInputStream(uri)!!.use { backup.restoreUserDataBackup(it).getOrThrow() } }
-            }
-            if (wasRunning) withContext(Dispatchers.IO) { runCatching { runtimeManager.start(activeWorkspace.absolutePath) } }
+            withContext(Dispatchers.IO) {
+                runCatching { context.contentResolver.openInputStream(uri)!!.use { backup.prepareRestore(it).getOrThrow() } }
+            }.onSuccess { restorePlan = it }.onFailure { toast.show(context.getString(R.string.ob_restore_failed)) }
             restoring = false
-            toast.show(
-                r.fold(
-                    { context.getString(R.string.ob_restore_done, it) },
-                    { context.getString(R.string.ob_restore_failed) },
-                ),
-            )
         }
+    }
+    val plan = restorePlan
+    if (plan != null && backup != null) {
+        RestoreConfirmDialog(
+            plan = plan,
+            onCancel = {
+                restorePlan = null
+                backup.discardRestore(plan)
+            },
+            onConfirm = {
+                restorePlan = null
+                restoring = true
+                scope.launch {
+                    val wasRunning = runCatching { runtimeManager.getStatus().phase == com.deepseek.dsh.runtime.host.RuntimePhase.RUNNING }.getOrDefault(false)
+                    if (wasRunning) runCatching { runtimeManager.stop() }
+                    val r = backup.applyRestore(plan)
+                    if (wasRunning) withContext(Dispatchers.IO) { runCatching { runtimeManager.start(activeWorkspace.absolutePath) } }
+                    restoring = false
+                    toast.show(
+                        r.fold(
+                            { context.getString(R.string.ob_restore_done, it) },
+                            { context.getString(R.string.settings_restore_apply_failed) },
+                        ),
+                    )
+                }
+            },
+        )
     }
 
     androidx.compose.foundation.layout.Box {

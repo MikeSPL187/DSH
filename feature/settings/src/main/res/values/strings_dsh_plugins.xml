@@ -66,6 +66,8 @@
     <string name="pl_signature">Signature</string>
     <string name="pl_package">Package</string>
     <string name="pl_cert">Certificate</string>
+    <string name="pl_cert_sha256">Signing certificate · SHA-256</string>
+    <string name="pl_cert_unverified">Self-signed, the publisher is not verified — compare with the fingerprint the author published</string>
     <string name="pl_cert_new">New certificate</string>
     <string name="pl_cert_was">Trusted</string>
     <string name="pl_trusted_at">Trusted on</string>
@@ -96,7 +98,6 @@
     <string name="pl_trust">Trust</string>
     <string name="pl_trust_lead">A native plugin runs inside DSH and gets the same rights as the app. Install only from people you trust.</string>
     <string name="pl_trust_changed">The signature changed since last time — it may be tampered with.</string>
-    <string name="pl_publisher">Publisher</string>
     <string name="pl_requests">Requests</string>
     <string name="pl_trust_note">DSH remembers the signature. If an update changes it, the plugin is blocked.</string>
     <plurals name="pl_on">

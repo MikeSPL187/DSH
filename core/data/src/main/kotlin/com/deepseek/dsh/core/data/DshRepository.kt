@@ -160,7 +160,7 @@ class DshRepository(
     /** Архивировать сессию или вернуть из архива (`workspace/archiveSession` / `unarchiveSession`). */
     suspend fun setSessionArchived(hostId: String, sessionId: String, archived: Boolean): Boolean {
         val method = if (archived) "workspace/archiveSession" else "workspace/unarchiveSession"
-        val ok = calls.rpc(hostId, method, requestOf(buildJsonObject { put("sessionId", sessionId) })).isSuccess
+        val ok = calls.ok(hostId, method, requestOf(buildJsonObject { put("sessionId", sessionId) }))
         if (ok) {
             // `session/list` архивных сессий не возвращает — локальную строку надо отметить
             // самим, иначе фильтр «Скрыть архивные» не увидит изменения.
@@ -220,8 +220,9 @@ class DshRepository(
         _sessionStatsFlow.update { it + (sessionId to stats) }
     }
 
+    /** Вызов Host над сессией; true — только при `ok: true` (G-11: HTTP 200 с отказом — не успех). */
     private suspend fun sessionCall(hostId: String, method: String, request: JsonObject): Boolean {
-        val ok = calls.rpc(hostId, method, requestOf(request)).isSuccess
+        val ok = calls.ok(hostId, method, requestOf(request))
         if (ok) refreshSessions(hostId)
         return ok
     }
@@ -230,24 +231,24 @@ class DshRepository(
 
     /** Зарегистрировать папку как рабочую (`workspace/create`). */
     suspend fun createWorkspace(hostId: String, path: String): Boolean =
-        calls.rpc(hostId, "workspace/create", requestOf(buildJsonObject { put("path", path) })).isSuccess
+        calls.ok(hostId, "workspace/create", requestOf(buildJsonObject { put("path", path) }))
 
     /** Снять регистрацию рабочей папки, не удаляя её (`workspace/delete`). */
     suspend fun deleteWorkspace(hostId: String, workspaceId: String): Boolean =
-        calls.rpc(hostId, "workspace/delete", requestOf(buildJsonObject { put("workspaceId", workspaceId) })).isSuccess
+        calls.ok(hostId, "workspace/delete", requestOf(buildJsonObject { put("workspaceId", workspaceId) }))
 
-    suspend fun workspaceRename(hostId: String, workspaceId: String, title: String): Result<String> =
-        calls.rpc(hostId, "workspace/rename", requestOf(buildJsonObject {
+    suspend fun workspaceRename(hostId: String, workspaceId: String, title: String): Result<Unit> =
+        calls.valueOrThrow(hostId, "workspace/rename", requestOf(buildJsonObject {
             put("workspaceId", workspaceId)
             put("title", title)
-        }))
+        })).map { }
 
     /** Переставить рабочую папку перед [beforeWorkspaceId] (null — в конец) (`workspace/insertBefore`). */
     suspend fun moveWorkspace(hostId: String, workspaceId: String, beforeWorkspaceId: String?): Boolean =
-        calls.rpc(hostId, "workspace/insertBefore", requestOf(buildJsonObject {
+        calls.ok(hostId, "workspace/insertBefore", requestOf(buildJsonObject {
             put("workspaceId", workspaceId)
             if (beforeWorkspaceId != null) put("beforeWorkspaceId", beforeWorkspaceId)
-        })).isSuccess
+        }))
 
     // ── Сообщения ─────────────────────────────────────────────────────────────
 

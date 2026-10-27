@@ -177,7 +177,8 @@ class DshScreensSweepTest {
         CatalogUi("ktlint", "ktlint", "K", 265f, "Проверка и автоформат Kotlin"),
     )
     private val wx = TrustCandidate(
-        "wx", "Weather Widget", "W", 200f, "1.2.0", "com.acme.weather", "Acme Labs", "4F:9A:31…E8:C2",
+        "wx", "Weather Widget", "W", 200f, "1.2.0", "com.acme.weather",
+        "4F:9A:31:0C:7D:22:B4:01:9E:5A:63:C8:11:F0:2D:7B:A4:38:E6:90:5C:1F:72:BD:08:43:EE:61:9A:27:E8:C2",
         listOf(PluginPerm("globe", "Интернет", "", false, "Загрузка прогноза погоды"), PluginPerm("bell", "Уведомления", "", false)),
     )
 

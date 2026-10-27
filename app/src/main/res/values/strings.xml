@@ -140,6 +140,17 @@
     <string name="workspace_delete_title">Delete workspace</string>
     <string name="workspace_name_placeholder">Workspace name</string>
     <string name="workspace_delete_desc">This deletes “%1$s” and all files inside it. This cannot be undone.</string>
+    <string name="workspace_delete_type">To confirm, type the project name.</string>
+    <string name="workspace_delete_default">“%1$s” is the main project folder: it cannot be deleted. Delete files inside it in Files.</string>
+    <string name="workspace_delete_busy">The agent is working in “%1$s”. Stop it first, then delete the project.</string>
+    <string name="workspace_delete_busy_short">The agent is working in this project — stop it first</string>
+    <string name="workspace_err_name">Invalid project name: no / \\ : or control characters</string>
+    <string name="workspace_err_long">The name is too long (over 255 bytes)</string>
+    <string name="workspace_err_taken">A folder with this name already exists</string>
+    <string name="workspace_err_outside">The folder is outside the working folder</string>
+    <string name="workspace_err_default">The Default project cannot be renamed or deleted</string>
+    <string name="workspace_err_host">Host did not accept the change — nothing was changed</string>
+    <string name="workspace_err_disk">Could not change the folder on disk — check free space and access</string>
     <string name="time_just_now">Just now</string>
     <string name="time_minutes">%1$d min</string>
     <string name="time_hours">%1$d h</string>

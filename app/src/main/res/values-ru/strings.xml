@@ -134,6 +134,17 @@
     <string name="workspace_delete_title">Удалить рабочую папку</string>
     <string name="workspace_name_placeholder">Название рабочей папки</string>
     <string name="workspace_delete_desc">Будет удалена папка «%1$s» со всеми файлами. Отменить это нельзя.</string>
+    <string name="workspace_delete_type">Чтобы подтвердить, введите имя проекта.</string>
+    <string name="workspace_delete_default">«%1$s» — основная папка проектов, её удалить нельзя. Файлы внутри можно удалить в «Файлах».</string>
+    <string name="workspace_delete_busy">В «%1$s» сейчас работает агент. Остановите его, затем удалите проект.</string>
+    <string name="workspace_delete_busy_short">В проекте работает агент — сначала остановите его</string>
+    <string name="workspace_err_name">Недопустимое имя проекта: без / \\ : и управляющих символов</string>
+    <string name="workspace_err_long">Слишком длинное имя (больше 255 байт)</string>
+    <string name="workspace_err_taken">Папка с таким именем уже есть</string>
+    <string name="workspace_err_outside">Папка вне рабочей папки</string>
+    <string name="workspace_err_default">Проект Default нельзя переименовать или удалить</string>
+    <string name="workspace_err_host">Host не принял изменение — ничего не изменено</string>
+    <string name="workspace_err_disk">Не удалось изменить папку на диске — проверьте место и доступ</string>
     <string name="time_just_now">Только что</string>
     <string name="time_minutes">%1$d мин</string>
     <string name="time_hours">%1$d ч</string>

@@ -31,9 +31,8 @@ internal class HostCalls(private val client: DshClientProtocol) {
         return (root["result"] as? JsonObject)?.get("value")
     }
 
-    /** Вызов завершён и Host ответил `ok: true`. */
-    suspend fun ok(hostId: String, method: String, args: JsonObject = EMPTY): Boolean =
-        rpc(hostId, method, args).getOrNull()?.contains("\"ok\":true") == true
+    /** Вызов завершён и Host ответил `ok: true` (по разобранному конверту, а не по подстроке). */
+    suspend fun ok(hostId: String, method: String, args: JsonObject = EMPTY): Boolean = valueOrThrow(hostId, method, args).isSuccess
 
     /** `result.value` для вызовов, где важна причина отказа: при `ok=false` — исключение с кодом Host. */
     suspend fun valueOrThrow(hostId: String, method: String, args: JsonObject = EMPTY): Result<JsonElement?> =

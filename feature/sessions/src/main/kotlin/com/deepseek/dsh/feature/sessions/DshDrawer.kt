@@ -195,6 +195,8 @@ fun DshDrawerContent(
     onQuery: (String) -> Unit,
     searchHits: List<Pair<String, String>>,
     pluginsOn: Int,
+    /** Нативные плагины ждут решения о доверии (G-06): метка вместо листа поверх экрана. */
+    pluginsAwaitingTrust: Int = 0,
     automationsOn: Int,
     onPlugins: () -> Unit,
     onAutomation: () -> Unit,
@@ -290,7 +292,11 @@ fun DshDrawerContent(
         // `.dscroll`
         Column(Modifier.weight(1f).padding(horizontal = 0.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(1.dp)) {
             if (updateVersion != null) DLink(DshGlyphs.Down, stringResource(R.string.dw_update, updateVersion), null, Modifier.rise(i++), accent = true, onClick = onUpdate)
-            DLink(DshGlyphs.Puzzle, stringResource(R.string.dw_plugins), pluginsOn.takeIf { it > 0 }?.toString(), Modifier.rise(i++), onClick = onPlugins)
+            DLink(
+                DshGlyphs.Puzzle, stringResource(R.string.dw_plugins), pluginsOn.takeIf { it > 0 }?.toString(), Modifier.rise(i++),
+                attention = pluginsAwaitingTrust.takeIf { it > 0 }?.let { stringResource(R.string.dw_plugins_trust, it) },
+                onClick = onPlugins,
+            )
             DLink(DshGlyphs.Clock, stringResource(R.string.dw_automation), automationsOn.takeIf { it > 0 }?.toString(), Modifier.rise(i++), onClick = onAutomation)
             extra()
             if (query.isNotBlank()) {
@@ -369,7 +375,7 @@ private fun Modifier.rise(index: Int): Modifier {
 
 /** `.dlink`: иконка, название, число справа. */
 @Composable
-private fun DLink(icon: ImageVector, title: String, count: String?, modifier: Modifier = Modifier, accent: Boolean = false, onClick: () -> Unit) {
+private fun DLink(icon: ImageVector, title: String, count: String?, modifier: Modifier = Modifier, accent: Boolean = false, attention: String? = null, onClick: () -> Unit) {
     val c = Dsh.colors
     Row(
         modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp)).clickable(role = Role.Button, onClick = onClick).padding(10.dp),
@@ -378,7 +384,13 @@ private fun DLink(icon: ImageVector, title: String, count: String?, modifier: Mo
     ) {
         Icon(icon, null, tint = if (accent) c.accent else c.t2, modifier = Modifier.size(22.dp))
         Text(title, style = body(14.5.sp, 18.sp, FontWeight.Medium), color = if (accent) c.accent else c.t1, modifier = Modifier.weight(1f))
-        if (count != null) Text(count, style = body(12.5.sp, 16.sp), color = c.t3)
+        // Требует решения — жёлтая метка, как «Ждёт вашего решения» у сессий.
+        if (attention != null) Text(
+            attention,
+            style = body(12.sp, 16.sp, FontWeight.Medium),
+            color = c.warn,
+            modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(c.warnSoft).padding(horizontal = 8.dp, vertical = 3.dp),
+        ) else if (count != null) Text(count, style = body(12.5.sp, 16.sp), color = c.t3)
     }
 }
 

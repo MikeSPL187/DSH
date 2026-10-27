@@ -7,8 +7,6 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
@@ -23,7 +21,7 @@ class DefaultHostRuntimeManager(
 ) : HostRuntimeManager {
 
     private var bridgeServer: BridgeServer? = null
-    private val startMutex = Mutex()
+    private val lifecycle = HostLifecycleLock()
 
     /** Источник манифеста: свежая загрузка, при ошибке — кэш, в крайнем случае — из APK. */
     private val manifestSourceCache by lazy { RootfsManifestSource(context, layout) }
@@ -785,22 +783,23 @@ class DefaultHostRuntimeManager(
 
     /**
      * При открытии приложения Host запрашивают сразу несколько мест (Application,
-     * экран запуска, проверка rootfs). Раньше каждый вызов из очереди за [startMutex]
+     * экран запуска, проверка rootfs). Раньше каждый вызов из очереди за замком запуска
      * после неудачной попытки заново поднимал proot — несколько тяжёлых запусков
      * подряд и минуты до показа ошибки. Вызовы, которые ждали, пока шла попытка,
      * теперь получают её результат; явный повтор (после ошибки) запускает новую.
      */
     override suspend fun start(workspacePath: String): Result<RuntimeStatus> {
         val observedAttempt = startAttempts.get()
-        return startMutex.withLock {
-            if (runner.isRunning()) return@withLock Result.success(runner.statusFlow.value)
+        return lifecycle.starting {
+            if (runner.isRunning()) return@starting Result.success(runner.statusFlow.value)
             val finishedMeanwhile = lastStartResult
             if (startAttempts.get() != observedAttempt && finishedMeanwhile != null) {
-                return@withLock finishedMeanwhile
+                return@starting finishedMeanwhile
             }
             startLocked(workspacePath).also {
                 lastStartResult = it
-                if (it.isFailure) lastStartFailedAt = System.currentTimeMillis()
+                // Запуск, отменённый остановкой, — не сбой: автопрогрев после него не должен ждать 5 минут.
+                if (it.isFailure && !lifecycle.stopRequested) lastStartFailedAt = System.currentTimeMillis()
                 startAttempts.incrementAndGet()
             }
         }
@@ -978,14 +977,20 @@ class DefaultHostRuntimeManager(
         // и разбор модулей Node в proot отличался бы от ручного запуска.
         val launchCmd = listOf("/system/bin/sh", "-c", shellCommand(cmd))
 
-        val logFile = File(layout.logsDir, "host_${System.currentTimeMillis()}.log")
-        logFile.appendText("[CMD] ${cmd.joinToString(" ")}\n")
+        HostLog.rotate(layout.logsDir, "host_", ".log", HostLog.KEEP_LOGS)
+        val log = HostLog(File(layout.logsDir, "host_${System.currentTimeMillis()}.log"))
+        log.append("[CMD]", cmd.joinToString(" "))
         val endpointDeferred = CompletableDeferred<ProcessOutputParser.ParsedEndpoint>()
 
+        // Пока готовились, пришла остановка (восстановление копии, авто-сон, «Стоп»): процесс не поднимаем.
+        if (lifecycle.stopRequested) {
+            bridge.stop()
+            return@withContext Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Host start was cancelled by a stop request", "Запуск Host отменён: пришла остановка")))
+        }
         val launchResult = runner.launchProcess(
             command = launchCmd,
             workingDir = layout.baseDir,
-            logFile = logFile,
+            log = log,
             environment = mapOf(
                 // Новый proot несёт свой loader: он тоже распаковывается из jniLibs в nativeLibraryDir.
                 "PROOT_LOADER" to "${layout.nativeLibraryDir.absolutePath}/libproot-loader.so",
@@ -1014,6 +1019,10 @@ class DefaultHostRuntimeManager(
         // (смахнул задачу или система забрала фоновую службу): это нормальный конец, не «таймаут запуска».
         val endpoint: ProcessOutputParser.ParsedEndpoint? = withTimeoutOrNull(ENDPOINT_TIMEOUT_MS) {
             while (!endpointDeferred.isCompleted) {
+                if (lifecycle.stopRequested) {
+                    runner.terminate()
+                    return@withTimeoutOrNull null
+                }
                 when (runner.statusFlow.value.phase) {
                     RuntimePhase.ERROR, RuntimePhase.STOPPED -> return@withTimeoutOrNull null
                     else -> kotlinx.coroutines.delay(ENDPOINT_POLL_INTERVAL_MS)
@@ -1056,7 +1065,9 @@ class DefaultHostRuntimeManager(
         return result
     }
 
-    override suspend fun stop(): Result<Unit> = withContext(Dispatchers.IO) {
+    override suspend fun stop(): Result<Unit> = lifecycle.stopping { stopLocked() }
+
+    private suspend fun stopLocked(): Result<Unit> = withContext(Dispatchers.IO) {
         bridgeServer?.stop()
         bridgeServer = null
 

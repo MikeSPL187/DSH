@@ -2,6 +2,15 @@
 <resources>
     <string name="settings_restore_done">Восстановлено файлов: %1$d</string>
     <string name="settings_restore_failed">Не удалось восстановить — это не резервная копия DSH</string>
+    <string name="settings_restore_apply_failed">Не удалось восстановить — ничего не изменено</string>
+    <string name="restore_confirm_title">Восстановить из копии?</string>
+    <string name="restore_confirm_desc">Копия сделана на этом телефоне. Настройки Host и данные сессий будут заменены, Host перезапустится.</string>
+    <string name="restore_foreign_title">Копия не с этого телефона</string>
+    <string name="restore_foreign_desc">Её сделали на другом телефоне или изменили после. Вместе с ней придут настройки Host — включённые плагины, права агента, конфиги MCP, — и они сработают при следующем запуске. Восстанавливайте, только если доверяете копии.</string>
+    <string name="restore_files">Файлов в копии: %1$d, заменят существующие: %2$d</string>
+    <string name="restore_more">и ещё %1$d</string>
+    <string name="restore_cancel">Отмена</string>
+    <string name="restore_apply">Восстановить</string>
     <string name="settings_key_dots">Ключ ••••%1$s</string>
     <string name="settings_uptime_hm">%1$d ч %2$d мин</string>
     <string name="settings_uptime_m">%1$d мин</string>

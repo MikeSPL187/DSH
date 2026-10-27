@@ -127,6 +127,13 @@ ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.grad
   образ (`rootfs-manifest.json`: https + `downloadSha256`), bridge-плагин (`bridge-plugin.json`: `version` +
   `contentSha256`, считать `scripts/bridge-plugin-digest.py` по `git archive` тега). Никаких «последних релизов»
   во время работы: новая версия — новый APK. Обновления APK и ссылки — только `MikeSPL187/DSH` (`DSH_GITHUB_REPO`).
+- Данные пользователя (G-05, G-09, G-10, G-12): резервная копия — подпись `BackupSigner` (Keystore) и восстановление в два
+  шага `prepareRestore` → окно `RestoreConfirmDialog` → `applyRestore` (откат при сбое); журнал Host — только через
+  `HostLog` (очистка секретов, предел, ротация); очистка — только известных папок через `SafeFiles`; необратимое удаление
+  проекта — с вводом имени, «Default» и занятый агентом проект не удаляются. Host запускать и останавливать только через
+  `DefaultHostRuntimeManager` (замок `HostLifecycleLock`), не вызывать `stop()` изнутри запуска — взаимоблокировка.
+- Блокировка (G-07): новый экран — внутри `LockedContent` в `MainActivity`, ничего не рисовать поверх замка; листы доверия
+  и подобные запросы не всплывают поверх чата — метка в меню (G-06).
 - Вход по отпечатку: `BiometricLock.available()` — единственная проверка (отпечаток или код телефона);
   без способа входа блокировка не включается, иначе из DSH не выйти.
 - Коммиты завершать строками:

@@ -134,7 +134,7 @@ data class TrustCandidate(
     val hue: Float,
     val version: String,
     val pkg: String,
-    val publisher: String?,
+    /** Полный SHA-256 сертификата подписи APK (`AA:BB:…`, 32 байта). «Издателя» нет: самоподписанный сертификат ничего не доказывает (G-06). */
     val cert: String,
     val perms: List<PluginPerm>,
     val changed: Boolean = false,
@@ -811,8 +811,18 @@ fun PluginTrustSheet(t: TrustCandidate, onCancel: () -> Unit, onTrust: () -> Uni
     Text(stringResource(R.string.pl_trust_lead), style = body(14.sp, 21.sp), color = c.t2, modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 14.dp))
     Gl {
         row { Gr(stringResource(R.string.pl_package)) { Kv(t.pkg) } }
-        t.publisher?.let { pub -> row { Gr(stringResource(R.string.pl_publisher), value = pub) } }
-        row { Gr(stringResource(R.string.pl_cert)) { Kv(t.cert) } }
+        // Отпечаток целиком, по 8 байт в строке: сверить с тем, что опубликовал автор плагина.
+        row {
+            Column {
+                Gr(stringResource(R.string.pl_cert_sha256), sub = stringResource(R.string.pl_cert_unverified))
+                Text(
+                    t.cert.split(':').chunked(8).joinToString("\n") { it.joinToString(":") },
+                    style = mono(12.5.sp, androidx.compose.ui.text.font.FontWeight.Normal).copy(lineHeight = 18.sp),
+                    color = c.t2,
+                    modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 12.dp),
+                )
+            }
+        }
     }
     if (t.perms.isNotEmpty()) {
         GLabel(stringResource(R.string.pl_requests), top = 14.dp)
@@ -827,8 +837,3 @@ fun PluginTrustSheet(t: TrustCandidate, onCancel: () -> Unit, onTrust: () -> Uni
     }
 }
 
-/** Лист доверия поверх любого экрана: нативный плагин найден, пока пользователь был не в «Плагинах». */
-@Composable
-fun PluginTrustOverlay(t: TrustCandidate, onTrust: () -> Unit, onDismiss: () -> Unit) {
-    KSheet(true, onDismiss = onDismiss) { PluginTrustSheet(t, onCancel = onDismiss, onTrust = onTrust) }
-}

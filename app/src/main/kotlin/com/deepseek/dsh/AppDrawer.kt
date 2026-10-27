@@ -47,6 +47,7 @@ internal fun AppDrawer(
     hostLive: Boolean,
     defaultWorkspaceLabel: String,
     pluginsOn: Int,
+    pluginsAwaitingTrust: Int,
     userName: String?,
     updateVersion: String?,
 ) {
@@ -175,6 +176,7 @@ internal fun AppDrawer(
         },
         searchHits = runtimeUi.remoteSearchResults,
         pluginsOn = pluginsOn,
+        pluginsAwaitingTrust = pluginsAwaitingTrust,
         automationsOn = com.deepseek.dsh.feature.settings.logic.AutomationStore.items.count { it.on },
         onPlugins = { go(ActivePage.PLUGINS) },
         onAutomation = { go(ActivePage.AUTOMATION) },

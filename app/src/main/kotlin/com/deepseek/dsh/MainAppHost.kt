@@ -374,7 +374,7 @@ fun MainAppHost(
 
 
     val backupAndDiag = remember {
-        com.deepseek.dsh.runtime.host.RuntimeBackupAndDiagnostics(layout)
+        com.deepseek.dsh.runtime.host.RuntimeBackupAndDiagnostics(layout, KeystoreBackupSigner)
     }
     // Установщик плагинов на стороне приложения: pnpm в Host под proot не может
     // rename/unlink/mkdtemp (ENOSYS), поэтому после ошибки Host приложение само скачивает,
@@ -545,15 +545,15 @@ fun MainAppHost(
         WorkspaceOps(
             root = activeWorkspace,
             host = object : WorkspaceHost {
-                override suspend fun create(path: String) { dshRepository.createWorkspace(ui.activeHostId, path) }
-                override suspend fun rename(workspaceId: String, title: String) { dshRepository.workspaceRename(ui.activeHostId, workspaceId, title) }
-                override suspend fun delete(workspaceId: String) { dshRepository.deleteWorkspace(ui.activeHostId, workspaceId) }
-                override suspend fun renameSession(sessionId: String, title: String) { dshRepository.renameSession(ui.activeHostId, sessionId, title) }
+                override suspend fun create(path: String) = dshRepository.createWorkspace(ui.activeHostId, path)
+                override suspend fun rename(workspaceId: String, title: String) = dshRepository.workspaceRename(ui.activeHostId, workspaceId, title).isSuccess
+                override suspend fun delete(workspaceId: String) = dshRepository.deleteWorkspace(ui.activeHostId, workspaceId)
+                override suspend fun renameSession(sessionId: String, title: String) = dshRepository.renameSession(ui.activeHostId, sessionId, title)
             },
             hostIdOf = { path -> dshRepository.hostWorkspacesFlow.value.forFolder(path, activeWorkspace)?.id },
         )
     }
-    WorkspaceDialogs(runtimeUi, workspaceOps, scope)
+    WorkspaceDialogs(ui, runtimeUi, workspaceOps, scope, runningSessionIds)
 
 
     // Запрос агента на действие (approval/request): в чате — карточкой в ходе работы или экраном удаления.
@@ -800,6 +800,7 @@ fun MainAppHost(
                     defaultWorkspaceLabel = defaultWorkspaceLabel,
                     pluginsOn = bridgePluginCatalog.bundles.count { it.enabled } +
                         runtimeUi.nativePluginItems.count { it.statusLabel == context.getString(R.string.plugin_status_installed) },
+                    pluginsAwaitingTrust = nativePlugins.pendingApprovals.size,
                     userName = accountState.profile?.name,
                     updateVersion = updateInfo?.tag?.takeIf { com.deepseek.dsh.feature.settings.UpdateCenter.hasUpdate(context) },
                 )
@@ -1162,13 +1163,8 @@ fun MainAppHost(
             )
         }
         PluginIslandOverlays()
-        // Нашёлся нативный плагин, пока пользователь не в «Плагинах», — спрашиваем о доверии поверх экрана.
-        // На первом запуске не перебиваем онбординг: спросим, когда он закончится.
-        if (ui.activePage != ActivePage.PLUGINS && !runtimeUi.showOnboarding) {
-            nativePlugins.pendingApprovals.firstOrNull()?.let { c ->
-                com.deepseek.dsh.feature.settings.ui.PluginTrustOverlay(trustOf(context, c), onTrust = { nativePlugins.trust(c) }, onDismiss = { nativePlugins.dismiss(c) })
-            }
-        }
+        // Нативный плагин, ждущий доверия, лист поверх чата не открывает (G-06: только что установленный чужой APK
+        // не должен подсовывать «Доверять» на любом экране) — в меню у «Плагинов» метка, лист — в «Плагинах».
         ui.pluginUiOpen?.let { id ->
             PluginUiPage(
                 id = id,

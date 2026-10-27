@@ -4,6 +4,8 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import com.deepseek.dsh.core.designsystem.DshTheme
 import com.deepseek.dsh.core.model.AppSettings
@@ -304,6 +306,64 @@ class ScreensGalleryTest {
     @Config(qualifiers = "ru-w390dp-h844dp-xxhdpi")
     @Test fun chatNotSentDark() = renderNotSent("15b_chat_not_sent_390_dark", dark = true)
     @Test fun chatNotSentWide() = renderNotSent("15c_chat_not_sent_412", dark = false)
+
+    /** G-05: окно восстановления — своя копия и чужая (с предупреждением). Окно — отдельный Dialog, снимаем его узел. */
+    private fun renderRestore(name: String, trusted: Boolean, dark: Boolean) {
+        val files = listOf("settings.json", "profiles/web/dsh.profile.yml", "plugins/enabled.json", "mcp/servers.json", "sessions/index.json", "permissions.json", "workspace.json", "theme.json")
+        val plan = com.deepseek.dsh.runtime.host.RestorePlan(java.io.File("/nonexistent"), files, files.take(5), trusted)
+        compose.mainClock.autoAdvance = false
+        compose.setContent { DshTheme(darkTheme = dark) { com.deepseek.dsh.RestoreConfirmDialog(plan, onConfirm = {}, onCancel = {}) } }
+        compose.mainClock.advanceTimeBy(1_500)
+        captureDialog(name)
+    }
+
+    /** Окно диалога — последнее в WindowManagerGlobal; рисуем его поверх окна экрана, как видит пользователь. */
+    private fun captureDialog(name: String) {
+        val wmg = Class.forName("android.view.WindowManagerGlobal").getMethod("getInstance").invoke(null)
+        @Suppress("UNCHECKED_CAST")
+        val views = wmg.javaClass.getDeclaredField("mViews").apply { isAccessible = true }.get(wmg) as List<android.view.View>
+        val base = compose.activity.window.decorView
+        val bitmap = android.graphics.Bitmap.createBitmap(base.width, base.height, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        base.draw(canvas)
+        views.last().draw(canvas)
+        java.io.File(System.getProperty("user.dir"), "build/ui-screens/$name.png").outputStream().use {
+            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+        }
+    }
+
+    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    @Test fun restoreTrustedNarrow() = renderRestore("16_restore_own_360", trusted = true, dark = false)
+    @Config(qualifiers = "ru-w390dp-h844dp-xxhdpi")
+    @Test fun restoreForeignDark() = renderRestore("16b_restore_foreign_390_dark", trusted = false, dark = true)
+    @Test fun restoreForeignWide() = renderRestore("16c_restore_foreign_412", trusted = false, dark = false)
+
+    /** G-12: удаление проекта — ввод имени; «Default» удалить нельзя. */
+    private fun renderDeleteProject(name: String, folder: String, dark: Boolean) {
+        val ui = com.deepseek.dsh.AppUiState(com.deepseek.dsh.core.model.AppSettings(), java.io.File("/nonexistent"), false)
+        val runtimeUi = com.deepseek.dsh.AppRuntimeUiState(false, 0f to "")
+        runtimeUi.deleteWorkspaceFolder = com.deepseek.dsh.feature.sessions.WorkspaceFolder(folder, folder, "/nonexistent/$folder")
+        val ops = com.deepseek.dsh.WorkspaceOps(java.io.File("/nonexistent"), object : com.deepseek.dsh.WorkspaceHost {
+            override suspend fun create(path: String) = true
+            override suspend fun rename(workspaceId: String, title: String) = true
+            override suspend fun delete(workspaceId: String) = true
+            override suspend fun renameSession(sessionId: String, title: String) = true
+        }) { null }
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            DshTheme(darkTheme = dark) {
+                com.deepseek.dsh.WorkspaceDialogs(ui, runtimeUi, ops, androidx.compose.runtime.rememberCoroutineScope(), emptySet())
+            }
+        }
+        compose.mainClock.advanceTimeBy(1_500)
+        captureDialog(name)
+    }
+
+    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    @Test fun deleteProjectNarrow() = renderDeleteProject("17_delete_project_360", "android-app", dark = false)
+    @Config(qualifiers = "ru-w390dp-h844dp-xxhdpi")
+    @Test fun deleteDefaultDark() = renderDeleteProject("17b_delete_default_390_dark", "Default", dark = true)
+    @Test fun deleteProjectWide() = renderDeleteProject("17c_delete_project_412_dark", "android-app", dark = true)
 
     // «Плагины», «Автоматизация» и «Настройки» снимает DshScreensSweepTest (все ширины и темы).
 

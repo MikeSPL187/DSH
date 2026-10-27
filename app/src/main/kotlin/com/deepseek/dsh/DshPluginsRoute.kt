@@ -192,7 +192,7 @@ internal fun DshPluginsRoute(d: PluginDeps) {
             version = info?.versionName ?: n.version.toString(),
             on = n.status == InstalledNativePlugin.Status.READY && !NativePluginPrefs.isDisabled(context, n.pluginId),
             blocked = blocked,
-            by = publisher(context, n.packageName), size = apkSize?.let { com.deepseek.dsh.feature.settings.ui.formatBytes(it, units) },
+            by = null, size = apkSize?.let { com.deepseek.dsh.feature.settings.ui.formatBytes(it, units) },
             description = context.getString(R.string.plugin_native_description, n.packageName),
             compat = when (n.status) {
                 InstalledNativePlugin.Status.ABI_TOO_NEW -> context.getString(R.string.plugin_status_update_plugin)
@@ -303,11 +303,15 @@ internal fun trustOf(context: Context, n: InstalledNativePlugin): TrustCandidate
     val label = info?.applicationInfo?.loadLabel(pm)?.toString() ?: n.pluginId.substringAfterLast('.')
     return TrustCandidate(
         id = n.pluginId, name = label, letter = pluginLetter(label), hue = pluginHue(n.pluginId),
-        version = info?.versionName ?: n.version.toString(), pkg = n.packageName, publisher = publisher(context, n.packageName),
-        cert = shortCert(n.signatureFingerprint), perms = permsOf(context, info, forTrust = true),
+        version = info?.versionName ?: n.version.toString(), pkg = n.packageName,
+        cert = fullCert(n.signatureFingerprint), perms = permsOf(context, info, forTrust = true),
         changed = n.status == InstalledNativePlugin.Status.SIGNATURE_MISMATCH,
     )
 }
+
+/** Полный отпечаток `A1:7C:…:9B` (верхний регистр, через двоеточие). */
+internal fun fullCert(fp: String): String =
+    (if (fp.contains(':')) fp.split(':') else fp.chunked(2)).joinToString(":") { it.uppercase(Locale.ROOT) }
 
 /** `A1:7C:0E…54:9B` из полного отпечатка. */
 internal fun shortCert(fp: String): String {
@@ -318,19 +322,6 @@ internal fun shortCert(fp: String): String {
 
 private fun shortDay(millis: Long): String =
     java.time.format.DateTimeFormatter.ofPattern("d MMM", Locale.getDefault()).format(java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneId.systemDefault())).trimEnd('.')
-
-/** Издатель — организация (O=) из сертификата подписи APK. */
-private fun publisher(context: Context, pkg: String): String? = runCatching {
-    val pm = context.packageManager
-    val sig = if (android.os.Build.VERSION.SDK_INT >= 28) {
-        pm.getPackageInfo(pkg, PackageManager.GET_SIGNING_CERTIFICATES).signingInfo?.apkContentsSigners?.firstOrNull()
-    } else {
-        @Suppress("DEPRECATION") pm.getPackageInfo(pkg, PackageManager.GET_SIGNATURES).signatures?.firstOrNull()
-    } ?: return null
-    val cert = java.security.cert.CertificateFactory.getInstance("X.509").generateCertificate(sig.toByteArray().inputStream()) as java.security.cert.X509Certificate
-    val dn = cert.subjectX500Principal.name
-    Regex("(?:^|,)O=([^,]+)").find(dn)?.groupValues?.get(1) ?: Regex("(?:^|,)CN=([^,]+)").find(dn)?.groupValues?.get(1)
-}.getOrNull()
 
 /** Разрешения Android, которые плагин запросил, — понятными словами. */
 private fun permsOf(context: Context, info: android.content.pm.PackageInfo?, forTrust: Boolean = false): List<PluginPerm> {
