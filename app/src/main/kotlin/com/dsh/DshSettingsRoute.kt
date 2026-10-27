@@ -120,6 +120,14 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
     }
     val custom = providers.filter { it.configured && !isDeepSeek(it) }
 
+    // Пределы агента: перечитываются при смене Host, его запуске и после каждой записи.
+    var limits by remember { mutableStateOf<List<com.dsh.core.data.AgentLimitValue>>(emptyList()) }
+    var limitsTick by remember { mutableIntStateOf(0) }
+    val hostUp = status?.phase == RuntimePhase.RUNNING
+    LaunchedEffect(hostId, hostUp, limitsTick) {
+        limits = if (hostUp) runCatching { d.repository.hostSettings.agentLimits(hostId) }.getOrDefault(emptyList()) else emptyList()
+    }
+
     // Host: время работы, память и процессор.
     val running = status?.phase == RuntimePhase.RUNNING
     var runningSince by remember { mutableLongStateOf(0L) }
@@ -263,6 +271,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         networkBlocked = networkBlocked,
         networkAllowed = networkAllowed,
         workspaceShared = sharedWs,
+        limits = limits,
         theme = HostTheme.preference,
         language = language.takeIf { it in setOf("ru", "en") } ?: Locale.getDefault().language,
         codeSize = DshUserPrefs.codeSize,
@@ -353,6 +362,12 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
             val pick = if (auto) options.firstOrNull { "workspace" in it || ("write" in it && "danger" !in it) }
             else options.firstOrNull { "read" in it || "ask" in it || "default" in it || "untrusted" in it }
             if (pick != null) HostPermissionPreset.set(pick)
+        }
+
+        override suspend fun setAgentLimit(current: com.dsh.core.data.AgentLimitValue, value: Long?): Boolean {
+            val ok = runCatching { d.repository.hostSettings.setAgentLimit(hostId, current, value) }.getOrDefault(false)
+            limitsTick++
+            return ok
         }
 
         override fun setClipboard(on: Boolean) { BridgePolicy.setClipboardReadAllowed(context, on); clipboard = on }

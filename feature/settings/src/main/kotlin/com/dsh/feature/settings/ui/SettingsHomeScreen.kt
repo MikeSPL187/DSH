@@ -143,6 +143,8 @@ data class SettingsUi(
     val networkBlocked: List<String> = emptyList(),
     val networkAllowed: List<String> = emptyList(),
     val workspaceShared: Boolean = false,
+    /** «Пределы агента» из настроек Host; пусто — Host не работает или не отдал их. */
+    val limits: List<com.dsh.core.data.AgentLimitValue> = emptyList(),
     // Оформление
     val theme: String = "system",
     val language: String = "ru",
@@ -202,6 +204,8 @@ interface SettingsActions {
     fun allowNetworkHost(host: String) {}
     fun removeNetworkHost(host: String) {}
     fun setWorkspaceShared(shared: Boolean) {}
+    /** Записать предел агента: число или null — вернуть стандартное; false — Host не принял. */
+    suspend fun setAgentLimit(current: com.dsh.core.data.AgentLimitValue, value: Long?): Boolean = false
     suspend fun restartHost(): Boolean = true
     suspend fun setHostRunning(run: Boolean): Boolean = true
     fun setSleep(minutes: Int) {}
@@ -271,9 +275,10 @@ fun SettingsHomeScreen(
     actions: SettingsActions = NoActions,
     initialPage: StPage = StPage.Root,
     toast: ToastState = rememberToast(),
+    initialSheet: String? = null,
 ) {
     val stack = remember { PageStack(StPage.Root).also { if (initialPage != StPage.Root) it.push(initialPage) } }
-    var sheet by rememberSaveable { mutableStateOf<String?>(null) }
+    var sheet by rememberSaveable { mutableStateOf(initialSheet) }
     var rise by remember { mutableStateOf(true) }
     LaunchedEffect(Unit) { kotlinx.coroutines.delay(900); rise = false }
     DshStackScreen(
@@ -291,6 +296,13 @@ fun SettingsHomeScreen(
             KSheet(sheet == "automodel", onDismiss = { sheet = null }) {
                 ModelSheet(stringResource(R.string.st_for_auto), ui.models, ui.autoModelName, ui.reasoningLevels, ui.autoReasoningIndex) { m, r -> actions.setAutomationModel(m, r); sheet = null }
             }
+            // Лист держит последний открытый предел, чтобы не пропасть посреди анимации закрытия.
+            val limitName = sheet?.removePrefix(LIMIT_SHEET)?.takeIf { sheet?.startsWith(LIMIT_SHEET) == true }
+            var lastLimit by remember { mutableStateOf<com.dsh.core.data.AgentLimitValue?>(null) }
+            ui.limits.firstOrNull { it.limit.name == limitName }?.let { lastLimit = it }
+            KSheet(limitName != null, onDismiss = { sheet = null }) {
+                lastLimit?.let { v -> AgentLimitSheet(v, actions::setAgentLimit, toast) { sheet = null } }
+            }
         },
     ) { p ->
         CompositionLocalProvider(LocalRise provides (rise && p == StPage.Root)) {
@@ -298,7 +310,7 @@ fun SettingsHomeScreen(
                 StPage.Root -> RootPage(ui, actions, stack::push)
                 StPage.Models -> ModelsPage(ui, actions, toast, onSheet = { sheet = it }, onDeleted = { stack.pop() })
                 StPage.Look -> LookPage(ui, actions, toast)
-                StPage.Agent -> AgentPage(ui, actions, toast, stack::push)
+                StPage.Agent -> AgentPage(ui, actions, toast, stack::push) { sheet = LIMIT_SHEET + it.name }
                 StPage.Host -> HostPage(ui, actions, toast)
                 StPage.Storage -> StoragePage(ui, actions, toast)
                 StPage.Security -> SecurityPage(ui, actions, toast, stack::push)
@@ -717,7 +729,7 @@ internal fun shortHost(host: String, max: Int = 16): String {
 }
 
 @Composable
-private fun AgentPage(ui: SettingsUi, a: SettingsActions, toast: ToastState, go: (StPage) -> Unit) {
+private fun AgentPage(ui: SettingsUi, a: SettingsActions, toast: ToastState, go: (StPage) -> Unit, onLimit: (com.dsh.core.data.AgentLimit) -> Unit) {
     val opened = stringResource(R.string.st_clip_on)
     val closed = stringResource(R.string.st_clip_off)
     FsView {
@@ -768,8 +780,12 @@ private fun AgentPage(ui: SettingsUi, a: SettingsActions, toast: ToastState, go:
             row { StRow(stringResource(R.string.st_compress), icon = DshGlyphs.Flow, tile = Si.c1, value = stringResource(R.string.st_compress_auto)) }
             row { StRow(stringResource(R.string.st_workspace), icon = DshGlyphs.Folder, tile = Si.c2, value = stringResource(if (ui.workspaceShared) R.string.st_ws_shared else R.string.st_ws_private), chevron = true, onClick = { go(StPage.Storage) }) }
         }
+        AgentLimitsGroup(ui.limits, onLimit)
     }
 }
+
+/** Префикс листа предела: `limit:COMMAND_TIME`. */
+private const val LIMIT_SHEET = "limit:"
 
 // ---------- Host ----------
 

@@ -50,6 +50,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
@@ -485,7 +486,7 @@ fun Gr(
 
 /**
  * Строка настроек `.st-row`: 52 dp, отступы 8 / 12 / 8 / 14, цветная плитка,
- * значение 14 t3 (не шире 46 %) и стрелка.
+ * значение 14 t3 (не шире 46 %) и стрелка. [badge] — пометка `.mod` после заголовка («изменено»).
  */
 @Composable
 fun StRow(
@@ -499,6 +500,7 @@ fun StRow(
     valueColor: Color = Dsh.colors.t3,
     titleColor: Color = Dsh.colors.t1,
     chevron: Boolean = false,
+    badge: String? = null,
     leading: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
@@ -512,7 +514,7 @@ fun StRow(
         ) {
             if (leading != null) leading() else if (icon != null) SiTile(icon, tile)
             Column(Modifier.weight(1f)) {
-                Text(title, style = body(15.sp), color = titleColor)
+                if (badge == null) Text(title, style = body(15.sp), color = titleColor) else TitleWithBadge(title, badge, titleColor)
                 if (!sub.isNullOrEmpty()) Text(sub, style = small(), color = subColor)
             }
             if (value != null) Text(value, style = body(14.sp, 18.sp), color = valueColor, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = maxVal))
@@ -520,6 +522,36 @@ fun StRow(
             if (chevron) Icon(DshGlyphs.Right, null, tint = Dsh.colors.t3, modifier = Modifier.size(18.dp))
         }
     }
+}
+
+/**
+ * Заголовок с пилюлей `.mod`: 11/600, цвет — акцент на 82 % к t1, фон accentSoft, отступ слева 6.
+ * Пилюля встроена в текст, поэтому переносится вместе с последним словом, а не уезжает на свою строку.
+ */
+@Composable
+private fun TitleWithBadge(title: String, badge: String, color: Color) {
+    val c = Dsh.colors
+    val style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, lineHeight = 14.sp)
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    val density = LocalDensity.current
+    val width = with(density) { (measurer.measure(badge, style).size.width + (6 + 14).dp.roundToPx()).toSp() }
+    val text = androidx.compose.ui.text.buildAnnotatedString {
+        append(title)
+        appendInlineContent("badge", badge)
+    }
+    val inline = mapOf(
+        "badge" to androidx.compose.foundation.text.InlineTextContent(
+            androidx.compose.ui.text.Placeholder(width, 18.sp, androidx.compose.ui.text.PlaceholderVerticalAlign.Center),
+        ) {
+            Box(Modifier.fillMaxSize().padding(start = 6.dp), contentAlignment = Alignment.CenterStart) {
+                Text(
+                    badge, style = style, color = lerp(c.t1, c.accent, 0.82f), maxLines = 1,
+                    modifier = Modifier.clip(RoundedCornerShape(50)).background(c.accentSoft).padding(horizontal = 7.dp, vertical = 2.dp),
+                )
+            }
+        },
+    )
+    Text(text, style = body(15.sp), color = color, inlineContent = inline)
 }
 
 /** Строка с переключателем `.st-row .toggle`: вся строка переключает. */

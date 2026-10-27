@@ -645,6 +645,19 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .dz-btns .btn { height: 52px; border-radius: 16px; font-size: 16px; }
 .dz-note { margin: 8px 0 0; text-align: center; font-size: 12px; color: var(--t3); }
 
+/* Пределы агента: строка со значением и меткой «изменено», лист со степпером */
+.st-row .mod { font-size: 11px; font-weight: 600; color: color-mix(in srgb, var(--accent) 82%, var(--t1)); background: var(--accent-soft); border-radius: 999px; padding: 2px 7px; margin-left: 6px; vertical-align: 1px; }
+.lim-hint { margin: -6px 4px 16px; font-size: 14px; line-height: 1.45; color: var(--t2); }
+.lim-step { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px; border-radius: 22px; background: var(--s2); }
+.lim-step button { width: 52px; height: 52px; border-radius: 16px; background: var(--s1); display: grid; place-items: center; font-size: 26px; font-weight: 500; color: var(--t1); }
+.lim-step button:disabled { opacity: .4; }
+.lim-val { text-align: center; }
+.lim-val b { display: block; font-family: var(--font-display); font-size: 32px; font-weight: 600; line-height: 1.1; }
+.lim-val small { font-size: 13px; color: var(--t3); }
+.lim-def { margin: 10px 4px 16px; font-size: 13px; color: var(--t3); text-align: center; }
+.lim-btns { display: grid; grid-template-columns: 1fr 1.35fr; gap: 8px; }
+.lim-btns .btn { height: 52px; border-radius: 16px; font-size: 16px; }
+
 /* Превью документов: «Вид | Код», Markdown, HTML, PDF; браузер для localhost */
 .fv-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 3px; margin: 0 0 10px; border-radius: 12px; background: var(--s2); }
 .fv-seg button { height: 40px; border-radius: 10px; font-size: 13.5px; font-weight: 500; color: var(--t2); }
@@ -1512,6 +1525,16 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         </div>
         <p class="mhint" id="mhint">Совет: <span class="kbd">@</span> — упомянуть файл, <span class="kbd">/</span> — команды</p>
         <div class="attach-bar" id="attachBar"><button class="btn primary big" id="attachBtn">Прикрепить</button></div>
+      </section>
+
+      <!-- Лист: предел агента -->
+      <section class="sheet" id="sheet-limit" aria-label="Предел агента">
+        <div class="grab"></div>
+        <h3 id="limTitle">Время на одну команду</h3>
+        <p class="lim-hint" id="limHint">Команда дольше этого останавливается, агент получает частичный вывод.</p>
+        <div class="lim-step"><button id="limMinus" aria-label="Меньше">−</button><div class="lim-val"><b id="limVal">2 мин</b><small id="limUnit">на команду</small></div><button id="limPlus" aria-label="Больше">+</button></div>
+        <p class="lim-def" id="limDef">Стандартно: 2 мин</p>
+        <div class="lim-btns"><button class="btn ghost" id="limReset">Сбросить</button><button class="btn primary" id="limSave">Сохранить</button></div>
       </section>
 
       <!-- Лист: субагенты -->
@@ -3243,7 +3266,9 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       <div class="glabel">Доступ к телефону</div>
       <div class="gl">${tog("i-copy", "c4", "Читать буфер обмена", "clipboard", "Выключено: агент не видит, что вы копировали")}</div>
       <div class="glabel">Сессии</div>
-      <div class="gl">${row("i-flow", "c1", "Сжимать длинный контекст", "автоматически")}${row("i-folder", "c2", "Рабочая папка", ST.ws === "private" ? "Внутри DSH" : "В памяти телефона", "storage")}</div>`;
+      <div class="gl">${row("i-flow", "c1", "Сжимать длинный контекст", "автоматически")}${row("i-folder", "c2", "Рабочая папка", ST.ws === "private" ? "Внутри DSH" : "В памяти телефона", "storage")}</div>
+      <div class="glabel">Пределы агента</div>
+      <div class="gl">${limRow("cmdTime")}${limRow("cmdOut")}${limRow("saDepth")}${limRow("saActive")}${limRow("parallel")}</div>`;
     if (page === "host") v.innerHTML = `<div class="st-hostcard"><div class="h"><span class="si c3" style="width:44px;height:44px;border-radius:14px"><svg class="i"><use href="#i-server"/></svg></span><span class="tx"><b>Локальный Host</b><small class="${ST.hostOn ? "" : "off"}"><i class="live-dot"></i>${ST.hostOn ? "Работает · 2 ч 14 мин" : "Остановлен"}</small></span></div>
         ${ST.hostOn ? `<div class="st-meters"><div class="st-m"><div class="lb"><span>Память</span><b>412 МБ</b></div><div class="bar"><i style="width:34%"></i></div></div><div class="st-m"><div class="lb"><span>Процессор</span><b>6%</b></div><div class="bar"><i style="width:6%"></i></div></div></div>` : ""}
         <div class="btns"><button class="btn ghost" data-sthost="restart"${ST.hostOn ? "" : " disabled"}><svg class="i sm"><use href="#i-redo"/></svg>Перезапустить</button><button class="btn ghost" data-sthost="toggle">${ST.hostOn ? '<svg class="i sm"><use href="#i-stop"/></svg>Остановить' : '<svg class="i sm"><use href="#i-play"/></svg>Запустить'}</button></div></div>
@@ -3559,7 +3584,26 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   $("#brReload").addEventListener("click", () => { $("#brFrame").srcdoc = BR_PAGE; toast("Страница обновлена"); });
   $("#brUrl").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("#brFrame").srcdoc = BR_PAGE; $("#brBack").disabled = false; $("#brUrl").blur(); } });
   $("#brCopy").addEventListener("click", () => toast("Адрес скопирован"));
-  $("#brExt").addEventListener("click", () => toast("Внешний браузер не видит сервер в Linux DSH — открыт здесь"));
+  $("#brExt").addEventListener("click", () => toast("Открыто во внешнем браузере — сервер в Linux DSH виден и ему"));
+
+  // ── Пределы агента (shell, subagent, agent-loop): значение, «изменено», степпер, «Сбросить» ──
+  const LIM = {
+    cmdTime: { t: "Время на одну команду", h: "Команда дольше этого останавливается, агент получает то, что она успела вывести.", u: "на команду", v: [10, 30, 60, 120, 300, 600], d: 120, f: (x) => x < 60 ? x + " с" : x / 60 + " мин", ic: "i-term", c: "c6" },
+    cmdOut: { t: "Вывод команды в памяти", h: "Сколько вывода агент видит сразу. Остальное сохраняется во временный файл.", u: "на поток", v: [16, 32, 64, 128, 256, 512, 1000], d: 64, f: (x) => x < 1000 ? x + " КБ" : "1 МБ", ic: "i-box", c: "c2" },
+    saDepth: { t: "Глубина субагентов", h: "Сколько уровней субагентов может создать агент. 0 — без субагентов.", u: "наибольшая", v: [0, 1, 2, 3, 4, 5], d: 1, f: (x) => String(x), ic: "i-flow", c: "c1" },
+    saActive: { t: "Субагентов одновременно", h: "Сколько субагентов работает в одно время. Больше — быстрее, но нагрузка на телефон выше.", u: "одновременно", v: [1, 2, 4, 6, 8, 12, 16], d: 8, f: (x) => String(x), ic: "i-spark", c: "c8" },
+    parallel: { t: "Параллельные вызовы", h: "Сколько безопасных инструментов (чтение, поиск) агент запускает за шаг одновременно.", u: "за шаг", v: [1, 2, 4, 6, 8, 10, 16, 32], d: 10, f: (x) => String(x), ic: "i-bolt", c: "c3" },
+  };
+  const LIMV = {};
+  const limCur = (k) => LIMV[k] ?? LIM[k].d;
+  function limRow(k) { const L = LIM[k], v = limCur(k); return `<button class="st-row" data-stlim="${k}"><span class="si ${L.c}"><svg class="i"><use href="#${L.ic}"/></svg></span><span class="tx">${L.t}${v !== L.d ? '<span class="mod">изменено</span>' : ""}</span><span class="val">${L.f(v)}</span><svg class="i sm chev-r"><use href="#i-right"/></svg></button>`; }
+  let limKey = null, limDraft = 0;
+  function limShow() { const L = LIM[limKey], i = L.v.indexOf(limDraft); $("#limVal").textContent = L.f(limDraft); $("#limMinus").disabled = i <= 0; $("#limPlus").disabled = i >= L.v.length - 1; $("#limReset").disabled = limCur(limKey) === L.d && limDraft === L.d; }
+  document.addEventListener("click", (e) => { const r = e.target.closest("[data-stlim]"); if (!r) return; limKey = r.dataset.stlim; const L = LIM[limKey]; limDraft = limCur(limKey); $("#limTitle").textContent = L.t; $("#limHint").textContent = L.h; $("#limUnit").textContent = L.u; $("#limDef").textContent = "Стандартно: " + L.f(L.d); limShow(); sheetOpen("limit"); });
+  $("#limMinus").addEventListener("click", () => { const L = LIM[limKey]; limDraft = L.v[Math.max(0, L.v.indexOf(limDraft) - 1)]; limShow(); });
+  $("#limPlus").addEventListener("click", () => { const L = LIM[limKey]; limDraft = L.v[Math.min(L.v.length - 1, L.v.indexOf(limDraft) + 1)]; limShow(); });
+  $("#limReset").addEventListener("click", () => { delete LIMV[limKey]; sheetClose(); stRefresh(); toast("Вернули стандартное значение"); });
+  $("#limSave").addEventListener("click", () => { if (limDraft === LIM[limKey].d) delete LIMV[limKey]; else LIMV[limKey] = limDraft; sheetClose(); stRefresh(); toast("Сохранено · действует со следующего шага агента"); });
   function startAgentDemo() {
     if (openSheet) sheetClose(true);
     goalShow(false);

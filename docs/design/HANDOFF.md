@@ -45,6 +45,19 @@
    (`ChatSubagents.kt`); строка открывает разговор субагента, родителя помнит `ui.subagentView` (в проекции `subagent`
    его нет): плашка «К сессии», сообщения — `subagents/prompt`, «Стоп» — `subagents/interruptByParent`; разовый —
    только просмотр, внешний не открывается.
+13. ~~Превью документов и браузер~~ — готово (`ui-sidebar-documentpreview`, `ui-sidebar-browser`). Файлы: «Вид | Код» для
+   Markdown (рендерер чата приходит параметром `markdown`, `feature/files` от чата не зависит), «Страница | Код» для
+   HTML (`HtmlStaticPreview`: `WebView` без JS, сети и файлов), PDF — `PdfDoc` (`PdfRenderer` под замком, страницы
+   по требованию, ширина ≤ 1440 px, сведение пальцев 1–4×), `DocPreviews.kt`. Браузер — `BrowserScreen.kt` поверх
+   страницы (`ui.browser`): только http(s) по политике `BrowserUrls` (= `network_security_config`: открытый HTTP —
+   лишь localhost), Safe Browsing, без мостов в Kotlin и `file://`; HTML рабочей папки — с виртуального
+   `https://dsh.workspace/`, файлы отдаются только изнутри неё. Адреса в выводе терминала — ссылки (`LocalOpenUrl`).
+14. ~~Пределы агента~~ — готово (`ui-settings-shell`, `ui-settings-agent-loop`, конфиг `dsh-subagent`). «Агент» →
+   «Пределы агента»: время команды, вывод в памяти, глубина и число субагентов, параллельные вызовы. Пространство
+   настроек ищется по полям (`AgentLimits.kt`), а не по id записи профиля; `value`/`base`/`user` из
+   `settings/describe`, запись `settings/mutate` с ревизией, «Сбросить» и сохранение стандартного — `unset`.
+   Время команды не выше `maxTimeoutMs` Host. Шаги степпера — `AgentLimitSteps` (значение из `cordis.yml` вне сетки
+   сохраняется). Пометка «изменено» — `StRow(badge = …)`.
 
 ## Архитектура
 Слои, модули, правила и план — в `docs/ARCHITECTURE.md`. Кратко: `MainAppHost` разобран на части

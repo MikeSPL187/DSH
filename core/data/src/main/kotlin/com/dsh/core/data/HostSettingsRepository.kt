@@ -73,6 +73,18 @@ class HostSettingsRepository internal constructor(
         return calls.ok(hostId, "settings/mutate", args)
     }
 
+    // ── Пределы агента ───────────────────────────────────────────────────────
+
+    /** Пределы агента (shell, субагенты, цикл агента); пусто — Host не ответил или их в нём нет. */
+    suspend fun agentLimits(hostId: String): List<AgentLimitValue> = parseAgentLimits(calls.value(hostId, "settings/describe"))
+
+    /**
+     * Записать предел: [newValue] — новое значение, null — вернуть стандартное (`unset`).
+     * Пишется по ревизии [current]: если настройки успели измениться, Host откажет — false.
+     */
+    suspend fun setAgentLimit(hostId: String, current: AgentLimitValue, newValue: Long?): Boolean =
+        calls.ok(hostId, "settings/mutate", agentLimitMutation(current, newValue))
+
     // ── Провайдеры моделей ───────────────────────────────────────────────────
 
     /** Ответ `llm/listConfigurableProviders` целиком (каталог провайдеров, которые можно настроить). */

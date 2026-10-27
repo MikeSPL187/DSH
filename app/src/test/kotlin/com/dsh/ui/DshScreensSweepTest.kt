@@ -118,6 +118,13 @@ class DshScreensSweepTest {
         remotes = listOf(RemoteHostRow("r1", "Рабочий ноутбук", "4F:9A…C2", online = false)), rootfsUpdated = "20 окт",
         storage = StorageUsage(linux = 1_288_490_188, projects = 1_395_864_371, cache = 429_916_160, other = 251_658_240, logs = 39_845_888, device = 68_719_476_736),
         biometricAvailable = true,
+        limits = listOf(
+            com.dsh.core.data.AgentLimitValue(com.dsh.core.data.AgentLimit.COMMAND_TIME, "bash-local", 3, 300_000, 120_000, user = true, ceiling = 600_000),
+            com.dsh.core.data.AgentLimitValue(com.dsh.core.data.AgentLimit.COMMAND_OUTPUT, "bash-local", 3, 64_000, 64_000, user = false),
+            com.dsh.core.data.AgentLimitValue(com.dsh.core.data.AgentLimit.SUBAGENT_DEPTH, "subagent", 1, 1, 1, user = false),
+            com.dsh.core.data.AgentLimitValue(com.dsh.core.data.AgentLimit.SUBAGENT_ACTIVE, "subagent", 1, 8, 8, user = false),
+            com.dsh.core.data.AgentLimitValue(com.dsh.core.data.AgentLimit.PARALLEL_CALLS, "agent-loop", 0, 10, 10, user = false),
+        ),
         trusted = listOf(
             TrustedPluginRow("bridge", "Мост устройства", "М", 160f, "A1:7C:0E…54:9B", blocked = false),
             TrustedPluginRow("md", "Markdown Preview", "M", 280f, "9D:22:B4…01:7F", blocked = true),
@@ -143,6 +150,8 @@ class DshScreensSweepTest {
                         onClose = {}, initialPage = StPage.Agent,
                     )
                 },
+                "st-agent-limits-off" to @Composable { SettingsHomeScreen(st.copy(limits = emptyList()), onClose = {}, initialPage = StPage.Agent) },
+                "st-limit-sheet" to @Composable { SettingsHomeScreen(st, onClose = {}, initialPage = StPage.Agent, initialSheet = "limit:COMMAND_TIME") },
                 "st-agent-net-full" to @Composable { SettingsHomeScreen(st.copy(networkFull = true, networkAllowed = listOf("api.moonshot.cn")), onClose = {}, initialPage = StPage.Agent) },
             ),
         ),
