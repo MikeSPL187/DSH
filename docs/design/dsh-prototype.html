@@ -264,8 +264,9 @@ svg { display: block; }
 /* Ссылки «@»: список кандидатов растёт вверх внутри стеклянного поля ввода */
 .mention { display: none; padding: 4px 2px 6px; margin-bottom: 4px; border-bottom: 1px solid var(--line); max-height: 292px; overflow-y: auto; scrollbar-width: none; }
 .mention.on { display: block; }
+.composer:has(.mention.on) .chips { height: 0 !important; opacity: 0 !important; padding: 0; }
 .mn-crumb { display: flex; align-items: center; gap: 2px; padding: 0 6px 2px; overflow-x: auto; scrollbar-width: none; white-space: nowrap; font-size: 12.5px; color: var(--t3); }
-.mn-crumb button { height: 40px; padding: 0 8px; border-radius: 8px; color: var(--accent); font-size: 12.5px; }
+.mn-crumb button { height: 40px; min-width: 44px; padding: 0 8px; border-radius: 8px; color: var(--accent); font-size: 12.5px; }
 .mn-crumb button:active { background: var(--s2); }
 .mn-g { padding: 8px 10px 4px; font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--t3); }
 .mn-row { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 4px 4px 4px 8px; border-radius: 14px; text-align: left; }
