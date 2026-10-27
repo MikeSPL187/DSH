@@ -265,6 +265,11 @@ svg { display: block; }
 .mention { display: none; padding: 4px 2px 6px; margin-bottom: 4px; border-bottom: 1px solid var(--line); max-height: 292px; overflow-y: auto; scrollbar-width: none; }
 .mention.on { display: block; }
 .composer:has(.mention.on) .chips { height: 0 !important; opacity: 0 !important; padding: 0; }
+.sec-warn { display: none; align-items: center; gap: 10px; margin: 4px 4px; padding: 4px 4px 4px 12px; border-radius: 16px; background: var(--warn-soft); font-size: 12.5px; line-height: 1.3; color: var(--t1); }
+.sec-warn.on { display: flex; }
+.sec-warn .i { color: var(--warn); flex: none; }
+.sec-warn span { flex: 1; }
+.sec-warn button { height: 40px; padding: 0 12px; border-radius: 12px; color: color-mix(in srgb, var(--warn) 80%, var(--t1)); font-weight: 500; font-size: 13.5px; flex: none; }
 .mn-crumb { display: flex; align-items: center; gap: 2px; padding: 0 6px 2px; overflow-x: auto; scrollbar-width: none; white-space: nowrap; font-size: 12.5px; color: var(--t3); }
 .mn-crumb button { height: 40px; min-width: 44px; padding: 0 8px; border-radius: 8px; color: var(--accent); font-size: 12.5px; }
 .mn-crumb button:active { background: var(--s2); }
@@ -640,6 +645,36 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .dz-btns .btn { height: 52px; border-radius: 16px; font-size: 16px; }
 .dz-note { margin: 8px 0 0; text-align: center; font-size: 12px; color: var(--t3); }
 
+/* Превью документов: «Вид | Код», Markdown, HTML, PDF; браузер для localhost */
+.fv-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 3px; margin: 0 0 10px; border-radius: 12px; background: var(--s2); }
+.fv-seg button { height: 40px; border-radius: 10px; font-size: 13.5px; font-weight: 500; color: var(--t2); }
+.fv-seg button[aria-pressed="true"] { background: var(--s1); color: var(--t1); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.fv-md { margin: 0; padding: 16px; border-radius: 20px; background: var(--s1); border: 1px solid var(--line); font-size: 15px; line-height: 1.55; overflow-wrap: anywhere; }
+.fv-md h1 { font-family: var(--font-display); font-size: 22px; margin: 0 0 10px; }
+.fv-md h2 { font-family: var(--font-display); font-size: 17px; margin: 16px 0 6px; }
+.fv-md p { margin: 0 0 10px; color: var(--t2); }
+.fv-md code { font-family: var(--font-mono); font-size: .9em; background: var(--code-bg); border-radius: 6px; padding: 1px 5px; }
+.fv-web { margin: 0; border-radius: 20px; overflow: hidden; border: 1px solid var(--line); background: #fff; }
+.fv-web iframe { display: block; width: 100%; height: 300px; border: 0; }
+.fv-open { display: flex; align-items: center; justify-content: center; gap: 8px; height: 48px; margin: 10px 0 0; border-radius: 14px; background: var(--s2); font-size: 14.5px; font-weight: 500; width: 100%; }
+.fv-pdf { display: flex; flex-direction: column; gap: 12px; margin: 0; }
+.fv-page { position: relative; aspect-ratio: 1 / 1.414; border-radius: 10px; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.12); padding: 9% 9%; }
+.fv-page i { display: block; height: 7px; border-radius: 4px; background: #e3e4ea; margin-bottom: 9px; }
+.fv-page i.h { height: 14px; width: 60%; background: #c9cbd6; margin-bottom: 16px; }
+.fv-page .pn { position: absolute; right: 10px; bottom: 8px; font-size: 11px; color: #5b5d68; }
+.fv-pdfbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 2px 10px; font-size: 13px; color: var(--t3); }
+.br-bar { display: flex; align-items: center; gap: 6px; padding: 0 12px 8px; }
+.br-url { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-radius: 14px; background: var(--s2); font-size: 14.5px; }
+.br-url .i { color: var(--t3); flex: none; }
+.br-url input { flex: 1; min-width: 0; height: 100%; border: 0; background: none; color: var(--t1); font: inherit; outline: none; }
+.br-view { flex: 1; min-height: 0; background: #fff; }
+.br-view iframe { width: 100%; height: 100%; border: 0; display: block; }
+.br-tools { display: flex; justify-content: space-around; padding: 6px 8px 26px; border-top: 1px solid var(--line); background: var(--bg); }
+@media (max-width: 760px) { .br-tools { padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); } }
+.br-tools .iconbtn { width: 48px; height: 48px; color: var(--t2); }
+.br-tools .iconbtn:disabled { color: var(--t3); opacity: .5; }
+.br-note { padding: 0 16px 8px; font-size: 12px; color: var(--t3); }
+
 /* Субагенты: лист со списком и плашка в разговоре субагента */
 .sa-sub { margin: -8px 4px 12px; font-size: 13.5px; color: var(--t3); }
 .sa-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; padding: 8px 10px; border-radius: 16px; text-align: left; }
@@ -851,6 +886,8 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .ft.toml, .ft.xml { background: var(--warn-soft); color: var(--warn); }
 .ft.md { background: color-mix(in srgb, #2f7de1 14%, var(--s1)); color: color-mix(in srgb, #2f7de1 65%, var(--t1)); }
 .ft.sh { background: var(--ok-soft); color: var(--ok); }
+.ft.html { background: color-mix(in srgb, #e86a33 14%, var(--s1)); color: color-mix(in srgb, #e86a33 70%, var(--t1)); }
+.ft.pdf { background: var(--danger-soft); color: color-mix(in srgb, var(--danger) 85%, var(--t1)); }
 .fr { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 58px; padding: 8px 4px 8px 12px; text-align: left; }
 .fr + .fr { border-top: 1px solid var(--line); }
 .fr:active { background: var(--s2); }
@@ -1241,6 +1278,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <button aria-pressed="false" data-go="goal">Цель сессии</button>
         <button aria-pressed="false" data-go="plan">Проверка плана</button>
         <button aria-pressed="false" data-go="subagents">Субагенты</button>
+        <button aria-pressed="false" data-go="browser">Браузер</button>
         <button aria-pressed="false" data-go="drawer">Меню</button>
         <button aria-pressed="false" data-go="model">Модель</button>
         <button aria-pressed="false" data-go="plus">Вложения</button>
@@ -1352,6 +1390,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
             <button class="chip accent" data-act="model"><svg class="i"><use href="#i-cpu"/></svg>DeepSeek V4 · Высокий<svg class="i"><use href="#i-chev"/></svg></button>
             <button class="chip"><svg class="i"><use href="#i-shield"/></svg>Спрашивать</button>
           </div>
+          <div class="sec-warn" id="secWarn"><svg class="i sm"><use href="#i-key"/></svg><span>В сообщении ключ <b id="secTail">••••</b> — агент и журнал сессии получат его целиком</span><button id="secRm">Убрать</button></div>
           <div class="atts" id="atts"></div>
           <div class="crow">
             <button class="round plus" data-act="plus" aria-label="Вложения и команды"><svg class="i"><use href="#i-plus"/></svg></button>
@@ -1503,6 +1542,18 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       </section>
 
 <!-- Экран: запрос на удаление -->
+      <section class="screen" id="screen-browser" aria-label="Браузер">
+        <header class="sbar">
+          <button class="iconbtn" data-act="back" aria-label="Назад"><svg class="i"><use href="#i-left"/></svg></button>
+          <div class="title"><b>Браузер</b><span><i class="live"></i>сервер в Linux</span></div>
+          <button class="iconbtn" id="brExt" aria-label="Открыть во внешнем браузере"><svg class="i sm"><use href="#i-share"/></svg></button>
+        </header>
+        <div class="br-bar"><label class="br-url"><svg class="i sm"><use href="#i-lock"/></svg><input id="brUrl" value="localhost:5173" aria-label="Адрес" spellcheck="false" autocomplete="off"></label><button class="iconbtn" id="brReload" aria-label="Обновить"><svg class="i sm"><use href="#i-redo"/></svg></button></div>
+        <p class="br-note">Страницы на телефоне: localhost — это сервер, запущенный в Linux DSH</p>
+        <div class="br-view"><iframe id="brFrame" sandbox="allow-scripts" title="Страница"></iframe></div>
+        <div class="br-tools"><button class="iconbtn" id="brBack" disabled aria-label="Назад по истории"><svg class="i"><use href="#i-left"/></svg></button><button class="iconbtn" id="brFwd" disabled aria-label="Вперёд по истории"><svg class="i"><use href="#i-right"/></svg></button><button class="iconbtn" id="brCopy" aria-label="Скопировать адрес"><svg class="i sm"><use href="#i-copy"/></svg></button></div>
+      </section>
+
       <section class="screen" id="screen-plan" aria-label="Проверка плана">
         <header class="sbar">
           <button class="iconbtn" data-act="back" aria-label="Назад"><svg class="i"><use href="#i-left"/></svg></button>
@@ -2574,7 +2625,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
 
   // ---------- Файлы ----------
   const FS = {
-    "": ["app/", "gradle/", "scripts/", "build.gradle.kts", "settings.gradle.kts", "README.md", ".gitignore"],
+    "": ["app/", "docs/", "gradle/", "scripts/", "web/", "build.gradle.kts", "settings.gradle.kts", "README.md", ".gitignore"],
     "app/": ["src/", "build.gradle.kts", "proguard-rules.pro"],
     "app/src/": ["main/", "test/"],
     "app/src/main/": ["MainActivity.kt", "AndroidManifest.xml"],
@@ -2582,14 +2633,18 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     "gradle/": ["wrapper/", "libs.versions.toml"],
     "gradle/wrapper/": ["gradle-wrapper.properties"],
     "scripts/": ["backup.sh"],
+    "docs/": ["architecture.pdf"],
+    "web/": ["index.html"],
   };
   const META = {
+    "docs/architecture.pdf": "184 КБ · вчера", "web/index.html": "1,4 КБ · сегодня, 10:12",
     "build.gradle.kts": "3,2 КБ · вчера", "settings.gradle.kts": "612 Б · 3 дня назад", "README.md": "2,1 КБ · сегодня, 09:30", ".gitignore": "214 Б · неделю назад",
     "app/build.gradle.kts": "4,8 КБ · вчера", "app/proguard-rules.pro": "1,3 КБ · сегодня", "app/src/main/MainActivity.kt": "6,4 КБ · вчера", "app/src/main/AndroidManifest.xml": "2,0 КБ · 2 дня назад",
     "app/src/test/MainViewModelTest.kt": "3,1 КБ · вчера", "gradle/libs.versions.toml": "4,1 КБ · агент, 2 мин назад", "gradle/wrapper/gradle-wrapper.properties": "250 Б · месяц назад", "scripts/backup.sh": "1,0 КБ · агент, 10:52",
   };
   const CHANGED = { "gradle/libs.versions.toml": { k: "M", p: 1, m: 1 }, "scripts/backup.sh": { k: "A", p: 18, m: 0 } };
   const SRC = {
+    "web/index.html": `<!doctype html>\n<html lang="ru">\n<head>\n  <meta charset="utf-8">\n  <title>Статус сборки</title>\n</head>\n<body>\n  <h1>Сборка зелёная</h1>\n  <p>Kotlin 2.0.21 · 128 тестов прошли</p>\n</body>\n</html>`,
     "gradle/libs.versions.toml": `[versions]\nagp = "8.7.2"\ncompose-bom = "2024.10.01"\nkotlin = "2.0.21"\nroom = "2.6.1"\nokhttp = "4.12.0"\n\n[libraries]\nandroidx-core = { module = "androidx.core:core-ktx", version = "1.13.1" }\ncompose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }\nokhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }\n\n[plugins]\nkotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }`,
     "scripts/backup.sh": `#!/usr/bin/env bash\n# Ночной архив проекта: запускается в 03:00\nset -euo pipefail\n\nSRC="$HOME/workspace/DSH-Workspace"\nDST="$HOME/backups"\nNAME="DSH-$(date +%F).tar.gz"\n\nmkdir -p "$DST"\ntar --exclude='build' --exclude='.gradle' \\\n    -czf "$DST/$NAME" -C "$SRC" .\n\n# Хранить последние 7 копий\nls -1t "$DST"/DSH-*.tar.gz | tail -n +8 | xargs -r rm --\necho "Готово: $DST/$NAME"`,
     "app/src/main/MainActivity.kt": `package dev.dsh.app\n\nimport android.os.Bundle\nimport androidx.activity.ComponentActivity\nimport androidx.activity.compose.setContent\n\n// Точка входа: показывает чат и запускает Host\nclass MainActivity : ComponentActivity() {\n    override fun onCreate(savedInstanceState: Bundle?) {\n        super.onCreate(savedInstanceState)\n        setContent {\n            DshTheme {\n                AppShell(onboardingDone = true)\n            }\n        }\n    }\n}`,
@@ -2598,8 +2653,8 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   const DIFF = {
     "gradle/libs.versions.toml": [["h", "@@ -1,6 +1,6 @@ [versions]"], [" ", 1, "[versions]"], [" ", 2, 'agp = "8.7.2"'], [" ", 3, 'compose-bom = "2024.10.01"'], ["-", 4, 'kotlin = "2.0.0"'], ["+", 4, 'kotlin = "2.0.21"'], [" ", 5, 'room = "2.6.1"'], [" ", 6, 'okhttp = "4.12.0"']],
   };
-  const ext = (n) => n.endsWith("/") ? "dir" : (n.match(/\.(kts?|toml|md|sh|xml|pro|properties)$/) || [, ""])[1];
-  const EXT = { kt: "KT", kts: "KTS", toml: "TOML", md: "MD", sh: "SH", xml: "XML", pro: "PRO", properties: "PROP", "": "TXT" };
+  const ext = (n) => n.endsWith("/") ? "dir" : (n.match(/\.(kts?|toml|md|sh|xml|pro|properties|html|pdf)$/) || [, ""])[1];
+  const EXT = { kt: "KT", kts: "KTS", toml: "TOML", md: "MD", sh: "SH", xml: "XML", pro: "PRO", properties: "PROP", html: "HTML", pdf: "PDF", "": "TXT" };
   const ftHtml = (n) => { const e = ext(n); return e === "dir" ? `<span class="ft dir"><svg class="i sm"><use href="#i-folder"/></svg></span>` : `<span class="ft ${e === "kts" ? "kt" : e}">${EXT[e] || "TXT"}</span>`; };
   const esc2 = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
   function hl(line, e) {
@@ -2636,9 +2691,14 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     const v = document.createElement("div"); v.className = "fs-view";
     const name = path.split("/").pop(), e = ext(path), c = CHANGED[path];
     const src = SRC[path] || `// ${name}\n// Содержимое файла`;
+    const kind = e === "md" ? "md" : e === "html" ? "html" : e === "pdf" ? "pdf" : "";
     v.innerHTML = `${c ? `<button class="fv-banner" data-diff="${path}"><svg class="i sm"><use href="#i-pencil"/></svg><span>${c.k === "A" ? "Новый файл, создан агентом" : "Изменён агентом"} · <b>+${c.p}${c.m ? " −" + c.m : ""}</b></span>${c.k === "M" ? "Изменения" : ""}<svg class="i xs"><use href="#i-right"/></svg></button>` : ""}
       <div class="fv-acts"><button class="pri" data-fa2="ask" data-path="${path}"><svg class="i xs"><use href="#i-spark"/></svg>Спросить</button><button data-fa2="attach" data-path="${path}"><svg class="i xs"><use href="#i-at"/></svg>В чат</button><button data-more="${path}"><svg class="i xs"><use href="#i-more"/></svg>Ещё</button></div>
-      <div class="code">${src.split("\n").map((l, i) => `<div class="ln"><span class="n">${i + 1}</span><span class="c">${hl(l, e) || " "}</span></div>`).join("")}</div>`;
+      ${kind === "md" || kind === "html" ? `<div class="fv-seg" role="group" aria-label="Показ"><button aria-pressed="true" data-fvmode="view">${kind === "md" ? "Вид" : "Страница"}</button><button aria-pressed="false" data-fvmode="code">Код</button></div>` : ""}
+      ${kind === "pdf" ? `<div class="fv-pdfbar"><span>3 страницы · A4</span><span>Сводите пальцы, чтобы увеличить</span></div><div class="fv-pdf">${[1, 2, 3].map((n) => `<div class="fv-page"><i class="h"></i>${"<i></i>".repeat(9)}<span class="pn">${n}</span></div>`).join("")}</div>` : ""}
+      ${kind === "md" ? `<div class="fv-md" data-fvpane="view">${mdLite(src)}</div>` : ""}
+      ${kind === "html" ? `<div data-fvpane="view"><div class="fv-web"><iframe sandbox="" title="Превью страницы" srcdoc="${src.replace(/"/g, "&quot;").replace(/\\n/g, "\n")}"></iframe></div><button class="fv-open" data-browser="localhost:5173/index.html"><svg class="i sm"><use href="#i-globe"/></svg>Открыть в браузере</button></div>` : ""}
+      ${kind === "pdf" ? "" : `<div class="code" ${kind ? 'data-fvpane="code" hidden' : ""}>${src.split("\n").map((l, i) => `<div class="ln"><span class="n">${i + 1}</span><span class="c">${hl(l, e) || " "}</span></div>`).join("")}</div>`}`;
     return v;
   }
   function viewDiff(path) {
@@ -3475,6 +3535,31 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     thread.innerHTML = '<div class="msg-user"><p>Прогони модульные тесты app и собери список упавших</p></div><div class="msg-ai"><p>Запустил <code>./gradlew :app:testDebugUnitTest</code>. Упали 2 теста в <code>ChatLogicTest</code>: оба ждут старый формат даты.</p></div>';
   }));
   $("#saBack").addEventListener("click", () => { saBand.classList.remove("on"); thread.style.paddingTop = ""; startAgentDemo(); $("#dockSa").hidden = false; });
+
+  // ── Секрет в черновике: предупреждение и «Убрать» ──
+  const SEC = /\b(?:sk-[A-Za-z0-9_\-]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|AKIA[0-9A-Z]{16})/g;
+  const secSync = () => { const m = field.textContent.match(SEC); $("#secWarn").classList.toggle("on", !!m); if (m) $("#secTail").textContent = "••••" + m[0].slice(-4); };
+  field.addEventListener("input", secSync);
+  $("#secRm").addEventListener("mousedown", (e) => e.preventDefault());
+  $("#secRm").addEventListener("click", () => { field.textContent = field.textContent.replace(SEC, "").replace(/ {2,}/g, " "); secSync(); syncSend(); });
+
+  // ── Превью документов и браузер ──
+  function mdLite(src) {
+    const e = (t) => t.replace(/[&<>]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[ch]).replace(/`([^`]+)`/g, "<code>$1</code>");
+    return src.split("\n").map((l) => l.startsWith("# ") ? `<h1>${e(l.slice(2))}</h1>` : l.startsWith("## ") ? `<h2>${e(l.slice(3))}</h2>` : l.trim() ? `<p>${e(l)}</p>` : "").join("");
+  }
+  document.addEventListener("click", (ev) => {
+    const m = ev.target.closest("[data-fvmode]");
+    if (m) { const v = m.closest(".fs-view"); $$("[data-fvmode]", v).forEach((b) => b.setAttribute("aria-pressed", String(b === m))); $$("[data-fvpane]", v).forEach((p) => { p.hidden = p.dataset.fvpane !== m.dataset.fvmode; }); return; }
+    const b = ev.target.closest("[data-browser]");
+    if (b) browserOpen(b.dataset.browser);
+  });
+  const BR_PAGE = '<html><body style="font-family:sans-serif;padding:24px;margin:0;color:#1d1e24"><h1 style="font-size:24px">Сборка зелёная</h1><p style="color:#5b5d68">Kotlin 2.0.21 · 128 тестов прошли</p><a href="#" style="color:#5b4ad8">Отчёт о тестах</a></body></html>';
+  function browserOpen(url) { $("#brUrl").value = url; $("#brFrame").srcdoc = BR_PAGE; $("#brBack").disabled = true; screenOpen("browser"); }
+  $("#brReload").addEventListener("click", () => { $("#brFrame").srcdoc = BR_PAGE; toast("Страница обновлена"); });
+  $("#brUrl").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("#brFrame").srcdoc = BR_PAGE; $("#brBack").disabled = false; $("#brUrl").blur(); } });
+  $("#brCopy").addEventListener("click", () => toast("Адрес скопирован"));
+  $("#brExt").addEventListener("click", () => toast("Внешний браузер не видит сервер в Linux DSH — открыт здесь"));
   function startAgentDemo() {
     if (openSheet) sheetClose(true);
     goalShow(false);
@@ -3496,6 +3581,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     else if (g === "agent") startAgentDemo();
     else if (g === "plan") { startAgentDemo(); setTimeout(() => { thread.insertAdjacentHTML("beforeend", '<button class="plan-card" data-act="planOpen"><span class="pc-ic"><svg class="i sm"><use href="#i-tasks"/></svg></span><span class="tx"><b>План: обновить Kotlin и починить сборку</b><small>4 шага · ждёт вашего решения</small></span><span class="go">Проверить</span></button>'); }, 600); setTimeout(() => screenOpen("plan"), 1400); }
     else if (g === "subagents") { startAgentDemo(); $("#dockSa").hidden = false; setTimeout(() => sheetOpen("subagents"), 900); }
+    else if (g === "browser") browserOpen("localhost:5173");
     else if (g === "goal") { startAgentDemo(); setTimeout(() => goalShow(true), 400); }
     else if (g === "mention") { if (openSheet) sheetClose(true); if (!$(".home", thread) && !$(".work", thread)) renderHome(); mnStart(); }
     else if (g === "danger") { if (openSheet) sheetClose(true); renderDanger(); }
