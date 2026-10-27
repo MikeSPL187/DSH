@@ -10,7 +10,6 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SDK="${ANDROID_HOME:-/home/user/android-sdk}"
-PLUGIN_SDK="${DSH_PLUGIN_SDK:-$(dirname "$ROOT")/dsh-mobile-plugin-sdk}"
 DL="https://dl.google.com/android/repository"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -47,8 +46,6 @@ fi
 mkdir -p "$SDK/licenses"
 printf '\n24333f8a63b6825ea9c5514f83c2829b004d1fee\n' > "$SDK/licenses/android-sdk-license"
 
-say "SDK плагинов (закреплён в sdk.lock): $PLUGIN_SDK"
-bash "$ROOT/scripts/fetch-sdk.sh" "$PLUGIN_SDK"
 
 say "Зеркало Maven Central для Gradle и Robolectric"
 mkdir -p "$HOME/.gradle/init.d"

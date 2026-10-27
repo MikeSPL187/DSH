@@ -8,12 +8,12 @@ import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeUnit
 
 /**
- * Загрузчик пакета выпуска bridge-плагина (zipball тега GitHub).
+ * Загрузчик архива bridge-плагина (zip с одной верхней папкой, вложение нашего релиза).
  *
  * Через собственный HTTP приложения, а не `git`/`pnpm` в Host:
  * Host работает в proot, где DNS Android недоступен (`getent` возвращает
  * EAI_AGAIN), и ни GitHub, ни реестр npm не разрешаются; процесс приложения использует системный разборщик,
- * и в той же сети всё скачивается. У выпуска плагина нет вложений — хватает одного zipball исходников.
+ * и в той же сети всё скачивается.
  */
 class BridgeReleaseDownloader(
     private val client: OkHttpClient = OkHttpClient.Builder()
@@ -96,10 +96,10 @@ class BridgeReleaseDownloader(
         }
 
         /**
-         * Собрать адрес архива тега.
-         *
-         * Напрямую codeload, а не GitHub API: у API ограничение запросов без авторизации, а
-         * `/tarball` даёт лишь лишнюю переадресацию; адрес архива codeload — стабильный вход.
+         * Адрес архива плагина: вложение релиза `bridge-plugin-v<версия>` репозитория из `bridge-plugin.json`
+         * (наш репозиторий; архив собирает workflow «Bridge plugin» из `third_party/bridge-plugin`).
+         * Раньше — исходники тега чужого репозитория через codeload. Содержимое в любом случае сверяется
+         * с `contentSha256` из APK.
          * @param repository адрес репозитория GitHub.
          * @param version выпущенная версия.
          * @return URL архива; репозиторий или версия недопустимы — null.
@@ -107,7 +107,7 @@ class BridgeReleaseDownloader(
         fun archiveUrl(repository: String, version: String): String? {
             if (!VERSION_PATTERN.matches(version)) return null
             val slug = repositorySlug(repository) ?: return null
-            return "https://codeload.github.com/$slug/zip/refs/tags/v$version"
+            return "https://github.com/$slug/releases/download/bridge-plugin-v$version/${BridgePluginManifest.DEFAULT_PACKAGE}-$version.zip"
         }
 
         private val GITHUB_REPOSITORY = Regex("""github\.com[/:]([^/]+)/([^/]+)$""")

@@ -1,7 +1,7 @@
 # Выпуск
 
 APK закрепляет всё, что потом скачивает телефон: образ Linux (`app/src/main/assets/rootfs-manifest.json`,
-SHA-256 архивов) и bridge-плагин (`app/src/main/assets/bridge-plugin.json`, `contentSha256` содержимого).
+SHA-256 архивов) и bridge-плагин (`app/src/main/assets/bridge-plugin.json`, `contentSha256` содержимого; исходник — `third_party/bridge-plugin`).
 Ничего «последнего» во время работы приложение не берёт: новая версия образа или плагина приходит только
 с новым APK. Как собираются образ и proot — `infra/README.md`.
 
@@ -21,10 +21,10 @@ SHA-256 архивов) и bridge-плагин (`app/src/main/assets/bridge-plug
 
 ## Новая версия bridge-плагина
 
-1. `version` в `bridge-plugin.json` — тег `v<версия>` репозитория плагина.
-2. `contentSha256`: `git archive --format=tar --prefix=p/ v<версия> > p.tar` в клоне плагина,
-   затем `python3 -I scripts/bridge-plugin-digest.py p.tar`.
-3. Пересобрать образ (ниже): `bridgeVersion` образа должен совпасть.
+1. Заменить `third_party/bridge-plugin` содержимым нового тега (`git archive v<версия> | tar -x`), просмотреть дифф.
+2. В `bridge-plugin.json` — `version` и `contentSha256`: `python3 -I scripts/bridge-plugin-digest.py third_party/bridge-plugin`.
+3. Actions → «Bridge plugin» → Run workflow с `release`: архив для обновления на телефоне (`bridge-plugin-v<версия>`).
+4. Пересобрать образ (ниже): `bridgeVersion` образа должен совпасть.
 
 ## Новый образ
 
@@ -35,6 +35,6 @@ SHA-256 архивов) и bridge-плагин (`app/src/main/assets/bridge-plug
 
 1. Поднять `versionName` / `versionCode`, закоммитить, поставить тег `app-v<версия>` и отправить.
 2. Workflow «Build Android APK» на теге проверяет, что образ из манифеста существует и его SHA-256
-   совпадают с APK, а содержимое тега плагина — с `contentSha256`
-   (`.github/scripts/verify-release-coupling.py`, `infra/rootfs/fetch-bridge.sh`); затем тесты,
+   совпадают с APK, а архив плагина есть в релизе `bridge-plugin-v<версия>`, а копия `third_party/bridge-plugin` совпадает с `contentSha256`
+   (`.github/scripts/verify-release-coupling.py`, `infra/rootfs/prepare-bridge.sh`); затем тесты,
    подписанная сборка (секреты `ANDROID_KEYSTORE_*` добавляет владелец) и релиз с APK.

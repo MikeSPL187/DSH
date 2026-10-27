@@ -13,6 +13,7 @@ on:
       - 'infra/rootfs/**'
       - 'app/src/main/assets/bridge-plugin.json'
       - 'scripts/bridge-plugin-digest.py'
+      - 'third_party/bridge-plugin/**'
       - '.github/workflows/rootfs.yml'
   workflow_dispatch:
     inputs:
@@ -46,7 +47,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Bridge-плагин (проверка contentSha256 из APK)
-        run: sh infra/rootfs/fetch-bridge.sh
+        run: sh infra/rootfs/prepare-bridge.sh
 
       - name: Патчи совпадают с файлами APK
         run: |

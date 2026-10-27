@@ -1,7 +1,7 @@
 {
   "packageName": "dsh-mobile-bridge-plugin",
   "version": "2.0.7",
-  "repository": "https://github.com/EricFL1998/deepseek-harness-mobile-bridge-plugin",
+  "repository": "https://github.com/MikeSPL187/DSH",
   "contentSha256": "6473a694f776bb8f74989f452521f6faac07271718754268c7397c8d4cdb901c",
-  "_comment": "Плагин ставится и обновляется только до этой версии и только с этим SHA-256 содержимого (scripts/bridge-plugin-digest.py по git archive тега). Новая версия — только с новым APK."
+  "_comment": "Плагин ставится и обновляется только до этой версии и только с этим SHA-256 содержимого (scripts/bridge-plugin-digest.py third_party/bridge-plugin). Новая версия — только с новым APK."
 }

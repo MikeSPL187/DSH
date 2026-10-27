@@ -65,7 +65,7 @@
 ```bash
 S=/tmp/<scratchpad>   # любой каталог для логов
 ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.gradle.workers.max=2 \
-  -PdshSdkRepo=$S/sdk-repo -ProbolectricDepsDir=/opt/robolectric-deps testDebugUnitTest :app:assembleDebug
+  testDebugUnitTest :app:assembleDebug   # SDK плагинов — third_party/plugin-sdk
 ```
 - Долгие сборки — в фоне с файлом-маркером, ждать циклом короче 600 с.
 - Снимки экранов: `app/src/test/.../ui/ScreensGalleryTest.kt` (Robolectric) → `app/build/ui-screens/*.png`.

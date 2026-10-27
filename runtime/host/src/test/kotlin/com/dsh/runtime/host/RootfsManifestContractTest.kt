@@ -99,6 +99,35 @@ class RootfsManifestContractTest {
         return 0
     }
 
+    /**
+     * Копия плагина в `third_party/bridge-plugin` — то, что уходит в образ и в архив релиза: zip с одной верхней
+     * папкой (как собирает `infra/bridge-plugin-zip.py`) проходит распаковку приложения, и хэш содержимого
+     * совпадает с `contentSha256` из APK.
+     */
+    @Test
+    fun `the vendored bridge plugin unpacks and matches the pinned content hash`() {
+        val plugin = locate("app/src/main/assets/bridge-plugin.json") ?: return
+        val source = locate("third_party/bridge-plugin/package.json")?.parentFile ?: return
+        val text = plugin.readText()
+        val version = Regex("\"version\"\\s*:\\s*\"([^\"]+)\"").find(text)!!.groupValues[1]
+        val pinned = Regex("\"contentSha256\"\\s*:\\s*\"([^\"]+)\"").find(text)!!.groupValues[1]
+        val zip = java.io.ByteArrayOutputStream()
+        java.util.zip.ZipOutputStream(zip).use { out ->
+            source.walkTopDown().filter { it.isFile }.sortedBy { it.relativeTo(source).invariantSeparatorsPath }.forEach { file ->
+                out.putNextEntry(java.util.zip.ZipEntry("dsh-mobile-bridge-plugin-$version/" + file.relativeTo(source).invariantSeparatorsPath))
+                out.write(file.readBytes())
+                out.closeEntry()
+            }
+        }
+        val destination = kotlin.io.path.createTempDirectory("bridge").toFile()
+        try {
+            BridgePluginArchive.extract(zip.toByteArray().inputStream(), destination, "dsh-mobile-bridge-plugin", version)
+            assertEquals(pinned, BridgePluginArchive.contentDigest(destination))
+        } finally {
+            destination.deleteRecursively()
+        }
+    }
+
     /** G-41, G-42: всё, что ставится в Linux из сети, закреплено хэшем в APK. */
     @Test
     fun `the bundled manifests pin every download with sha256`() {

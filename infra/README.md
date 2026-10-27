@@ -8,7 +8,8 @@
 | Образ Linux (Debian 13, Node 24, pnpm, Python 3, git) | `rootfs/Dockerfile` | `Rootfs` | базовый образ по digest; пакеты Debian — подписи apt, версии в SBOM |
 | Агент `@deepseek-ai/dsh` | `rootfs/agent/` | `Rootfs` | tarball по integrity, все зависимости — `package-lock.json` (`npm ci`) |
 | Android-патчи агента | `rootfs/patches/android/` | `Rootfs` | диффы из `app/src/main/assets/rootfs-patches` против пакетов lockfile (`make-patches.py`); CI проверяет, что они совпадают |
-| Bridge-плагин | `app/src/main/assets/bridge-plugin.json` | `Rootfs` | `fetch-bridge.sh`: содержимое тега сверяется с `contentSha256` из APK; зависимости — `rootfs/profile/pnpm-lock.yaml` |
+| Bridge-плагин (MIT) | `third_party/bridge-plugin`, `app/src/main/assets/bridge-plugin.json` | `Rootfs`, `Bridge plugin` | копия тега v2.0.7; `prepare-bridge.sh` и `bridge-plugin-zip.py` сверяют содержимое с `contentSha256` из APK; зависимости — `rootfs/profile/pnpm-lock.yaml`; архив для обновления на телефоне — релиз `bridge-plugin-v<версия>` |
+| SDK нативных плагинов | `third_party/plugin-sdk` | `Build Android APK` | копия коммита `e2fe80a` (`third_party/README.md`), составная сборка Gradle |
 | pnpm | `rootfs/Dockerfile` | `Rootfs` | tarball по integrity |
 | proot, talloc, libandroid-shmem | `proot/` | `Proot` | рецепты Termux закреплённого коммита (SHA-256 исходников), сборщик по digest |
 

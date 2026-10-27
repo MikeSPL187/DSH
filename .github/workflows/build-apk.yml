@@ -24,19 +24,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # SDK нативных плагинов — составная сборка из отдельного репозитория (в _sdk),
-      # закреплённая коммитом из sdk.lock: один тег — всегда один и тот же APK (F-14/N-15).
-      - name: Read pinned SDK commit
-        id: sdk
-        run: echo "commit=$(sed -n 's/^commit=//p' sdk.lock)" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout native UI SDK
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: EricFL1998/dsh-mobile-plugin-sdk
-          ref: ${{ steps.sdk.outputs.commit }}
-          path: _sdk
-
       # Signing material comes from repository secrets. Without them the workflow still
       # builds a debug APK, so forks and PRs keep working.
       - name: Decode signing material
@@ -77,18 +64,18 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         run: |
           python3 -I .github/scripts/verify-release-coupling.py
-          sh infra/rootfs/fetch-bridge.sh
+          sh infra/rootfs/prepare-bridge.sh
 
       # Сначала модульные тесты (установщик, транзакции rootfs, semver, мост, политика доверия).
       - name: Unit tests
-        run: ./gradlew test --no-daemon --stacktrace -PdshSdkRepo="$GITHUB_WORKSPACE/_sdk"
+        run: ./gradlew test --no-daemon --stacktrace
 
       - name: Build APK
         run: |
           if [ "${{ env.SIGNED_BUILD }}" = "true" ]; then
-            ./gradlew :app:assembleRelease --no-daemon --stacktrace -PdshSdkRepo="$GITHUB_WORKSPACE/_sdk"
+            ./gradlew :app:assembleRelease --no-daemon --stacktrace
           else
-            ./gradlew :app:assembleDebug --no-daemon --stacktrace -PdshSdkRepo="$GITHUB_WORKSPACE/_sdk"
+            ./gradlew :app:assembleDebug --no-daemon --stacktrace
           fi
 
       - name: Prepare artifact name

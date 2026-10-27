@@ -5,8 +5,9 @@ APK закрепляет две внешние вещи (порядок выпу
 
   - `app/src/main/assets/rootfs-manifest.json`: релиз образа `releaseTag` должен существовать,
     а SHA-256 его архивов (GitHub считает их сам, поле `digest` ресурса) — совпадать с `downloadSha256`;
-  - `app/src/main/assets/bridge-plugin.json`: версия плагина та же, что в образе (`bridgeVersion`);
-    содержимое тега сверяет `infra/rootfs/fetch-bridge.sh` с `contentSha256` (отдельный шаг workflow).
+  - `app/src/main/assets/bridge-plugin.json`: версия плагина та же, что в образе (`bridgeVersion`), и в релизе
+    `bridge-plugin-v<версия>` есть архив, который приложение скачает для обновления; копию
+    `third_party/bridge-plugin` сверяет с `contentSha256` `infra/rootfs/prepare-bridge.sh` (отдельный шаг workflow).
 
 Ничего не запускает в чужих репозиториях и не смотрит на «последние релизы»: обновления приходят только
 с новым APK.
@@ -74,6 +75,13 @@ def main() -> None:
         if digest != str(hashes.get(abi, "")).lower():
             fail(f"{abi}: SHA-256 архива {digest} не совпадает с APK {hashes.get(abi)}")
         print(f"{abi}: {match.group(1)}@{tag}/{match.group(3)} — SHA-256 совпадает")
+
+    bridge_repo = re.fullmatch(r"https://github\.com/([^/]+/[^/]+)", str(bridge.get("repository", "")).rstrip("/"))
+    if not bridge_repo:
+        fail(f"repository в bridge-plugin.json — не репозиторий GitHub: {bridge.get('repository')!r}")
+    archive = f"{bridge.get('packageName')}-{version}.zip"
+    if archive not in {a["name"] for a in release(bridge_repo.group(1), f"bridge-plugin-v{version}").get("assets", [])}:
+        fail(f"в релизе bridge-plugin-v{version} нет {archive}")
 
     print(f"образ {tag} и плагин {version} совпадают с APK")
 

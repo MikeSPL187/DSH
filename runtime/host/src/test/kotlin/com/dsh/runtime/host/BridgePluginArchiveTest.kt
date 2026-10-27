@@ -166,13 +166,14 @@ class BridgePluginArchiveTest {
     }
 
     @Test
-    fun `builds a codeload archive url for a released version only`() {
+    fun `archive comes from our release asset for a released version only`() {
+        // Архив — вложение релиза `bridge-plugin-v<версия>` нашего репозитория, а не исходники тега чужого.
         assertEquals(
-            "https://codeload.github.com/owner/repo/zip/refs/tags/v1.1.0",
-            BridgeReleaseDownloader.archiveUrl("https://github.com/owner/repo", "1.1.0"),
+            "https://github.com/MikeSPL187/DSH/releases/download/bridge-plugin-v2.0.7/dsh-mobile-bridge-plugin-2.0.7.zip",
+            BridgeReleaseDownloader.archiveUrl("https://github.com/MikeSPL187/DSH", "2.0.7"),
         )
         assertEquals(
-            "https://codeload.github.com/owner/repo/zip/refs/tags/v1.1.0",
+            "https://github.com/owner/repo/releases/download/bridge-plugin-v1.1.0/dsh-mobile-bridge-plugin-1.1.0.zip",
             BridgeReleaseDownloader.archiveUrl("https://github.com/owner/repo.git/", "1.1.0"),
         )
         assertNull(BridgeReleaseDownloader.archiveUrl("https://github.com/owner/repo", "main"))

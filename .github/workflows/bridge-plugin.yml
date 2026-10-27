@@ -1,0 +1,51 @@
+name: Bridge plugin
+
+# Архив bridge-плагина для обновления на телефоне — из third_party/bridge-plugin, только если содержимое
+# совпало с contentSha256 из APK (app/src/main/assets/bridge-plugin.json). Релиз bridge-plugin-v<версия> —
+# вручную; приложение скачивает только его вложение и снова сверяет хэш содержимого.
+
+on:
+  push:
+    paths:
+      - 'third_party/bridge-plugin/**'
+      - 'app/src/main/assets/bridge-plugin.json'
+      - 'infra/bridge-plugin-zip.py'
+      - '.github/workflows/bridge-plugin.yml'
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Выпустить релиз bridge-plugin-v<версия>'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Архив (проверка contentSha256 из APK)
+        run: python3 -I infra/bridge-plugin-zip.py dist
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: bridge-plugin
+          path: dist/
+          retention-days: 7
+
+      - name: Релиз
+        if: github.event_name == 'workflow_dispatch' && inputs.release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(python3 -I -c 'import json; print(json.load(open("app/src/main/assets/bridge-plugin.json"))["version"])')
+          (cd dist && sha256sum *.zip > SHA256SUMS)
+          gh release create "bridge-plugin-v$VERSION" dist/* --target "$GITHUB_SHA" \
+            --title "Bridge-плагин $VERSION" \
+            --notes "Архив dsh-mobile-bridge-plugin $VERSION (MIT) из third_party/bridge-plugin. Приложение принимает его, только если SHA-256 содержимого совпадает с contentSha256 в APK."

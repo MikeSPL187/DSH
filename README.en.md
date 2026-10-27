@@ -45,7 +45,6 @@ assistants**.
 Requires JDK 21 and Android SDK 35.
 
 ```bash
-scripts/fetch-sdk.sh            # Native UI SDK at the pinned version (sdk.lock)
 ./gradlew test                  # tests
 ./gradlew :app:assembleDebug    # debug build
 ./gradlew :app:assembleRelease  # release (R8; needs keystore.properties)

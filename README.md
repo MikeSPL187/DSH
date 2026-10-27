@@ -46,7 +46,6 @@ DSH — Android-приложение, которое запускает полн
 Нужны JDK 21 и Android SDK 35.
 
 ```bash
-scripts/fetch-sdk.sh            # Native UI SDK зафиксированной версии (sdk.lock)
 ./gradlew test                  # тесты
 ./gradlew :app:assembleDebug    # debug-сборка
 ./gradlew :app:assembleRelease  # релиз (R8; нужен keystore.properties)
