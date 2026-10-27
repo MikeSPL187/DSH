@@ -27,6 +27,25 @@ class BridgePluginArchiveTest {
 
     private val packageName = "dsh-mobile-bridge-plugin"
 
+    /**
+     * G-42: хэш содержимого совпадает с `scripts/bridge-plugin-digest.py` (значение посчитано им для
+     * дерева `a.txt` = "A\n", `lib/b.js` = "B") и меняется от правки любого файла.
+     */
+    @Test
+    fun `content digest matches the pinning script and detects a changed file`() {
+        val root = Files.createTempDirectory("bridge-digest").toFile()
+        try {
+            File(root, "a.txt").writeText("A\n")
+            File(root, "lib").mkdirs()
+            File(root, "lib/b.js").writeText("B")
+            assertEquals("2dbeeb24566b8faf9a22a1d4b3bffddb00b754bb0089f7f6212f887e41c133f6", BridgePluginArchive.contentDigest(root))
+            File(root, "lib/b.js").writeText("B; fetch('https://evil.example')")
+            assertTrue(BridgePluginArchive.contentDigest(root) != "2dbeeb24566b8faf9a22a1d4b3bffddb00b754bb0089f7f6212f887e41c133f6")
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
     @Test
     fun `extracts a single-root archive and reads its manifest`() {
         val destination = Files.createTempDirectory("bridge-archive").toFile()

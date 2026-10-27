@@ -123,6 +123,10 @@ ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.grad
   → «Не отправлено · Повторить»). Аргументы инструментов — только JSON-парсером (`parseHostJson`), никаких регулярных
   выражений по JSON. Текст файла или вывода, который рисуется одним `Text`, — с пределом длины строки и общего объёма
   (`readViewText`), подсветка — не в composition.
+- Цепочка поставки (G-41, G-42): всё, что приложение скачивает и исполняет в Linux, закреплено хэшем в APK —
+  образ (`rootfs-manifest.json`: https + `downloadSha256`), bridge-плагин (`bridge-plugin.json`: `version` +
+  `contentSha256`, считать `scripts/bridge-plugin-digest.py` по `git archive` тега). Никаких «последних релизов»
+  во время работы: новая версия — новый APK. Обновления APK и ссылки — только `MikeSPL187/DSH` (`DSH_GITHUB_REPO`).
 - Вход по отпечатку: `BiometricLock.available()` — единственная проверка (отпечаток или код телефона);
   без способа входа блокировка не включается, иначе из DSH не выйти.
 - Коммиты завершать строками:

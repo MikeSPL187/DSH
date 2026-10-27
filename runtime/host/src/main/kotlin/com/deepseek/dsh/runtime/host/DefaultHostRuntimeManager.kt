@@ -58,11 +58,8 @@ class DefaultHostRuntimeManager(
     }
 
     override suspend fun availableRootfsVersion(): String? = withContext(Dispatchers.IO) {
-        // Свежая загрузка: метод отвечает «что последнее доступно», кэш дал бы старую версию.
-        // Без сети resolve всё равно вернётся к кэшу, поэтому null из-за офлайна не будет.
-        runCatching {
-            manifestSource().resolve(forceRefresh = true)?.manifest?.runtimeVersion
-        }.getOrNull()
+        // Доступный образ — тот, что закреплён в этом APK (G-41).
+        runCatching { manifestSource().resolve()?.runtimeVersion }.getOrNull()
     }
 
     override suspend fun isRootfsUpdateAvailable(): Boolean = withContext(Dispatchers.IO) {
@@ -72,9 +69,7 @@ class DefaultHostRuntimeManager(
     }
 
     override suspend fun rootfsUpdateKind(): RootfsUpdateKind = withContext(Dispatchers.IO) {
-        val available = runCatching {
-            manifestSource().resolve(forceRefresh = true)?.manifest
-        }.getOrNull()
+        val available = runCatching { manifestSource().resolve() }.getOrNull()
         decideRootfsUpdateKind(
             installed = installedRootfsVersion(),
             available = available?.runtimeVersion,
@@ -103,18 +98,12 @@ class DefaultHostRuntimeManager(
     }.getOrNull()?.takeIf { it.isNotBlank() }
 
     override suspend fun assessUpdates(): UpdateAssessment = withContext(Dispatchers.IO) {
-        // Каждый шаг терпит ошибки отдельно: запрос к репозиторию плагина идёт в сеть, чтение rootfs — в файлы,
-        // и ни один сбой не должен превращать все версии на странице в «неизвестно».
+        // Каждый шаг терпит ошибки отдельно: ни один сбой не должен превращать все версии на странице в «неизвестно».
+        // Цель плагина — версия, закреплённая в APK, без запросов к чужому репозиторию (G-42).
         val manifest = runCatching { BridgePluginManifest.load(context) }.getOrNull()
-        val latest = manifest?.repository
-            ?.takeIf { it.isNotBlank() }
-            ?.let { repository ->
-                runCatching { BridgeReleaseChecker().latestVersion(repository) }.getOrNull()
-            }
+        val latest = manifest?.version?.takeIf { it.isNotBlank() }
         val installedRootfs = runCatching { installedRootfsVersion() }.getOrNull()
-        val availableManifest = runCatching {
-            manifestSource().resolve(forceRefresh = true)?.manifest
-        }.getOrNull()
+        val availableManifest = runCatching { manifestSource().resolve() }.getOrNull()
         val installedPlugin = runCatching {
             runningBridgeVersion() ?: BridgePluginInstaller(context, layout).installedVersion()
         }.getOrNull()
@@ -140,9 +129,14 @@ class DefaultHostRuntimeManager(
         if (manifest.repository.isBlank()) {
             return@withContext Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Plugin manifest has no install source", "В манифесте плагинов не указан источник")))
         }
+        // Ставится только версия, закреплённая в APK, и только с её SHA-256 (G-42).
+        if (version != manifest.version) {
+            return@withContext Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Only plugin ${manifest.version} pinned in this APK can be installed", "Можно установить только плагин ${manifest.version}, закреплённый в этом APK")))
+        }
         BridgePluginInstaller(context, layout).installFromRelease(
             repository = manifest.repository,
             version = version,
+            contentSha256 = manifest.contentSha256,
             onProgress = onProgress,
         )
     }
@@ -152,22 +146,16 @@ class DefaultHostRuntimeManager(
         lastStartResult = null
         layout.ensureDirectories()
         val installer = RootfsInstaller(layout)
-        // Манифест — только свежий: адреса загрузки и контрольные суммы меняются с каждым выпуском,
-        // встроенный устаревает и дал бы 404 или ошибку проверки. Не установить — честная ошибка, без догадок.
-        onProgress(0.01f, HostStrings.get(R.string.rt_check_latest, "Checking the latest rootfs version…"))
-        val resolved = try {
-            manifestSource().resolve(forceRefresh = true)
+        // Манифест — только встроенный в APK: адреса и SHA-256 образа закреплены нашей сборкой (G-41).
+        val manifest = try {
+            manifestSource().resolve()
         } catch (e: Exception) {
             return@withContext Result.failure(
-                IllegalStateException(HostStrings.get(R.string.rt_manifest_failed, "Could not fetch the rootfs manifest: %1\$s", e.message))
+                IllegalStateException(HostStrings.get(R.string.rt_manifest_failed, "Could not read the rootfs manifest: %1\$s", e.message))
             )
         } ?: return@withContext Result.failure(
-            IllegalStateException(HostStrings.get(R.string.rt_manifest_offline, "Cannot fetch the rootfs manifest: no network and no local cache"))
+            IllegalStateException(HostStrings.get(R.string.rt_manifest_missing, "The APK has no valid rootfs manifest with pinned SHA-256"))
         )
-        val manifest = resolved.manifest
-        if (resolved.origin == RootfsManifestSource.Origin.BUNDLED) {
-            onProgress(0.01f, HostStrings.get(R.string.rt_manifest_bundled, "Using the manifest bundled with the APK (may be outdated)…"))
-        }
         onProgress(0f, HostStrings.get(R.string.rt_prepare, "Preparing to install %1\$s…", manifest.baseDistro.ifBlank { "rootfs" }))
 
         // Сначала rootfs из APK; иначе архив для первого запуска по ABI.

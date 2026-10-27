@@ -232,7 +232,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         notifDone = settings.notifyOnTurnComplete,
         notifAsk = DshUserPrefs.notifAsk,
         notifAuto = DshUserPrefs.notifAuto,
-        updateAvailable = update?.tag?.takeIf { it.isNotBlank() && it != currentVersion },
+        updateAvailable = update?.tag?.takeIf { UpdateCenter.hasUpdate(context) },
     )
 
     fun saveSettings(transform: (com.deepseek.dsh.core.model.AppSettings) -> com.deepseek.dsh.core.model.AppSettings) {
@@ -377,7 +377,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
 
         override suspend fun checkUpdates(): String? {
             UpdateCenter.check(context)
-            return UpdateCenter.update.value?.tag?.takeIf { it.isNotBlank() && it != currentVersion }
+            return UpdateCenter.update.value?.tag?.takeIf { UpdateCenter.hasUpdate(context) }
         }
 
         override fun reportProblem() {
@@ -386,8 +386,8 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
             }
         }
 
-        override fun whatsNew() { openWebLink(context, update?.htmlUrl ?: "https://github.com/EricFL1998/deepseek-harness-mobile/releases") }
-        override fun licenses() { openWebLink(context, "https://github.com/EricFL1998/deepseek-harness-mobile/blob/main/third_party") }
+        override fun whatsNew() { openWebLink(context, update?.htmlUrl ?: com.deepseek.dsh.feature.settings.DSH_RELEASES_PAGE) }
+        override fun licenses() { openWebLink(context, com.deepseek.dsh.feature.settings.DSH_LICENSES_PAGE) }
     }
 
     SettingsHomeScreen(ui, onClose = d.onClose, actions = actions, initialPage = initialPage ?: StPage.Root, toast = toast)

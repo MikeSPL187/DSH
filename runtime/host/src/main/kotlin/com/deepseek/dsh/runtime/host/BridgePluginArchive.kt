@@ -149,6 +149,9 @@ internal object BridgePluginArchive {
         )
     }
 
+    /** SHA-256 содержимого распакованного пакета ([ContentDigest]) — сверяется с закреплённым в APK (G-42). */
+    fun contentDigest(root: File): String = ContentDigest.ofTree(root)
+
     /** Относительный путь в архиве → целевой файл; любой выход за пределы отклоняется. */
     private fun safeTarget(root: File, relative: String): File {
         if (relative.startsWith('/') || relative.startsWith('\\')) {

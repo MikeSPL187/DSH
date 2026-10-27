@@ -17,10 +17,8 @@
     <string name="rt_selfcheck">Проверка инструментов среды…</string>
     <string name="rt_done">Среда установлена</string>
     <string name="rt_http_failed">Ошибка загрузки rootfs: HTTP %1$d</string>
-    <string name="rt_check_latest">Проверка последней версии rootfs…</string>
-    <string name="rt_manifest_failed">Не удалось получить манифест rootfs: %1$s</string>
-    <string name="rt_manifest_offline">Не удалось получить манифест rootfs: нет сети и локального кэша</string>
-    <string name="rt_manifest_bundled">Используется манифест из APK (может быть устаревшим)…</string>
+    <string name="rt_manifest_failed">Не удалось прочитать манифест rootfs: %1$s</string>
+    <string name="rt_manifest_missing">В APK нет корректного манифеста rootfs с закреплёнными SHA-256</string>
     <string name="rt_prepare">Подготовка к установке %1$s…</string>
     <string name="rt_bundled_extract">Распаковка встроенного rootfs (%1$s)…</string>
     <string name="rt_bundled_failed">Не удалось распаковать встроенный rootfs: %1$s</string>

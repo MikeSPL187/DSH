@@ -10,9 +10,50 @@ import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
 
-internal const val DSH_GITHUB_REPO = "EricFL1998/deepseek-harness-mobile"
-internal const val DSH_RELEASES_PAGE = "https://github.com/$DSH_GITHUB_REPO/releases"
+/** Свой репозиторий приложения (G-46): обновления, «Что нового» и «Лицензии» — только отсюда. */
+const val DSH_GITHUB_REPO = "MikeSPL187/DSH"
+const val DSH_RELEASES_PAGE = "https://github.com/$DSH_GITHUB_REPO/releases"
 private const val DSH_RELEASES_API = "https://api.github.com/repos/$DSH_GITHUB_REPO/releases?per_page=20"
+
+/** Лицензии сторонних компонентов (proot — GPL-2.0) в нашем репозитории. */
+const val DSH_LICENSES_PAGE = "https://github.com/$DSH_GITHUB_REPO/tree/HEAD/third_party"
+
+/** Релиз из ответа GitHub — только то, что нужно для выбора. */
+internal data class ReleaseEntry(val tag: String, val draft: Boolean, val prerelease: Boolean)
+
+/** Числовая часть версии: `1.0.6` → [1, 0, 6]; `1.0-debug` → [1, 0]; не версия — null. */
+internal fun versionNumbers(version: String): List<Int>? {
+    val core = version.trim().removePrefix("v").substringBefore('-').substringBefore('+')
+    if (core.isEmpty()) return null
+    return core.split('.').map { it.toIntOrNull() ?: return null }
+}
+
+/**
+ * [candidate] новее [current] (G-18): сравниваются числа (`1.0.10` > `1.0.9`), недостающие — нули.
+ * Суффикс сборки текущей версии (`-debug`) не учитывается; не версия — не новее.
+ */
+internal fun isNewerVersion(candidate: String, current: String): Boolean {
+    val a = versionNumbers(candidate) ?: return false
+    val b = versionNumbers(current) ?: return false
+    for (i in 0 until maxOf(a.size, b.size)) {
+        val d = a.getOrElse(i) { 0 } - b.getOrElse(i) { 0 }
+        if (d != 0) return d > 0
+    }
+    return false
+}
+
+/** Тег релиза приложения без префикса; другие теги (rootfs-*, плагины) — null. */
+internal fun appReleaseVersion(tag: String): String? =
+    listOf("android-v", "app-v").firstOrNull { tag.startsWith(it) }?.let { tag.removePrefix(it) }?.takeIf { versionNumbers(it) != null }
+
+/** Самый новый выпущенный релиз приложения: без черновиков и предрелизов. */
+internal fun pickLatestRelease(releases: List<ReleaseEntry>): ReleaseEntry? =
+    releases.filter { !it.draft && !it.prerelease && appReleaseVersion(it.tag) != null }
+        .reduceOrNull { best, next -> if (isNewerVersion(appReleaseVersion(next.tag)!!, appReleaseVersion(best.tag)!!)) next else best }
+
+/** Ссылка релиза — только на наш репозиторий, иначе страница релизов. */
+internal fun safeReleaseUrl(url: String?): String =
+    url?.takeIf { it.startsWith("https://github.com/$DSH_GITHUB_REPO/") } ?: DSH_RELEASES_PAGE
 
 data class DshUpdateInfo(
     val tag: String,
@@ -47,8 +88,7 @@ object UpdateCenter {
 
     fun hasUpdate(context: Context): Boolean {
         val latest = _update.value ?: return false
-        // Отличать от полной версии с -mobile: версия десктопа — не новая версия мобильной.
-        return latest.tag.isNotBlank() && latest.tag != currentVersion(context)
+        return isNewerVersion(latest.tag, currentVersion(context))
     }
 
     suspend fun check(context: Context) {
@@ -68,21 +108,17 @@ object UpdateCenter {
                         error(com.deepseek.dsh.core.model.Tr.t("GitHub returned HTTP ${connection.responseCode}", "GitHub вернул HTTP ${connection.responseCode}"))
                     }
                     val root = org.json.JSONArray(connection.inputStream.bufferedReader().readText())
-                    // Источник обновлений — только релизы самого Android-приложения; версии rootfs-* и т. п. пропускаются.
-                    val release = (0 until root.length()).mapNotNull { index ->
-                        root.optJSONObject(index)?.takeIf { item ->
-                            val tag = item.optString("tag_name")
-                            tag.startsWith("android-v") || tag.startsWith("app-v")
-                        }
-                    }.firstOrNull() ?: return@withContext null
-                    val tag = release.optString("tag_name")
-                        .removePrefix("android-v").removePrefix("app-v")
-                    if (tag.isBlank()) error(com.deepseek.dsh.core.model.Tr.t("Release has no version", "В релизе нет номера версии"))
+                    // Источник обновлений — только выпущенные релизы самого приложения; rootfs-*, черновики
+                    // и предрелизы пропускаются, из остальных берётся самая новая версия, а не первая в списке.
+                    val items = (0 until root.length()).mapNotNull { root.optJSONObject(it) }
+                    val best = pickLatestRelease(items.map { ReleaseEntry(it.optString("tag_name"), it.optBoolean("draft"), it.optBoolean("prerelease")) })
+                        ?: return@withContext null
+                    val release = items.first { it.optString("tag_name") == best.tag }
                     DshUpdateInfo(
-                        tag = tag,
-                        name = release.optString("name").ifBlank { release.optString("tag_name") },
+                        tag = appReleaseVersion(best.tag)!!,
+                        name = release.optString("name").ifBlank { best.tag },
                         body = release.optString("body"),
-                        htmlUrl = release.optString("html_url", DSH_RELEASES_PAGE),
+                        htmlUrl = safeReleaseUrl(release.optString("html_url")),
                     )
                 } finally {
                     connection.disconnect()

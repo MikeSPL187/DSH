@@ -98,4 +98,22 @@ class RootfsManifestContractTest {
         }
         return 0
     }
+
+    /** G-41, G-42: всё, что ставится в Linux из сети, закреплено хэшем в APK. */
+    @Test
+    fun `the bundled manifests pin every download with sha256`() {
+        val rootfs = locate("app/src/main/assets/rootfs-manifest.json") ?: return
+        assertNotNull("every rootfs archive must be https with a pinned SHA-256", RootfsManifestSource.parseBundledManifest(rootfs.readText()))
+        val plugin = locate("app/src/main/assets/bridge-plugin.json") ?: return
+        val sha = Regex("\"contentSha256\"\\s*:\\s*\"([^\"]*)\"").find(plugin.readText())?.groupValues?.get(1).orEmpty()
+        assertTrue("bridge-plugin.json must pin contentSha256", Regex("^[0-9a-f]{64}$").matches(sha))
+    }
+
+    @Test
+    fun `a manifest without a pinned hash is refused`() {
+        val unpinned = """{"runtimeVersion":"1.0.11-dsh0.2.1-rc.2-bridge2.0.7","downloadUrls":{"arm64-v8a":"https://example.com/r.bin"}}"""
+        assertEquals(null, RootfsManifestSource.parseBundledManifest(unpinned))
+        val http = """{"runtimeVersion":"1","downloadUrls":{"x":"http://example.com/r.bin"},"downloadSha256":{"x":"${"a".repeat(64)}"}}"""
+        assertEquals(null, RootfsManifestSource.parseBundledManifest(http))
+    }
 }

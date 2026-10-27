@@ -21,14 +21,18 @@ data class BridgePluginManifest(
     /** Имя пакета; должно совпадать с name в `package.json` репозитория плагина. */
     val packageName: String = DEFAULT_PACKAGE,
     /**
-     * Базовая версия, то же, что часть `-bridge` в строке версии rootfs.
-     *
-     * Это **не** цель обновления: цель всегда — последний тег выпуска в репозитории плагина; этот список
-     * выходит вместе с APK и отстаёт от репозитория. Поле оставлено, чтобы без сети сказать, «какая версия была при сборке».
+     * Версия плагина, закреплённая в этом APK (G-42): единственная цель установки и обновления.
+     * Новая версия приходит только с новым APK; «последний тег» репозитория плагина не спрашивается.
      */
     val version: String = "",
     /** Источник: адрес репозитория GitHub; при установке скачивается архив тега `v<version>` из `<repo>`. */
     val repository: String = "",
+    /**
+     * SHA-256 содержимого пакета [version] ([BridgePluginArchive.contentDigest]): обычные файлы, путь и хэш
+     * каждого. Не байты zip — их GitHub не обещает сохранять, а содержимое тега проверяется по git.
+     * Пусто или не совпадает — установка отклоняется.
+     */
+    val contentSha256: String = "",
 ) {
     companion object {
         /** Имя пакета по умолчанию — как в репозитории плагина. */
@@ -103,9 +107,13 @@ class BridgePluginInstaller(
     suspend fun installFromRelease(
         repository: String,
         version: String,
+        contentSha256: String,
         onProgress: (Float, String) -> Unit,
     ): Result<String> = withContext(Dispatchers.IO) {
         val targetVersion = version.trim()
+        if (!SHA256_HEX.matches(contentSha256)) {
+            return@withContext Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("The APK has no pinned SHA-256 for plugin $targetVersion; installation refused", "В APK нет закреплённого SHA-256 плагина $targetVersion — установка отклонена")))
+        }
         val rootfsInstalled = File(layout.rootfsDir, "etc/os-release").isFile ||
             File(layout.rootfsDir, "usr/bin/env").isFile
         if (!rootfsInstalled) {
@@ -157,6 +165,15 @@ class BridgePluginInstaller(
             SafeFiles.deleteTree(staging)
             return@withContext Result.failure(
                 IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Plugin archive verification failed: ${error.message}", "Архив плагина не прошёл проверку: ${error.message}"))
+            )
+        }
+
+        // Содержимое должно совпасть с закреплённым в APK: чужой или переписанный тег не ставится (G-42).
+        val digest = runCatching { BridgePluginArchive.contentDigest(staging) }.getOrNull()
+        if (!digest.equals(contentSha256, ignoreCase = true)) {
+            SafeFiles.deleteTree(staging)
+            return@withContext Result.failure(
+                IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Plugin archive does not match the SHA-256 pinned in the APK (got ${digest ?: "?"})", "Архив плагина не совпадает с SHA-256, закреплённым в APK (получено ${digest ?: "?"})"))
             )
         }
 
@@ -242,6 +259,10 @@ class BridgePluginInstaller(
             throw IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Cannot move the new plugin directory into place", "Не удалось поместить новую папку плагина на место"))
         }
         if (hadPrevious) SafeFiles.deleteTree(backup)
+    }
+
+    private companion object {
+        val SHA256_HEX = Regex("^[0-9a-fA-F]{64}$")
     }
 }
 

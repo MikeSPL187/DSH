@@ -17,10 +17,8 @@
     <string name="rt_selfcheck">Checking the runtime toolchain…</string>
     <string name="rt_done">Runtime installed</string>
     <string name="rt_http_failed">rootfs download failed: HTTP %1$d</string>
-    <string name="rt_check_latest">Checking the latest rootfs version…</string>
-    <string name="rt_manifest_failed">Could not fetch the rootfs manifest: %1$s</string>
-    <string name="rt_manifest_offline">Cannot fetch the rootfs manifest: no network and no local cache</string>
-    <string name="rt_manifest_bundled">Using the manifest bundled with the APK (may be outdated)…</string>
+    <string name="rt_manifest_failed">Could not read the rootfs manifest: %1$s</string>
+    <string name="rt_manifest_missing">The APK has no valid rootfs manifest with pinned SHA-256</string>
     <string name="rt_prepare">Preparing to install %1$s…</string>
     <string name="rt_bundled_extract">Extracting the bundled rootfs (%1$s)…</string>
     <string name="rt_bundled_failed">Could not extract the bundled rootfs: %1$s</string>
