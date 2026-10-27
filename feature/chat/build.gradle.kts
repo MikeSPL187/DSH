@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.deepseek.dsh.feature.chat"
+    namespace = "com.dsh.feature.chat"
     compileSdk = 35
 
     defaultConfig {

@@ -32,7 +32,7 @@ for name, body in syms:
     kname = ''.join(w.capitalize() for w in name.split('-'))
     props.append(f'    val {kname}: ImageVector get() = get("{name}")')
 
-kt = '''package com.deepseek.dsh.core.designsystem
+kt = '''package com.dsh.core.designsystem
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -80,5 +80,5 @@ object DshGlyphs {
     )
 }
 '''
-open('core/designsystem/src/main/kotlin/com/deepseek/dsh/core/designsystem/DshGlyphs.kt', 'w').write(kt)
+open('core/designsystem/src/main/kotlin/com/dsh/core/designsystem/DshGlyphs.kt', 'w').write(kt)
 print(len(syms), 'glyphs')

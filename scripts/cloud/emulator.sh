@@ -8,7 +8,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SDK="${ANDROID_HOME:-/home/user/android-sdk}"
 ADB="$SDK/platform-tools/adb"
-PKG=com.dsh.mobile.debug
+PKG=app.dsh.mobile.debug
 OUT="${OUT_DIR:-$ROOT/build/cloud-emulator}"
 mkdir -p "$OUT"
 case "${1:-smoke}" in

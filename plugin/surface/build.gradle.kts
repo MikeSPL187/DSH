@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.deepseek.dsh.plugin.surface"
+    namespace = "com.dsh.plugin.surface"
     compileSdk = 35
 
     defaultConfig {

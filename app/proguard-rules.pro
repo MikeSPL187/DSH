@@ -8,9 +8,9 @@
 -keepclasseswithmembers class ** {
     kotlinx.serialization.KSerializer serializer(...);
 }
--keep,includedescriptorclasses class com.deepseek.dsh.core.model.**$$serializer { *; }
--keep,includedescriptorclasses class com.deepseek.dsh.core.protocol.**$$serializer { *; }
--keep,includedescriptorclasses class com.deepseek.dsh.core.bridge.**$$serializer { *; }
+-keep,includedescriptorclasses class com.dsh.core.model.**$$serializer { *; }
+-keep,includedescriptorclasses class com.dsh.core.protocol.**$$serializer { *; }
+-keep,includedescriptorclasses class com.dsh.core.bridge.**$$serializer { *; }
 
 # Room generates implementations by name.
 -keep class * extends androidx.room.RoomDatabase { <init>(); }

@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.deepseek.dsh.core.designsystem"
+    namespace = "com.dsh.core.designsystem"
     compileSdk = 35
 
     defaultConfig {

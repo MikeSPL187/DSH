@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.deepseek.dsh.core.data"
+    namespace = "com.dsh.core.data"
     compileSdk = 35
 
     defaultConfig {

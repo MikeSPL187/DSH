@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.deepseek.dsh.feature.sessions"
+    namespace = "com.dsh.feature.sessions"
     compileSdk = 35
 
     defaultConfig {

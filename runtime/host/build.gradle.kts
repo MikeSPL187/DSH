@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.deepseek.dsh.runtime.host"
+    namespace = "com.dsh.runtime.host"
     compileSdk = 35
 
     defaultConfig {

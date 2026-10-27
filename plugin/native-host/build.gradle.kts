@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.deepseek.dsh.plugin.nativehost"
+    namespace = "com.dsh.plugin.nativehost"
     compileSdk = 35
 
     defaultConfig {

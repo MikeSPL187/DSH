@@ -76,7 +76,7 @@ ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.grad
   Склеивать «прототип | приложение» попарно и смотреть глазами.
 - Эмулятор: `dsh26` (Android 8) без KVM — работает; `dsh30` не держит system_server.
   `emulator -avd dsh26 -no-window -no-audio -no-boot-anim -accel off -cores 4 -gpu swiftshader_indirect -no-snapshot-save`,
-  пакет `com.dsh.mobile.debug`. Скачать rootfs в песочнице нельзя (TLS прокси) — это ограничение среды.
+  пакет `app.dsh.mobile.debug`. Скачать rootfs в песочнице нельзя (TLS прокси) — это ограничение среды.
 
 - Сборка в облачном контейнере без `/opt/android-sdk`: SDK в `/home/user/android-sdk`, проверка зависимостей
   только локально `--dependency-verification lenient` (не коммитить изменения verification-metadata),
@@ -85,7 +85,7 @@ ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.grad
   `sys-img/google_apis/x86-26_r16.zip` с dl.google.com в `/home/user/android-sdk`, AVD `dsh26` — руками
   (`~/.android/avd/dsh26.ini` + `config.ini`); запускать через `setsid nohup`, холодная загрузка ~4 мин.
 - Экран без Linux на эмуляторе (только debug-сборка): `app/src/debug/.../ScreenPreviewActivity.kt`,
-  `adb shell am start -n com.dsh.mobile.debug/com.deepseek.dsh.debug.ScreenPreviewActivity --ez dark true --es state main`
+  `adb shell am start -n app.dsh.mobile.debug/com.dsh.debug.ScreenPreviewActivity --ez dark true --es state main`
   (`state`: терминал — main / empty / connecting; чат — chat-home / chat-approve / chat-danger, меню — chat-drawer, в чате кнопка меню открывает его). Вводить текст лучше `input keyevent` по одной клавише:
   `input text` на эмуляторе без KVM теряет символы.
 - Моноширинный текст в приложении ~2 % уже прототипа: Android округляет ширину символа до целого пикселя (хинтинг).

@@ -15,11 +15,11 @@ val keystoreProperties = Properties().apply {
 }
 
 android {
-    namespace = "com.deepseek.dsh"
+    namespace = "com.dsh"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.dsh.mobile"
+        applicationId = "app.dsh.mobile"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
@@ -48,7 +48,7 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
-            manifestPlaceholders["bindPluginPermission"] = "com.dsh.mobile.debug.permission.BIND_PLUGIN"
+            manifestPlaceholders["bindPluginPermission"] = "app.dsh.mobile.debug.permission.BIND_PLUGIN"
         }
         release {
             manifestPlaceholders["bindPluginPermission"] = "com.deepseek.dsh.permission.BIND_PLUGIN"

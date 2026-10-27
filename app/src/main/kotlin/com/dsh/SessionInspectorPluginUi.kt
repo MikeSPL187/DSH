@@ -1,0 +1,312 @@
+package com.dsh
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.dsh.core.designsystem.LocalDshPanelColors
+import com.dsh.core.protocol.SessionRawFrame
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
+
+/**
+ * Нативный интерфейс плагина «Инструменты разработчика»: панель отладки.
+ *
+ * Их два: `experimental-inspector` встраивает Chrome DevTools в `shell.bottom`,
+ * `experimental-session-inspector` показывает сырой журнал в боковой панели сессии. На телефоне
+ * нет боковой панели и сочетаний клавиш — это вход в шапке сессии и полноэкранная панель с двумя вкладками:
+ * «Сырые данные» — кадры текущей сессии, «Диагностика NodeJS» — тот же фронтенд DevTools.
+ */
+internal object SessionInspectorPluginUi {
+    /** Profile bundle, при котором появляется вход в отладку (inspector + session-inspector). */
+    const val BUNDLE = "@deepseek-ai/dsh-experimental-inspector-profile"
+
+    /**
+     * Панель отладки.
+     *
+     * @param frames сырые кадры текущей сессии (новые в конце).
+     * @param sessionId id сессии; пусто — подсказка сначала открыть сессию.
+     * @param onDismiss закрыть панель.
+     */
+    @Composable
+    fun Overlay(
+        frames: List<SessionRawFrame>,
+        sessionId: String?,
+        onDismiss: () -> Unit,
+    ) {
+        val colors = LocalDshPanelColors.current
+        var tab by remember { mutableStateOf(0) }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(colors.bgBase.copy(alpha = 0.99f))
+                .padding(horizontal = 16.dp),
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (tab == 0) stringResource(R.string.inspector_session_diagnostics) else stringResource(R.string.inspector_node_diagnostics),
+                            color = colors.labelPrimary,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            text = if (tab == 0) {
+                                stringResource(R.string.inspector_session_desc)
+                            } else {
+                                stringResource(R.string.inspector_devtools_hint)
+                            },
+                            color = colors.labelTertiary,
+                            fontSize = 11.sp,
+                            lineHeight = 16.sp,
+                        )
+                    }
+                    InspectorChip(text = stringResource(R.string.inspector_close), onClick = onDismiss)
+                }
+                Row(
+                    modifier = Modifier.padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    InspectorTab(text = stringResource(R.string.inspector_raw_data), selected = tab == 0) { tab = 0 }
+                    InspectorTab(text = stringResource(R.string.inspector_node_diagnostics), selected = tab == 1) { tab = 1 }
+                }
+                if (tab == 1) {
+                    NodeJsDevToolsPane()
+                } else {
+                    RawDataContent(frames = frames, sessionId = sessionId)
+                }
+            }
+        }
+    }
+}
+
+/** Вкладка сырых данных: номер, тип, время UTC, данные; фильтр по типу. */
+@Composable
+private fun RawDataContent(frames: List<SessionRawFrame>, sessionId: String?) {
+    val colors = LocalDshPanelColors.current
+    var filter by remember { mutableStateOf("") }
+    var expandedIndex by remember { mutableStateOf<Int?>(null) }
+    val keyword = filter.trim().trim('*').lowercase(Locale.US)
+    val matched = remember(frames, keyword) {
+        if (keyword.isEmpty()) frames else frames.filter { it.type.lowercase(Locale.US).contains(keyword) }
+    }
+    val timeFormat = remember {
+        SimpleDateFormat("HH:mm:ss.SSS", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(10.dp))
+                .background(colors.bgModulePlatform)
+                .border(0.5.dp, colors.borderL2, RoundedCornerShape(10.dp))
+                .padding(horizontal = 10.dp, vertical = 7.dp),
+        ) {
+            if (filter.isEmpty()) {
+                Text(stringResource(R.string.inspector_filter_hint), color = colors.labelTertiary, fontSize = 12.sp)
+            }
+            BasicTextField(
+                value = filter,
+                onValueChange = { filter = it },
+                singleLine = true,
+                textStyle = TextStyle(color = colors.labelPrimary, fontSize = 12.sp),
+                cursorBrush = SolidColor(colors.labelPrimary),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        Text(
+            text = if (keyword.isEmpty()) stringResource(R.string.inspector_total_count, frames.size) else "${matched.size}/${frames.size}",
+            color = colors.labelTertiary,
+            fontSize = 11.sp,
+        )
+    }
+    Spacer(Modifier.height(8.dp))
+    when {
+        sessionId.isNullOrBlank() -> Text(
+            text = stringResource(R.string.inspector_no_session),
+            color = colors.labelTertiary,
+            fontSize = 12.5.sp,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+        frames.isEmpty() -> Text(
+            text = stringResource(R.string.inspector_no_records),
+            color = colors.labelTertiary,
+            fontSize = 12.5.sp,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+        matched.isEmpty() -> Text(
+            text = stringResource(R.string.inspector_no_match_filter),
+            color = colors.labelTertiary,
+            fontSize = 12.5.sp,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+        else -> {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 2.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(stringResource(R.string.inspector_seq), color = colors.labelTertiary, fontSize = 10.5.sp, modifier = Modifier.width(44.dp))
+                Text(stringResource(R.string.inspector_type), color = colors.labelTertiary, fontSize = 10.5.sp, modifier = Modifier.width(96.dp))
+                Text(stringResource(R.string.inspector_time_utc), color = colors.labelTertiary, fontSize = 10.5.sp, modifier = Modifier.width(88.dp))
+                Text(stringResource(R.string.inspector_data), color = colors.labelTertiary, fontSize = 10.5.sp, modifier = Modifier.weight(1f))
+            }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 24.dp),
+            ) {
+                itemsIndexed(matched, key = { _, frame -> frame.index }) { _, frame ->
+                    val open = expandedIndex == frame.index
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { expandedIndex = if (open) null else frame.index }
+                            .padding(vertical = 5.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = frame.index.toString(),
+                                color = colors.labelTertiary,
+                                fontFamily = com.dsh.core.designsystem.DshFonts.mono,
+                                fontSize = 10.5.sp,
+                                modifier = Modifier.width(44.dp),
+                            )
+                            Text(
+                                text = frame.type,
+                                color = colors.labelSecondary,
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.width(96.dp),
+                            )
+                            Text(
+                                text = timeFormat.format(Date(frame.timestamp)),
+                                color = colors.labelTertiary,
+                                fontFamily = com.dsh.core.designsystem.DshFonts.mono,
+                                fontSize = 10.sp,
+                                modifier = Modifier.width(88.dp),
+                            )
+                            Text(
+                                text = frame.text,
+                                color = colors.labelTertiary,
+                                fontSize = 10.5.sp,
+                                maxLines = if (open) Int.MAX_VALUE else 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Маленькая капсула (закрыть и т. п.). */
+@Composable
+private fun InspectorChip(text: String, onClick: () -> Unit) {
+    val colors = LocalDshPanelColors.current
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(9.dp))
+            .background(colors.bgModulePlatform)
+            .border(0.5.dp, colors.borderL2, RoundedCornerShape(9.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+    ) {
+        Text(text = text, color = colors.labelSecondary, fontSize = 12.sp)
+    }
+}
+
+/** Вкладки панели отладки. */
+@Composable
+private fun InspectorTab(text: String, selected: Boolean, onClick: () -> Unit) {
+    val colors = LocalDshPanelColors.current
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(9.dp))
+            .background(if (selected) colors.buttonPrimaryFill else colors.bgModulePlatform)
+            .border(
+                0.5.dp,
+                if (selected) colors.buttonPrimaryFill else colors.borderL2,
+                RoundedCornerShape(9.dp),
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+    ) {
+        Text(
+            text = text,
+            color = if (selected) colors.labelPrimaryForeground else colors.labelSecondary,
+            fontSize = 12.sp,
+        )
+    }
+}
+
+/**
+ * Вход в полноэкранную панель отладки: обёртка Dialog — здесь, в `MainAppHost` одна строка.
+ *
+ * @param frames сырые кадры текущей сессии.
+ * @param sessionId id текущей сессии.
+ * @param onDismiss закрыть панель.
+ */
+@Composable
+fun SessionInspectorOverlayDialog(
+    frames: List<SessionRawFrame>,
+    sessionId: String?,
+    onDismiss: () -> Unit,
+) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        SessionInspectorPluginUi.Overlay(
+            frames = frames,
+            sessionId = sessionId,
+            onDismiss = onDismiss,
+        )
+    }
+}

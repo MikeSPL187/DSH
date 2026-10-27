@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.deepseek.dsh.runtime.bridge"
+    namespace = "com.dsh.runtime.bridge"
     compileSdk = 35
 
     defaultConfig {

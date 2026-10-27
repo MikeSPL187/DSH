@@ -87,7 +87,7 @@
             android:exported="false" />
 
         <service
-            android:name="com.deepseek.dsh.runtime.host.HostService"
+            android:name="com.dsh.runtime.host.HostService"
             android:foregroundServiceType="specialUse"
             android:stopWithTask="false"
             android:exported="false">
