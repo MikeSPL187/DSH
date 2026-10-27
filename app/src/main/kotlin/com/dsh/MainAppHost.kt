@@ -682,6 +682,18 @@ fun MainAppHost(
         )
     }
 
+    // Встроенный браузер — поверх текущей страницы; «Назад» возвращает туда, откуда открыли.
+    androidx.compose.animation.AnimatedVisibility(
+        visible = ui.browser != null,
+        enter = androidx.compose.animation.slideInHorizontally(com.dsh.core.designsystem.DshMotion.smooth()) { it },
+        exit = androidx.compose.animation.slideOutHorizontally(com.dsh.core.designsystem.DshMotion.smooth()) { it },
+    ) {
+        // Цель запоминается на время анимации ухода: ui.browser к этому моменту уже null.
+        val target = remember { mutableStateOf<BrowserTarget?>(null) }
+        ui.browser?.let { target.value = it }
+        target.value?.let { t -> androidx.compose.runtime.key(t) { BrowserScreen(t, onClose = { ui.browser = null }) } }
+    }
+
     // Вывод фонового процесса (job/follow).
     runtimeUi.jobOutputTarget?.let { job ->
         JobOutputDialog(
@@ -771,6 +783,10 @@ fun MainAppHost(
                 filesImportLauncher.launch(arrayOf("*/*"))
             },
             onToast = { text -> android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_SHORT).show() },
+            markdown = { text -> com.dsh.feature.chat.MarkdownMessageText(text) },
+            onOpenInBrowser = { f ->
+                BrowserUrls.workspaceUrl(projectDir, f)?.let { url -> ui.browser = BrowserTarget(url, projectDir) }
+            },
         )
     }
 
@@ -785,6 +801,10 @@ fun MainAppHost(
         }.getOrNull()
     }
     val terminalRoute: @Composable (Boolean) -> Unit = { page ->
+        // Адрес из вывода (dev-сервер в Linux DSH) открывается во встроенном браузере.
+        // Лямбда стабильна: она ключ remember вывода блоков, новая на каждый кадр пересчитывала бы вывод.
+        val openUrl = remember(ui) { { url: String -> ui.browser = BrowserTarget(url) } }
+        androidx.compose.runtime.CompositionLocalProvider(LocalOpenUrl provides openUrl) {
         com.dsh.terminal.DshTerminalRoute(
             repository = dshRepository,
             hostId = ui.activeHostId,
@@ -792,6 +812,7 @@ fun MainAppHost(
             distro = terminalDistro,
             onBack = if (page) ({ ui.activePage = ActivePage.CHAT }) else null,
         )
+        }
     }
 
     // Вкладки, которые плагины регистрируют в панели: приложение даёт только контейнер.

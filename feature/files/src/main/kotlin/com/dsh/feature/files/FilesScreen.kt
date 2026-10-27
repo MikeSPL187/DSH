@@ -64,6 +64,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -161,6 +162,10 @@ fun FilesScreen(
     onToast: (String) -> Unit,
     modifier: Modifier = Modifier,
     initialTab: Int = 0,
+    /** Оформленный Markdown (рендерер чата); null — файлы .md только кодом. */
+    markdown: (@Composable (String) -> Unit)? = null,
+    /** Открыть HTML-файл живой страницей во встроенном браузере; null — кнопки нет. */
+    onOpenInBrowser: ((File) -> Unit)? = null,
 ) {
     val c = Dsh.colors
     val scope = rememberCoroutineScope()
@@ -244,7 +249,7 @@ fun FilesScreen(
             ) { s ->
                 when (val e = s.last()) {
                     is Entry.Dir -> DirView(root, rootLabel, e.path, version, changedPaths, onOpen = { f -> push(if (f.isDirectory) Entry.Dir(relPath(root, f)) else Entry.Doc(relPath(root, f))) }, onCrumb = { p -> forward = false; stack = stack.takeWhile { it !is Entry.Dir || (it as Entry.Dir).path != p } + Entry.Dir(p) }, onMore = { sheet = Sheet.Actions(it) })
-                    is Entry.Doc -> DocView(file(e.path), e.path, changedPaths[e.path], onDiff = { push(Entry.Diff(e.path)) }, onAsk = { onAsk(file(e.path)) }, onAttach = { onAttach(file(e.path)) }, onMore = { sheet = Sheet.Actions(e.path) })
+                    is Entry.Doc -> DocView(file(e.path), e.path, changedPaths[e.path], onDiff = { push(Entry.Diff(e.path)) }, onAsk = { onAsk(file(e.path)) }, onAttach = { onAttach(file(e.path)) }, onMore = { sheet = Sheet.Actions(e.path) }, markdown = markdown, onOpenInBrowser = onOpenInBrowser)
                     is Entry.Diff -> DiffView(e.path, changedPaths[e.path], git, version, onRevert = { ch ->
                         scope.launch {
                             val ok = runCatching { git?.revert(ch) ?: false }.getOrDefault(false)
@@ -629,9 +634,24 @@ private fun RecentCard(f: File, changed: Boolean, onClick: () -> Unit) {
 
 /** Просмотр файла: плашка изменений, «Спросить / В чат / Ещё», код с подсветкой. */
 @Composable
-private fun DocView(f: File, path: String, change: GitChange?, onDiff: () -> Unit, onAsk: () -> Unit, onAttach: () -> Unit, onMore: () -> Unit) {
+private fun DocView(
+    f: File,
+    path: String,
+    change: GitChange?,
+    onDiff: () -> Unit,
+    onAsk: () -> Unit,
+    onAttach: () -> Unit,
+    onMore: () -> Unit,
+    markdown: (@Composable (String) -> Unit)?,
+    onOpenInBrowser: ((File) -> Unit)?,
+) {
     val c = Dsh.colors
     val ext = f.name.substringAfterLast('.', "").lowercase()
+    val kind = previewKindOf(f.name)
+    if (kind == PreviewKind.PDF) {
+        PdfView(f) { DocHeader(change, onDiff, onAsk, onAttach, onMore) }
+        return
+    }
     val content by produceState<ViewText?>(null, f) {
         value = withContext(Dispatchers.IO) {
             when {
@@ -641,57 +661,132 @@ private fun DocView(f: File, path: String, change: GitChange?, onDiff: () -> Uni
             }
         }
     }
+    // Markdown и HTML открываются видом, код — по «Код»; выбор живёт, пока открыт этот файл.
+    var showCode by remember(path) { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(c.bg).verticalScroll(rememberScrollState()).padding(ViewPadding)) {
         Spacer(Modifier.height(4.dp))
-        if (change != null) {
-            // `.fv-banner`
-            Row(
-                Modifier
-                    .padding(bottom = 10.dp)
-                    .fillMaxWidth()
-                    .heightIn(min = 44.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(c.warnSoft)
-                    .clickable(role = Role.Button, onClick = onDiff)
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Icon(DshGlyphs.Pencil, null, tint = c.warn, modifier = Modifier.size(18.dp))
-                Text(
-                    buildAnnotatedString {
-                        append(stringResource(if (change.kind == ChangeKind.ADDED) R.string.fs_banner_new else R.string.fs_banner_mod))
-                        append(" · ")
-                        withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(stat(change)) }
-                    },
-                    style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.5.sp),
-                    color = c.warn,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(stringResource(R.string.fs_banner_open), style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.5.sp), color = c.warn)
-                Icon(DshGlyphs.xs("right"), null, tint = c.warn, modifier = Modifier.size(15.dp))
-            }
-        }
-        // `.fv-acts`
-        Row(Modifier.padding(bottom = 12.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            ActBtn(DshGlyphs.xs("spark"), stringResource(R.string.fs_ask), primary = true, onClick = onAsk)
-            ActBtn(DshGlyphs.xs("at"), stringResource(R.string.fs_to_chat), onClick = onAttach)
-            ActBtn(DshGlyphs.xs("more"), stringResource(R.string.fs_more_btn), onClick = onMore)
-        }
+        DocHeader(change, onDiff, onAsk, onAttach, onMore)
         val data = content
+        val previewable = data != null && data.lines.isNotEmpty() &&
+            ((kind == PreviewKind.MARKDOWN && markdown != null) || kind == PreviewKind.HTML)
+        if (previewable) PreviewSeg(
+            stringResource(if (kind == PreviewKind.HTML) R.string.fs_view_page else R.string.fs_view_doc),
+            stringResource(R.string.fs_view_code), showCode,
+        ) { showCode = it }
         when {
             ext in ImageExt -> ImagePreview(f)
             data == null -> Unit
             data.lines.isEmpty() && !data.truncated && f.length() > 0 -> Empty(stringResource(R.string.fs_binary))
+            previewable && !showCode && kind == PreviewKind.MARKDOWN -> Box(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(c.s1).border(1.dp, c.line, RoundedCornerShape(20.dp)).padding(16.dp),
+            ) { markdown!!(data.lines.joinToString("\n")) }
+            previewable && !showCode && kind == PreviewKind.HTML -> {
+                HtmlStaticPreview(data.lines.joinToString("\n"))
+                if (onOpenInBrowser != null) Row(
+                    Modifier.padding(top = 10.dp).fillMaxWidth().height(48.dp).clip(RoundedCornerShape(14.dp)).background(c.s2)
+                        .clickable(role = Role.Button) { onOpenInBrowser(f) },
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(DshGlyphs.Globe, null, tint = c.t1, modifier = Modifier.size(18.dp))
+                    Text(stringResource(R.string.fs_open_browser), style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Medium, fontSize = 14.5.sp), color = c.t1)
+                }
+            }
             else -> {
                 CodeBlock(data.lines.ifEmpty { listOf("") }, ext)
-                if (data.truncated) Text(stringResource(R.string.fs_too_big, data.lines.size), style = TextStyle(fontFamily = DshFonts.body, fontSize = 12.5.sp), color = c.t3, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
             }
         }
+        if (data != null && data.truncated) Text(stringResource(R.string.fs_too_big, data.lines.size), style = TextStyle(fontFamily = DshFonts.body, fontSize = 12.5.sp), color = c.t3, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
         Spacer(Modifier.navigationBarsPadding())
     }
 }
 
+/** `.fv-banner` (файл изменён) и `.fv-acts` — «Спросить», «В чат», «Ещё». */
+@Composable
+private fun DocHeader(change: GitChange?, onDiff: () -> Unit, onAsk: () -> Unit, onAttach: () -> Unit, onMore: () -> Unit) {
+    val c = Dsh.colors
+    if (change != null) {
+        // `.fv-banner`
+        Row(
+            Modifier
+                .padding(bottom = 10.dp)
+                .fillMaxWidth()
+                .heightIn(min = 44.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(c.warnSoft)
+                .clickable(role = Role.Button, onClick = onDiff)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Icon(DshGlyphs.Pencil, null, tint = c.warn, modifier = Modifier.size(18.dp))
+            Text(
+                buildAnnotatedString {
+                    append(stringResource(if (change.kind == ChangeKind.ADDED) R.string.fs_banner_new else R.string.fs_banner_mod))
+                    append(" · ")
+                    withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(stat(change)) }
+                },
+                style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.5.sp),
+                color = c.warn,
+                modifier = Modifier.weight(1f),
+            )
+            Text(stringResource(R.string.fs_banner_open), style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.5.sp), color = c.warn)
+            Icon(DshGlyphs.xs("right"), null, tint = c.warn, modifier = Modifier.size(15.dp))
+        }
+    }
+    // `.fv-acts`
+    Row(Modifier.padding(bottom = 12.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        ActBtn(DshGlyphs.xs("spark"), stringResource(R.string.fs_ask), primary = true, onClick = onAsk)
+        ActBtn(DshGlyphs.xs("at"), stringResource(R.string.fs_to_chat), onClick = onAttach)
+        ActBtn(DshGlyphs.xs("more"), stringResource(R.string.fs_more_btn), onClick = onMore)
+    }
+}
+
+/** PDF: шапка, строка «N страниц» (и «Сбросить», когда увеличено), страницы по требованию со сведением пальцев. */
+@Composable
+private fun PdfView(f: File, header: @Composable () -> Unit) {
+    val c = Dsh.colors
+    // Loading → null, ошибка → Result.failure; документ закрывается, когда экран уходит.
+    val doc by produceState<Result<PdfDoc>?>(null, f) {
+        val opened = withContext(Dispatchers.IO) { PdfDoc.open(f) }
+        value = opened?.let { Result.success(it) } ?: Result.failure(IllegalStateException("pdf"))
+        awaitDispose { opened?.close() }
+    }
+    var scale by remember(f) { mutableStateOf(1f) }
+    var shift by remember(f) { mutableStateOf(0f) }
+    Column(Modifier.fillMaxSize().background(c.bg)) {
+        Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp)) {
+            header()
+            val d = doc?.getOrNull()
+            if (d != null) Row(Modifier.padding(start = 2.dp, end = 2.dp, bottom = 8.dp).fillMaxWidth().heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(pluralStringResource(R.plurals.fs_pdf_pages, d.pages, d.pages), style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.sp), color = c.t3, modifier = Modifier.weight(1f))
+                if (scale > 1.01f) Box(
+                    Modifier.height(40.dp).clip(RoundedCornerShape(12.dp)).background(c.s2).clickable(role = Role.Button) { scale = 1f; shift = 0f }.padding(horizontal = 12.dp),
+                    contentAlignment = Alignment.Center,
+                ) { Text(stringResource(R.string.fs_pdf_reset, (scale * 100).toInt()), style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Medium, fontSize = 13.sp), color = c.t1) }
+                else Text(stringResource(R.string.fs_pdf_hint), style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.sp), color = c.t3)
+            }
+        }
+        when (val r = doc) {
+            null -> Unit
+            else -> r.fold(
+                onSuccess = { d ->
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        Modifier.weight(1f).fillMaxWidth().clipToBounds()
+                            .pdfZoom({ scale }, { shift }) { s, o -> scale = s; shift = o }
+                            .graphicsLayer { scaleX = scale; scaleY = scale; translationX = shift },
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 28.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(d.pages, key = { it }) { PdfPage(d, it) }
+                        item { Spacer(Modifier.navigationBarsPadding()) }
+                    }
+                },
+                onFailure = { Box(Modifier.padding(16.dp)) { Empty(stringResource(R.string.fs_pdf_failed)) } },
+            )
+        }
+    }
+}
 
 /** Кнопка `.fv-acts`: 44 dp, s1 с обводкой; главная — акцент. */
 @Composable

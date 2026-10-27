@@ -156,3 +156,27 @@ tasks.withType<Test>().configureEach {
         exclude("**/ScreensGalleryTest*", "**/DesignSystemGalleryTest*", "**/DshScreensSweepTest*", "**/KeyCheckTargetTest*", "**/TerminalPasteTest*", "**/LockedContentTest*")
     }
 }
+
+// Robolectric 4.14 (GraphicsMode.NATIVE): DefaultNativeRuntimeLoader.maybeCopyFonts открывает jar
+// nativeruntime-dist-compat как zip-ФС и закрывает её не в finally. Одно исключение при копировании —
+// и ФС остаётся открытой на всю JVM: каждая следующая песочница падает с FileSystemAlreadyExistsException,
+// а за ней — UnsatisfiedLinkError во всех нативных тестах (полный прогон падал, повторный проходил).
+// Папка fonts/ на classpath раньше jar даёт загрузчику обычный каталог — zip-ФС не открывается вовсе.
+val extractRobolectricFonts by tasks.registering(Sync::class) {
+    val runtime = configurations.named("debugUnitTestRuntimeClasspath")
+    // Только внешний модуль: проектные модули AGP без атрибута artifactType разрешить нельзя.
+    val jars = runtime.map { cfg ->
+        cfg.incoming.artifactView {
+            componentFilter { id -> id is org.gradle.api.artifacts.component.ModuleComponentIdentifier && id.module == "nativeruntime-dist-compat" }
+        }.files
+    }
+    from({ jars.get().map { zipTree(it) } }) {
+        include("fonts/**")
+    }
+    into(layout.buildDirectory.dir("robolectric-fonts"))
+}
+tasks.withType<Test>().configureEach {
+    dependsOn(extractRobolectricFonts)
+    val fonts = layout.buildDirectory.dir("robolectric-fonts")
+    doFirst { classpath = files(fonts) + classpath }
+}

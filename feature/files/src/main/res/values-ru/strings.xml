@@ -88,4 +88,17 @@
     <plurals name="fs_min_ago"><item quantity="one">%d мин назад</item><item quantity="few">%d мин назад</item><item quantity="many">%d мин назад</item><item quantity="other">%d мин назад</item></plurals>
     <plurals name="fs_days_ago"><item quantity="one">%d день назад</item><item quantity="few">%d дня назад</item><item quantity="many">%d дней назад</item><item quantity="other">%d дня назад</item></plurals>
     <plurals name="fs_weeks_ago"><item quantity="one">%d неделю назад</item><item quantity="few">%d недели назад</item><item quantity="many">%d недель назад</item><item quantity="other">%d недели назад</item></plurals>
+    <string name="fs_view_doc">Вид</string>
+    <string name="fs_view_page">Страница</string>
+    <string name="fs_view_code">Код</string>
+    <string name="fs_open_browser">Открыть в браузере</string>
+    <string name="fs_pdf_hint">Сведите пальцы, чтобы увеличить</string>
+    <string name="fs_pdf_reset">%1$d%% · Сбросить</string>
+    <string name="fs_pdf_failed">Не удалось открыть PDF: файл повреждён или защищён паролем</string>
+    <plurals name="fs_pdf_pages">
+        <item quantity="one">%d страница</item>
+        <item quantity="few">%d страницы</item>
+        <item quantity="many">%d страниц</item>
+        <item quantity="other">%d страницы</item>
+    </plurals>
 </resources>

@@ -473,7 +473,10 @@ private fun BlockView(
             Text(b.cmd, style = mono(fs, FontWeight.Medium, lh), color = c.termText, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             BlockMeta(b)
         }
-        val text = remember(b.version, c.isDark) { styled(b, c.termText, c.termDim, c.termOk, c.termErr, c.termWarn, c.termPrompt) }
+        val openUrl = LocalOpenUrl.current
+        val text = remember(b.version, c.isDark, openUrl) {
+            styled(b, c.termText, c.termDim, c.termOk, c.termErr, c.termWarn, c.termPrompt).withLinks(c.accent, openUrl)
+        }
         if (b.folded) {
             Spacer(Modifier.height(6.dp))
         } else {
@@ -622,6 +625,35 @@ private fun styled(b: TermBlock, plain: Color, dim: Color, ok: Color, err: Color
 }
 
 private val SHELL_ERR = Regex("""^-?(bash|sh|zsh|dash): """)
+
+/** Открыть адрес из вывода (dev-сервер `localhost:5173`, ссылка на документацию); null — ссылки не нажимаются. */
+val LocalOpenUrl = androidx.compose.runtime.staticCompositionLocalOf<((String) -> Unit)?> { null }
+
+private val OUTPUT_URL = Regex("""https?://[^\s'"<>()\[\]{}`]+""")
+
+/**
+ * Адреса в выводе — нажимаемые, подчёркнутые акцентом. Только те, что встроенный браузер вправе открыть
+ * (HTTPS и открытый HTTP на localhost): остальные остаются текстом. Хвостовая пунктуация в адрес не входит.
+ */
+internal fun AnnotatedString.withLinks(accent: Color, open: ((String) -> Unit)?): AnnotatedString {
+    if (open == null || !text.contains("://")) return this
+    val found = OUTPUT_URL.findAll(text).map { m ->
+        val url = m.value.trimEnd('.', ',', ';', ':', '!', '?')
+        m.range.first to url
+    }.filter { (_, url) -> BrowserUrls.allowed(url) }.toList()
+    if (found.isEmpty()) return this
+    val b = AnnotatedString.Builder(this)
+    found.forEach { (start, url) ->
+        b.addLink(
+            androidx.compose.ui.text.LinkAnnotation.Clickable(
+                tag = url,
+                styles = androidx.compose.ui.text.TextLinkStyles(SpanStyle(color = accent, textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline)),
+            ) { open(url) },
+            start, start + url.length,
+        )
+    }
+    return b.toAnnotatedString()
+}
 
 private fun AnnotatedString.Builder.pushStyleAndAppend(style: SpanStyle, text: String) {
     val start = length

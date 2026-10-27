@@ -55,6 +55,8 @@ class AppUiState(
     var hiddenPlanReview by mutableStateOf<String?>(null)
     /** Открыт разговор субагента из листа «Субагенты»: родитель для «К сессии», сообщений и «Стоп». */
     var subagentView by mutableStateOf<com.dsh.feature.chat.SubagentView?>(null)
+    /** Открыт встроенный браузер (страница dev-сервера, сайт или HTML рабочей папки); поверх текущей страницы. */
+    var browser by mutableStateOf<BrowserTarget?>(null)
     /** Открытый экран плагина («Открыть» в карточке плагина): id плагина. */
     var pluginUiOpen by mutableStateOf<String?>(null)
 }

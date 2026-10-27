@@ -13,4 +13,22 @@
     <string name="jobs_title">Background jobs</string>
     <string name="team_title">Agent team</string>
     <string name="plugin_panes_title">Plugin panels</string>
+    <string name="br_title">Browser</string>
+    <string name="br_sub_workspace">file from the workspace</string>
+    <string name="br_sub_local">server in DSH Linux</string>
+    <string name="br_close">Close browser</string>
+    <string name="br_external">Open in external browser</string>
+    <string name="br_address">Address</string>
+    <string name="br_stop">Stop</string>
+    <string name="br_reload">Reload</string>
+    <string name="br_refused">This address can\'t be opened: HTTPS only, plain HTTP is for localhost</string>
+    <string name="br_note_workspace">A workspace file: page scripts run, but they have no access to the phone</string>
+    <string name="br_note_local">localhost is a server running in DSH Linux</string>
+    <string name="br_failed_local">The server at %1$s doesn\'t respond. Start it in the terminal, e.g. npm run dev</string>
+    <string name="br_failed">Couldn\'t open %1$s</string>
+    <string name="br_back">Back</string>
+    <string name="br_forward">Forward</string>
+    <string name="br_copy">Copy address</string>
+    <string name="br_copied">Address copied</string>
+    <string name="br_retry">Retry</string>
 </resources>

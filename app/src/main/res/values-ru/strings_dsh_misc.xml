@@ -13,4 +13,22 @@
     <string name="jobs_title">Фоновые задачи</string>
     <string name="team_title">Команда агента</string>
     <string name="plugin_panes_title">Панели плагинов</string>
+    <string name="br_title">Браузер</string>
+    <string name="br_sub_workspace">файл из рабочей папки</string>
+    <string name="br_sub_local">сервер в Linux DSH</string>
+    <string name="br_close">Закрыть браузер</string>
+    <string name="br_external">Открыть во внешнем браузере</string>
+    <string name="br_address">Адрес</string>
+    <string name="br_stop">Остановить</string>
+    <string name="br_reload">Обновить</string>
+    <string name="br_refused">Этот адрес не открыть: только HTTPS, открытый HTTP — для localhost</string>
+    <string name="br_note_workspace">Файл из рабочей папки: скрипты страницы работают, но доступа к телефону у них нет</string>
+    <string name="br_note_local">localhost — это сервер, запущенный в Linux DSH</string>
+    <string name="br_failed_local">Сервер на %1$s не отвечает. Запустите его в терминале, например npm run dev</string>
+    <string name="br_failed">Не удалось открыть %1$s</string>
+    <string name="br_back">Назад по истории</string>
+    <string name="br_forward">Вперёд</string>
+    <string name="br_copy">Скопировать адрес</string>
+    <string name="br_copied">Адрес скопирован</string>
+    <string name="br_retry">Повторить</string>
 </resources>

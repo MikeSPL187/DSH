@@ -89,4 +89,15 @@
     <plurals name="fs_min_ago"><item quantity="one">%d min ago</item><item quantity="other">%d min ago</item></plurals>
     <plurals name="fs_days_ago"><item quantity="one">%d day ago</item><item quantity="other">%d days ago</item></plurals>
     <plurals name="fs_weeks_ago"><item quantity="one">%d week ago</item><item quantity="other">%d weeks ago</item></plurals>
+    <string name="fs_view_doc">View</string>
+    <string name="fs_view_page">Page</string>
+    <string name="fs_view_code">Code</string>
+    <string name="fs_open_browser">Open in browser</string>
+    <string name="fs_pdf_hint">Pinch to zoom</string>
+    <string name="fs_pdf_reset">%1$d%% · Reset</string>
+    <string name="fs_pdf_failed">Can\'t open this PDF: it\'s damaged or password-protected</string>
+    <plurals name="fs_pdf_pages">
+        <item quantity="one">%d page</item>
+        <item quantity="other">%d pages</item>
+    </plurals>
 </resources>

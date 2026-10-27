@@ -67,6 +67,7 @@ class ScreensGalleryTest {
         put("settings.gradle.kts", "include(\":app\")\n", 60 * 24 * 3)
         put("README.md", "# DSH-Workspace\n\nРабочая папка агента на телефоне.\n\n## Сборка\n./gradlew :app:assembleDebug\n", 60 * 3)
         put(".gitignore", "build/\n", 60 * 24 * 8)
+        put("web/index.html", "<!doctype html>\n<html><body><h1>Сборка зелёная</h1><p>128 тестов прошли</p></body></html>\n", 30)
         return root
     }
 
@@ -107,6 +108,8 @@ class ScreensGalleryTest {
                     root = root, rootLabel = "DSH-Workspace", refreshKey = 0, git = fakeGit,
                     onClose = {}, onAttach = {}, onAsk = {}, onReview = {}, commitMessage = null, onShare = {}, onImport = {}, onToast = {},
                     initialTab = tab,
+                    markdown = { com.dsh.feature.chat.MarkdownMessageText(it) },
+                    onOpenInBrowser = {},
                 )
             }
         }
@@ -567,5 +570,12 @@ class ScreensGalleryTest {
 
     @Test fun secretWarning() = renderSecret("24_secret_warning")
     @Test @Config(qualifiers = "ru-w360dp-h780dp-xxhdpi") fun secretWarning360() = renderSecret("24b_secret_warning_360_dark", dark = true)
+
+
+    // ── Превью документов ──
+    @Test fun filesMarkdown() = renderFiles("25_files_markdown") { open("README.md") }
+    @Test @Config(qualifiers = "ru-w360dp-h780dp-xxhdpi") fun filesMarkdownDark() = renderFiles("25b_files_markdown_360_dark", dark = true) { open("README.md") }
+    @Test fun filesMarkdownCode() = renderFiles("25c_files_markdown_code") { open("README.md"); open("Код") }
+    @Test fun filesHtml() = renderFiles("25d_files_html") { open("web"); open("index.html") }
 
 }
