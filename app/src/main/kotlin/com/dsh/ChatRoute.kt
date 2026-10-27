@@ -83,6 +83,10 @@ internal fun ChatRoute(d: ChatDeps) {
     val queued by repository.queuedMessagesFlow.collectAsState()
     val hostSessionModels by repository.sessionModelFlow.collectAsState()
     val hostCommands by repository.commands.hostCommandsFlow.collectAsState()
+    val pendingQuestions by repository.approvals.pendingQuestionsFlow.collectAsState()
+    val hiddenPlan = pendingQuestions.firstOrNull { it.eventId == ui.hiddenPlanReview }?.let { w ->
+        (w.request["questions"] as? kotlinx.serialization.json.JsonArray)?.let { planReviewOf(w.eventId, it) }
+    }
     val hostSkills by repository.commands.hostSkillsFlow.collectAsState()
     val stats by remember(sessionId) { repository.getStatsForSession(sessionId.orEmpty()) }
         .collectAsState(initial = ComposerStats())
@@ -113,8 +117,20 @@ internal fun ChatRoute(d: ChatDeps) {
     fun toast(text: String, long: Boolean = false) =
         Toast.makeText(context, text, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
 
+    val subagents by repository.subagentsFlow.collectAsState()
+    // Разговор субагента закрыт другим путём (меню, новая сессия) — плашка уходит вместе с ним.
+    LaunchedEffect(ui.selectedSessionId) {
+        val view = ui.subagentView
+        if (view != null && ui.selectedSessionId != view.childSessionId) ui.subagentView = null
+    }
     val send: (String) -> Unit = { text ->
-        d.sender.send(text, ModelChoice(model.id, model.providerGroup?.id ?: defaultProvider, model.reasoningId))
+        val view = ui.subagentView
+        if (view != null && view.mode == com.dsh.core.model.SubagentInfo.Mode.CONTINUABLE) {
+            scope.launch {
+                repository.context.promptSubagent(hostId, view.parentSessionId, view.childSessionId, text)
+                    .onFailure { toast(context.getString(R.string.send_failed_toast, it.message.orEmpty()).trimEnd(' ', ':'), long = true) }
+            }
+        } else d.sender.send(text, ModelChoice(model.id, model.providerGroup?.id ?: defaultProvider, model.reasoningId))
     }
     // «Проверить с агентом» и подобные действия отправляют запрос сразу, как в прототипе.
     LaunchedEffect(ui.pendingAutoSend) {
@@ -167,6 +183,25 @@ internal fun ChatRoute(d: ChatDeps) {
                 com.dsh.core.data.ContextRepository.Candidates(com.dsh.core.data.localFileCandidates(root, query), failed = false)
             }
         },
+        subagents = subagents,
+        runningSessionIds = d.runningSessionIds,
+        onOpenSubagent = { s ->
+            val parent = ui.selectedSessionId
+            if (parent != null) {
+                ui.subagentView = com.dsh.feature.chat.SubagentView(
+                    parentSessionId = parent,
+                    parentTitle = d.sessions.find { it.sessionId == parent }?.title.orEmpty(),
+                    childSessionId = s.id,
+                    label = s.label.ifBlank { s.id.take(8) },
+                    mode = s.mode,
+                )
+                ui.selectedSessionId = s.id
+            }
+        },
+        subagentView = ui.subagentView,
+        onSubagentBack = { ui.subagentView?.let { v -> ui.subagentView = null; ui.selectedSessionId = v.parentSessionId } },
+        pendingPlan = hiddenPlan,
+        onOpenPlan = { ui.hiddenPlanReview = null },
         deliverables = deliverables,
         queuedMessages = queued,
         onQueueAction = { id, kind, text -> withSession { repository.updateQueue(hostId, it, id, kind, text) } },
@@ -216,7 +251,10 @@ internal fun ChatRoute(d: ChatDeps) {
         onWorkspaceClick = d.onOpenDrawer,
         isThinking = sessionId != null && sessionId in d.runningSessionIds,
         onStopClick = {
-            withSession {
+            val view = ui.subagentView
+            if (view != null) scope.launch {
+                if (repository.context.stopSubagent(hostId, view.parentSessionId, view.childSessionId).isFailure) toast(context.getString(R.string.stop_failed), long = true)
+            } else withSession {
                 // Host не подтвердил остановку — агент продолжает работать: сказать, а не прятать индикатор.
                 if (!repository.cancelSession(hostId, it)) toast(context.getString(R.string.stop_failed), long = true)
             }

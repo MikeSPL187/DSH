@@ -492,4 +492,80 @@ class ScreensGalleryTest {
         )
     }
 
+
+    // ── Проверка плана ──
+    private val planDemo = com.dsh.feature.chat.PlanReviewInfo(
+        eventId = "e1", questionId = "plan-review", approveLabel = "Approve", keepLabel = "Keep planning",
+        markdown = "# Обновить Kotlin и починить сборку\n\n## Причина\n\nCompose Compiler 1.5.14 требует Kotlin 2.0.21, а в проекте 1.9.24.\n\n" +
+            "## Шаги\n\n1. Поднять `kotlin` до 2.0.21 в `gradle/libs.versions.toml`\n2. Подключить плагин `org.jetbrains.kotlin.plugin.compose` в `app/build.gradle.kts`\n" +
+            "3. Удалить устаревший `composeOptions.kotlinCompilerExtensionVersion`\n4. Собрать `:app:assembleDebug` и прогнать тесты\n\n## Риски\n\n- Предупреждения новых проверок Kotlin 2 — исправлю, если сборка их сделает ошибками",
+    )
+
+    private fun renderPlan(name: String, dark: Boolean = false, steps: androidx.compose.ui.test.junit4.AndroidComposeTestRule<*, *>.() -> Unit = {}) {
+        compose.mainClock.autoAdvance = false
+        compose.setContent { DshTheme(darkTheme = dark) { com.dsh.feature.chat.PlanReviewScreen(planDemo, "Сборка падает после обновления Compose", {}, {}, {}) } }
+        compose.mainClock.advanceTimeBy(800)
+        compose.steps()
+        compose.mainClock.advanceTimeBy(1_000)
+        ScreenShots.capture(compose, name, compose.activity)
+    }
+
+    @Test fun planReview() = renderPlan("21_plan_review")
+    @Test fun planReviewDark() = renderPlan("21b_plan_review_dark", dark = true)
+    @Test @Config(qualifiers = "ru-w360dp-h780dp-xxhdpi") fun planReview360() = renderPlan("21c_plan_review_360")
+    @Test @Config(qualifiers = "ru-w390dp-h844dp-xxhdpi") fun planReviewFeedback() = renderPlan("21d_plan_feedback_390_dark", dark = true) {
+        onNode(androidx.compose.ui.test.hasText("Доработать")).performClick()
+    }
+
+    @Test
+    fun planCard() = render("22_plan_card") {
+        com.dsh.feature.chat.ModernChatScreen(messages = agentTurn.take(3), onSendMessage = {}, pendingPlan = planDemo)
+    }
+
+
+    // ── Субагенты ──
+    private val subDemo = listOf(
+        com.dsh.core.model.SubagentInfo("c1", "Проверка тестов", com.dsh.core.model.SubagentInfo.Mode.CONTINUABLE, System.currentTimeMillis() - 120_000),
+        com.dsh.core.model.SubagentInfo("c2", "Поиск устаревших API во всех модулях проекта", com.dsh.core.model.SubagentInfo.Mode.ONE_SHOT, System.currentTimeMillis() - 300_000),
+        com.dsh.core.model.SubagentInfo("c3", "Codex: ревью diff", com.dsh.core.model.SubagentInfo.Mode.EXTERNAL, System.currentTimeMillis() - 86_400_000),
+    )
+
+    private fun renderSub(name: String, dark: Boolean = false, sheet: Boolean = false, view: com.dsh.feature.chat.SubagentView? = null) = render(name, dark) {
+        com.dsh.feature.chat.ModernChatScreen(
+            messages = if (view == null) agentTurn.take(3) else listOf(
+                msg("u1", com.dsh.core.model.MessageRole.USER, "Прогони модульные тесты app и собери список упавших"),
+                msg("a1", com.dsh.core.model.MessageRole.ASSISTANT, "Запустил `./gradlew :app:testDebugUnitTest`. Упали 2 теста в `ChatLogicTest`: оба ждут старый формат даты."),
+            ),
+            onSendMessage = {}, subagents = if (view == null) subDemo else emptyList(), runningSessionIds = setOf("c1"),
+            initialSheet = if (sheet) "subagents" else null, subagentView = view,
+        )
+    }
+
+    @Test fun subagentsDock() = renderSub("23_subagents_dock")
+    @Test fun subagentsSheet() = renderSub("23b_subagents_sheet", sheet = true)
+    @Test @Config(qualifiers = "ru-w360dp-h780dp-xxhdpi") fun subagentsSheet360() = renderSub("23c_subagents_sheet_360_dark", dark = true, sheet = true)
+    @Test fun subagentChild() = renderSub("23d_subagent_child", view = com.dsh.feature.chat.SubagentView("p1", "Сборка падает после обновления Compose", "c1", "Проверка тестов", com.dsh.core.model.SubagentInfo.Mode.CONTINUABLE))
+    @Test @Config(qualifiers = "ru-w390dp-h844dp-xxhdpi") fun subagentOneShot() = renderSub("23e_subagent_one_shot_390_dark", dark = true, view = com.dsh.feature.chat.SubagentView("p1", "Сборка падает после обновления Compose", "c2", "Поиск устаревших API", com.dsh.core.model.SubagentInfo.Mode.ONE_SHOT))
+
+
+    // ── Секреты в сообщении ──
+    private fun renderSecret(name: String, dark: Boolean = false) {
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            DshTheme(darkTheme = dark) {
+                com.dsh.feature.chat.ModernChatScreen(
+                    messages = listOf(msg("m1", com.dsh.core.model.MessageRole.USER, "Подключи DeepSeek с ключом sk-4f8a2b9c0d1e2f3a4b5c6d7eQ9z1 и проверь")),
+                    onSendMessage = {},
+                )
+            }
+        }
+        compose.mainClock.advanceTimeBy(500)
+        compose.onNode(androidx.compose.ui.test.hasContentDescription("Сообщение")).performTextInput("и вот токен ghp_abcdefghijklmnopqrstuvwxyz0123456789")
+        compose.mainClock.advanceTimeBy(1_500)
+        ScreenShots.capture(compose, name, compose.activity)
+    }
+
+    @Test fun secretWarning() = renderSecret("24_secret_warning")
+    @Test @Config(qualifiers = "ru-w360dp-h780dp-xxhdpi") fun secretWarning360() = renderSecret("24b_secret_warning_360_dark", dark = true)
+
 }

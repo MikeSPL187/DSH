@@ -92,4 +92,14 @@ class HostProjectionsTest {
         )
         assertNull(parseGoal(json("""{"roundsStarted":1}""")))
     }
+
+    @Test
+    fun `subagent catalog keeps order, modes and labels`() {
+        val list = parseSubagents(kotlinx.serialization.json.Json.parseToJsonElement("""[{"id":"a","mode":"continuable","label":"Tests","createdAt":5},{"id":"b","mode":"one-shot"},{"id":"c","mode":"external","label":"Codex"},{"mode":"one-shot"}]"""))
+        assertEquals(listOf("a", "b", "c"), list.map { it.id })
+        assertEquals(com.dsh.core.model.SubagentInfo.Mode.CONTINUABLE, list[0].mode)
+        assertEquals(5L, list[0].createdAt)
+        assertEquals("", list[1].label)
+        assertEquals(com.dsh.core.model.SubagentInfo.Mode.EXTERNAL, list[2].mode)
+    }
 }

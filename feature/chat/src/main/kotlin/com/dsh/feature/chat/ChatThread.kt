@@ -84,12 +84,12 @@ fun UserBubble(text: String, modifier: Modifier = Modifier, onRetry: (() -> Unit
                     .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp, bottomEnd = 6.dp, bottomStart = 22.dp))
                     .background(c.s2).padding(horizontal = 15.dp, vertical = 11.dp),
             ) {
-                // Ссылки «@» — как в поле ввода: сессия — «@название», путь — акцентом.
+                // Ссылки «@» — как в поле ввода: сессия — «@название», путь — акцентом; секреты — «••••» и 4 символа.
                 val shown = remember(text, c) {
                     MentionTransformation(
                         fileStyle = androidx.compose.ui.text.SpanStyle(color = c.accent),
                         sessionStyle = androidx.compose.ui.text.SpanStyle(color = c.ok, fontWeight = FontWeight.Medium),
-                    ).filter(androidx.compose.ui.text.AnnotatedString(text)).text
+                    ).filter(androidx.compose.ui.text.AnnotatedString(SecretMask.mask(text))).text
                 }
                 Text(shown, style = ckBody(16.sp, 23.2.sp), color = c.t1)
             }

@@ -649,7 +649,21 @@ fun MainAppHost(
         val questions = waterfall.request["questions"]
             as? kotlinx.serialization.json.JsonArray
             ?: kotlinx.serialization.json.JsonArray(emptyList())
-        UserQuestionDialog(
+        // Проверка плана — свой экран; «Назад» прячет его, план ждёт решения (карточка в чате).
+        val review = remember(waterfall.eventId) { planReviewOf(waterfall.eventId, questions) }
+        if (review != null) {
+            androidx.compose.animation.AnimatedVisibility(
+                visible = ui.hiddenPlanReview != review.eventId,
+                enter = androidx.compose.animation.slideInHorizontally(com.dsh.core.designsystem.DshMotion.smooth()) { it },
+                exit = androidx.compose.animation.slideOutHorizontally(com.dsh.core.designsystem.DshMotion.smooth()) { it },
+            ) { com.dsh.feature.chat.PlanReviewScreen(
+                review = review,
+                session = sessions.find { it.sessionId == ui.selectedSessionId }?.title,
+                onBack = { ui.hiddenPlanReview = review.eventId; ui.activePage = ActivePage.CHAT },
+                onApprove = { scope.launch { dshRepository.approvals.respondUserQuestion(ui.activeHostId, review.eventId, planReviewAnswer(review, null)) } },
+                onFeedback = { text -> scope.launch { dshRepository.approvals.respondUserQuestion(ui.activeHostId, review.eventId, planReviewAnswer(review, text)) } },
+            ) }
+        } else UserQuestionDialog(
             questions = questions,
             onSubmit = { answers ->
                 scope.launch {

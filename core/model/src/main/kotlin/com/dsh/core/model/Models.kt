@@ -268,6 +268,19 @@ data class GoalInfo(
     val revision: Int = 0,
 )
 
+/** Субагент сессии из проекции `subagentCatalog`. */
+@Serializable
+data class SubagentInfo(
+    val id: String,
+    /** Название из каталога; пусто — у разового субагента его может не быть. */
+    val label: String,
+    val mode: Mode,
+    val createdAt: Long = 0,
+) {
+    /** CONTINUABLE — можно писать и остановить; ONE_SHOT — только чтение; EXTERNAL — без разговора в DSH. */
+    enum class Mode { CONTINUABLE, ONE_SHOT, EXTERNAL, UNKNOWN }
+}
+
 /** Кандидат для ссылки «@» в поле ввода: файл, папка или другая сессия. */
 @Serializable
 data class ReferenceCandidate(

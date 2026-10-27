@@ -155,4 +155,53 @@
     <string name="goal_save">Save</string>
     <string name="goal_field">Goal</string>
     <string name="goal_failed">Couldn\'t change the goal</string>
+    <string name="plan_review_title">Agent plan</string>
+    <string name="plan_review_lead">The agent hasn\'t changed anything yet: review the plan first. After “Run plan” it starts editing files.</string>
+    <string name="plan_review_copy">Copy plan</string>
+    <string name="plan_review_copied">Plan copied</string>
+    <string name="plan_review_more">Refine</string>
+    <string name="plan_review_go">Run plan</string>
+    <string name="plan_review_send">Send</string>
+    <string name="plan_review_feedback">What to change in the plan</string>
+    <string name="plan_review_feedback_hint">What to change: steps, order, limits…</string>
+    <string name="plan_review_note">The agent stays in plan mode until you agree</string>
+    <string name="plan_review_feedback_note">Your notes go to the agent, it will send a new plan</string>
+    <string name="plan_review_card">Plan: %1$s</string>
+    <string name="plan_review_waiting">waiting for your decision</string>
+    <string name="plan_review_open">Review</string>
+    <plurals name="plan_review_steps">
+        <item quantity="one">%d step</item>
+        <item quantity="other">%d steps</item>
+    </plurals>
+    <plurals name="plan_review_files">
+        <item quantity="one">%d file</item>
+        <item quantity="other">%d files</item>
+    </plurals>
+    <plurals name="plan_review_card_steps">
+        <item quantity="one">%d step · waiting for your decision</item>
+        <item quantity="other">%d steps · waiting for your decision</item>
+    </plurals>
+    <string name="subagents_title">Subagents</string>
+    <string name="subagents_dock">Agents</string>
+    <string name="subagents_state_running">running</string>
+    <string name="subagents_state_done">idle</string>
+    <string name="subagents_state_external">external</string>
+    <string name="subagents_mode_continuable">continuable</string>
+    <string name="subagents_mode_one_shot">one-shot</string>
+    <string name="subagents_mode_external">external</string>
+    <string name="subagents_band">Subagent · %1$s</string>
+    <string name="subagents_band_from">from “%1$s”</string>
+    <string name="subagents_back">Back to session</string>
+    <string name="subagents_read_only">One-shot subagent: view only</string>
+    <string name="subagents_placeholder">Message to the subagent</string>
+    <plurals name="subagents_count">
+        <item quantity="one">%d in this session</item>
+        <item quantity="other">%d in this session</item>
+    </plurals>
+    <plurals name="subagents_running">
+        <item quantity="one">%d running</item>
+        <item quantity="other">%d running</item>
+    </plurals>
+    <string name="secret_warning">The message contains a key %1$s — the agent and the session log will get it in full</string>
+    <string name="secret_remove">Remove</string>
 </resources>

@@ -318,6 +318,8 @@ fun ChatDock(
     onFiles: () -> Unit,
     onTerminal: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    agents: Int = 0,
+    onAgents: () -> Unit = {},
 ) {
     val c = Dsh.colors
     Row(
@@ -327,6 +329,23 @@ fun ChatDock(
     ) {
         DockBtn(DshGlyphs.Folder, stringResource(R.string.ck_files), compact, filesBadge.takeIf { it > 0 }, onFiles)
         if (onTerminal != null) DockBtn(DshGlyphs.Term, stringResource(R.string.ck_terminal), compact, null, onTerminal)
+        if (agents > 0) DockBtn(DshGlyphs.Flow, stringResource(R.string.subagents_dock), compact, agents, onAgents)
+    }
+}
+
+/** Вместо поля ввода: разговор только для просмотра (разовый субагент). */
+@Composable
+internal fun ReadOnlyComposer(text: String) {
+    val c = Dsh.colors
+    val shape = RoundedCornerShape(28.dp)
+    Row(
+        Modifier.fillMaxWidth().floatShadow(shape, c.isDark).clip(shape).background(c.glass.compositeOn(c.bg))
+            .border(1.dp, c.glassLine, shape).heightIn(min = 54.dp).padding(horizontal = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(DshGlyphs.Eye, null, tint = c.t3, modifier = Modifier.size(18.dp))
+        Text(text, style = ckBody(14.5.sp, 19.sp), color = c.t2)
     }
 }
 
@@ -829,5 +848,24 @@ private fun GoalButton(
     ) {
         if (icon != null) Icon(icon, null, tint = fg, modifier = Modifier.size(14.dp))
         Text(label, style = ckBody(13.5.sp, 18.sp), color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** Над строкой ввода: в черновике секрет — агент и журнал сессии получат его целиком; «Убрать» вырезает его. */
+@Composable
+internal fun SecretWarning(shown: String, onRemove: () -> Unit) {
+    val c = Dsh.colors
+    Row(
+        Modifier.padding(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 4.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.warnSoft)
+            .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(DshGlyphs.Key, null, tint = c.warn, modifier = Modifier.size(16.dp))
+        Text(stringResource(R.string.secret_warning, shown), style = ckBody(12.5.sp, 16.sp), color = c.t1, modifier = Modifier.weight(1f))
+        Box(
+            Modifier.height(40.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button, onClick = onRemove).padding(horizontal = 12.dp),
+            contentAlignment = Alignment.Center,
+        ) { Text(stringResource(R.string.secret_remove), style = ckBody(13.5.sp, 18.sp, FontWeight.Medium), color = c.warn) }
     }
 }

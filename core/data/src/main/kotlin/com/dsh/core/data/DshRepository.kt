@@ -341,6 +341,10 @@ class DshRepository(
     private val _todosFlow = MutableStateFlow<List<TodoEntryInfo>>(emptyList())
     val todosFlow: StateFlow<List<TodoEntryInfo>> = _todosFlow.asStateFlow()
 
+    /** Субагенты открытой сессии (проекция `subagentCatalog`). */
+    private val _subagentsFlow = MutableStateFlow<List<com.dsh.core.model.SubagentInfo>>(emptyList())
+    val subagentsFlow: StateFlow<List<com.dsh.core.model.SubagentInfo>> = _subagentsFlow.asStateFlow()
+
     /** Цель сессии (проекция `goal`). */
     private val _goalFlow = MutableStateFlow<GoalInfo?>(null)
     val goalFlow: StateFlow<GoalInfo?> = _goalFlow.asStateFlow()
@@ -383,6 +387,7 @@ class DshRepository(
             _streamingReasoningFlow.value = ""
             _todosFlow.value = emptyList()
             _goalFlow.value = null
+            _subagentsFlow.value = emptyList()
             _deliverablesFlow.value = emptyList()
             _changesFlow.value = null
             changesSeq = 0L
@@ -637,6 +642,7 @@ class DshRepository(
                     if (sessionId == viewed) {
                         _todosFlow.value = parseTodos(values?.get("todos"))
                         _goalFlow.value = parseGoal(values?.get("goal"))
+                        _subagentsFlow.value = parseSubagents(values?.get("subagentCatalog"))
                         _queuedMessagesFlow.value = parseQueue(values?.get("inbox"))
                     }
                     parseSelectedModel(values?.get("modelSelection"))?.let { sessionId to it }
@@ -651,6 +657,7 @@ class DshRepository(
                     }
                     "todos" -> if (sessionId == viewed) _todosFlow.value = parseTodos(value)
                     "goal" -> if (sessionId == viewed) _goalFlow.value = parseGoal(value)
+                    "subagentCatalog" -> if (sessionId == viewed) _subagentsFlow.value = parseSubagents(value)
                     "inbox" -> if (sessionId == viewed) _queuedMessagesFlow.value = parseQueue(value)
                 }
             }

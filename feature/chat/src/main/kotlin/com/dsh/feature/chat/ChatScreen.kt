@@ -175,6 +175,17 @@ fun ModernChatScreen(
     onGoalAction: suspend (GoalAction, String?) -> Result<Unit> = { _, _ -> Result.failure(IllegalStateException("goal")) },
     /** Кандидаты ссылки «@»: файлы и папки рабочей папки, другие сессии; null — Host недоступен. */
     loadReferences: suspend (query: String, filesOnly: Boolean) -> com.dsh.core.data.ContextRepository.Candidates? = { _, _ -> null },
+    /** Субагенты открытой сессии (`subagentCatalog`): «Агенты» в доке и их лист. */
+    subagents: List<com.dsh.core.model.SubagentInfo> = emptyList(),
+    /** Сессии, где сейчас идёт ход: субагент из них — «работает». */
+    runningSessionIds: Set<String> = emptySet(),
+    onOpenSubagent: (com.dsh.core.model.SubagentInfo) -> Unit = {},
+    /** Открыт разговор субагента: плашка «К сессии»; разовому — только просмотр. */
+    subagentView: SubagentView? = null,
+    onSubagentBack: () -> Unit = {},
+    /** План ждёт решения, а его экран закрыт: карточка «Проверить» в конце ленты. */
+    pendingPlan: PlanReviewInfo? = null,
+    onOpenPlan: () -> Unit = {},
     /** Файлы — результат хода (`deliverables/presented`). */
     deliverables: List<com.dsh.core.protocol.PresentedFileInfo> = emptyList(),
     /** Изменения файлов за последний ход (workspace/changes). */
@@ -298,6 +309,7 @@ fun ModernChatScreen(
     }
     var currentPermission by remember(selectedPermission) { mutableStateOf(selectedPermission) }
     var commandSheetOpen by remember { mutableStateOf(initialSheet == "plus") }
+    var subagentsOpen by remember { mutableStateOf(initialSheet == "subagents") }
     var trajectoryOpen by remember { mutableStateOf(false) }
     var actionMessage by remember { mutableStateOf<ChatMessage?>(null) }
     val localContext = LocalContext.current
@@ -429,7 +441,7 @@ fun ModernChatScreen(
             ChatComposer(
                 text = inputText,
                 onText = { inputText = it },
-                placeholder = activeCommandHint ?: if (planMode) stringResource(R.string.chat_input_placeholder_plan) else stringResource(R.string.ck_placeholder),
+                placeholder = activeCommandHint ?: if (subagentView != null) stringResource(R.string.subagents_placeholder) else if (planMode) stringResource(R.string.chat_input_placeholder_plan) else stringResource(R.string.ck_placeholder),
                 mode = when {
                     isThinking && !canSend -> SendMode.Stop
                     canSend -> SendMode.Send
@@ -496,6 +508,12 @@ fun ModernChatScreen(
                             Box(Modifier.fillMaxWidth().padding(bottom = 4.dp).height(1.dp).background(com.dsh.core.designsystem.Dsh.colors.line))
                         }
                     }
+                    val secrets = remember(inputText) { SecretMask.ranges(inputText) }
+                    if (secrets.isNotEmpty()) SecretWarning(SecretMask.shown(inputText.substring(secrets.first()))) {
+                        var t = inputText
+                        secrets.reversed().forEach { r -> t = t.removeRange(r) }
+                        inputText = t.replace(Regex(" {2,}"), " ")
+                    }
                     if (activeCommandLabel != null) Row(Modifier.padding(start = 6.dp, top = 4.dp, bottom = 2.dp)) {
                         ComposerChip("/$activeCommandLabel", com.dsh.core.designsystem.DshGlyphs.X, accent = true, onClick = { activeCommandToken = null })
                     }
@@ -525,7 +543,7 @@ fun ModernChatScreen(
         }
     }
     val netShift by androidx.compose.animation.core.animateDpAsState(if (net != null) 60.dp else 0.dp, com.dsh.core.designsystem.DshMotion.smooth(), label = "net")
-    val THREAD_TOP = maxOf(112.dp, statusTop + 70.dp) + netShift
+    val THREAD_TOP = maxOf(112.dp, statusTop + 70.dp) + netShift + if (subagentView != null) (if (net != null) 86.dp else 64.dp) else 0.dp
     var composerTop by remember { mutableStateOf(0) }
     val threadBottom = with(density) { composerTop.toDp() } + 84.dp
     val homeScroll = rememberScrollState()
@@ -540,7 +558,7 @@ fun ModernChatScreen(
             lastScroll = y
         }
     }
-    val closeSheets = { actionMessage = null; trajectoryOpen = false; pendingConfirm = null; modelMenuOpen = false; permissionMenuOpen = false; agentPresetMenuOpen = false; toolDetail = null; changeDiffIndex = null; commandSheetOpen = false }
+    val closeSheets = { actionMessage = null; trajectoryOpen = false; pendingConfirm = null; modelMenuOpen = false; permissionMenuOpen = false; agentPresetMenuOpen = false; toolDetail = null; changeDiffIndex = null; commandSheetOpen = false; subagentsOpen = false }
     val effortOptions = reasoningOptions
     val sheet: (@Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit)? = when {
         modelMenuOpen -> {
@@ -659,6 +677,12 @@ fun ModernChatScreen(
                     onFork = services::forkAt,
                     onDismiss = { actionMessage = null },
                 )
+            }
+            body
+        }
+        subagentsOpen -> {
+            val body: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
+                SubagentsSheetBody(subagents, runningSessionIds) { s -> subagentsOpen = false; onOpenSubagent(s) }
             }
             body
         }
@@ -865,6 +889,9 @@ fun ModernChatScreen(
                         }
                     }
                 }
+                if (pendingPlan != null) item(key = "plan_review") {
+                    PlanReviewCard(pendingPlan, onOpenPlan)
+                }
                 if (deliverables.isNotEmpty()) {
                     item(key = "presented_files") {
                         PresentedFilesRow(
@@ -908,6 +935,8 @@ fun ModernChatScreen(
                     compact = dockCompact,
                     onFiles = onOpenFiles,
                     onTerminal = onOpenTerminal,
+                    agents = subagents.size,
+                    onAgents = { subagentsOpen = true },
                     modifier = Modifier.padding(bottom = 10.dp),
                 )
             }
@@ -925,11 +954,13 @@ fun ModernChatScreen(
                     label = "decide",
                 ) { a ->
                     if (a != null) DecidePanel(a, dangerInfo, onDecided = { allowed -> decide(a, allowed) })
+                    else if (subagentView != null && subagentView.mode != com.dsh.core.model.SubagentInfo.Mode.CONTINUABLE) ReadOnlyComposer(stringResource(R.string.subagents_read_only))
                     else Column { composerBlock() }
                 }
             }
         }
         topBar?.invoke(scrolled)
+        if (subagentView != null) SubagentBand(subagentView, onSubagentBack, Modifier.padding(top = statusTop + 64.dp + netShift + if (net != null) 22.dp else 0.dp))
         androidx.compose.animation.AnimatedVisibility(
             visible = net != null,
             enter = fadeIn(com.dsh.core.designsystem.DshMotion.lively()) + slideInVertically(com.dsh.core.designsystem.DshMotion.lively()) { -it / 2 },

@@ -103,3 +103,20 @@ internal fun parseGoal(value: JsonElement?): GoalInfo? {
         revision = goal.str("revision")?.toIntOrNull() ?: 0,
     )
 }
+
+/** Субагенты сессии из проекции `subagentCatalog` (порядок каталога). */
+internal fun parseSubagents(value: JsonElement?): List<com.dsh.core.model.SubagentInfo> =
+    (value as? kotlinx.serialization.json.JsonArray)?.mapNotNull { item ->
+        val obj = item as? JsonObject ?: return@mapNotNull null
+        com.dsh.core.model.SubagentInfo(
+            id = obj.str("id") ?: return@mapNotNull null,
+            label = obj.str("label").orEmpty(),
+            mode = when (obj.str("mode")) {
+                "continuable" -> com.dsh.core.model.SubagentInfo.Mode.CONTINUABLE
+                "one-shot" -> com.dsh.core.model.SubagentInfo.Mode.ONE_SHOT
+                "external" -> com.dsh.core.model.SubagentInfo.Mode.EXTERNAL
+                else -> com.dsh.core.model.SubagentInfo.Mode.UNKNOWN
+            },
+            createdAt = obj.str("createdAt")?.toDoubleOrNull()?.toLong() ?: 0,
+        )
+    }.orEmpty()

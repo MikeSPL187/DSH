@@ -42,6 +42,17 @@ class ContextRepositoryTest {
     }
 
     @Test
+    fun `subagent prompt and stop address the child under its parent`() = runBlocking {
+        val host = FakeHost { _, _ -> hostOk("""{"messageId":"m1"}""") }
+        val repo = ContextRepository(HostCalls(host.client))
+        assertTrue(repo.promptSubagent("local", "p1", "c1", "ещё раз", requestId = "r1").isSuccess)
+        assertTrue(repo.stopSubagent("local", "p1", "c1").isSuccess)
+        assertEquals("subagents/prompt", host.calls[0].first)
+        assertTrue(host.calls[0].second.contains("\"request\":{\"requestId\":\"r1\",\"parentSessionId\":\"p1\",\"childSessionId\":\"c1\",\"mode\":\"continuable\",\"delivery\":\"queue\""))
+        assertEquals("subagents/interruptByParent", host.calls[1].first)
+    }
+
+    @Test
     fun `goal actions send the current ref and need one`() = runBlocking {
         val host = FakeHost { _, _ -> hostOk("""{"id":"g1","revision":4}""") }
         val repo = ContextRepository(HostCalls(host.client))

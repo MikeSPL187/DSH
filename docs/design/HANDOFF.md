@@ -37,6 +37,14 @@
    `@[название](dsh-session:…)`), разворачивает её Host; в поле и в пузыре сессия показывается как «@название»
    (`MentionTransformation`). Цель — в `PlanDock`: пауза/продолжить, изменить, готово, убрать вторым касанием (`goals/*`
    с `{id, revision}` из проекции).
+11. ~~Проверка плана~~ — готово (`ui-plan`): вопрос `exit_plan_mode` с `intent.kind = plan-review` открывает экран
+   `PlanReviewScreen` (`ChatPlanReview.kt`, связка `planReviewOf`/`planReviewAnswer` в `UserQuestionDialog.kt`):
+   документ плана, «Выполнить план» (метка `intent.approve`), «Доработать» — замечания свободным ответом.
+   «Назад» не отвечает Host: `ui.hiddenPlanReview`, в ленте карточка «Проверить».
+12. ~~Субагенты~~ — готово (`ui-subagent`): проекция `subagentCatalog` → «Агенты N» в доке и лист `SubagentsSheetBody`
+   (`ChatSubagents.kt`); строка открывает разговор субагента, родителя помнит `ui.subagentView` (в проекции `subagent`
+   его нет): плашка «К сессии», сообщения — `subagents/prompt`, «Стоп» — `subagents/interruptByParent`; разовый —
+   только просмотр, внешний не открывается.
 
 ## Архитектура
 Слои, модули, правила и план — в `docs/ARCHITECTURE.md`. Кратко: `MainAppHost` разобран на части

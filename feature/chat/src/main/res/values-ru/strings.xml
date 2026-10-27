@@ -145,4 +145,63 @@
     <string name="goal_save">Сохранить</string>
     <string name="goal_field">Цель</string>
     <string name="goal_failed">Не удалось изменить цель</string>
+    <string name="plan_review_title">План агента</string>
+    <string name="plan_review_lead">Агент ничего не менял: сначала проверьте план. После «Выполнить» он начнёт править файлы.</string>
+    <string name="plan_review_copy">Скопировать план</string>
+    <string name="plan_review_copied">План скопирован</string>
+    <string name="plan_review_more">Доработать</string>
+    <string name="plan_review_go">Выполнить план</string>
+    <string name="plan_review_send">Отправить</string>
+    <string name="plan_review_feedback">Что изменить в плане</string>
+    <string name="plan_review_feedback_hint">Что изменить: шаги, порядок, ограничения…</string>
+    <string name="plan_review_note">Агент останется в режиме плана, пока вы не согласитесь</string>
+    <string name="plan_review_feedback_note">Замечания уйдут агенту, он пришлёт новый план</string>
+    <string name="plan_review_card">План: %1$s</string>
+    <string name="plan_review_waiting">ждёт вашего решения</string>
+    <string name="plan_review_open">Проверить</string>
+    <plurals name="plan_review_steps">
+        <item quantity="one">%d шаг</item>
+        <item quantity="few">%d шага</item>
+        <item quantity="many">%d шагов</item>
+        <item quantity="other">%d шага</item>
+    </plurals>
+    <plurals name="plan_review_files">
+        <item quantity="one">%d файл</item>
+        <item quantity="few">%d файла</item>
+        <item quantity="many">%d файлов</item>
+        <item quantity="other">%d файла</item>
+    </plurals>
+    <plurals name="plan_review_card_steps">
+        <item quantity="one">%d шаг · ждёт вашего решения</item>
+        <item quantity="few">%d шага · ждёт вашего решения</item>
+        <item quantity="many">%d шагов · ждёт вашего решения</item>
+        <item quantity="other">%d шага · ждёт вашего решения</item>
+    </plurals>
+    <string name="subagents_title">Субагенты</string>
+    <string name="subagents_dock">Агенты</string>
+    <string name="subagents_state_running">работает</string>
+    <string name="subagents_state_done">готово</string>
+    <string name="subagents_state_external">внешний</string>
+    <string name="subagents_mode_continuable">продолжаемый</string>
+    <string name="subagents_mode_one_shot">разовый</string>
+    <string name="subagents_mode_external">внешний</string>
+    <string name="subagents_band">Субагент · %1$s</string>
+    <string name="subagents_band_from">из «%1$s»</string>
+    <string name="subagents_back">К сессии</string>
+    <string name="subagents_read_only">Разовый субагент: только просмотр</string>
+    <string name="subagents_placeholder">Сообщение субагенту</string>
+    <plurals name="subagents_count">
+        <item quantity="one">%d в этой сессии</item>
+        <item quantity="few">%d в этой сессии</item>
+        <item quantity="many">%d в этой сессии</item>
+        <item quantity="other">%d в этой сессии</item>
+    </plurals>
+    <plurals name="subagents_running">
+        <item quantity="one">%d работает</item>
+        <item quantity="few">%d работают</item>
+        <item quantity="many">%d работают</item>
+        <item quantity="other">%d работают</item>
+    </plurals>
+    <string name="secret_warning">В сообщении ключ %1$s — агент и журнал сессии получат его целиком</string>
+    <string name="secret_remove">Убрать</string>
 </resources>

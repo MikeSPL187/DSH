@@ -51,6 +51,10 @@ class AppUiState(
     var pendingAutoSend by mutableStateOf<String?>(null)
     /** Текст, который нужно подставить в поле ввода нового чата («Спросить», «Создать с агентом»). */
     var pendingComposerText by mutableStateOf<String?>(null)
+    /** План на проверке, экран которого человек закрыл «Назад» (id события): в чате — карточка «Проверить». */
+    var hiddenPlanReview by mutableStateOf<String?>(null)
+    /** Открыт разговор субагента из листа «Субагенты»: родитель для «К сессии», сообщений и «Стоп». */
+    var subagentView by mutableStateOf<com.dsh.feature.chat.SubagentView?>(null)
     /** Открытый экран плагина («Открыть» в карточке плагина): id плагина. */
     var pluginUiOpen by mutableStateOf<String?>(null)
 }

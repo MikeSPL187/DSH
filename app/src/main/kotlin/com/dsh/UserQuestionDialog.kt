@@ -76,3 +76,35 @@ fun UserQuestionDialog(
         onDismiss = onDismiss,
     )
 }
+
+/**
+ * Проверка плана (`exit_plan_mode`): единственный вопрос с `intent.kind = plan-review` и планом в `detail`.
+ * @return null — обычный вопрос агента.
+ */
+fun planReviewOf(eventId: String, questions: JsonArray): com.dsh.feature.chat.PlanReviewInfo? {
+    val q = questions.singleOrNull() as? JsonObject ?: return null
+    val intent = q["intent"] as? JsonObject ?: return null
+    if ((intent["kind"] as? JsonPrimitive)?.content != "plan-review") return null
+    val plan = (q["detail"] as? JsonPrimitive)?.content?.takeIf { it.isNotBlank() } ?: return null
+    val approve = (intent["approve"] as? JsonPrimitive)?.content ?: return null
+    val labels = (q["options"] as? JsonArray)?.mapNotNull { ((it as? JsonObject)?.get("label") as? JsonPrimitive)?.content }.orEmpty()
+    val keep = labels.firstOrNull { it != approve } ?: return null
+    return com.dsh.feature.chat.PlanReviewInfo(
+        eventId = eventId,
+        questionId = (q["id"] as? JsonPrimitive)?.content.orEmpty(),
+        markdown = plan,
+        approveLabel = approve,
+        keepLabel = keep,
+    )
+}
+
+/** Ответ на проверку плана: одобрить или доработать с замечаниями (свой ответ). */
+fun planReviewAnswer(review: com.dsh.feature.chat.PlanReviewInfo, feedback: String?): String = buildJsonObject {
+    put("answers", buildJsonArray {
+        add(buildJsonObject {
+            put("id", review.questionId)
+            put("selected", buildJsonArray { add(JsonPrimitive(if (feedback == null) review.approveLabel else review.keepLabel)) })
+            if (feedback != null) put("custom", feedback)
+        })
+    })
+}.toString()

@@ -53,6 +53,37 @@ class ContextRepository internal constructor(private val calls: HostCalls) {
     suspend fun editGoal(hostId: String, sessionId: String, goal: GoalInfo, objective: String): Result<Unit> =
         goalCall(hostId, sessionId, goal, "edit") { putJsonObject("request") { put("objective", objective) } }
 
+    /**
+     * Сообщение продолжаемому субагенту (`subagents/prompt`): встаёт в его очередь, родитель — сессия,
+     * из которой субагента открыли. [requestId] создаётся до вызова, чтобы повтор не задвоил сообщение.
+     */
+    suspend fun promptSubagent(
+        hostId: String,
+        parentSessionId: String,
+        childSessionId: String,
+        text: String,
+        requestId: String = java.util.UUID.randomUUID().toString(),
+    ): Result<Unit> = calls.valueOrThrow(hostId, "subagents/prompt", buildJsonObject {
+        putJsonObject("request") {
+            put("requestId", requestId)
+            put("parentSessionId", parentSessionId)
+            put("childSessionId", childSessionId)
+            put("mode", "continuable")
+            put("delivery", "queue")
+            put("content", kotlinx.serialization.json.buildJsonArray {
+                add(buildJsonObject { put("type", "text"); put("text", text) })
+            })
+        }
+    }).map { }
+
+    /** Остановить ход продолжаемого субагента (`subagents/interruptByParent`). */
+    suspend fun stopSubagent(hostId: String, parentSessionId: String, childSessionId: String): Result<Unit> =
+        calls.valueOrThrow(hostId, "subagents/interruptByParent", buildJsonObject {
+            put("childSessionId", childSessionId)
+            put("parentSessionId", parentSessionId)
+            put("mode", "continuable")
+        }).map { }
+
     private suspend fun goalCall(
         hostId: String,
         sessionId: String,
