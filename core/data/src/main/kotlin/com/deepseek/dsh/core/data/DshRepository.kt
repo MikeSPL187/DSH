@@ -1,5 +1,6 @@
 package com.deepseek.dsh.core.data
 
+import com.deepseek.dsh.core.protocol.parseHostJson
 import com.deepseek.dsh.core.model.ChatMessage
 import com.deepseek.dsh.core.model.ComposerStats
 import com.deepseek.dsh.core.model.GoalInfo
@@ -208,9 +209,9 @@ class DshRepository(
         return stopped
     }
 
-    suspend fun answerUserQuestion(hostId: String, sessionId: String, callId: String, questionId: String, selected: String) {
+    /** Ответ на вопрос агента в ходе работы; false — Host не принял ответ (G-22), вопрос остаётся открытым. */
+    suspend fun answerUserQuestion(hostId: String, sessionId: String, callId: String, questionId: String, selected: String): Boolean =
         client.answerUserQuestion(hostId, sessionId, callId, questionId, selected)
-    }
 
     fun getStatsForSession(sessionId: String): Flow<ComposerStats> =
         _sessionStatsFlow.map { it[sessionId] ?: ComposerStats() }
@@ -308,7 +309,18 @@ class DshRepository(
         client.sendMessage(hostId, sessionId, content, images).toResult().map { }
     }
 
-    /** Догрузить более раннюю историю (при прокрутке к началу); false — истории больше нет. */
+    /**
+     * Убрать из локального кэша сообщения удалённых сессий и всё старше [MESSAGE_KEEP] последних в сессии (G-17).
+     * Это только кэш: история остаётся у Host и догружается прокруткой.
+     */
+    suspend fun pruneMessageCache() = kotlinx.coroutines.withContext(Dispatchers.IO) {
+        runCatching {
+            dao.deleteOrphanMessages()
+            dao.sessionsWithMoreMessagesThan(MESSAGE_KEEP).forEach { dao.trimSessionMessages(it.hostId, it.sessionId, MESSAGE_KEEP) }
+        }
+    }
+
+        /** Догрузить более раннюю историю (при прокрутке к началу); false — истории больше нет. */
     suspend fun loadOlderMessages(hostId: String, sessionId: String): Boolean =
         (client.loadOlderHistory(hostId, sessionId) as? RemoteResult.Success)?.data ?: false
 
@@ -518,7 +530,7 @@ class DshRepository(
         scope.launch(Dispatchers.IO) { keepSubscribed { client.sessionControl(hostId).collect(::onControlFrame) } }
         scope.launch(Dispatchers.IO) {
             keepSubscribed { client.workspaceFollow(hostId).collect { frame ->
-                val root = runCatching { hostJson.parseToJsonElement(frame) as? JsonObject }.getOrNull()
+                val root = runCatching { hostJson.parseHostJson(frame) as? JsonObject }.getOrNull()
                     ?: return@collect
                 _hostWorkspacesFlow.value = workspaceTree.apply(root)
                 // Серия кадров — одно обновление списка сессий.
@@ -584,7 +596,7 @@ class DshRepository(
                     messageId = message.messageId,
                     role = message.role.name,
                     seq = message.seq,
-                    contentJson = message.content,
+                    contentJson = storedContent(message),
                     createdAt = message.createdAt,
                     status = "done",
                 )))
@@ -614,7 +626,7 @@ class DshRepository(
 
     /** Кадр `session/control`: модели всех сессий и проекции открытой. */
     private fun onControlFrame(text: String) {
-        val root = runCatching { hostJson.parseToJsonElement(text) as? JsonObject }.getOrNull() ?: return
+        val root = runCatching { hostJson.parseHostJson(text) as? JsonObject }.getOrNull() ?: return
         val viewed = viewedSessionId
         when (root.str("type")) {
             "baseline" -> {
@@ -679,3 +691,17 @@ private fun SessionInfo.toEntity(archived: Boolean = this.archived, pinned: Bool
     model = model,
     permissionPreset = permissionPreset,
 )
+
+/** Вывод инструмента в кэше — не больше [MAX_TOOL_BODY] символов (G-17): чат показывает его в листе, целиком он у Host. */
+internal const val MAX_TOOL_BODY = 64 * 1024
+
+/** Текст сообщения для кэша: у вызова инструмента (`\u0002TOOL\u0002id\u0002имя\u0002статус\u0002вывод\u0002аргументы`) обрезается вывод. */
+internal fun storedContent(message: ChatMessage): String {
+    val content = message.content
+    if (message.role != MessageRole.TOOL || content.length <= MAX_TOOL_BODY) return content
+    val parts = content.split('\u0002').toMutableList()
+    if (parts.size > 5 && parts[5].length > MAX_TOOL_BODY) {
+        parts[5] = parts[5].take(MAX_TOOL_BODY) + "\n… " + Tr.t("output truncated", "вывод обрезан")
+    }
+    return parts.joinToString("\u0002")
+}

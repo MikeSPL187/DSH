@@ -103,6 +103,9 @@
     <string name="ck_net_checking_sub">Проверяю связь</string>
     <string name="ck_net_back">Снова в сети</string>
     <string name="ck_net_back_sub">Можно продолжать</string>
+    <string name="ck_host_denied">Host не принял вход</string>
+    <string name="ck_host_denied_sub">Перезапустите его — сессии и файлы сохранятся</string>
+    <string name="ck_host_restart">Перезапустить</string>
     <string name="ck_att_image">изображение</string>
     <string name="ck_att_file">файл</string>
     <string name="ck_att_remove">Убрать вложение</string>

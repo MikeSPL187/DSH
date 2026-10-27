@@ -1,5 +1,6 @@
 package com.deepseek.dsh.runtime.host
 
+import com.deepseek.dsh.core.model.parseBoundedJson
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -86,7 +87,7 @@ class BridgePluginInstaller(
         val manifest = File(profileDir, "node_modules/$packageName/package.json")
         if (!manifest.isFile) return null
         return runCatching {
-            val node = json.parseToJsonElement(manifest.readText())
+            val node = json.parseBoundedJson(manifest.readText())
             (node as? JsonObject)
                 ?.get("version")
                 ?.let { (it as? JsonPrimitive)?.content }

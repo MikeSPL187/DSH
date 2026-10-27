@@ -44,31 +44,37 @@ internal fun NotificationPermissionEffect(notificationsEnabled: Boolean) {
 
 /**
  * «Авто-сон при простое»: останавливает локальный Host после [idleMinutes] минут без
- * действий (если не идёт задача агента) и снова запускает его при следующем касании.
+ * действий, если ничего не занято ([busy]), и снова запускает его при следующем касании.
+ * За минуту до сна — уведомление с «Не усыплять» (G-13).
  */
 @Composable
 internal fun IdleHostStopEffect(
     runtimeManager: HostRuntimeManager,
     runner: HostProcessRunner,
     idleMinutes: Int,
-    anySessionRunning: Boolean,
+    busy: Boolean,
     workspace: File,
+    notificationsEnabled: Boolean,
 ) {
+    val context = LocalContext.current
     val minutes by rememberUpdatedState(idleMinutes)
-    val running by rememberUpdatedState(anySessionRunning)
+    val isBusy by rememberUpdatedState(busy)
+    val notify by rememberUpdatedState(notificationsEnabled)
     val currentWorkspace by rememberUpdatedState(workspace)
     var stoppedForIdle by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
+        var warnedFor = -1L
         while (true) {
             delay(30_000)
-            if (shouldIdleStopHost(
-                    idleMinutes = minutes,
-                    phase = runner.statusFlow.value.phase,
-                    anySessionRunning = running,
-                    lastInteractionAt = UserActivity.lastInteraction.value,
-                    now = System.currentTimeMillis(),
-                )
-            ) {
+            val last = UserActivity.lastInteraction.value
+            val now = System.currentTimeMillis()
+            val phase = runner.statusFlow.value.phase
+            if (notify && warnedFor != last && idleWarningDue(minutes, phase, isBusy, last, now)) {
+                warnedFor = last
+                DshNotifications.idleWarning(context)
+            }
+            if (shouldIdleStopHost(minutes, phase, isBusy, last, now)) {
+                DshNotifications.cancelIdleWarning(context)
                 stoppedForIdle = true
                 withContext(Dispatchers.IO) { runCatching { runtimeManager.stop() } }
             }
@@ -76,6 +82,7 @@ internal fun IdleHostStopEffect(
     }
     LaunchedEffect(Unit) {
         UserActivity.lastInteraction.collect {
+            DshNotifications.cancelIdleWarning(context)
             if (stoppedForIdle) {
                 stoppedForIdle = false
                 withContext(Dispatchers.IO) { runCatching { runtimeManager.start(currentWorkspace.absolutePath) } }

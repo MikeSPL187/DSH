@@ -33,6 +33,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -117,7 +118,10 @@ private fun CodeBlock(code: String) {
     val c = com.deepseek.dsh.core.designsystem.Dsh.colors
     val ctx = LocalContext.current
     val size = com.deepseek.dsh.core.designsystem.LocalCodeFontSize.current - 0.5f
-    val lines = remember(code) { code.lines() }
+    // Пределы как в «Файлах» (G-16): строка до MAX_CODE_LINE символов, не больше MAX_CODE_LINES строк —
+    // минифицированный JS в ответе не рисуется текстом шире предела Compose. «Копировать» берёт блок целиком.
+    val allLines = remember(code) { code.lines() }
+    val lines = remember(allLines) { allLines.take(MAX_CODE_LINES).map { if (it.length > MAX_CODE_LINE) it.take(MAX_CODE_LINE) + "…" else it } }
     val diff = remember(code) { lines.count { it.startsWith("+") || it.startsWith("-") } >= lines.size / 2 && lines.any { it.startsWith("@@") || it.startsWith("+") } }
     val shape = RoundedCornerShape(16.dp)
     Box(Modifier.fillMaxWidth().clip(shape).background(c.termBg).border(1.dp, c.line, shape)) {
@@ -137,6 +141,11 @@ private fun CodeBlock(code: String) {
                     Text(line, style = ckMono(size.sp, (size * 1.7f).sp), color = fg, softWrap = false)
                 }
             }
+            if (allLines.size > lines.size) Text(
+                stringResource(R.string.markdown_code_more, lines.size, allLines.size),
+                style = ckBody(12.5.sp, 16.sp), color = c.t3,
+                modifier = Modifier.padding(start = 50.dp, top = 6.dp, end = 44.dp),
+            )
         }
         val copied = stringResource(R.string.markdown_copied)
         Box(Modifier.align(Alignment.TopEnd)) {
@@ -148,6 +157,9 @@ private fun CodeBlock(code: String) {
         }
     }
 }
+
+private const val MAX_CODE_LINES = 400
+private const val MAX_CODE_LINE = 2000
 
 /** Поддерживаемые блоки Markdown. */
 internal sealed interface MarkdownBlock {
@@ -269,44 +281,82 @@ internal fun parseMarkdownBlocks(text: String): List<MarkdownBlock> {
     return blocks
 }
 
-private val boldRegex = Regex("\\*\\*([^*]+)\\*\\*")
-private val codeRegex = Regex("`([^`]+)`")
-private val linkRegex = Regex("\\[([^\\]]+)]\\(([^)]+)\\)")
-private val italicRegex = Regex("(?<!\\*)\\*([^*]+)\\*(?!\\*)")
+/**
+ * Один проход по строке (G-16): раньше на каждый фрагмент — 4 поиска по остатку строки (O(n²)), без `remember`,
+ * и при потоке ответа весь текст разбирался заново на каждый токен. При совпадении в одной позиции приоритет —
+ * жирный, код, ссылка, курсив (как раньше).
+ */
+private val inlineRegex = Regex(
+    "\\*\\*([^*]+)\\*\\*" +
+        "|`([^`]+)`" +
+        "|\\[([^\\]]+)]\\(([^)\\s]+)\\)" +
+        "|(?<!\\*)\\*([^*]+)\\*(?!\\*)",
+)
 
-/** Строчные стили: жирный, код, текст ссылки, курсив. */
+/** Строчные стили: жирный, код, ссылка, курсив. Разбор запоминается по тексту и цветам. */
 @Composable
-private fun inlineMarkdown(source: String, color: Color): AnnotatedString = buildAnnotatedString {
-    var rest = source
-    while (rest.isNotEmpty()) {
-        val candidates = listOfNotNull(
-            boldRegex.find(rest)?.let { Triple(0, it.range, it.groupValues[1]) },
-            codeRegex.find(rest)?.let { Triple(1, it.range, it.groupValues[1]) },
-            linkRegex.find(rest)?.let { Triple(2, it.range, it.groupValues[1]) },
-            italicRegex.find(rest)?.let { Triple(3, it.range, it.groupValues[1]) },
-        ).minByOrNull { it.second.first }
-        if (candidates == null) {
-            append(rest)
-            break
-        }
-        if (candidates.second.first > 0) {
-            append(rest.substring(0, candidates.second.first))
-        }
-        when (candidates.first) {
-            0 -> withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(candidates.third) }
-            // `.msg-ai code`: моноширинный 13,5 на фоне кода.
-            1 -> withStyle(
-                SpanStyle(
-                    fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono,
-                    fontSize = 13.5.sp,
-                    background = com.deepseek.dsh.core.designsystem.Dsh.colors.codeBg,
-                ),
-            ) { append("\u2009" + candidates.third + "\u2009") }
-            2 -> withStyle(SpanStyle(color = com.deepseek.dsh.core.designsystem.Dsh.colors.accent)) {
-                append(candidates.third)
-            }
-            else -> withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(candidates.third) }
-        }
-        rest = rest.substring(candidates.second.last + 1)
+private fun inlineMarkdown(source: String, color: Color): AnnotatedString {
+    val c = com.deepseek.dsh.core.designsystem.Dsh.colors
+    val ctx = LocalContext.current
+    return remember(source, c.accent, c.t3, c.codeBg) {
+        inlineMarkdownOf(source, c.accent, c.t3, c.codeBg) { url -> openHttpLink(ctx, url) }
     }
+}
+
+/**
+ * Разбор строчной разметки. Ссылка `[текст](url)` (G-31) нажимается, только если это http(s), и рядом виден
+ * домен — куда ведёт ссылка, видно до нажатия; другие схемы (`javascript:`, `intent:`, `file:`) — просто текст.
+ */
+internal fun inlineMarkdownOf(
+    source: String,
+    accent: Color,
+    muted: Color,
+    codeBg: Color,
+    onLink: (String) -> Unit = {},
+): AnnotatedString = buildAnnotatedString {
+    var last = 0
+    for (m in inlineRegex.findAll(source)) {
+        append(source, last, m.range.first)
+        val g = m.groups
+        when {
+            g[1] != null -> withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(g[1]!!.value) }
+            // `.msg-ai code`: моноширинный 13,5 на фоне кода.
+            g[2] != null -> withStyle(
+                SpanStyle(fontFamily = com.deepseek.dsh.core.designsystem.DshFonts.mono, fontSize = 13.5.sp, background = codeBg),
+            ) { append("\u2009" + g[2]!!.value + "\u2009") }
+            g[3] != null -> {
+                val label = g[3]!!.value
+                val url = g[4]!!.value
+                val host = webLinkHost(url)
+                if (host == null) {
+                    withStyle(SpanStyle(color = accent)) { append(label) }
+                } else {
+                    withLink(
+                        androidx.compose.ui.text.LinkAnnotation.Clickable(
+                            tag = url,
+                            styles = androidx.compose.ui.text.TextLinkStyles(SpanStyle(color = accent)),
+                            linkInteractionListener = { onLink(url) },
+                        ),
+                    ) { append(label) }
+                    if (!label.contains(host, ignoreCase = true)) withStyle(SpanStyle(color = muted)) { append(" ($host)") }
+                }
+            }
+            else -> withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(g[5]!!.value) }
+        }
+        last = m.range.last + 1
+    }
+    append(source, last, source.length)
+}
+
+/** Домен http(s)-ссылки; другая схема или битый адрес — null (ссылка не нажимается). */
+internal fun webLinkHost(url: String): String? = runCatching {
+    val uri = java.net.URI(url)
+    uri.host?.takeIf { uri.scheme?.lowercase() in setOf("http", "https") && it.isNotBlank() }?.removePrefix("www.")
+}.getOrNull()
+
+private fun openHttpLink(context: android.content.Context, url: String) {
+    if (webLinkHost(url) == null) return
+    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(intent) }
 }

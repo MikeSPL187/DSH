@@ -104,11 +104,12 @@ class DshApplication : Application() {
     /**
      * Привязать клиент репозитория к порту loopback, который сообщил локальный Host, и обменять
      * токен запуска на cookie; дальше все запросы интерфейса идут по этому адресу.
+     * @return false — Host не принял вход (G-19): без сессии все вызовы падали бы по одному с 401/403.
      */
-    suspend fun bindLocalHost(port: Int, token: String?) {
+    suspend fun bindLocalHost(port: Int, token: String?): Boolean {
         // Порт 1 — заглушка, Host ещё не готов: не привязываем, иначе все запросы и потоки
         // ушли бы на адрес, который заведомо отклонит соединение.
-        if (port <= 1) return
+        if (port <= 1) return false
         val baseUrl = "http://127.0.0.1:$port"
         localHostPort = port
         localHostToken = token
@@ -116,15 +117,17 @@ class DshApplication : Application() {
         // Мост и Remote API делят один адрес loopback и CookieJar сессии: сначала адрес,
         // потом обмен токена — так первый запрос моста уже идёт с сессией.
         dshRepository.plugins.bindBridge(com.deepseek.dsh.core.bridge.BridgeRegistry(baseUrl, okHttpClient))
-        if (!token.isNullOrBlank()) {
-            val res = defaultClient.authenticate(baseUrl, token)
-            // Состояние входа — в системный CookieManager для WebView и WebIslandContainer.
-            try {
-                val cm = android.webkit.CookieManager.getInstance()
-                cm.setAcceptCookie(true)
-                // И сразу обмен для WebView в фоне.
-            } catch (_: Throwable) {}
+        if (token.isNullOrBlank()) return true
+        // Сразу после запуска Host может ещё не принимать вход: две повторные попытки с паузой.
+        repeat(3) { attempt ->
+            if (defaultClient.authenticate(baseUrl, token) is com.deepseek.dsh.core.protocol.RemoteResult.Success) {
+                // Состояние входа — в системный CookieManager для WebView и WebIslandContainer.
+                runCatching { android.webkit.CookieManager.getInstance().setAcceptCookie(true) }
+                return true
+            }
+            if (attempt < 2) kotlinx.coroutines.delay(700L * (attempt + 1))
         }
+        return false
     }
 
     val dshRepository: DshRepository by lazy {
@@ -174,15 +177,10 @@ class DshApplication : Application() {
         )
         HostRuntimeHolder.manager = runtimeManager
         HostRuntimeHolder.hasRunningTasks = { dshRepository.runningSessionIdsFlow.value.isNotEmpty() }
-        // Host прогревается сразу при открытии (до Activity и Compose); в фоне не живёт.
-        if (java.io.File(filesDir, "rootfs/etc/os-release").exists()) {
-            val workspace = StorageAccess.workspaceRoot(this)
-            // До запуска Host: папка его сессий переименовывается вместе с папкой проекта.
-            runCatching { migrateDefaultWorkspace(workspace, java.io.File(filesDir, HOST_SESSIONS_DIR)) }
-            applicationScope.launch(Dispatchers.IO) {
-                runCatching { runtimeManager.warmUp(workspace.absolutePath) }
-            }
-        }
+        // Host прогревается при открытии интерфейса (MainAppHost, StartupGate), а не здесь (G-39): процесс поднимается
+        // и ради JobScheduler в фоне, где foreground-служба запрещена (Android 12+), — proot и Node работали бы без
+        // службы и уведомления. Миграция папки Default — там же, перед прогревом. Автоматизации запускают Host сами.
+        applicationScope.launch(Dispatchers.IO) { dshRepository.pruneMessageCache() }
     }
 }
 

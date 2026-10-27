@@ -30,6 +30,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(project(":core:bridge"))
     implementation(project(":core:model"))
+    implementation(project(":core:protocol"))
     implementation(project(":core:designsystem"))
     implementation(libs.kotlinx.serialization.json)
     implementation(platform(libs.androidx.compose.bom))

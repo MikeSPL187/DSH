@@ -132,6 +132,9 @@
     <string name="st_clipboard">Читать буфер обмена</string>
     <string name="st_clipboard_sub">Выключено: агент не видит, что вы копировали</string>
     <string name="st_clipboard_on_sub">Включено: агент может прочитать скопированный текст</string>
+    <string name="st_third_party">Сторонние плагины</string>
+    <string name="st_third_party_sub">Выключено: плагины из npm, GitHub и рынка не ставятся — их код работает с правами приложения</string>
+    <string name="st_third_party_on_sub">Включено: можно ставить плагины из npm, GitHub и рынка. Ставьте только от тех, кому доверяете</string>
     <string name="st_clip_on">Агент сможет читать буфер обмена</string>
     <string name="st_clip_off">Буфер обмена закрыт для агента</string>
     <string name="st_sessions">Сессии</string>

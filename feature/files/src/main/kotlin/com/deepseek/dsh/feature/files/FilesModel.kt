@@ -36,14 +36,19 @@ internal fun relPath(root: File, file: File): String =
 /** Папки, которые не показываем в недавних и в поиске: служебные и сборочные. */
 internal val SkipDirs = setOf(".git", "build", "node_modules", ".gradle", ".idea", ".cache", "__pycache__", ".venv")
 
-/** Обход проекта (без служебных папок), не больше [limit] файлов. */
-internal fun walkFiles(root: File, limit: Int = 4000): List<File> {
+/**
+ * Обход проекта (без служебных папок), не больше [limit] файлов и [maxDirs] папок. В ссылки на папки не заходит
+ * (G-30): цикл `ln -s .. up` в папке без файлов раньше давал бесконечный обход — «Недавние» и поиск висли.
+ */
+internal fun walkFiles(root: File, limit: Int = 4000, maxDirs: Int = 20_000): List<File> {
     val out = ArrayList<File>()
     val stack = ArrayDeque<File>().apply { add(root) }
-    while (stack.isNotEmpty() && out.size < limit) {
+    var dirs = 0
+    while (stack.isNotEmpty() && out.size < limit && dirs++ < maxDirs) {
         val dir = stack.removeLast()
         val kids = dir.listFiles() ?: continue
         for (f in kids) {
+            if (java.nio.file.Files.isSymbolicLink(f.toPath())) continue
             if (f.isDirectory) {
                 if (f.name !in SkipDirs) stack.add(f)
             } else {
@@ -127,3 +132,15 @@ internal const val MAX_VIEW_LINES = 3000
 internal const val MAX_VIEW_LINE_CHARS = 2000
 internal const val MAX_VIEW_CHARS = 256 * 1024
 internal const val MAX_VIEW_READ = 8L * 1024 * 1024
+
+/** Длинная сторона превью картинки: экран телефона, с запасом на xxxhdpi. */
+internal const val PREVIEW_MAX_SIDE = 2048
+
+/** Степень двойки, при которой длинная сторона картинки не больше [maxSide]; размер неизвестен — 1. */
+internal fun previewSampleSize(width: Int, height: Int, maxSide: Int): Int {
+    var sample = 1
+    val longest = maxOf(width, height)
+    if (longest <= 0) return 1
+    while (longest / sample > maxSide) sample *= 2
+    return sample
+}

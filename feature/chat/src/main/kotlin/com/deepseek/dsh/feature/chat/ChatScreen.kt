@@ -145,6 +145,9 @@ private fun commandHintRes(token: String): Int? = when (token) {
 fun ModernChatScreen(
     messages: List<ChatMessage>,
     onSendMessage: (String) -> Unit,
+    /** Host запущен, но не принял вход приложения (G-19): полоса «Host не принял вход» с «Перезапустить». */
+    hostDenied: Boolean = false,
+    onRestartHost: () -> Unit = {},
     /** «Повторить» у сообщения, которое Host не принял (id пузыря). */
     onRetryMessage: (String) -> Unit = {},
     isSending: Boolean = false,
@@ -470,8 +473,9 @@ fun ModernChatScreen(
     val isOnline = online ?: rememberOnline()
     var net by remember { mutableStateOf<NetState?>(if (isOnline) null else NetState.Offline) }
     var netCheck by remember { mutableStateOf(0) }
-    LaunchedEffect(isOnline, netCheck) {
+    LaunchedEffect(isOnline, netCheck, hostDenied) {
         when {
+            hostDenied && isOnline -> net = NetState.HostDenied
             !isOnline && netCheck > 0 -> { net = NetState.Checking; kotlinx.coroutines.delay(900); net = NetState.Offline }
             !isOnline -> net = NetState.Offline
             net != null -> { net = NetState.Back; kotlinx.coroutines.delay(1600); net = null }
@@ -884,7 +888,7 @@ fun ModernChatScreen(
             exit = fadeOut(com.deepseek.dsh.core.designsystem.DshMotion.smooth()) + slideOutVertically(com.deepseek.dsh.core.designsystem.DshMotion.smooth()) { -it / 3 },
             modifier = Modifier.padding(top = statusTop + 64.dp, start = 12.dp, end = 12.dp),
         ) {
-            NetBar(net ?: NetState.Back, onRetry = { netCheck++ })
+            NetBar(net ?: NetState.Back, onRetry = { if (net == NetState.HostDenied) onRestartHost() else netCheck++ })
         }
         // Экран «Запрос агента» поверх чата, въезжает справа.
         androidx.compose.animation.AnimatedVisibility(

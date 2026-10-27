@@ -21,4 +21,19 @@ object BridgePolicy {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putBoolean(KEY_CLIPBOARD_READ, allowed).apply()
     }
+
+    private const val KEY_THIRD_PARTY_PLUGINS = "allow_third_party_plugins"
+
+    /**
+     * Можно ли ставить плагины Host из сети — npm, GitHub, рынок (G-48). По умолчанию нет: это чужой код с правами
+     * приложения, без закреплённого в APK хэша. Плагин из выбранного пользователем файла этим не ограничивается.
+     */
+    fun isThirdPartyPluginsAllowed(context: Context): Boolean = runCatching {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_THIRD_PARTY_PLUGINS, false)
+    }.getOrDefault(false)
+
+    fun setThirdPartyPluginsAllowed(context: Context, allowed: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean(KEY_THIRD_PARTY_PLUGINS, allowed).apply()
+    }
 }

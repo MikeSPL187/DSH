@@ -19,25 +19,5 @@ fun Json.parseHostJson(text: String): JsonElement {
     return parseToJsonElement(text)
 }
 
-/** Вложенность скобок вне строк больше [limit]. */
-internal fun jsonDepthExceeds(text: String, limit: Int): Boolean {
-    var depth = 0
-    var inString = false
-    var escaped = false
-    for (ch in text) {
-        if (inString) {
-            when {
-                escaped -> escaped = false
-                ch == '\\' -> escaped = true
-                ch == '"' -> inString = false
-            }
-            continue
-        }
-        when (ch) {
-            '"' -> inString = true
-            '[', '{' -> if (++depth > limit) return true
-            ']', '}' -> depth--
-        }
-    }
-    return false
-}
+/** Вложенность скобок вне строк больше [limit] (см. [com.deepseek.dsh.core.model.jsonTooDeep]). */
+internal fun jsonDepthExceeds(text: String, limit: Int): Boolean = com.deepseek.dsh.core.model.jsonTooDeep(text, limit)

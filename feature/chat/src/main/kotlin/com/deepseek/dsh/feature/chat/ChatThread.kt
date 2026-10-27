@@ -1,5 +1,6 @@
 package com.deepseek.dsh.feature.chat
 
+import com.deepseek.dsh.core.protocol.parseHostJson
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -622,7 +623,11 @@ internal fun androidx.compose.foundation.layout.ColumnScope.ToolDetailBody(detai
             )
         }
     }
-    val args = remember(detail.args) { runCatching { org.json.JSONObject(detail.args).toString(2) }.getOrElse { detail.args } }
+    val args = remember(detail.args) {
+        runCatching {
+            PrettyArgsJson.encodeToString(kotlinx.serialization.json.JsonElement.serializer(), kotlinx.serialization.json.Json.parseHostJson(detail.args))
+        }.getOrElse { detail.args }
+    }
     if (args.isNotBlank()) CodeSection(stringResource(R.string.tool_detail_args), args)
     if (detail.body.isNotBlank()) CodeSection(
         stringResource(if (detail.status == "error") R.string.tool_detail_error_output else R.string.tool_detail_output),
@@ -683,3 +688,6 @@ internal fun MessageFeedbackActions(
         }
     }
 }
+
+/** Аргументы инструмента в листе деталей — с отступами; разбор с пределом глубины (`parseHostJson`). */
+private val PrettyArgsJson = kotlinx.serialization.json.Json { prettyPrint = true }

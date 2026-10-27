@@ -1,5 +1,6 @@
 package com.deepseek.dsh.feature.chat
 
+import com.deepseek.dsh.core.protocol.parseHostJson
 import com.deepseek.dsh.core.model.ChatMessage
 import com.deepseek.dsh.core.model.MessageRole
 import kotlinx.serialization.json.Json
@@ -97,7 +98,7 @@ data class ToolDetailData(
 
 /** Строка-описание шага: команда, файл, шаблон поиска…; нет — первая строка ответа готового инструмента. */
 internal fun toolSummary(name: String, args: String, body: String, status: String): String {
-    val obj = runCatching { lenientJson.parseToJsonElement(args) as? JsonObject }.getOrNull()
+    val obj = runCatching { lenientJson.parseHostJson(args) as? JsonObject }.getOrNull()
     fun pick(vararg keys: String): String =
         keys.firstNotNullOfOrNull { key -> obj?.string(key)?.takeIf { it.isNotBlank() } }.orEmpty()
     val summary = when {
@@ -119,7 +120,7 @@ internal data class AskQuestion(val id: String, val question: String, val header
 
 /** Вопросы агента из аргументов `ask_user_question`; без id или текста вопрос пропускается. */
 internal fun parseAskQuestions(raw: String): List<AskQuestion> {
-    val root = runCatching { lenientJson.parseToJsonElement(raw) as? JsonObject }.getOrNull() ?: return emptyList()
+    val root = runCatching { lenientJson.parseHostJson(raw) as? JsonObject }.getOrNull() ?: return emptyList()
     val questions = root["questions"] as? JsonArray ?: return emptyList()
     return questions.mapNotNull { item ->
         val obj = item as? JsonObject ?: return@mapNotNull null

@@ -125,6 +125,7 @@ internal object BridgePluginArchive {
         val manifestText = manifest
             ?: throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Archive has no $MANIFEST_FILE", "В архиве нет $MANIFEST_FILE"))
         val parsed = runCatching {
+            require(!com.deepseek.dsh.core.model.jsonTooDeep(manifestText)) { "nested too deeply" }
             json.decodeFromString(ArchiveManifest.serializer(), manifestText)
         }.getOrElse { error ->
             throw IllegalArgumentException(com.deepseek.dsh.core.model.Tr.t("Cannot parse $MANIFEST_FILE: ${error.message}", "Не удалось разобрать $MANIFEST_FILE: ${error.message}"))

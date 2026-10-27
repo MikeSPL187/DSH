@@ -275,12 +275,23 @@ internal fun DshPluginsRoute(d: PluginDeps) {
 
         override suspend fun install(catalogId: String): Boolean {
             val spec = market.firstOrNull { it.name == catalogId }?.presentedVersion?.spec ?: catalogId
-            return d.install(spec).isSuccess.also { tick++ }
+            return installReporting(spec)
         }
 
         override suspend fun installFromLink(link: String): Boolean {
             val spec = normalizeSpec(link) ?: return false
-            return d.install(spec).isSuccess.also { tick++ }
+            return installReporting(spec)
+        }
+
+        /** Установить; запрет сторонних плагинов (G-48) — понятное сообщение, а не общее «не удалось». */
+        private var failure: String? = null
+
+        override fun installFailure(): String? = failure
+
+        private suspend fun installReporting(spec: String): Boolean {
+            val result = d.install(spec).also { tick++ }
+            failure = (result.exceptionOrNull() as? ThirdPartyPluginsDisabled)?.message
+            return result.isSuccess
         }
 
         override fun installFromFile() = fileLauncher.launch(arrayOf("application/zip", "application/gzip", "application/x-gzip", "application/vnd.android.package-archive", "application/octet-stream"))

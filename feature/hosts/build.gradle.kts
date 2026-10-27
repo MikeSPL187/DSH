@@ -26,6 +26,7 @@ android {
 
 dependencies {
     implementation(project(":core:model"))
+    implementation(project(":core:protocol"))
     implementation(project(":core:data"))
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)

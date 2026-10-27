@@ -155,6 +155,8 @@ interface PluginsActions {
     suspend fun updateAll(): List<String> = emptyList()
     suspend fun uninstall(id: String): Boolean = true
     suspend fun install(catalogId: String): Boolean = true
+    /** Причина последнего отказа установки, если её надо показать вместо общего «не удалось». */
+    fun installFailure(): String? = null
     suspend fun installFromLink(link: String): Boolean = true
     fun installFromFile() {}
     fun createWithAgent() {}
@@ -513,7 +515,7 @@ private fun CatalogCard(c: CatalogUi, a: PluginsActions, toast: ToastState, onIn
         Text(c.description, style = small(12.5.sp, 17.5.sp), color = Dsh.colors.t2, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.heightIn(min = 52.dp))
         KBtn(
             if (busy) "" else stringResource(R.string.pl_install_short),
-            { busy = true; scope.launch { val ok = a.install(c.id); busy = false; if (ok) { onInstalled(c.id); toast.show(done) } else toast.show(failed) } },
+            { busy = true; scope.launch { val ok = a.install(c.id); busy = false; if (ok) { onInstalled(c.id); toast.show(done) } else toast.show(a.installFailure() ?: failed) } },
             Modifier.fillMaxWidth().padding(top = 10.dp), height = 40.dp, radius = 12.dp, fontSize = 14.sp, ink = Dsh.colors.accent, busy = busy,
         )
     }
@@ -788,7 +790,7 @@ private fun LinkSheet(a: PluginsActions, toast: ToastState, close: () -> Unit) {
         KBtn(
             stringResource(R.string.pl_install_short), {
                 busy = true
-                scope.launch { val ok = a.installFromLink(link.trim()); busy = false; if (ok) { toast.show(done); close() } else toast.show(failed) }
+                scope.launch { val ok = a.installFromLink(link.trim()); busy = false; if (ok) { toast.show(done); close() } else toast.show(a.installFailure() ?: failed) }
             },
             Modifier.weight(1f), kind = BtnKind.Primary, enabled = link.isNotBlank(), busy = busy,
         )

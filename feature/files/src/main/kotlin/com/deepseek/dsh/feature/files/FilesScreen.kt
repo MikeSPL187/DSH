@@ -776,7 +776,13 @@ private fun ImagePreview(f: File) {
     val bitmap by produceState<android.graphics.Bitmap?>(null, f) {
         value = withContext(Dispatchers.IO) {
             runCatching {
-                val opts = android.graphics.BitmapFactory.Options().apply { inSampleSize = 2 }
+                // Сначала только размер (G-15): фото 108 Мп с фиксированным inSampleSize=2 — 108 МБ в памяти
+                // и «Canvas: trying to draw too large bitmap» в RenderThread.
+                val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                android.graphics.BitmapFactory.decodeFile(f.absolutePath, bounds)
+                val opts = android.graphics.BitmapFactory.Options().apply {
+                    inSampleSize = previewSampleSize(bounds.outWidth, bounds.outHeight, PREVIEW_MAX_SIDE)
+                }
                 android.graphics.BitmapFactory.decodeFile(f.absolutePath, opts)
             }.getOrNull()
         }

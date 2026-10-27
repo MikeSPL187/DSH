@@ -136,7 +136,9 @@ object AutomationRunner {
         val status = app.runtimeManager.getStatus().takeIf { it.phase == RuntimePhase.RUNNING && it.port != null }
             ?: app.runtimeManager.start(workspace).getOrNull()
             ?: return@withContext Outcome(false, app.getString(R.string.au_run_no_host), null, false)
-        if (app.localHostPort <= 1 && status.port != null) app.bindLocalHost(status.port!!, status.token)
+        if (app.localHostPort <= 1 && status.port != null && !app.bindLocalHost(status.port!!, status.token)) {
+            return@withContext Outcome(false, app.getString(R.string.au_run_no_host), null, false)
+        }
         repo.subscribeRemoteEvents(LOCAL_HOST)
 
         val session = repo.createSession(LOCAL_HOST, a.name, workspace).getOrElse {

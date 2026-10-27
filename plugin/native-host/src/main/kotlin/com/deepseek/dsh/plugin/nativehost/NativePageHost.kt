@@ -1,5 +1,6 @@
 package com.deepseek.dsh.plugin.nativehost
 
+import com.deepseek.dsh.core.protocol.parseHostJson
 import com.deepseek.dsh.plugin.nativesdk.host.PluginHostApi
 import com.deepseek.dsh.plugin.nativesdk.host.PluginRpcHost
 import com.deepseek.dsh.plugin.nativesdk.host.PluginStorage
@@ -27,7 +28,7 @@ internal class NativePageHost(
     override fun callRpc(method: String, payload: JsonObject, onResult: (Result<JsonElement>) -> Unit) {
         scope.launch {
             val result = pluginRpc(method, payload).map { text ->
-                kotlinx.serialization.json.Json.parseToJsonElement(text)
+                kotlinx.serialization.json.Json.parseHostJson(text)
             }
             onResult(result)
         }

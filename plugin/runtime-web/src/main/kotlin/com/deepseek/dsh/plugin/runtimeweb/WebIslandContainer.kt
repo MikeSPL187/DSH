@@ -143,6 +143,14 @@ class WebIslandContainer(
                 }
             }
 
+            // Подресурсы (fetch, img, script, iframe) — только с адреса Host (G-34): раньше ограничивались лишь
+            // переходы главного фрейма, и веб-часть плагина могла отправить данные страницы на любой адрес.
+            override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): android.webkit.WebResourceResponse? {
+                val url = request?.url?.toString() ?: return null
+                return if (subresourceAllowed(url, allowedHost, allowedPort)) null
+                else android.webkit.WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", emptyMap(), java.io.ByteArrayInputStream(ByteArray(0)))
+            }
+
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val uri = request?.url ?: return true
                 // Только http(s): intent:/javascript:/file: отклоняются даже при том же host.
@@ -619,4 +627,18 @@ class WebIslandContainer(
             })()
         """
     }
+}
+
+/**
+ * Можно ли веб-части плагина загрузить [url]: только http(s) на адрес и порт Host; `data:` и `blob:` — локальные
+ * данные страницы. Порт 0 (Host не запущен) не разрешает ничего.
+ */
+internal fun subresourceAllowed(url: String, allowedHost: String?, allowedPort: Int): Boolean {
+    val lower = url.lowercase()
+    if (lower.startsWith("data:") || lower.startsWith("blob:")) return true
+    val uri = runCatching { java.net.URI(url) }.getOrNull() ?: return false
+    val scheme = uri.scheme?.lowercase()
+    if (scheme != "http" && scheme != "https") return false
+    val port = if (uri.port != -1) uri.port else if (scheme == "https") 443 else 80
+    return allowedPort > 0 && uri.host != null && uri.host == allowedHost && port == allowedPort
 }

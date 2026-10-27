@@ -1,5 +1,6 @@
 package com.deepseek.dsh.terminal
 
+import com.deepseek.dsh.core.protocol.parseHostJson
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -47,6 +48,9 @@ object TerminalHub {
     fun lastFailed(host: String, sid: String): TermBlock? = models.filterKeys { it.startsWith("$host/$sid/") }.values
         .flatMap { it.blocks }.filter { it.state == BlockState.Err }.maxByOrNull { it.startedAt }
     fun setActive(host: String, sid: String, id: String) { lastActive["$host/$sid"] = id }
+
+    /** Идёт ли сейчас команда в любой вкладке (`npm run dev`, `./gradlew build`) — авто-сон её не обрывает (G-13). */
+    fun anyLive(): Boolean = models.values.any { m -> m.blocks.any { it.state == BlockState.Live } }
 }
 
 /** История команд для ↑ / ↓, Tab и подсказок `.tsug` — на телефоне, последние 100. */
@@ -132,7 +136,7 @@ fun DshTerminalRoute(
             conns[t.id] = conn
             try {
                 conn.frames.collect { raw ->
-                    val frame = runCatching { Json.parseToJsonElement(raw) as? JsonObject }.getOrNull() ?: return@collect
+                    val frame = runCatching { Json.parseHostJson(raw) as? JsonObject }.getOrNull() ?: return@collect
                     fun text(k: String) = (frame[k] as? JsonPrimitive)?.contentOrNull
                     fun state() = ((frame["info"] as? JsonObject)?.get("state") as? JsonPrimitive)?.contentOrNull
                     when (text("type")) {

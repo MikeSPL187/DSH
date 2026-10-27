@@ -1,5 +1,6 @@
 package com.deepseek.dsh
 
+import com.deepseek.dsh.core.protocol.parseHostJson
 import androidx.compose.ui.draw.shadow
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
@@ -174,7 +175,11 @@ fun MainAppHost(
     // Вложения из системного выбора файлов (уже скопированы в attachments/ рабочей папки).
     val chatAttachments = remember { androidx.compose.runtime.mutableStateListOf<com.deepseek.dsh.feature.chat.ChatAttachment>() }
     // При смене сессии неотправленные вложения очищаются, чтобы не уйти в другую сессию.
-    LaunchedEffect(ui.selectedSessionId) { chatAttachments.clear() }
+    LaunchedEffect(ui.selectedSessionId) {
+        chatAttachments.clear()
+        // Права «до первого сообщения» — только для новой сессии; отправка уже взяла их с собой.
+        if (ui.selectedSessionId != null) ui.pendingPermissionPreset = null
+    }
     val liveSessionIds by dshRepository.liveSessionIdsFlow.collectAsState()
     val runningSessionIds by dshRepository.runningSessionIdsFlow.collectAsState()
     val unreadSessionIds by dshRepository.unreadSessionIdsFlow.collectAsState()
@@ -408,8 +413,6 @@ fun MainAppHost(
 
     val status by runner.statusFlow.collectAsState()
 
-    IdleHostStopEffect(runtimeManager, runner, persistedSettings.idleStopMinutes, runningSessionIds.isNotEmpty(), activeWorkspace)
-
     // Инструменты workflow в профиле телефона по умолчанию выключены: включаем через API, как на компьютере.
     LaunchedEffect(ui.activeHostId, status.phase) {
         if (status.phase == RuntimePhase.RUNNING) {
@@ -435,6 +438,15 @@ fun MainAppHost(
         notificationsEnabled = ui.currentAppSettings.notificationsEnabled,
     )
     val hostJobs by dshRepository.tasks.jobsFlow.collectAsState()
+    // Авто-сон (G-13): простой — это не только «нет хода агента». Живые команды терминала, фоновые процессы,
+    // ожидающие одобрения и вопросы держат Host.
+    IdleHostStopEffect(
+        runtimeManager, runner, persistedSettings.idleStopMinutes,
+        busy = runningSessionIds.isNotEmpty() || pendingApprovalWaterfalls.isNotEmpty() || pendingQuestions.isNotEmpty() ||
+            hostJobs.any { it.finishedAt == null } || com.deepseek.dsh.terminal.TerminalHub.anyLive(),
+        workspace = activeWorkspace,
+        notificationsEnabled = ui.currentAppSettings.notificationsEnabled,
+    )
     // Непоказанные бонусы аккаунта (account/getUnnotifiedBonuses); без бонусов ничего не рисуется.
     AccountBonusHost(
         repository = dshRepository,
@@ -501,13 +513,13 @@ fun MainAppHost(
 
     // Системный выбор файлов (SAF): несколько картинок или любых файлов копируются в
     // рабочую папку и показываются в поле ввода; при отправке — ссылкой @<путь> в начале сообщения.
-    fun importAttachments(uris: List<android.net.Uri>) {
+    fun importAttachments(uris: List<android.net.Uri>, afterImport: () -> Unit = {}) {
         if (uris.isNotEmpty()) {
             val workspaceDir = java.io.File(activeWorkspace, runtimeUi.activeWorkspaceName)
             // Большие файлы копируются в потоке IO, чтобы не тормозили клавиатура и интерфейс.
             scope.launch {
                 val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    com.deepseek.dsh.AttachmentImporter.import(context, workspaceDir, uris)
+                    com.deepseek.dsh.AttachmentImporter.import(context, workspaceDir, uris).also { afterImport() }
                 }
                 result.added.forEach { added ->
                     if (chatAttachments.none { it.workspaceRelativePath == added.workspaceRelativePath }) {
@@ -533,10 +545,18 @@ fun MainAppHost(
         androidx.activity.result.contract.ActivityResultContracts.PickMultipleVisualMedia(),
     ) { uris: List<android.net.Uri> -> importAttachments(uris) }
     // Камера: снимок во временный файл приложения, затем в папку проекта, как любое вложение.
-    var cameraUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    // Пока открыта камера, система часто убивает DSH (G-20): адрес снимка переживает пересоздание (rememberSaveable),
+    // иначе фото молча терялось. Временный файл снимка после копирования в проект удаляется.
+    var cameraUri by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<android.net.Uri?>(null) }
+    val cameraDir = remember { java.io.File(context.cacheDir, "camera") }
     val cameraLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.TakePicture(),
-    ) { ok -> cameraUri?.takeIf { ok }?.let { importAttachments(listOf(it)) } }
+    ) { ok ->
+        val uri = cameraUri
+        cameraUri = null
+        val cleanup = { cameraDir.listFiles()?.forEach { it.delete() }; Unit }
+        if (ok && uri != null) importAttachments(listOf(uri), cleanup) else scope.launch(kotlinx.coroutines.Dispatchers.IO) { cleanup() }
+    }
     val hasCamera = remember { context.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_CAMERA_ANY) }
 
     HostRestartBridgeEffect(ui.activeHostId, dshRepository, runtimeManager, activeWorkspace)
@@ -549,6 +569,10 @@ fun MainAppHost(
                 override suspend fun rename(workspaceId: String, title: String) = dshRepository.workspaceRename(ui.activeHostId, workspaceId, title).isSuccess
                 override suspend fun delete(workspaceId: String) = dshRepository.deleteWorkspace(ui.activeHostId, workspaceId)
                 override suspend fun renameSession(sessionId: String, title: String) = dshRepository.renameSession(ui.activeHostId, sessionId, title)
+            },
+            created = object : CreatedProjectsLog {
+                override fun add(name: String) = com.deepseek.dsh.runtime.host.CreatedProjects.add(layout, name)
+                override fun rename(from: String, to: String) = com.deepseek.dsh.runtime.host.CreatedProjects.rename(layout, from, to)
             },
             hostIdOf = { path -> dshRepository.hostWorkspacesFlow.value.forFolder(path, activeWorkspace)?.id },
         )
@@ -586,7 +610,7 @@ fun MainAppHost(
                 scope.launch { dshRepository.approvals.respondApprovalWaterfall(ui.activeHostId, waterfall.eventId, true) }
             },
             onReject = { scope.launch { dshRepository.approvals.respondApprovalWaterfall(ui.activeHostId, waterfall.eventId, false) } },
-            inspect = if (local) ({ paths -> inspectDeletion(layout.rootfsDir, workspacePath, paths) }) else null,
+            inspect = if (local) ({ paths -> inspectDeletion(layout.rootfsDir, activeWorkspace, workspacePath, paths) }) else null,
         )
     }
 
@@ -714,7 +738,9 @@ fun MainAppHost(
                 ui.activePage = ActivePage.CHAT
             },
             commitMessage = { info -> com.deepseek.dsh.ai.CommitMessageWriter.write(context, filesGit, info) },
-            onShare = { f -> shareWorkspaceFile(context, f) },
+            onShare = { f ->
+                if (!shareWorkspaceFile(context, f)) android.widget.Toast.makeText(context, context.getString(R.string.share_failed), android.widget.Toast.LENGTH_LONG).show()
+            },
             onImport = { dir ->
                 ui.filesDir = dir
                 filesImportLauncher.launch(arrayOf("*/*"))
@@ -850,7 +876,7 @@ fun MainAppHost(
                                         ).collect { frameJson ->
                                             val frame = runCatching {
                                                 kotlinx.serialization.json.Json
-                                                    .parseToJsonElement(frameJson)
+                                                    .parseHostJson(frameJson)
                                                     as? kotlinx.serialization.json.JsonObject
                                             }.getOrNull() ?: return@collect
                                             when ((frame["type"]
@@ -985,6 +1011,7 @@ fun MainAppHost(
                                     workspaceLabel = workspaceLabelOf(runtimeUi.activeWorkspaceName),
                                     workspaceNames = workspaceFolders.map { workspaceLabelOf(it.name) },
                                     sender = chatSender,
+                                    runtimeManager = runtimeManager,
                                     voice = voice,
                                     voiceEnabled = voiceEnabled,
                                     translateReasoning = cotTranslationEnabled,
@@ -998,11 +1025,15 @@ fun MainAppHost(
                                         )
                                     },
                                     onTakePhoto = if (hasCamera) ({
-                                        val dir = java.io.File(context.cacheDir, "camera").apply { mkdirs() }
-                                        val file = java.io.File(dir, "photo-" + System.currentTimeMillis() + ".jpg")
+                                        cameraDir.mkdirs()
+                                        val file = java.io.File(cameraDir, "photo-" + System.currentTimeMillis() + ".jpg")
                                         val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
                                         cameraUri = uri
-                                        cameraLauncher.launch(uri)
+                                        // Камера есть, а приложение камеры отключено — ActivityNotFoundException, раньше падение.
+                                        runCatching { cameraLauncher.launch(uri) }.onFailure {
+                                            cameraUri = null
+                                            android.widget.Toast.makeText(context, context.getString(R.string.camera_unavailable), android.widget.Toast.LENGTH_LONG).show()
+                                        }
                                     }) else null,
                                     onOpenTerminal = if (terminalSupported) ({ ui.activePage = ActivePage.TERMINAL }) else null,
                                     onOpenDrawer = { scope.launch { drawerState.open() } },

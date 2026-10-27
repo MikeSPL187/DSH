@@ -98,12 +98,7 @@ object AttachmentImporter {
 
     /** Без перезаписи: name.png → name-1.png → name-2.png. */
     private fun uniqueFile(dir: File, name: String): File {
-        // Имя приходит от стороннего провайдера: отрезаем путь, управляющие символы и «.»/«..».
-        val safe = name.substringAfterLast('/').substringAfterLast('\\')
-            .filterNot { it.isISOControl() }
-            .trim()
-            .takeUnless { it.isBlank() || it == "." || it == ".." }
-            ?: "attachment"
+        val safe = safeAttachmentName(name)
         var candidate = File(dir, safe)
         if (!candidate.exists()) return candidate
         val dot = safe.lastIndexOf('.')
@@ -119,3 +114,16 @@ object AttachmentImporter {
 
     private const val ATTACHMENTS_DIR = "attachments"
 }
+
+/**
+ * Имя файла вложения. Имя приходит от стороннего провайдера: отрезаем путь, управляющие символы и «.»/«..».
+ * Пробелы заменяются на `_` (G-21): агент получает ссылку `@attachments/<имя>` одним словом, и
+ * `My Photo.pdf` разрывал её — агент видел неверный путь.
+ */
+internal fun safeAttachmentName(name: String): String =
+    name.substringAfterLast('/').substringAfterLast('\\')
+        .filterNot { it.isISOControl() }
+        .trim()
+        .replace(Regex("\\s+"), "_")
+        .takeUnless { it.isBlank() || it == "." || it == ".." }
+        ?: "attachment"

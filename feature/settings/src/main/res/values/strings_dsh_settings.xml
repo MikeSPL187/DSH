@@ -126,6 +126,9 @@
     <string name="st_clipboard">Read the clipboard</string>
     <string name="st_clipboard_sub">Off: the agent can\'t see what you copied</string>
     <string name="st_clipboard_on_sub">On: the agent can read copied text</string>
+    <string name="st_third_party">Third-party plugins</string>
+    <string name="st_third_party_sub">Off: plugins from npm, GitHub and the market are not installed — their code runs with the app’s rights</string>
+    <string name="st_third_party_on_sub">On: you can install plugins from npm, GitHub and the market. Install only from authors you trust</string>
     <string name="st_clip_on">The agent can now read the clipboard</string>
     <string name="st_clip_off">The clipboard is closed to the agent</string>
     <string name="st_sessions">Sessions</string>

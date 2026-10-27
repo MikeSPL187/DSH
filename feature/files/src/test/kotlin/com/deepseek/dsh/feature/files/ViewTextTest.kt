@@ -42,4 +42,25 @@ class ViewTextTest {
         assertEquals(MAX_VIEW_LINES, readViewText(file("l\n".repeat(MAX_VIEW_LINES + 5))).lines.size)
         assertTrue(readViewText(file("l\n".repeat(MAX_VIEW_LINES + 5))).truncated)
     }
+
+    /** G-15: фото 108 Мп уменьшается до экрана, а не вдвое. */
+    @Test
+    fun hugePhotoIsDownsampledToTheScreen() {
+        assertEquals(8, previewSampleSize(12000, 9000, PREVIEW_MAX_SIDE))
+        assertEquals(2, previewSampleSize(1080, 2400, PREVIEW_MAX_SIDE))
+        assertEquals(1, previewSampleSize(800, 600, PREVIEW_MAX_SIDE))
+        assertEquals(1, previewSampleSize(-1, -1, PREVIEW_MAX_SIDE))
+    }
+
+    /** G-30: ссылка на родительскую папку не зацикливает обход. */
+    @Test
+    fun walkDoesNotFollowLinkLoops() {
+        val root = java.nio.file.Files.createTempDirectory("walk").toFile()
+        val empty = File(root, "a/b").apply { mkdirs() }
+        java.nio.file.Files.createSymbolicLink(File(empty, "up").toPath(), root.toPath())
+        File(root, "a/file.txt").writeText("x")
+        val started = System.currentTimeMillis()
+        assertEquals(listOf("file.txt"), walkFiles(root).map { it.name })
+        assertTrue(System.currentTimeMillis() - started < 5_000)
+    }
 }

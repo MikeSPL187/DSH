@@ -52,7 +52,12 @@ internal fun HostDataSync(
     // Локальный Host запущен: привязать клиент к его порту и токену и перечитать всё.
     LaunchedEffect(status.phase, status.port, status.token) {
         val port = status.port ?: return@LaunchedEffect
-        if (!remote) application.bindLocalHost(port, status.token)
+        if (!remote) {
+            // Host не принял вход — сказать один раз и предложить перезапуск, а не сыпать отказами (G-19).
+            val accepted = application.bindLocalHost(port, status.token)
+            runtimeUi.hostAuthFailed = !accepted
+            if (!accepted) return@LaunchedEffect
+        }
         repository.refreshSessions(hostId)
         modelProviders.refresh(hostId)
         repository.hostSettings.refreshModelCatalog(hostId)

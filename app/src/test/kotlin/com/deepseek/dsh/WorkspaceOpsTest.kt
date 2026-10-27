@@ -120,4 +120,19 @@ class WorkspaceOpsTest {
         assertTrue(ops.renameSession("s1", "Тест", "Новый").getOrThrow())
         assertEquals(listOf("session:s1:Новый"), calls)
     }
+
+    /** G-38: в журнал «создано DSH» (база для git init) попадает только новая папка, не существующая папка пользователя. */
+    @Test
+    fun onlyFoldersCreatedByDshAreLogged() = runBlocking {
+        val log = mutableListOf<String>()
+        val tracked = WorkspaceOps(root, host, object : CreatedProjectsLog {
+            override fun add(name: String) { log += name }
+            override fun rename(from: String, to: String) { log += "$from>$to" }
+        }) { null }
+        File(root, "mine-already").mkdirs()
+        tracked.create("mine-already").getOrThrow()
+        tracked.create("fresh").getOrThrow()
+        tracked.rename("fresh", "", "fresh2").getOrThrow()
+        assertEquals(listOf("fresh", "fresh>fresh2"), log)
+    }
 }

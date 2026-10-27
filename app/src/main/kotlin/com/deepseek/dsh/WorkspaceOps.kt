@@ -12,6 +12,19 @@ interface WorkspaceHost {
     suspend fun renameSession(sessionId: String, title: String): Boolean
 }
 
+/** Учёт папок, созданных DSH (см. `CreatedProjects` в runtime:host). */
+interface CreatedProjectsLog {
+    fun add(name: String)
+    fun rename(from: String, to: String)
+
+    companion object {
+        val NONE = object : CreatedProjectsLog {
+            override fun add(name: String) {}
+            override fun rename(from: String, to: String) {}
+        }
+    }
+}
+
 /** Почему операция с проектом не выполнена — для понятного сообщения (G-28). */
 enum class WorkspaceProblem { INVALID_NAME, NAME_TOO_LONG, NAME_TAKEN, OUTSIDE_ROOT, DEFAULT_PROTECTED, SESSION_RUNNING, DISK, HOST_REJECTED }
 
@@ -29,6 +42,7 @@ class WorkspaceOpException(val problem: WorkspaceProblem) : Exception(problem.na
 class WorkspaceOps(
     private val root: File,
     private val host: WorkspaceHost,
+    private val created: CreatedProjectsLog = CreatedProjectsLog.NONE,
     private val hostIdOf: (path: String) -> String?,
 ) {
     /** Папка проекта по пути или по имени в корне. */
@@ -38,8 +52,11 @@ class WorkspaceOps(
     suspend fun create(rawName: String): Result<String> = runCatching {
         val name = cleanName(rawName)
         val dir = File(root, name)
+        val existed = dir.isDirectory
         val ok = withContext(Dispatchers.IO) { inside(dir) && (dir.isDirectory || dir.mkdirs()) }
         if (!ok) fail(WorkspaceProblem.DISK)
+        // Папку создал DSH — Host может сделать в ней git init для «Изменений»; чужую существующую — нет (G-38).
+        if (!existed) created.add(name)
         if (!runCatching { host.create(dir.absolutePath) }.getOrDefault(false)) fail(WorkspaceProblem.HOST_REJECTED)
         name
     }
@@ -62,6 +79,7 @@ class WorkspaceOps(
             withContext(Dispatchers.IO) { renamed.renameTo(target) }
             fail(WorkspaceProblem.HOST_REJECTED)
         }
+        created.rename(name, newName)
         newName
     }
 

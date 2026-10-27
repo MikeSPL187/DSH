@@ -1,5 +1,6 @@
 package com.deepseek.dsh.core.data
 
+import com.deepseek.dsh.core.protocol.parseHostJson
 import com.deepseek.dsh.core.model.Tr
 import com.deepseek.dsh.core.protocol.DshClientProtocol
 import com.deepseek.dsh.core.protocol.RemoteResult
@@ -27,7 +28,7 @@ internal class HostCalls(private val client: DshClientProtocol) {
     /** `result.value` ответа или null, если вызов не удался или ответ не разобрать. */
     suspend fun value(hostId: String, method: String, args: JsonObject = EMPTY): JsonElement? {
         val raw = rpc(hostId, method, args).getOrNull() ?: return null
-        val root = runCatching { hostJson.parseToJsonElement(raw) as? JsonObject }.getOrNull() ?: return null
+        val root = runCatching { hostJson.parseHostJson(raw) as? JsonObject }.getOrNull() ?: return null
         return (root["result"] as? JsonObject)?.get("value")
     }
 
@@ -39,7 +40,7 @@ internal class HostCalls(private val client: DshClientProtocol) {
         rpc(hostId, method, args).mapCatching(::remoteValueOrThrow)
 
     private fun remoteValueOrThrow(raw: String): JsonElement? {
-        val root = hostJson.parseToJsonElement(raw) as? JsonObject
+        val root = hostJson.parseHostJson(raw) as? JsonObject
             ?: error(Tr.t("Could not parse the Host response", "Не удалось разобрать ответ Host"))
         val result = root["result"] as? JsonObject
             ?: error(Tr.t("Host response has no result", "В ответе Host нет result"))

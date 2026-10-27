@@ -105,6 +105,7 @@
     <string name="notify_channel_desc">DSH session completion and error alerts</string>
     <string name="voice_device_unsupported">This device cannot record audio. Check the microphone.</string>
     <string name="voice_permission_denied">Microphone permission is off. Allow access in system settings.</string>
+    <string name="voice_permission_settings">Microphone is off for DSH — tap the mic again to open app settings and allow it</string>
     <string name="voice_no_speech">No speech recognized</string>
     <string name="voice_service_unavailable">Speech recognition failed: service unavailable</string>
     <string name="voice_prepare_required">Speech recognition unavailable. Prepare the model in Voice settings first.</string>
@@ -156,6 +157,13 @@
     <string name="time_hours">%1$d h</string>
     <string name="time_days">%1$d d</string>
     <string name="session_create_failed">Could not create session. Check the Host status.</string>
+    <string name="shared_access_missing">“All files access” was not granted — the working folder stays private</string>
+    <string name="share_failed">Could not share the file</string>
+    <string name="answer_failed">The answer was not delivered — the agent is still waiting. Try again.</string>
+    <string name="camera_unavailable">No camera app is available — enable it in system settings or attach a photo from the gallery</string>
+    <string name="idle_warning_title">Linux will sleep in a minute</string>
+    <string name="idle_warning_text">No activity: DSH stops the Host to save battery. Tap “Keep awake” to keep it running.</string>
+    <string name="idle_warning_keep">Keep awake</string>
     <string name="stop_failed">Could not stop the agent: Host did not confirm. The agent keeps working — tap Stop again.</string>
     <string name="send_failed_toast">Message not sent: %1$s</string>
     <string name="cmd_images_skipped">Images are not sent with a command</string>
@@ -182,6 +190,7 @@
     <string name="restart_reason_generic">Restart DSH to apply this change.</string>
     <string name="plugins_install_progress_title">Installing plugin</string>
     <string name="plugins_install_preparing">Preparing install…</string>
+    <string name="plugins_third_party_off">Third-party plugins are off — enable them in Settings → Agent → Third-party plugins</string>
     <string name="plugins_install_success">Installed: %1$s</string>
     <string name="plugins_install_restarting">Installed. Restarting Host to load it…</string>
     <string name="plugins_install_fallback">Host install unavailable; installing on this device…</string>

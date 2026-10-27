@@ -1,5 +1,6 @@
 package com.deepseek.dsh.feature.chat
 
+import com.deepseek.dsh.core.protocol.parseHostJson
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -51,7 +52,7 @@ private val trajectoryJson = Json { ignoreUnknownKeys = true }
 fun buildTrajectory(frames: List<SessionRawFrame>): List<TrajectoryRow> {
     val events = frames.flatMap { frame ->
         val root = runCatching {
-            trajectoryJson.parseToJsonElement(frame.text) as? JsonObject
+            trajectoryJson.parseHostJson(frame.text) as? JsonObject
         }.getOrNull() ?: return@flatMap emptyList()
         if (root["type"].textOrNull() != "item") return@flatMap emptyList()
         val value = root["value"] as? JsonObject ?: return@flatMap emptyList()

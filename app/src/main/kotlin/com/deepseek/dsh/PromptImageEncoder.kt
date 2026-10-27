@@ -61,7 +61,11 @@ internal object PromptImageEncoder {
         )
     }
 
-    /** Перекодирование теряет EXIF: применяем поворот, иначе фото с камеры уйдёт боком. */
+    /**
+     * Перекодирование теряет EXIF: применяем поворот, иначе фото с камеры уйдёт боком. Платформенный ExifInterface
+     * (minSdk 26 — исправленная версия): androidx-версия была бы новой зависимостью ради одного тега (G-40).
+     */
+    @android.annotation.SuppressLint("ExifInterface")
     private fun rotateByExif(file: File, bitmap: Bitmap): Bitmap {
         val orientation = runCatching {
             android.media.ExifInterface(file.absolutePath).getAttributeInt(

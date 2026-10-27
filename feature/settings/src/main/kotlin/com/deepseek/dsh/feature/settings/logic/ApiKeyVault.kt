@@ -41,19 +41,32 @@ object ApiKeyVault {
         return gen.generateKey()
     }
 
-    /** Запомнить ключ для ссылки [ref] (например `DEEPSEEK_API_KEY`). */
-    fun save(ref: String, key: String) {
-        val p = prefs() ?: return
+    /**
+     * Запомнить ключ для ссылки [ref] (например `DEEPSEEK_API_KEY`).
+     * @return false — Keystore не зашифровал ключ (G-36): тогда ничего не сохраняется, и «Настройки» не покажут
+     *   «ключ …abcd сохранён», который нельзя использовать.
+     */
+    fun save(ref: String, key: String): Boolean {
+        val p = prefs() ?: return false
         val enc = runCatching {
             val c = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, secret()) }
             Base64.encodeToString(c.iv, Base64.NO_WRAP) + ":" + Base64.encodeToString(c.doFinal(key.toByteArray()), Base64.NO_WRAP)
         }.getOrNull()
+        if (enc == null) {
+            delete(ref)
+            return false
+        }
         p.edit()
             .putString("$ref.last4", key.takeLast(4))
             .putLong("$ref.added", System.currentTimeMillis())
-            .apply { if (enc != null) putString("$ref.enc", enc) else remove("$ref.enc") }
+            .putString("$ref.enc", enc)
+            .remove("$ref.lost")
             .apply()
+        return true
     }
+
+    /** Сохранённый ключ больше не расшифровывается (ключ Keystore потерян): его нужно ввести заново. */
+    fun lost(ref: String): Boolean = prefs()?.getBoolean("$ref.lost", false) == true
 
     fun last4(ref: String): String? = prefs()?.getString("$ref.last4", null)
 
@@ -68,7 +81,14 @@ object ApiKeyVault {
             val (iv, data) = enc.split(":").let { Base64.decode(it[0], Base64.NO_WRAP) to Base64.decode(it[1], Base64.NO_WRAP) }
             val c = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.DECRYPT_MODE, secret(), GCMParameterSpec(128, iv)) }
             String(c.doFinal(data))
-        }.getOrNull() ?: return null
+        }.getOrNull()
+        if (key == null) {
+            // Ключ Keystore потерян (сброс блокировки экрана, перенос на другой телефон): копия бесполезна — убрать её
+            // и запомнить, что ключ нужно ввести заново, а не молчать (G-36).
+            delete(ref)
+            prefs()?.edit()?.putBoolean("$ref.lost", true)?.apply()
+            return null
+        }
         return block(key)
     }
 

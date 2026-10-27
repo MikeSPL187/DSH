@@ -1,5 +1,6 @@
 package com.deepseek.dsh.feature.settings
 
+import com.deepseek.dsh.core.protocol.parseHostJson
 import com.deepseek.dsh.core.designsystem.kit.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -35,7 +36,7 @@ data class ModelProviderUi(
 fun responseValue(raw: String?): JsonElement? {
     if (raw.isNullOrBlank()) return null
     return runCatching {
-        val root = Json.parseToJsonElement(raw)
+        val root = Json.parseHostJson(raw)
         val obj = root as? JsonObject ?: return null
         val result = obj["result"] as? JsonObject ?: return null
         result["value"] ?: result

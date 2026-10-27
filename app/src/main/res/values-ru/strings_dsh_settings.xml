@@ -2,6 +2,7 @@
 <resources>
     <string name="settings_restore_done">Восстановлено файлов: %1$d</string>
     <string name="settings_restore_failed">Не удалось восстановить — это не резервная копия DSH</string>
+    <string name="key_lost_reenter">Сохранённый ключ API больше не расшифровывается на этом телефоне — введите его заново</string>
     <string name="settings_restore_apply_failed">Не удалось восстановить — ничего не изменено</string>
     <string name="restore_confirm_title">Восстановить из копии?</string>
     <string name="restore_confirm_desc">Копия сделана на этом телефоне. Настройки Host и данные сессий будут заменены, Host перезапустится.</string>

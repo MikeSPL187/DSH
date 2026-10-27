@@ -522,7 +522,8 @@ fun rememberOnline(): Boolean {
 }
 
 /** Состояние плашки `.netbar`. */
-enum class NetState { Offline, Checking, Back }
+/** HostDenied — Host запущен, но не принял вход приложения (G-19): все вызовы падали бы по одному. */
+enum class NetState { Offline, Checking, Back, HostDenied }
 
 /**
  * Плашка «Нет соединения» под шапкой: что происходит и «Повторить»;
@@ -541,22 +542,25 @@ fun NetBar(state: NetState, onRetry: () -> Unit, modifier: Modifier = Modifier) 
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Box(Modifier.size(28.dp).clip(RoundedCornerShape(9.dp)).background(if (ok) c.okSoft else c.warnSoft), contentAlignment = Alignment.Center) {
-            Icon(if (ok) DshGlyphs.Check else DshGlyphs.Globe, null, tint = if (ok) c.ok else c.warn, modifier = Modifier.size(18.dp))
+            Icon(
+                when (state) { NetState.Back -> DshGlyphs.Check; NetState.HostDenied -> DshGlyphs.Alert; else -> DshGlyphs.Globe },
+                null, tint = if (ok) c.ok else c.warn, modifier = Modifier.size(18.dp),
+            )
         }
         Column(Modifier.weight(1f)) {
             Text(
-                stringResource(when (state) { NetState.Offline -> R.string.ck_net_off; NetState.Checking -> R.string.ck_net_checking; NetState.Back -> R.string.ck_net_back }),
+                stringResource(when (state) { NetState.Offline -> R.string.ck_net_off; NetState.Checking -> R.string.ck_net_checking; NetState.Back -> R.string.ck_net_back; NetState.HostDenied -> R.string.ck_host_denied }),
                 style = ckBody(14.sp, 18.2.sp), color = c.t1,
             )
             Text(
-                stringResource(when (state) { NetState.Offline -> R.string.ck_net_off_sub; NetState.Checking -> R.string.ck_net_checking_sub; NetState.Back -> R.string.ck_net_back_sub }),
+                stringResource(when (state) { NetState.Offline -> R.string.ck_net_off_sub; NetState.Checking -> R.string.ck_net_checking_sub; NetState.Back -> R.string.ck_net_back_sub; NetState.HostDenied -> R.string.ck_host_denied_sub }),
                 style = ckBody(12.sp, 15.6.sp), color = c.t3,
             )
         }
         if (!ok) Box(
             Modifier.height(40.dp).clip(RoundedCornerShape(11.dp)).background(c.s2).clickable(role = Role.Button, onClick = onRetry).padding(horizontal = 12.dp),
             contentAlignment = Alignment.Center,
-        ) { Text(stringResource(R.string.ck_retry), style = ckBody(13.5.sp, 17.sp, FontWeight.Medium), color = c.accent) }
+        ) { Text(stringResource(if (state == NetState.HostDenied) R.string.ck_host_restart else R.string.ck_retry), style = ckBody(13.5.sp, 17.sp, FontWeight.Medium), color = c.accent) }
     }
 }
 

@@ -25,4 +25,14 @@ class IdleHostStopTest {
         assertFalse(shouldIdleStopHost(5, RuntimePhase.ERROR, false, lastInteractionAt = 0, now = 60 * minute))
         assertFalse(shouldIdleStopHost(5, RuntimePhase.STARTING, false, lastInteractionAt = 0, now = 60 * minute))
     }
+
+    /** G-13: занятый Host (терминал, фоновый процесс, ожидающее одобрение) не усыпляется; за минуту — предупреждение. */
+    @Test
+    fun busyHostIsKeptAndWarnedAMinuteBefore() {
+        assertFalse(shouldIdleStopHost(5, RuntimePhase.RUNNING, busy = true, lastInteractionAt = 0, now = 60 * minute))
+        assertTrue(idleWarningDue(5, RuntimePhase.RUNNING, busy = false, lastInteractionAt = 0, now = 4 * minute + 10_000))
+        assertFalse(idleWarningDue(5, RuntimePhase.RUNNING, busy = false, lastInteractionAt = 0, now = 3 * minute))
+        assertFalse(idleWarningDue(5, RuntimePhase.RUNNING, busy = true, lastInteractionAt = 0, now = 4 * minute + 10_000))
+        assertFalse(idleWarningDue(0, RuntimePhase.RUNNING, busy = false, lastInteractionAt = 0, now = 4 * minute + 10_000))
+    }
 }

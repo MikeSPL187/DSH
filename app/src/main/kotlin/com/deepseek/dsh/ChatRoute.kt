@@ -51,6 +51,7 @@ internal class ChatDeps(
     val workspaceLabel: String,
     val workspaceNames: List<String>,
     val sender: ChatSender,
+    val runtimeManager: com.deepseek.dsh.runtime.host.HostRuntimeManager,
     val voice: VoiceInput,
     val voiceEnabled: Boolean,
     val translateReasoning: Boolean,
@@ -113,7 +114,7 @@ internal fun ChatRoute(d: ChatDeps) {
         Toast.makeText(context, text, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
 
     val send: (String) -> Unit = { text ->
-        d.sender.send(text, ModelChoice(model.id, model.providerGroup?.id ?: defaultProvider))
+        d.sender.send(text, ModelChoice(model.id, model.providerGroup?.id ?: defaultProvider, model.reasoningId))
     }
     // «Проверить с агентом» и подобные действия отправляют запрос сразу, как в прототипе.
     LaunchedEffect(ui.pendingAutoSend) {
@@ -168,10 +169,21 @@ internal fun ChatRoute(d: ChatDeps) {
         },
         onLoadOlder = { withSession { repository.loadOlderMessages(hostId, it) } },
         onAnswerUserQuestion = { callId, questionId, selected ->
-            withSession { repository.answerUserQuestion(hostId, it, callId, questionId, selected) }
+            withSession {
+                // Сбой — сказать: агент ждёт ответа, а вопрос остаётся, чтобы ответить ещё раз.
+                if (!repository.answerUserQuestion(hostId, it, callId, questionId, selected)) toast(context.getString(R.string.answer_failed), long = true)
+            }
         },
         onSendMessage = send,
         onRetryMessage = d.sender::retry,
+        hostDenied = runtimeUi.hostAuthFailed,
+        onRestartHost = {
+            scope.launch {
+                runtimeUi.hostAuthFailed = false
+                d.runtimeManager.stop()
+                d.runtimeManager.start(d.workspace.absolutePath)
+            }
+        },
         isSending = runtimeUi.isSending,
         workspaceName = d.workspaceLabel,
         workspaceNames = d.workspaceNames,
@@ -223,8 +235,10 @@ internal fun ChatRoute(d: ChatDeps) {
                 }
             }
         },
-        selectedPermission = permissionPresetOf(d.activeSession?.permissionPreset),
+        selectedPermission = permissionPresetOf(d.activeSession?.permissionPreset ?: ui.pendingPermissionPreset.takeIf { sessionId == null }),
         onPermissionSelected = { preset ->
+            // Сессии ещё нет — права применятся к новой сессии с первым сообщением (G-23).
+            if (ui.selectedSessionId == null) ui.pendingPermissionPreset = preset.hostId()
             withSession {
                 if (!repository.selectPermissionPreset(hostId, it, preset.hostId())) {
                     toast(context.getString(R.string.perm_switch_failed), long = true)
@@ -239,8 +253,11 @@ internal fun ChatRoute(d: ChatDeps) {
             model.reasoningId = option.id
             scope.launch {
                 d.settingsRepository.updateSettings { it.copy(defaultReasoningLevel = option.id) }
+                // Без сессии уровень уйдёт с первым сообщением (ModelChoice.reasoningEffort); отказ Host — тост (G-24).
                 ui.selectedSessionId?.let { sid ->
-                    repository.selectModel(hostId, sid, model.id, model.providerGroup?.id, option.id)
+                    repository.selectModel(hostId, sid, model.id, model.providerGroup?.id, option.id).onFailure { error ->
+                        toast(context.getString(R.string.model_switch_failed, error.message.orEmpty()), long = true)
+                    }
                 }
             }
         },

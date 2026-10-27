@@ -389,6 +389,8 @@ class DefaultHostRuntimeManager(
         fun readPackage(dir: File) {
             val manifest = File(dir, "package.json")
             val text = runCatching { manifest.readText() }.getOrNull() ?: return
+            // package.json стороннего пакета: глубокая вложенность переполнила бы стек org.json при запуске Host.
+            if (com.deepseek.dsh.core.model.jsonTooDeep(text)) return
             val patchPath = runCatching {
                 org.json.JSONObject(text)
                     .optJSONObject("dsh")
@@ -425,6 +427,7 @@ class DefaultHostRuntimeManager(
     private fun declaresClientHalf(dir: File): Boolean {
         val manifest = File(dir, "package.json")
         val text = runCatching { manifest.readText() }.getOrNull() ?: return false
+        if (com.deepseek.dsh.core.model.jsonTooDeep(text)) return false
         return runCatching {
             val root = org.json.JSONObject(text)
             val dsh = root.optJSONObject("dsh") ?: return@runCatching false
@@ -1091,8 +1094,10 @@ class DefaultHostRuntimeManager(
     private suspend fun ensureWorkspaceGitBaseline(userWorkspacePath: String) = withContext(Dispatchers.IO) {
         runCatching {
             val root = File(userWorkspacePath)
+            // Только папки, созданные DSH (G-38): папка пользователя не становится репозиторием без спроса.
+            val created = CreatedProjects.names(layout)
             val directories = root.listFiles()
-                ?.filter { it.isDirectory && it.name != ".git" }
+                ?.filter { it.isDirectory && it.name != ".git" && it.name in created }
                 .orEmpty()
             if (directories.isEmpty()) return@withContext
             directories.forEach { directory ->

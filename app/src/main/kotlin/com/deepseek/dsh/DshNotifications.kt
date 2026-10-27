@@ -50,4 +50,31 @@ object DshNotifications {
                 ?.notify(nextId++, notification)
         }
     }
+
+    /** Своё место для «уснёт через минуту»: одно уведомление, не пересекается с id выше (2000+) и службой Host (1001). */
+    private const val IDLE_WARNING_ID = 1900
+
+    /** «Host уснёт через минуту» с кнопкой «Не усыплять» (G-13). */
+    fun idleWarning(context: Context) {
+        ensureChannel(context)
+        val keep = android.app.PendingIntent.getBroadcast(
+            context,
+            IDLE_WARNING_ID,
+            android.content.Intent(context, KeepAwakeReceiver::class.java),
+            android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.stat_notify_chat)
+            .setContentTitle(context.getString(R.string.idle_warning_title))
+            .setContentText(context.getString(R.string.idle_warning_text))
+            .setAutoCancel(true)
+            .setTimeoutAfter(IDLE_WARNING_MS)
+            .addAction(0, context.getString(R.string.idle_warning_keep), keep)
+            .build()
+        runCatching { context.getSystemService(NotificationManager::class.java)?.notify(IDLE_WARNING_ID, notification) }
+    }
+
+    fun cancelIdleWarning(context: Context) {
+        runCatching { context.getSystemService(NotificationManager::class.java)?.cancel(IDLE_WARNING_ID) }
+    }
 }

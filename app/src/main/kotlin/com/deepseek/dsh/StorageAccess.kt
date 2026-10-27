@@ -64,7 +64,10 @@ internal object StorageAccess {
             java.io.File(Environment.getExternalStorageDirectory(), "Documents/DSH-Workspace")
         }
 
-    fun hasAccess(context: Context): Boolean = overrideForTests ?: (usesPrivateWorkspace(context) || runCatching {
+    fun hasAccess(context: Context): Boolean = overrideForTests ?: (usesPrivateWorkspace(context) || sharedAccessGranted(context))
+
+    /** Выдан ли системой доступ к общей памяти (без учёта выбора приватной папки). */
+    fun sharedAccessGranted(context: Context): Boolean = overrideForTests ?: runCatching {
         if (usesAllFilesSettings) {
             Environment.isExternalStorageManager()
         } else {
@@ -72,5 +75,5 @@ internal object StorageAccess {
                 context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED
             }
         }
-    }.getOrDefault(false))
+    }.getOrDefault(false)
 }

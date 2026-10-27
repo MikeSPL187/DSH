@@ -1,5 +1,6 @@
 package com.deepseek.dsh.core.data
 
+import com.deepseek.dsh.core.protocol.parseHostJson
 import com.deepseek.dsh.core.bridge.BridgePluginCatalog
 import com.deepseek.dsh.core.bridge.BridgePluginCatalogData
 import com.deepseek.dsh.core.bridge.BridgePluginCatalogSource
@@ -241,7 +242,7 @@ class PluginsRepository internal constructor(
 
     private suspend fun credentialCallOk(hostId: String, method: String, args: JsonObject): Boolean {
         val raw = calls.rpc(hostId, method, args).getOrNull() ?: return false
-        val root = runCatching { hostJson.parseToJsonElement(raw) as? JsonObject }.getOrNull() ?: return false
+        val root = runCatching { hostJson.parseHostJson(raw) as? JsonObject }.getOrNull() ?: return false
         return ((root["result"] as? JsonObject)?.get("ok") as? JsonPrimitive)?.booleanOrNull == true
     }
 
@@ -338,7 +339,7 @@ class PluginsRepository internal constructor(
     suspend fun marketSearch(hostId: String, url: String, queryJson: String): Result<MarketListing?> {
         val args = buildJsonObject {
             put("url", url)
-            put("query", runCatching { hostJson.parseToJsonElement(queryJson) }.getOrNull() ?: JsonObject(emptyMap()))
+            put("query", runCatching { hostJson.parseHostJson(queryJson) }.getOrNull() ?: JsonObject(emptyMap()))
         }
         return calls.valueOrThrow(hostId, "pluginMarket/search", args).mapCatching(::parseMarketSearch)
     }

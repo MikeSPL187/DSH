@@ -98,6 +98,7 @@
     <string name="workflow_status_cancelled">отменён</string>
     <string name="workflow_status_interrupted">прерван</string>
     <string name="markdown_copied">Скопировано</string>
+    <string name="markdown_code_more">Первые %1$d из %2$d строк — «Копировать» берёт блок целиком</string>
     <string name="chat_greet_night">Доброй ночи</string>
     <string name="chat_greet_morning">Доброе утро</string>
     <string name="chat_greet_day">Добрый день</string>

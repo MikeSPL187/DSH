@@ -8,5 +8,7 @@
     <files-path name="diagnostics" path="logs/" />
     <!-- Рабочая папка: файл отдаётся только по явному «Поделиться» в «Файлах». -->
     <external-files-path name="workspace" path="DSH-Workspace/" />
+    <!-- Приватная рабочая папка без внешней памяти (StorageAccess.workspaceRoot падает на filesDir) — G-29. -->
+    <files-path name="workspace-internal" path="DSH-Workspace/" />
     <external-path name="shared-workspace" path="Documents/DSH-Workspace/" />
 </paths>

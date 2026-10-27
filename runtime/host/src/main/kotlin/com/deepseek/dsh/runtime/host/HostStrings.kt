@@ -10,6 +10,8 @@ import android.content.Context
  * английский текст-подстраховка.
  */
 object HostStrings {
+    // Только applicationContext (живёт столько же, сколько процесс) — утечки Activity нет (G-40).
+    @android.annotation.SuppressLint("StaticFieldLeak")
     @Volatile
     private var context: Context? = null
 

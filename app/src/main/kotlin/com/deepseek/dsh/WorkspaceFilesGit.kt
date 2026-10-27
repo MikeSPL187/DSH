@@ -41,21 +41,24 @@ internal class WorkspaceFilesGit(private val git: WorkspaceGit, private val proj
     }
 }
 
-/** Системное «Поделиться» для файла рабочей папки через FileProvider. */
-internal fun shareWorkspaceFile(context: android.content.Context, file: java.io.File) {
-    runCatching {
-        // Наружу — только файлы рабочей папки: ссылка из неё на личные файлы DSH (копии, журналы) не отдаётся.
-        val root = StorageAccess.workspaceRoot(context).canonicalFile.toPath()
-        if (!file.canonicalFile.toPath().startsWith(root)) return
-        val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
-        val type = android.webkit.MimeTypeMap.getSingleton()
-            .getMimeTypeFromExtension(file.extension.lowercase()) ?: "application/octet-stream"
-        val send = android.content.Intent(android.content.Intent.ACTION_SEND)
-            .setType(type)
-            .putExtra(android.content.Intent.EXTRA_STREAM, uri)
-            .addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        context.startActivity(
-            android.content.Intent.createChooser(send, file.name).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
-        )
-    }
-}
+/**
+ * Системное «Поделиться» для файла рабочей папки через FileProvider.
+ * @return false — не удалось (файл вне рабочей папки, путь не известен FileProvider, нет приложения): вызывающий
+ *   говорит об этом, а не молчит (G-29).
+ */
+internal fun shareWorkspaceFile(context: android.content.Context, file: java.io.File): Boolean = runCatching {
+    // Наружу — только файлы рабочей папки: ссылка из неё на личные файлы DSH (копии, журналы) не отдаётся.
+    val root = StorageAccess.workspaceRoot(context).canonicalFile.toPath()
+    if (!file.canonicalFile.toPath().startsWith(root)) return false
+    val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
+    val type = android.webkit.MimeTypeMap.getSingleton()
+        .getMimeTypeFromExtension(file.extension.lowercase()) ?: "application/octet-stream"
+    val send = android.content.Intent(android.content.Intent.ACTION_SEND)
+        .setType(type)
+        .putExtra(android.content.Intent.EXTRA_STREAM, uri)
+        .addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    context.startActivity(
+        android.content.Intent.createChooser(send, file.name).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+    )
+    true
+}.getOrDefault(false)

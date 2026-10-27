@@ -1,5 +1,6 @@
 package com.deepseek.dsh.feature.hosts
 
+import com.deepseek.dsh.core.protocol.parseHostJson
 import com.deepseek.dsh.core.model.HostDescriptor
 import com.deepseek.dsh.core.model.PairPayload
 import kotlinx.coroutines.Dispatchers
@@ -76,7 +77,7 @@ class RemotePairingManager(
                 }
 
                 val bodyStr = response.body?.string().orEmpty()
-                val jsonObject = runCatching { json.parseToJsonElement(bodyStr) }.getOrNull()
+                val jsonObject = runCatching { json.parseHostJson(bodyStr) }.getOrNull()
                 val token = ((jsonObject as? kotlinx.serialization.json.JsonObject)?.get("token")
                     as? kotlinx.serialization.json.JsonPrimitive)
                     ?.takeIf { it.isString }

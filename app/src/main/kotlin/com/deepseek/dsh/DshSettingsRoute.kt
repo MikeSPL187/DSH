@@ -104,6 +104,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
             result == null -> KeyState.Unknown
             else -> result.first
         }
+        if (ApiKeyVault.lost(DEEPSEEK_VAULT_REF)) toast.show(context.getString(R.string.key_lost_reenter))
         balance = result?.second
         balance?.let { (amount, _) -> ledger = withContext(Dispatchers.IO) { BalanceLedger.record(context, amount) } }
     }
@@ -145,7 +146,27 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
 
     // Рабочая папка и тема — живые значения, без перезапуска экрана.
     var sharedWs by remember { mutableStateOf(!StorageAccess.usesPrivateWorkspace(context)) }
+    var awaitingSharedAccess by remember { mutableStateOf(false) }
+    // Вернулись из системных настроек доступа: выдан — переключить на общую папку, нет — сказать, что папка осталась приватной.
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    androidx.compose.runtime.DisposableEffect(lifecycle) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME && awaitingSharedAccess) {
+                awaitingSharedAccess = false
+                if (StorageAccess.sharedAccessGranted(context)) {
+                    StorageAccess.chooseSharedWorkspace(context)
+                    sharedWs = true
+                    d.onWorkspaceChanged()
+                } else {
+                    android.widget.Toast.makeText(context, context.getString(R.string.shared_access_missing), android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
     var clipboard by remember { mutableStateOf(BridgePolicy.isClipboardReadAllowed(context)) }
+    var thirdPartyPlugins by remember { mutableStateOf(BridgePolicy.isThirdPartyPluginsAllowed(context)) }
     val (language, setLanguage) = rememberAppLanguage(d.repository, hostId, scope)
     val update by UpdateCenter.update.collectAsState()
     val currentVersion = remember { UpdateCenter.currentVersion(context) }
@@ -189,11 +210,17 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
     }
 
     val rootfs = remember(d.runtimeUi.installedRootfsVersion) { com.deepseek.dsh.runtime.host.RootfsVersion.parse(d.runtimeUi.installedRootfsVersion) }
-    val distro = remember(tick) {
-        runCatching {
-            d.layout.rootfsDir.resolve("etc/os-release").readLines().firstOrNull { it.startsWith("PRETTY_NAME=") }
-                ?.substringAfter('=')?.trim('"')?.substringBefore(" GNU/Linux")?.replace(" (", "|")?.substringBefore('|')
-        }.getOrNull()
+    val rootfsUpdated by androidx.compose.runtime.produceState<String?>(null, tick) {
+        value = withContext(Dispatchers.IO) { d.layout.rootfsDir.resolve("etc/os-release").takeIf { it.exists() }?.lastModified() }?.let { shortDate(it) }
+    }
+    // Файл rootfs — не в composition на главном потоке (G-33).
+    val distro by androidx.compose.runtime.produceState<String?>(null, tick) {
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                d.layout.rootfsDir.resolve("etc/os-release").readLines().firstOrNull { it.startsWith("PRETTY_NAME=") }
+                    ?.substringAfter('=')?.trim('"')?.substringBefore(" GNU/Linux")?.replace(" (", "|")?.substringBefore('|')
+            }.getOrNull()
+        }
     }
     val ui = SettingsUi(
         appVersion = currentVersion,
@@ -226,6 +253,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         automationsOn = d.automationsOn,
         autoApprove = approveState(),
         clipboard = clipboard,
+        thirdPartyPlugins = thirdPartyPlugins,
         workspaceShared = sharedWs,
         theme = HostTheme.preference,
         language = language.takeIf { it in setOf("ru", "en") } ?: Locale.getDefault().language,
@@ -241,7 +269,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         remotes = d.remotes.filterIsInstance<HostDescriptor.Remote>().map { r ->
             RemoteHostRow(r.id, r.name, r.tlsFingerprint?.let(::shortFingerprint) ?: r.baseUrl.removePrefix("https://"), online = r.id == hostId)
         },
-        rootfsUpdated = remember(tick) { d.layout.rootfsDir.resolve("etc/os-release").takeIf { it.exists() }?.lastModified()?.let { shortDate(it) } },
+        rootfsUpdated = rootfsUpdated,
         storage = storage,
         biometricAvailable = BiometricLock.available(context),
         biometric = DshUserPrefs.biometric,
@@ -320,14 +348,17 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         }
 
         override fun setClipboard(on: Boolean) { BridgePolicy.setClipboardReadAllowed(context, on); clipboard = on }
+        override fun setThirdPartyPlugins(on: Boolean) { BridgePolicy.setThirdPartyPluginsAllowed(context, on); thirdPartyPlugins = on }
 
         override fun setWorkspaceShared(shared: Boolean) {
-            if (shared) {
-                StorageAccess.chooseSharedWorkspace(context)
+            // Общая папка — только когда доступ уже выдан (G-32): раньше переключатель показывал «общая»,
+            // а доступа не было. Иначе — запросить доступ и переключить, когда пользователь вернётся с ним.
+            if (shared && !StorageAccess.sharedAccessGranted(context)) {
+                awaitingSharedAccess = true
                 d.openAllFilesSettings()
-            } else {
-                StorageAccess.choosePrivateWorkspace(context)
+                return
             }
+            if (shared) StorageAccess.chooseSharedWorkspace(context) else StorageAccess.choosePrivateWorkspace(context)
             sharedWs = shared
             d.onWorkspaceChanged()
         }

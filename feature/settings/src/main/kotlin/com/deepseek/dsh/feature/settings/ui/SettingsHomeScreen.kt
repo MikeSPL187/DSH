@@ -136,6 +136,8 @@ data class SettingsUi(
     /** true — «Сам в рабочей папке», false — «Спрашивать», null — Host не отдал пресеты. */
     val autoApprove: Boolean? = false,
     val clipboard: Boolean = false,
+    /** Плагины Host из сети (npm, GitHub, рынок) разрешены (G-48). */
+    val thirdPartyPlugins: Boolean = false,
     val workspaceShared: Boolean = false,
     // Оформление
     val theme: String = "system",
@@ -191,6 +193,7 @@ interface SettingsActions {
     fun setHaptics(on: Boolean) {}
     fun setAutoApprove(auto: Boolean) {}
     fun setClipboard(on: Boolean) {}
+    fun setThirdPartyPlugins(on: Boolean) {}
     fun setWorkspaceShared(shared: Boolean) {}
     suspend fun restartHost(): Boolean = true
     suspend fun setHostRunning(run: Boolean): Boolean = true
@@ -706,6 +709,11 @@ private fun AgentPage(ui: SettingsUi, a: SettingsActions, toast: ToastState, go:
             row {
                 StToggle(stringResource(R.string.st_clipboard), ui.clipboard, { on -> a.setClipboard(on); toast.show(if (on) opened else closed) }, DshGlyphs.Copy, Si.c4,
                     sub = stringResource(if (ui.clipboard) R.string.st_clipboard_on_sub else R.string.st_clipboard_sub))
+            }
+            // Чужой код из сети с правами приложения — только по явному решению (G-48).
+            row {
+                StToggle(stringResource(R.string.st_third_party), ui.thirdPartyPlugins, { on -> a.setThirdPartyPlugins(on) }, DshGlyphs.Puzzle, Si.c5,
+                    sub = stringResource(if (ui.thirdPartyPlugins) R.string.st_third_party_on_sub else R.string.st_third_party_sub))
             }
         }
         GLabel(stringResource(R.string.st_sessions))

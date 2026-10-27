@@ -99,6 +99,7 @@
     <string name="notify_channel_desc">Оповещения DSH о завершении сессий и ошибках</string>
     <string name="voice_device_unsupported">Устройство не может записывать звук. Проверьте микрофон.</string>
     <string name="voice_permission_denied">Доступ к микрофону выключен. Разрешите его в настройках системы.</string>
+    <string name="voice_permission_settings">Микрофон для DSH выключен — нажмите микрофон ещё раз, чтобы открыть настройки приложения и разрешить</string>
     <string name="voice_no_speech">Речь не распознана</string>
     <string name="voice_service_unavailable">Ошибка распознавания: служба недоступна</string>
     <string name="voice_prepare_required">Распознавание речи недоступно. Сначала подготовьте модель в настройках голоса.</string>
@@ -150,6 +151,13 @@
     <string name="time_hours">%1$d ч</string>
     <string name="time_days">%1$d д</string>
     <string name="session_create_failed">Не удалось создать сессию. Проверьте состояние Host.</string>
+    <string name="shared_access_missing">«Доступ ко всем файлам» не выдан — рабочая папка осталась приватной</string>
+    <string name="share_failed">Не удалось поделиться файлом</string>
+    <string name="answer_failed">Ответ не доставлен — агент всё ещё ждёт. Попробуйте ещё раз.</string>
+    <string name="camera_unavailable">Нет приложения камеры — включите его в настройках телефона или прикрепите фото из галереи</string>
+    <string name="idle_warning_title">Linux уснёт через минуту</string>
+    <string name="idle_warning_text">Нет действий: DSH остановит Host, чтобы беречь батарею. «Не усыплять» — оставить его работать.</string>
+    <string name="idle_warning_keep">Не усыплять</string>
     <string name="stop_failed">Не удалось остановить агента: Host не подтвердил. Агент продолжает работать — нажмите «Стоп» ещё раз.</string>
     <string name="send_failed_toast">Сообщение не отправлено: %1$s</string>
     <string name="cmd_images_skipped">Картинки не отправляются вместе с командой</string>
@@ -176,6 +184,7 @@
     <string name="restart_reason_generic">Перезапустите DSH, чтобы применить изменение.</string>
     <string name="plugins_install_progress_title">Установка плагина</string>
     <string name="plugins_install_preparing">Подготовка установки…</string>
+    <string name="plugins_third_party_off">Сторонние плагины выключены — включите их в «Настройки → Агент → Сторонние плагины»</string>
     <string name="plugins_install_success">Установлено: %1$s</string>
     <string name="plugins_install_restarting">Установлено. Перезапуск Host для загрузки…</string>
     <string name="plugins_install_fallback">Установка через Host недоступна, устанавливаю на этом устройстве…</string>

@@ -45,6 +45,8 @@ class AppUiState(
     /** Боковая панель чата: открыта ли, текущая вкладка и файл для просмотра. */
     var sessionInspectorOpen by mutableStateOf(false)
     var pendingAgentPreset by mutableStateOf<String?>(null)
+    /** Права, выбранные до первого сообщения (сессии ещё нет): применяются к новой сессии (G-23). */
+    var pendingPermissionPreset by mutableStateOf<String?>(null)
     /** Запрос, который чат отправит сам, как только откроется (новая сессия). */
     var pendingAutoSend by mutableStateOf<String?>(null)
     /** Текст, который нужно подставить в поле ввода нового чата («Спросить», «Создать с агентом»). */

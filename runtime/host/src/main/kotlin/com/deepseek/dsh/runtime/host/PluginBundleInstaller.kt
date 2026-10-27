@@ -1,5 +1,6 @@
 package com.deepseek.dsh.runtime.host
 
+import com.deepseek.dsh.core.model.parseBoundedJson
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -629,7 +630,7 @@ class PluginBundleInstaller(
         http.newCall(request).execute().use { response ->
             if (!response.isSuccessful) return null
             val text = response.body?.string().orEmpty()
-            return runCatching { json.parseToJsonElement(text).jsonObject }.getOrNull()
+            return runCatching { json.parseBoundedJson(text).jsonObject }.getOrNull()
         }
     }
 
@@ -768,7 +769,7 @@ class PluginBundleInstaller(
         val file = File(dir, "package.json")
         if (!file.isFile) return null
         return runCatching {
-            val root = json.parseToJsonElement(file.readText()).jsonObject
+            val root = json.parseBoundedJson(file.readText()).jsonObject
             val dsh = root["dsh"]?.jsonObjectOrNull()
             val bundle = dsh?.get("bundle")?.jsonObjectOrNull()
             val patch = bundle?.get("patch")?.jsonPrimitive?.contentOrNull

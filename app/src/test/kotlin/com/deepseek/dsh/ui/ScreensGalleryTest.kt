@@ -365,6 +365,20 @@ class ScreensGalleryTest {
     @Test fun deleteDefaultDark() = renderDeleteProject("17b_delete_default_390_dark", "Default", dark = true)
     @Test fun deleteProjectWide() = renderDeleteProject("17c_delete_project_412_dark", "android-app", dark = true)
 
+    /** G-19: Host не принял вход — полоса с «Перезапустить». */
+    private fun renderHostDenied(name: String, dark: Boolean) = render(name, dark = dark) {
+        com.deepseek.dsh.feature.chat.ModernChatScreen(
+            messages = listOf(msg("m1", com.deepseek.dsh.core.model.MessageRole.USER, "Привет! Что умеешь?")),
+            onSendMessage = {},
+            online = true,
+            hostDenied = true,
+        )
+    }
+
+    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    @Test fun hostDeniedNarrow() = renderHostDenied("18_host_denied_360", dark = false)
+    @Test fun hostDeniedDark() = renderHostDenied("18b_host_denied_412_dark", dark = true)
+
     // «Плагины», «Автоматизация» и «Настройки» снимает DshScreensSweepTest (все ширины и темы).
 
     /** Лист поверх затемнённого экрана — как его видит пользователь. */

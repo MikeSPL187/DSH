@@ -112,6 +112,7 @@ ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.grad
   собирать только через `keepSubscribed` (core:data) или с `.catch` — обрыв кончается исключением, а области
   приложения и `LaunchedEffect` без обработчика роняют процесс; JSON от Host — только `json.parseHostJson`
   (kotlinx переполняет стек на глубоких массивах, а `StackOverflowError` не ловится `catch (e: Exception)`);
+  в модулях без `core:protocol` — `Json.parseBoundedJson` / `jsonTooDeep` из `core:model` (и перед org.json тоже, G-51);
   рекурсивный разбор деревьев от Host и плагинов — с пределом глубины; любой буфер из вывода терминала или
   потока — с пределом размера; уведомления — только со своим тегом или id из своего диапазона (не пересекаться
   с `HostService.NOTIFICATION_ID` и `DshNotifications`); состояние «идёт» в хранилище после смерти процесса — не правда,
@@ -134,6 +135,10 @@ ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.grad
   `DefaultHostRuntimeManager` (замок `HostLifecycleLock`), не вызывать `stop()` изнутри запуска — взаимоблокировка.
 - Блокировка (G-07): новый экран — внутри `LockedContent` в `MainActivity`, ничего не рисовать поверх замка; листы доверия
   и подобные запросы не всплывают поверх чата — метка в меню (G-06).
+- Фон и простои (G-13, G-39): «занят» Host — ход агента, живая команда терминала, фоновый процесс, ожидающее одобрение
+  или вопрос; Host не прогревать из `Application` (процесс поднимается и ради JobScheduler). Сторонние плагины из сети —
+  только при включённом `BridgePolicy.isThirdPartyPluginsAllowed` (G-48). Новые ссылки в тексте — `LinkAnnotation`
+  только для http(s) с видимым доменом. В KDoc не писать `/*` (например, `build/*.log`) — это вложенный комментарий Kotlin.
 - Вход по отпечатку: `BiometricLock.available()` — единственная проверка (отпечаток или код телефона);
   без способа входа блокировка не включается, иначе из DSH не выйти.
 - Коммиты завершать строками:

@@ -102,4 +102,13 @@ class ApprovalRiskTest {
         assertEquals("rm -rf ~", approvalTarget("""{"command":"rm\t-rf ~"}""").orEmpty().replace('\t', ' '))
         assertEquals(listOf("~"), deletionTargets("bash", """{"input":{"command":"\/bin\/rm -rf ~"}}"""))
     }
+
+    /** G-51: аргументы инструмента от агента с глубокой вложенностью — не падение, а «спросить». */
+    @Test
+    fun `deeply nested tool arguments do not crash`() {
+        val deep = "{\"command\":" + "[".repeat(100_000) + "]".repeat(100_000) + "}"
+        assertEquals("", toolSummary("bash", deep, "", "running"))
+        assertEquals(emptyList<AskQuestion>(), parseAskQuestions(deep))
+        assertEquals(ApprovalTier.DESTRUCTIVE, approvalTier("bash", deep))
+    }
 }

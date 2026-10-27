@@ -95,6 +95,9 @@ class AppRuntimeUiState(
     var jobOutputStatus by mutableStateOf<String?>(null)
     var deleteWorkspaceFolder by mutableStateOf<WorkspaceFolder?>(null)
 
+    /** Host запущен, но не принял вход приложения (G-19). */
+    var hostAuthFailed by mutableStateOf(false)
+
     // Счётчики обновления файлов и папок
     var filesRevision by mutableStateOf(0)
 }

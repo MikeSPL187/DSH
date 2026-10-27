@@ -1,5 +1,6 @@
 package com.deepseek.dsh.feature.chat
 
+import com.deepseek.dsh.core.protocol.parseHostJson
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.RepeatMode
@@ -153,11 +154,15 @@ fun ApproveCard(a: ChatApproval, onDecided: (Boolean) -> Unit) {
 @Composable
 private fun ApprovalDiff(toolName: String, args: String?) {
     val c = Dsh.colors
-    val obj = remember(args) { runCatching { org.json.JSONObject(args.orEmpty()) }.getOrNull() }
-    val path = obj?.optString("file_path")?.ifBlank { null } ?: obj?.optString("path")?.ifBlank { null }
-    val old = obj?.optString("old_string").orEmpty()
-    val new = obj?.optString("new_string")?.ifBlank { null } ?: obj?.optString("content").orEmpty()
-    val command = obj?.optString("command")?.ifBlank { null }
+    // Аргументы от агента — через разбор с пределом глубины (org.json переполнял стек на `[[[[…`).
+    val obj = remember(args) {
+        runCatching { kotlinx.serialization.json.Json.parseHostJson(args.orEmpty()) as? kotlinx.serialization.json.JsonObject }.getOrNull()
+    }
+    fun str(key: String) = (obj?.get(key) as? kotlinx.serialization.json.JsonPrimitive)?.takeIf { it.isString }?.content
+    val path = str("file_path")?.ifBlank { null } ?: str("path")?.ifBlank { null }
+    val old = str("old_string").orEmpty()
+    val new = str("new_string")?.ifBlank { null } ?: str("content").orEmpty()
+    val command = str("command")?.ifBlank { null }
     val shape = RoundedCornerShape(12.dp)
     Column(Modifier.fillMaxWidth().clip(shape).border(1.dp, c.line, shape)) {
         if (command != null) {

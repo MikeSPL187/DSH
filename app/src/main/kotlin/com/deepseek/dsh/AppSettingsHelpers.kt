@@ -48,6 +48,10 @@ internal suspend fun installPluginWithProgress(
     onManagedPackages: (Set<String>) -> Unit,
     onNativeCompanion: (com.deepseek.dsh.core.bridge.BridgeNativeCompanion?) -> Unit,
 ): Result<String> {
+    // Сторонние плагины из сети — только если пользователь их разрешил (G-48); файл с телефона — его явный выбор.
+    if (!isLocalPluginSpec(pkgName) && !com.deepseek.dsh.runtime.bridge.BridgePolicy.isThirdPartyPluginsAllowed(context)) {
+        return Result.failure(ThirdPartyPluginsDisabled(context.getString(R.string.plugins_third_party_off)))
+    }
     // Установка идёт секунды: сначала «Принято», затем установщик сообщает каждый шаг.
     onProgress(0.02f, context.getString(R.string.plugins_install_preparing))
     val hostRes = kotlinx.coroutines.coroutineScope {
@@ -142,3 +146,9 @@ internal suspend fun installPluginWithProgress(
         },
     )
 }
+
+/** Установка из сети запрещена настройкой «Сторонние плагины» (G-48). */
+internal class ThirdPartyPluginsDisabled(message: String) : IllegalStateException(message)
+
+/** Спецификация — файл на телефоне (папка проекта или распакованный архив), а не адрес в сети. */
+internal fun isLocalPluginSpec(spec: String): Boolean = spec.startsWith("/") || spec.startsWith("file:")

@@ -26,13 +26,27 @@ class VoiceInput internal constructor(
 ) {
     internal var requestPermission: () -> Unit = {}
 
+    /** Пользователь отказал навсегда («Больше не спрашивать»): системный запрос уже не появится. */
+    internal var permanentlyDenied: () -> Boolean = { false }
+    private var sendToSettings = false
+
     /** Запись не дольше, чем принимает Host (catalog.maxDurationSeconds). */
     internal val maxSeconds = 120
 
     fun start() {
         val granted = context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) ==
             android.content.pm.PackageManager.PERMISSION_GRANTED
-        if (granted) begin() else requestPermission()
+        when {
+            granted -> begin()
+            // Запрос больше не показывается (G-35) — открыть настройки приложения, где микрофон включается.
+            sendToSettings -> runCatching {
+                context.startActivity(
+                    android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:" + context.packageName))
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }
+            else -> requestPermission()
+        }
     }
 
     internal fun begin() {
@@ -43,7 +57,8 @@ class VoiceInput internal constructor(
     }
 
     internal fun denied() {
-        runtimeUi.voiceError = context.getString(R.string.voice_permission_denied)
+        sendToSettings = permanentlyDenied()
+        runtimeUi.voiceError = context.getString(if (sendToSettings) R.string.voice_permission_settings else R.string.voice_permission_denied)
     }
 
     fun stop() {
@@ -116,6 +131,17 @@ internal fun rememberVoiceInput(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
     ) { granted -> if (granted) voice.begin() else voice.denied() }
     voice.requestPermission = { launcher.launch(android.Manifest.permission.RECORD_AUDIO) }
+    val activity = androidx.activity.compose.LocalActivity.current
+    voice.permanentlyDenied = { activity?.shouldShowRequestPermissionRationale(android.Manifest.permission.RECORD_AUDIO) == false }
+    // Ушли в фон — запись прекращается (G-35): на Android 8–10 микрофон писал в фоне до 120 с без индикатора.
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle, voice) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP && runtimeUi.voiceRecording) voice.cancel()
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
+    }
     DisposableEffect(voice) {
         voice.recorder.onLevel = { level -> runtimeUi.voiceLevel = level }
         onDispose {

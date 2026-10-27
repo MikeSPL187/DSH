@@ -108,6 +108,7 @@
     <string name="workflow_status_cancelled">cancelled</string>
     <string name="workflow_status_interrupted">interrupted</string>
     <string name="markdown_copied">Copied</string>
+    <string name="markdown_code_more">First %1$d of %2$d lines — Copy takes the whole block</string>
     <string name="chat_greet_night">Good night</string>
     <string name="chat_greet_morning">Good morning</string>
     <string name="chat_greet_day">Good afternoon</string>

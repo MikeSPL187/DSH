@@ -1,5 +1,6 @@
 package com.deepseek.dsh.plugin.nativehost
 
+import com.deepseek.dsh.core.protocol.parseHostJson
 import com.deepseek.dsh.plugin.nativesdk.host.PluginHostApi
 import com.deepseek.dsh.plugin.nativesdk.host.PluginModelHost
 import com.deepseek.dsh.plugin.nativesdk.host.PluginRpcHost
@@ -48,7 +49,7 @@ internal class SlotBridgeHost(
                 onResult(Result.failure(IllegalStateException(com.deepseek.dsh.core.model.Tr.t("Host is not connected", "Host не подключён"))))
                 return@launch
             }
-            onResult(handler(method, payload).map { Json.parseToJsonElement(it) })
+            onResult(handler(method, payload).map { Json.parseHostJson(it) })
         }
     }
 

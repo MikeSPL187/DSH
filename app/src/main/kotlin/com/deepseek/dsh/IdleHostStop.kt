@@ -24,17 +24,39 @@ internal object UserActivity {
 /**
  * Настройка «Авто-сон при простое»: раньше она только сохранялась, а Host с proot и
  * Node работал бесконечно и разряжал батарею. Останавливаем контейнер, только когда он
- * запущен, ни одна задача агента не выполняется и пользователь не трогал приложение
- * [idleMinutes] минут.
+ * запущен, ничего не занято ([busy]: ход агента, команда терминала, фоновый процесс, ожидающее
+ * одобрение или вопрос — G-13) и пользователь не трогал приложение [idleMinutes] минут.
  */
 internal fun shouldIdleStopHost(
     idleMinutes: Int,
     phase: RuntimePhase,
-    anySessionRunning: Boolean,
+    busy: Boolean,
     lastInteractionAt: Long,
     now: Long,
 ): Boolean =
     idleMinutes > 0 &&
         phase == RuntimePhase.RUNNING &&
-        !anySessionRunning &&
+        !busy &&
         now - lastInteractionAt >= idleMinutes * 60_000L
+
+/** Пора предупредить «уснёт через минуту»: до сна осталось не больше минуты (и сон вообще будет). */
+internal fun idleWarningDue(
+    idleMinutes: Int,
+    phase: RuntimePhase,
+    busy: Boolean,
+    lastInteractionAt: Long,
+    now: Long,
+): Boolean =
+    idleMinutes > 0 && phase == RuntimePhase.RUNNING && !busy &&
+        now - lastInteractionAt >= idleMinutes * 60_000L - IDLE_WARNING_MS &&
+        now - lastInteractionAt < idleMinutes * 60_000L
+
+internal const val IDLE_WARNING_MS = 60_000L
+
+/** «Не усыплять» из уведомления: считается действием пользователя — отсчёт простоя начинается заново. */
+class KeepAwakeReceiver : android.content.BroadcastReceiver() {
+    override fun onReceive(context: android.content.Context, intent: android.content.Intent) {
+        UserActivity.touch()
+        DshNotifications.cancelIdleWarning(context)
+    }
+}

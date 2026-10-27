@@ -149,7 +149,9 @@ class BridgeServer(
                     // Таймаут, слишком длинная строка и EOF завершают соединение.
                     val line = readBoundedLine(input, limits.maxLineBytes) ?: return
                     if (line.isBlank()) continue
-                    val request = runCatching { json.decodeFromString<BridgeRequest>(line) }.getOrNull()
+                    // Глубокий `[[[[…` в params переполнил бы стек разбора (StackOverflowError роняет процесс) — отказ.
+                    val request = if (com.deepseek.dsh.core.model.jsonTooDeep(line)) null
+                    else runCatching { json.decodeFromString<BridgeRequest>(line) }.getOrNull()
                     if (request == null) {
                         // Неавторизованному соединению ошибка разбора не возвращается — сразу разрыв.
                         if (!authenticated) return

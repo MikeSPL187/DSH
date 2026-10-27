@@ -156,6 +156,10 @@ class BridgeClient(
         try {
             client.newCall(request).execute().use { response ->
                 val body = response.body?.string().orEmpty()
+                // Ответ моста — данные Host и его плагинов: глубокая вложенность переполнила бы стек разбора.
+                if (com.deepseek.dsh.core.model.jsonTooDeep(body)) {
+                    return@use BridgeResult.Failure(BridgeErrorCode.INTERNAL_ERROR, "bridge response is nested too deeply")
+                }
                 if (!response.isSuccessful) {
                     // Не-2xx тоже несёт тело ошибки JSON; разобралось — код Host, иначе ошибка транспорта.
                     val decoded = runCatching { decode(body) }.getOrNull()

@@ -12,8 +12,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.io.File
 
-/** Модель для новой сессии: id в каталоге Host и провайдер. */
-data class ModelChoice(val modelId: String, val providerId: String)
+/** Модель для новой сессии: id в каталоге Host, провайдер и уровень рассуждений (G-23). */
+data class ModelChoice(val modelId: String, val providerId: String, val reasoningEffort: String? = null)
 
 /** Сессии ещё нет: пузырь первого сообщения новой сессии. */
 internal const val PENDING_SESSION = "pending"
@@ -43,6 +43,8 @@ class ChatSender(
         val prompt: String,
         val images: List<Triple<File, String, String>>,
         val model: ModelChoice,
+        /** Права, выбранные до первого сообщения: применяются до prompt, и при «Повторить» — тоже. */
+        val permission: String? = null,
     )
 
     /** Неотправленные сообщения: id пузыря → что отправить по «Повторить». */
@@ -86,7 +88,7 @@ class ChatSender(
             Triple(file, mediaType, attachment.displayName)
         }
         attachments.clear()
-        dispatch(Outgoing(text, prompt, images, model))
+        dispatch(Outgoing(text, prompt, images, model, ui.pendingPermissionPreset.takeIf { ui.selectedSessionId == null }))
     }
 
     /** «Повторить» у неотправленного сообщения. */
@@ -173,7 +175,15 @@ class ChatSender(
         // у существующей не перезаписывается (раньше провайдер каждый раз брался
         // из аккаунта, у Kimi и моделей подписки он ломался, и ответ был пустым).
         if (createdSession) {
-            repository.selectModel(ui.activeHostId, sid, outgoing.model.modelId, outgoing.model.providerId)
+            // Модель, уровень рассуждений и права, выбранные до первого сообщения (G-23): раньше выбор без
+            // сессии молча пропадал, и новая сессия шла с правами по умолчанию. Отказ — видимое сообщение.
+            repository.selectModel(ui.activeHostId, sid, outgoing.model.modelId, outgoing.model.providerId, outgoing.model.reasoningEffort)
+                .onFailure { toast(context.getString(R.string.model_switch_failed, it.message.orEmpty()), long = true) }
+        }
+        // Права не применились — prompt не уходит: иначе агент работал бы с правами по умолчанию.
+        outgoing.permission?.let { preset ->
+            if (!repository.selectPermissionPreset(ui.activeHostId, sid, preset)) return context.getString(R.string.perm_switch_failed)
+            if (ui.pendingPermissionPreset == preset) ui.pendingPermissionPreset = null
         }
         val encodedImages = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             outgoing.images.mapNotNull { (file, mediaType, name) ->

@@ -103,6 +103,9 @@
     <string name="ck_net_checking_sub">Checking the connection</string>
     <string name="ck_net_back">Back online</string>
     <string name="ck_net_back_sub">You can continue</string>
+    <string name="ck_host_denied">Host did not accept sign-in</string>
+    <string name="ck_host_denied_sub">Restart it — sessions and files are kept</string>
+    <string name="ck_host_restart">Restart</string>
     <string name="ck_att_image">image</string>
     <string name="ck_att_file">file</string>
     <string name="ck_att_remove">Remove attachment</string>
