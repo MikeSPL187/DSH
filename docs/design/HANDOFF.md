@@ -126,6 +126,11 @@ ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.grad
 - `org.json` в чистых JVM-тестах не работает — такие тесты делать в Robolectric (app).
 - `ModalBottomSheet` в Robolectric зависает — использовать `DshSheetScaffold` или рисовать содержимое напрямую.
 - `DshMotion.*()` возвращает `SpringSpec` — подходит для `slideIn/fadeIn`.
+- Android 8: одна неудачная попытка `PdfRenderer` ломает его в процессе для всех следующих PDF
+  (issuetracker 118866570) — поэтому `PdfDoc.looksLikePdf` отсеивает битые и обрезанные файлы заранее.
+  Файл с целыми заголовком и концовкой, но испорченной серединой, всё ещё может сломать PDF до перезапуска.
+- Инструментальные тесты библиотек: `androidx.test.ext:junit` не содержит `AndroidJUnitRunner` — нужен
+  `androidx.test:runner`, иначе `am instrument` пишет «Process crashed».
 - Новые CSS-классы прототипа не должны пересекаться со старыми (при правке прототипа).
 - Строки ресурсов — только в модуле, где они используются (`nonTransitiveRClass=true`, копии в других модулях
   не нужны); у каждой строки `values/` есть пара в `values-ru/`.

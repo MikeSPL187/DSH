@@ -146,11 +146,29 @@ internal class PdfDoc private constructor(private val pfd: ParcelFileDescriptor,
         const val MAX_PAGE_PX = 1440
         const val A4 = 1f / 1.414f
 
-        /** null — файл не PDF, повреждён или зашифрован (PdfRenderer бросает SecurityException). */
-        fun open(file: File): PdfDoc? = runCatching {
+        /**
+         * null — файл не PDF, повреждён или зашифрован (PdfRenderer бросает SecurityException).
+         * Явно испорченный файл до PdfRenderer не доходит: на Android 8 одна неудачная попытка ломает PdfRenderer
+         * в процессе и для всех следующих, целых файлов (issuetracker.google.com/issues/118866570).
+         */
+        fun open(file: File): PdfDoc? = if (!looksLikePdf(file)) null else runCatching {
             val pfd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
             try { PdfDoc(pfd, PdfRenderer(pfd)) } catch (e: Exception) { pfd.close(); throw e }
         }.getOrNull()
+
+        /** Заголовок `%PDF-` в первом килобайте и `startxref` с `%%EOF` в последних 2 КБ — как у любого целого PDF. */
+        internal fun looksLikePdf(file: File): Boolean = runCatching {
+            java.io.RandomAccessFile(file, "r").use { f ->
+                val len = f.length()
+                if (len < 32) return@use false
+                val head = ByteArray(minOf(1024L, len).toInt()).also { f.readFully(it) }
+                val tailSize = minOf(2048L, len).toInt()
+                f.seek(len - tailSize)
+                val tail = ByteArray(tailSize).also { f.readFully(it) }
+                val latin = Charsets.ISO_8859_1
+                String(head, latin).contains("%PDF-") && String(tail, latin).let { "startxref" in it && "%%EOF" in it }
+            }
+        }.getOrDefault(false)
     }
 }
 
