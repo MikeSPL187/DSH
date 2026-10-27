@@ -7,7 +7,7 @@
  */
 
 import { createHash, randomBytes } from 'node:crypto'
-import { mkdtempSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { mkdir, open } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -34,7 +34,20 @@ let defaultRoot: string | undefined
  * @returns The private root path.
  */
 export function privateRoot(): string {
-  defaultRoot ??= mkdtempSync(join(tmpdir(), DEFAULT_ROOT_PREFIX))
+  if (defaultRoot !== undefined) return defaultRoot
+  if (process.env.DSH_ANDROID !== '1') {
+    defaultRoot = mkdtempSync(join(tmpdir(), DEFAULT_ROOT_PREFIX))
+    return defaultRoot
+  }
+  // DSH Android: proot cannot rely on mkdtemp under TMPDIR; use the fixed directory the app prepares.
+  const fixed = join(tmpdir(), 'spill')
+  try {
+    mkdirSync(fixed, { recursive: true, mode: 0o700 })
+  } catch (error: unknown) {
+    // An existing directory or a later write reports its own error to the caller.
+    void error
+  }
+  defaultRoot = fixed
   return defaultRoot
 }
 

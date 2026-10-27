@@ -1,7 +1,7 @@
 /** Verified runtime assets and managed command execution for local transcription. */
 import { createHash, randomUUID } from 'node:crypto'
 import { createReadStream, readFileSync } from 'node:fs'
-import { access, mkdir, rename, rm, stat } from 'node:fs/promises'
+import { mkdir, rename, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
@@ -68,7 +68,8 @@ function resolveRuntime(config: Config) {
 
 async function verifyRuntime(config: Config, paths: RuntimePaths, lock: RuntimeLock, signal: AbortSignal): Promise<boolean> {
   signal.throwIfAborted()
-  try { await Promise.all([paths.model, paths.tokens, paths.vad].map(path => access(path))) }
+  // stat, not access: proot can answer faccessat with ENOSYS (DSH Android).
+  try { await Promise.all([paths.model, paths.tokens, paths.vad].map(path => stat(path))) }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
     return false

@@ -228,6 +228,33 @@ export async function runRipgrep(
   graceMs: number,
   stderrMaxBytes: number,
 ): Promise<RipgrepRun> {
+  return runSearchCommand(ctx, exec, toolName, async () => [await resolveRgPath(), '--no-config', ...argv], rawOutputMaxBytes, graceMs, stderrMaxBytes)
+}
+
+/**
+ * Run one search executable with the {@link runRipgrep} lifecycle, limits, and failure classification.
+ * Exit 1 means no matches. With `partialExitCode`, that exit code plus non-empty output counts as success
+ * (`grep -s` exits 2 when an unreadable file was skipped but matches were found).
+ * @param ctx - the plugin context; execution uses its `subprocess` service.
+ * @param exec - the tool-execution context.
+ * @param toolName - `glob` or `grep`, used in error messages.
+ * @param command - resolves the complete argv including the executable; no shell layer exists.
+ * @param rawOutputMaxBytes - cap on the complete raw stdout.
+ * @param graceMs - terminate-escalation grace period.
+ * @param stderrMaxBytes - cap on the retained stderr tail.
+ * @param partialExitCode - optional exit code accepted when output is non-empty.
+ * @returns the complete stdout, the zero-result flag, and the resolved workdir.
+ */
+export async function runSearchCommand(
+  ctx: Context,
+  exec: ToolExecution,
+  toolName: string,
+  command: () => Promise<readonly string[]>,
+  rawOutputMaxBytes: number,
+  graceMs: number,
+  stderrMaxBytes: number,
+  partialExitCode?: number,
+): Promise<RipgrepRun> {
   if (exec.signal.aborted) {
     throw new SearchError(`${toolName} was aborted before completion (tool timeout or caller cancellation)`, 'SEARCH_ABORTED')
   }
@@ -237,7 +264,7 @@ export async function runRipgrep(
   let handle: SubprocessHandle
   try {
     handle = ctx.subprocess.spawn({
-      argv: [await resolveRgPath(), '--no-config', ...argv],
+      argv: [...await command()],
       cwd: workdir,
       stdio: {
         stdin: 'ignore',
@@ -279,7 +306,8 @@ export async function runRipgrep(
   if (outcome.signal !== null || outcome.exitCode === null) {
     throw new SearchError(`${toolName} search command was killed by signal ${outcome.signal ?? '(unknown)'}`, 'SEARCH_FAILED')
   }
-  if (outcome.exitCode !== 0 && outcome.exitCode !== 1) {
+  const partial = partialExitCode !== undefined && outcome.exitCode === partialExitCode && stdout.text.length > 0
+  if (outcome.exitCode !== 0 && outcome.exitCode !== 1 && !partial) {
     throw classifyRunFailure(toolName, outcome.exitCode, stderr.text, stderr.lossy)
   }
   const text = completeStdout(toolName, stdout, rawOutputMaxBytes)

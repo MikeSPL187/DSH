@@ -152,14 +152,15 @@ function resolveWorkdir(modelWorkdir: string | undefined, sessionCwd: string | u
 }
 
 /** Detach the executor DTO from readonly Service Definition types into plain JSON data. */
-function canonicalBashResult(result: ShellRunResult, cwd: string) {
+function canonicalBashResult(result: ShellRunResult, cwd: string | undefined) {
   const output = (stream: ShellRunResult['stdout']) => ({
     text: stream.text,
     truncated: stream.truncated,
     ...stream.spillPath !== undefined ? { spillPath: stream.spillPath } : {},
   })
   return {
-    cwd,
+    // DSH Android: under proot the resolved workdir can be missing; the result still names a directory.
+    cwd: cwd ?? process.cwd(),
     exitCode: result.exitCode,
     signal: result.signal,
     timedOut: result.timedOut,
@@ -196,7 +197,8 @@ interface StartedJob {
 const BACKGROUND_OUTPUT_PROPERTIES = {
   kind: { type: 'string', required: true, const: 'background' },
   jobId: { type: 'string', required: true },
-  cwd: { type: 'string', required: true },
+  // DSH Android: optional — under proot a background launch can lack a resolved workdir.
+  cwd: { type: 'string' },
 } as const
 
 export function apply(ctx: Context, config: Config = {}): void {
@@ -413,7 +415,7 @@ export function apply(ctx: Context, config: Config = {}): void {
               additionalProperties: false,
               properties: {
                 kind: { type: 'string', required: true, const: 'promoted' },
-                cwd: { type: 'string', required: true },
+                cwd: { type: 'string' },
                 jobId: { type: 'string', required: true },
                 timeoutMs: { type: 'number', required: true },
                 output: { type: 'string', required: true },
@@ -424,7 +426,7 @@ export function apply(ctx: Context, config: Config = {}): void {
               additionalProperties: false,
               properties: {
                 kind: { type: 'string', required: true, const: 'foreground' },
-                cwd: { type: 'string', required: true },
+                cwd: { type: 'string' },
                 exitCode: { required: true, oneOf: [{ type: 'integer' }, { type: 'null' }] },
                 signal: { required: true, oneOf: [{ type: 'string' }, { type: 'null' }] },
                 timedOut: { type: 'boolean', required: true },
@@ -473,7 +475,7 @@ export function apply(ctx: Context, config: Config = {}): void {
               ? renderPromoted(value)
               : renderResult(value as { kind: 'foreground' } & ShellRunResult, escalationModes),
         }],
-        presentationMeta: (_args, value) => ({ cwd: value.cwd }),
+        presentationMeta: (_args, value) => value.cwd === undefined ? {} : { cwd: value.cwd },
       },
       async execute(args: BashToolArgs, exec) {
         // Description is display metadata; workdir defaults to the caller's session.

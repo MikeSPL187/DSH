@@ -147,5 +147,9 @@ ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.grad
   только для http(s) с видимым доменом. В KDoc не писать `/*` (например, `build/*.log`) — это вложенный комментарий Kotlin.
 - Вход по отпечатку: `BiometricLock.available()` — единственная проверка (отпечаток или код телефона);
   без способа входа блокировка не включается, иначе из DSH не выйти.
+- Агент (`agent/`, наш форк): поведение под Android правится только в исходниках TS и включается проверкой
+  `process.env.DSH_ANDROID === '1'` (переменную ставит `DefaultHostRuntimeManager`), без ветки upstream остаётся как было.
+  Новые патчи-диффы к собранному JS в `infra/rootfs/patches` не добавлять. Значения от модели передавать отдельными
+  элементами argv, без оболочки (G-52).
 - Коммиты завершать строками:
   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` и `Claude-Session: <ссылка на сессию>`.

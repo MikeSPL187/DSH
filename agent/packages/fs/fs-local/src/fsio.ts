@@ -7,7 +7,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { createReadStream, realpath as realpathCallback } from 'node:fs'
-import { chmod, link, lstat, mkdir, open, readFile, readdir, rename, rm, stat } from 'node:fs/promises'
+import { chmod, link, lstat, mkdir, open, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import type { BigIntStats, Dirent, Stats } from 'node:fs'
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
 import { TextDecoder, promisify } from 'node:util'
@@ -613,7 +613,14 @@ export async function writeFileAtomic(
   let handle: Awaited<ReturnType<typeof open>> | undefined
   let stagingCreated = false
   try {
-    await mkdir(stagingDir, { mode: 0o700 })
+    try {
+      await mkdir(stagingDir, { mode: 0o700 })
+    } catch (error: unknown) {
+      // DSH Android (DSH_ANDROID=1): proot on FUSE storage can refuse the private staging directory; write in place.
+      if (process.env.DSH_ANDROID !== '1') throw error
+      await writeFile(absolutePath, content, { mode: mode ?? 0o600 })
+      return
+    }
     stagingCreated = true
     await chmod(stagingDir, 0o700)
 

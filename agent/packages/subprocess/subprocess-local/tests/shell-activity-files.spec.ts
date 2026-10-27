@@ -79,3 +79,23 @@ it('removes the allocated private directory when writing its startup file fails'
   expect(directory).toBeDefined()
   expect(existsSync(directory!)).toBe(false)
 })
+
+it('shares one Android directory between bash shells without touching each other or the directory', () => {
+  const tmp = mkdtempSync(join(tmpdir(), 'dsh-android-tmp-'))
+  cleanups.push(() => { rmSync(tmp, { recursive: true, force: true }) })
+  vi.stubEnv('DSH_ANDROID', '1')
+  vi.stubEnv('TMPDIR', tmp)
+  cleanups.push(() => { vi.unstubAllEnvs() })
+  const bash = { ...spec, argv: ['/bin/bash', '-i'] }
+  const first = prepareShellActivity(bash, {}, 'linux')!
+  const second = prepareShellActivity(bash, {}, 'linux')!
+  const shared = join(tmp, 'shell')
+  expect(first.argv[2]).not.toBe(second.argv[2])
+  expect(dirname(first.argv[2]!)).toBe(shared)
+  first.dispose()
+  expect(existsSync(shared)).toBe(true)
+  expect(existsSync(second.argv[2]!)).toBe(true)
+  second.dispose()
+  expect(existsSync(shared)).toBe(true)
+  expect(prepareShellActivity(spec, {}, 'linux')).toBeUndefined()
+})

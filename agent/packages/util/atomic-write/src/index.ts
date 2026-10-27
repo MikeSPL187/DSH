@@ -16,6 +16,11 @@ import { lstat, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { setTimeout as wait } from 'node:timers/promises'
 
+/** DSH Android Host (the app sets `DSH_ANDROID=1`): proot cannot be trusted with rename/unlink. */
+function androidHost(): boolean {
+  return process.env.DSH_ANDROID === '1'
+}
+
 const WINDOWS_TRANSIENT_RENAME_ERRORS: ReadonlySet<string> = new Set(['EACCES', 'EBUSY', 'EPERM'])
 const WINDOWS_RENAME_RETRY_INITIAL_MS = 20
 const WINDOWS_RENAME_RETRY_MAX_MS = 200
@@ -89,8 +94,19 @@ export async function writeFileAtomic(filename: string, content: string | Uint8A
     await writeFile(temp, content, { mode: options.mode, flag: 'wx' })
     await renameAtomicTemp(temp, filename)
   } catch (error) {
-    await rm(temp, { force: true })
-    throw error
+    if (!androidHost()) {
+      await rm(temp, { force: true })
+      throw error
+    }
+    // DSH Android: proot can answer rename/unlink with ENOSYS; write the target in place instead.
+    try {
+      await writeFile(filename, content, { mode: options.mode })
+    } finally {
+      await rm(temp, { force: true }).catch((cleanupError: unknown) => {
+        // A leftover temp file does not change the written target.
+        void cleanupError
+      })
+    }
   }
 }
 
@@ -240,6 +256,12 @@ export async function withFileLock<T>(
   operation: () => Promise<T>,
   options?: FileLockOptions,
 ): Promise<T> {
+  // DSH Android: under proot an unlink can fail and leave `.lock` behind, blocking every later writer of the
+  // file; the Android Host is the only writer of its profile, so it runs the operation without the lock.
+  if (androidHost()) {
+    options?.signal?.throwIfAborted()
+    return await operation()
+  }
   const lockPath = `${filename}.lock`
   const deadline = Date.now() + (options?.waitMs ?? DEFAULT_LOCK_WAIT_MS)
   let delay = LOCK_RETRY_INITIAL_MS

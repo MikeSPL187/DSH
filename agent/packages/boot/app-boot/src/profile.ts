@@ -718,6 +718,19 @@ export function resolveBundleDir(
     const dir = packageDirFromAnchor(anchor, packageName)
     if (dir !== undefined) return dir
   }
+  // DSH Android: under proot the anchored resolution can miss an installed bundle; a readable manifest in the
+  // installation's or the profile's node_modules is the bundle.
+  if (process.env.DSH_ANDROID === '1') {
+    for (const candidate of [join(dirname(installAnchor), 'node_modules', packageName), join(profileDir, 'node_modules', packageName)]) {
+      try {
+        JSON.parse(readFileSync(join(candidate, 'package.json'), 'utf8'))
+        return candidate
+      } catch (error: unknown) {
+        // Not installed here; the next candidate or the diagnostic below applies.
+        void error
+      }
+    }
+  }
   throw new Error(
     `${binName}: cannot resolve profile bundle ${JSON.stringify(packageName)} from the dsh installation or ${profileDir}; `
     + `run 'dsh plugin --profile ${basename(profileDir)} install' if its dependency is not installed`,

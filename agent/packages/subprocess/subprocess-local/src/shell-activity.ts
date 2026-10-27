@@ -1,6 +1,7 @@
 /** Private shell lifecycle files; ordinary output never authorizes terminal reclamation. */
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { randomUUID } from 'node:crypto'
+import { readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { privateTempDir } from './output.ts'
 import { basename, join } from 'node:path'
 import type { SubprocessTerminalActivity, SubprocessTerminalSpawnSpec } from '@deepseek-ai/dsh-subprocess'
 
@@ -17,8 +18,15 @@ export class ShellActivity {
    * @param directory - private startup and status file directory.
    * @param argv - shell launch preserving supported user startup files.
    * @param env - environment with any temporary startup redirect.
+   * @param prefix - file-name prefix inside a directory shared with other shells (DSH Android); empty when the
+   *   directory is private to this shell.
    */
-  constructor(private readonly directory: string, readonly argv: readonly string[], readonly env: Record<string, string>) {}
+  constructor(
+    private readonly directory: string,
+    readonly argv: readonly string[],
+    readonly env: Record<string, string>,
+    private readonly prefix = '',
+  ) {}
 
   /** Invalidate prompt evidence before delivering input or a foreground signal. */
   invalidate(): void {
@@ -42,10 +50,14 @@ export class ShellActivity {
   }
 
   /** Remove private startup and status files after process quiescence. */
-  dispose(): void { rmSync(this.directory, { recursive: true, force: true }) }
+  dispose(): void {
+    if (this.prefix === '') { rmSync(this.directory, { recursive: true, force: true }); return }
+    // A shared directory stays: other shells use it, and proot cannot recreate it.
+    for (const name of ['state', 'guards', 'bashrc']) rmSync(join(this.directory, this.prefix + name), { force: true })
+  }
 
   private read(): string {
-    try { return readFileSync(join(this.directory, 'state'), 'utf8') }
+    try { return readFileSync(join(this.directory, this.prefix + 'state'), 'utf8') }
     catch (_unavailableShellObservation) { return '' }
   }
 }
@@ -63,12 +75,17 @@ export function prepareShellActivity(
   if (spec.shellActivity !== true || platform === 'win32' || spec.argv.length !== 2 || spec.argv[1] !== '-i') return undefined
   const shell = basename(spec.argv[0] as string)
   if (shell !== 'bash' && shell !== 'zsh') return undefined
-  const directory = mkdtempSync(join(tmpdir(), 'dsh-shell-'))
-  const state = quote(join(directory, 'state'))
-  const guards = quote(join(directory, 'guards'))
+  // DSH Android: one shared, app-created directory; each shell owns uniquely prefixed files in it. Zsh needs a
+  // private ZDOTDIR, which proot cannot create reliably, so it runs without activity tracking there.
+  const shared = process.env.DSH_ANDROID === '1'
+  if (shared && shell === 'zsh') return undefined
+  const directory = privateTempDir('dsh-shell-', 'shell')
+  const prefix = shared ? `${process.pid}-${randomUUID()}-` : ''
+  const state = quote(join(directory, prefix + 'state'))
+  const guards = quote(join(directory, prefix + 'guards'))
   try {
     if (shell === 'bash') {
-      const rc = join(directory, 'bashrc')
+      const rc = join(directory, prefix + 'bashrc')
       writeFileSync(rc, [
         '[[ ! -r ~/.bashrc ]] || builtin source ~/.bashrc',
         'if (( BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 4) )) && [[ ! $(declare -p PROMPT_COMMAND PS0 2>/dev/null) =~ declare\\ -[^[:space:]]*r ]]; then',
@@ -93,7 +110,7 @@ export function prepareShellActivity(
         'fi',
         '',
       ].join('\n'), { mode: 0o600, flag: 'wx' })
-      return new ShellActivity(directory, [spec.argv[0] as string, '--rcfile', rc, '-i'], env)
+      return new ShellActivity(directory, [spec.argv[0] as string, '--rcfile', rc, '-i'], env, prefix)
     }
     writeFileSync(join(directory, '.zshenv'), [
       env.ZDOTDIR === undefined ? 'unset ZDOTDIR' : `ZDOTDIR=${quote(env.ZDOTDIR)}`,
@@ -125,7 +142,8 @@ export function prepareShellActivity(
     ].join('\n'), { mode: 0o600, flag: 'wx' })
     return new ShellActivity(directory, spec.argv, { ...env, ZDOTDIR: directory })
   } catch (error) {
-    rmSync(directory, { recursive: true, force: true })
+    if (prefix === '') rmSync(directory, { recursive: true, force: true })
+    else rmSync(join(directory, prefix + 'bashrc'), { force: true })
     throw error
   }
 }

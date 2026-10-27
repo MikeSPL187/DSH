@@ -14,7 +14,8 @@ import { sep } from 'node:path'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { GenericCallView, SearchResultView, ToolResult } from '@deepseek-ai/dsh-tools'
 import type { SpillRef } from '@deepseek-ai/dsh-spill'
-import { runRipgrep, toWorkdirRelative, trySaveFormattedResult } from './search-core.ts'
+import { runRipgrep, runSearchCommand, toWorkdirRelative, trySaveFormattedResult } from './search-core.ts'
+import { androidSearchHost, buildAndroidGlobCommand, withoutDotSlash } from './android.ts'
 import { globSearchMeta, searchViewFromMeta } from './presentation.ts'
 import { acceptedDirectCallValue } from './direct-call.ts'
 
@@ -335,14 +336,16 @@ export function applyGlobTool(ctx: Context, caps: GlobToolCaps): void {
     },
     async execute(args, exec) {
       const input = parseGlobArgs(args)
-      const run = await runRipgrep(ctx, exec, 'glob', buildGlobCommand(input), caps.rawOutputMaxBytes, caps.graceMs, caps.stderrMaxBytes)
+      const run = androidSearchHost()
+        ? await runSearchCommand(ctx, exec, 'glob', () => Promise.resolve(buildAndroidGlobCommand(input)), caps.rawOutputMaxBytes, caps.graceMs, caps.stderrMaxBytes)
+        : await runRipgrep(ctx, exec, 'glob', buildGlobCommand(input), caps.rawOutputMaxBytes, caps.graceMs, caps.stderrMaxBytes)
       const root = input.path === undefined ? '.' : toWorkdirRelative(input.path, run.workdir)
       if (run.noMatches) return { root, paths: [] }
 
       const all: string[] = []
       for (const line of run.stdout.split('\n')) {
         if (line.length === 0) continue
-        const displayPath = toWorkdirRelative(line, run.workdir)
+        const displayPath = toWorkdirRelative(withoutDotSlash(line), run.workdir)
         all.push(displayPath)
       }
       return { root, paths: all }

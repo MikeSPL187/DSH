@@ -8,6 +8,8 @@
  * @module dsh-subprocess-local/spawn
  */
 
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { type ChildProcess, type SpawnOptions, spawn, spawnSync } from 'node:child_process'
 import type { Readable } from 'node:stream'
 import { setTimeout as sleepMs } from 'node:timers/promises'
@@ -446,6 +448,25 @@ export function bindManagedProcess(
 }
 
 /**
+ * DSH Android: resolve a bare program name through PATH before spawning, because the lookup inside
+ * Node's spawn fails under proot.
+ * @param program - argv[0].
+ * @param env - child environment supplying PATH.
+ * @returns an absolute path when one is found, otherwise `program` unchanged.
+ */
+function androidProgram(program: string, env: Readonly<NodeJS.ProcessEnv> | undefined): string {
+  if (program === 'bash') return '/bin/bash'
+  if (program === 'sh') return '/bin/sh'
+  if (program.includes('/')) return program
+  for (const directory of String(env?.PATH ?? process.env.PATH ?? '').split(':')) {
+    if (directory === '') continue
+    const candidate = join(directory, program)
+    if (existsSync(candidate)) return candidate
+  }
+  return program
+}
+
+/**
  * Spawn one detached PGID/taskkill fallback and bind the common lifecycle.
  * @param spec - fully resolved argv, cwd, stdio, grace, cancellation, environment.
  * @param internals - test-only spill-directory, platform, and taskkill overrides.
@@ -464,11 +485,13 @@ export function spawnSubprocess(spec: SubprocessSpawnSpec, internals: SpawnInter
     while (stdio.length < SUBPROCESS_CONTROL_FD) stdio.push('ignore')
     stdio.push('overlapped')
   }
-  const child = (internals.spawn ?? spawn)(program as string, args, {
-    cwd: spec.cwd,
+  const android = process.env.DSH_ANDROID === '1'
+  const child = (internals.spawn ?? spawn)(android ? androidProgram(program as string, spec.env) : program as string, args, {
+    cwd: android && !existsSync(spec.cwd) ? '/' : spec.cwd,
     env: controlEnvironment(childEnv(spec.env), spec.stdio.control),
     stdio,
-    detached: platform !== 'win32',
+    // DSH Android: proot does not support a new session/process group for the child.
+    detached: platform !== 'win32' && !android,
     windowsHide: platform === 'win32',
   })
   const direct = directChildResult(child)

@@ -1,6 +1,6 @@
 /** Bounded output tails and private spill files shared by process providers. */
 import { randomBytes } from 'node:crypto'
-import { closeSync, mkdtempSync, openSync, rmdirSync, unlinkSync, writeSync } from 'node:fs'
+import { closeSync, mkdirSync, mkdtempSync, openSync, rmdirSync, unlinkSync, writeSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { CollectedOutput } from '@deepseek-ai/dsh-subprocess'
@@ -40,7 +40,7 @@ let defaultSpillDir: string | undefined
  * external cleanup).
  */
 function privateSpillDir(): string {
-  defaultSpillDir ??= mkdtempSync(join(tmpdir(), 'dsh-subprocess-'))
+  defaultSpillDir ??= privateTempDir('dsh-subprocess-', 'spill')
   return defaultSpillDir
 }
 
@@ -310,4 +310,24 @@ export class OutputCollector {
       ...this.spillFile !== undefined ? { spillPath: this.spillFile } : {},
     }
   }
+}
+
+/**
+ * Private directory for this process. Off Android a fresh `mkdtemp` directory; on the DSH Android Host
+ * (`DSH_ANDROID=1`) a fixed owner-only directory under TMPDIR, because proot cannot rely on mkdtemp there
+ * (the app sets TMPDIR=/root/.dsh/tmp and creates it before launch).
+ * @param prefix - mkdtemp prefix off Android.
+ * @param fixedName - Directory name under TMPDIR on Android.
+ * @returns The directory path.
+ */
+export function privateTempDir(prefix: string, fixedName: string): string {
+  if (process.env.DSH_ANDROID !== '1') return mkdtempSync(join(tmpdir(), prefix))
+  const path = join(tmpdir(), fixedName)
+  try {
+    mkdirSync(path, { recursive: true, mode: 0o700 })
+  } catch (error: unknown) {
+    // An existing directory or a later write reports its own error to the caller.
+    void error
+  }
+  return path
 }

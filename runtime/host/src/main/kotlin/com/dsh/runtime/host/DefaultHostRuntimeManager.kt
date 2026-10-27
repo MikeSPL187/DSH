@@ -989,7 +989,10 @@ class DefaultHostRuntimeManager(
             layout = layout,
             userWorkspacePath = workspacePath,
             customEnv = mapOf(
-                "DSH_ANDROID_BRIDGE_PORT" to bridgePort.toString()
+                "DSH_ANDROID_BRIDGE_PORT" to bridgePort.toString(),
+                // Агент из agent/ включает Android-обходы proot (временные папки, запись без rename, поиск без ripgrep)
+                // только по этому флагу; вне телефона он ведёт себя как upstream.
+                "DSH_ANDROID" to "1",
             ) + agentProxyEnv(networkProxy.url)
         )
         val cmd = ProotCommandBuilder.build(launchConfig)

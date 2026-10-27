@@ -34,8 +34,22 @@ export async function writeAtomic(path: string, data: string): Promise<void> {
     await rename(tmp, path)
     await fsyncDirectory(dirname(path))
   } catch (error) {
-    await rm(tmp, { force: true })
-    throw error
+    if (process.env.DSH_ANDROID !== '1') {
+      await rm(tmp, { force: true })
+      throw error
+    }
+    // DSH Android: proot on FUSE storage can refuse the temp file or the rename; fall back to an in-place durable write.
+    try {
+      const handle = await open(path, 'w', 0o600)
+      try {
+        await handle.writeFile(data, 'utf8')
+        await handle.sync()
+      } finally {
+        await handle.close()
+      }
+    } finally {
+      await rm(tmp, { force: true })
+    }
   }
 }
 

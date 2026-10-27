@@ -37,6 +37,11 @@ import type { IndexInjection } from '@deepseek-ai/dsh-host-webserver'
 import { exactPackageSpecifier, parseDshClient, stripClientSuffix } from './client/manifest.ts'
 import type { WebBootBatch, WebBootBatchPhase, WebBootEntry, WebBootGraph, WebBootRelease } from './client/manifest.ts'
 
+/** DSH Android Host: the app sets `DSH_ANDROID=1` in the Host environment. */
+function androidHost(): boolean {
+  return process.env.DSH_ANDROID === '1'
+}
+
 export { stripClientSuffix } from './client/manifest.ts'
 export type {
   BootManifest, BootModuleRow, BootPluginRow, WebBootBatch, WebBootBatchPhase, WebBootEntry, WebBootGraph, WebBootRelease,
@@ -894,6 +899,10 @@ export class ClientModuleRegistry extends Service {
     const pathLike = loaderName.startsWith('.') || loaderName.startsWith('file:') || isAbsolute(loaderName)
     const expectedPackageName = pathLike ? undefined : exactPackageSpecifier(loaderName)
     if (!pathLike && expectedPackageName === undefined) return undefined
+    if (expectedPackageName !== undefined && androidHost()) {
+      const installed = this.locateInstalledPackage(expectedPackageName, baseUrl)
+      if (installed !== undefined) return installed
+    }
     const internal = this.ctx.loader.internal
     if (internal === undefined || typeof Reflect.get(internal, 'resolveSync') !== 'function') {
       if (expectedPackageName === undefined) {
@@ -924,6 +933,51 @@ export class ClientModuleRegistry extends Service {
       return undefined
     }
     return this.nearestPackage(moduleUrl, expectedPackageName)
+  }
+
+  /**
+   * DSH Android: find one package manifest in the tree's own `node_modules` directories. Under proot the
+   * Loader's resolver does not see the profile tree and `existsSync` is unreliable, so a manifest counts only
+   * when it can be read; without this the boot graph composes empty and the browser shell cannot start.
+   * @param packageName - package to locate.
+   * @param baseUrl - resolution base of the tree that owns the row.
+   * @returns the manifest path and package name, or `undefined`.
+   */
+  private locateInstalledPackage(packageName: string, baseUrl: string): { path: string; packageName: string } | undefined {
+    const seen = new Set<string>()
+    const visit = (startDir: string): { path: string; packageName: string } | undefined => {
+      if (startDir.length === 0 || seen.has(startDir)) return undefined
+      seen.add(startDir)
+      const candidate = join(startDir, 'node_modules', packageName, 'package.json')
+      try {
+        JSON.parse(readFileSync(candidate, 'utf8'))
+        return { path: candidate, packageName }
+      } catch (error: unknown) {
+        // A missing or unreadable manifest is not this package; the search continues.
+        void error
+        return undefined
+      }
+    }
+    const baseDir = baseUrl.startsWith('file:') ? dirname(fileURLToPath(baseUrl)) : baseUrl
+    const bases = [join(baseDir, 'web'), baseDir]
+    const dshHome = process.env.DSH_HOME
+    if (dshHome !== undefined && dshHome.length > 0) bases.push(join(dshHome, 'profiles', 'web'))
+    bases.push(process.cwd())
+    for (const base of bases) {
+      const hit = visit(base)
+      if (hit !== undefined) return hit
+    }
+    for (const start of [baseDir, dirname(fileURLToPath(import.meta.url))]) {
+      let dir = start
+      for (let depth = 0; depth < 10; depth += 1) {
+        const hit = visit(dir)
+        if (hit !== undefined) return hit
+        const parent = dirname(dir)
+        if (parent === dir) break
+        dir = parent
+      }
+    }
+    return undefined
   }
 
   private nearestPackage(

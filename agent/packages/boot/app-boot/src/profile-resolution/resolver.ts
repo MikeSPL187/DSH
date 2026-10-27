@@ -730,9 +730,33 @@ class ResolutionRouter {
   }
 }
 
+/**
+ * Load one Node internal module. With `--expose-internals` (the DSH Android Host starts Node with it) the
+ * module comes from Node itself, so a rootfs without the platform binary of `node-addon-require-builtin`
+ * still boots; otherwise the add-on provides it.
+ * @param require - require function anchored at this module.
+ * @returns a loader for internal module ids.
+ */
+function internalModuleLoader(require: NodeJS.Require): { requireBuiltin(moduleId: string): unknown } {
+  if (process.execArgv.includes('--expose-internals')) {
+    return {
+      requireBuiltin(moduleId: string): unknown {
+        try {
+          return require(moduleId)
+        } catch (error: unknown) {
+          // The id is not exposed by this Node build; the add-on remains the source.
+          void error
+          return (require('node-addon-require-builtin') as { requireBuiltin(id: string): unknown }).requireBuiltin(moduleId)
+        }
+      },
+    }
+  }
+  return require('node-addon-require-builtin') as { requireBuiltin(moduleId: string): unknown }
+}
+
 function internalModules(): InternalModules {
   const require = createRequire(import.meta.url)
-  const addon = require('node-addon-require-builtin') as { requireBuiltin(moduleId: string): unknown }
+  const addon = internalModuleLoader(require)
   const esmModule = addon.requireBuiltin('internal/modules/esm/loader') as {
     getOrInitializeCascadedLoader(): ModuleLoaderV1 | ModuleLoaderV2
   }

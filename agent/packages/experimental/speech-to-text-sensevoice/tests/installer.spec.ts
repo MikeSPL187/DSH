@@ -1,7 +1,7 @@
 /** ONNX preparation reuses verified files and honors explicit offline deployments. */
 import { writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-import { access, mkdtemp, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
@@ -19,7 +19,7 @@ const asset = (name: string): Asset => ({ name, url: `https://huggingface.co/own
 const fake = vi.hoisted(() => ({ lock: {} }))
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs/promises')>()
-  return { ...actual, access: vi.fn(actual.access), rename: vi.fn(actual.rename) }
+  return { ...actual, stat: vi.fn(actual.stat), rename: vi.fn(actual.rename) }
 })
 vi.mock('node:fs', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs')>()
@@ -85,7 +85,7 @@ it('inspects an empty cache without creating it and respects precision and offli
 it('reports filesystem access errors instead of treating unreadable caches as absent', async () => {
   const { root, fetcher } = await fixture()
   const failure = Object.assign(new Error('cache is not readable'), { code: 'EACCES' })
-  vi.mocked(access).mockRejectedValueOnce(failure)
+  vi.mocked(stat).mockRejectedValueOnce(failure)
   await expect(inspectRuntime(Config({ dataRoot: root }), new AbortController().signal)).rejects.toBe(failure)
   expect(fetcher).not.toHaveBeenCalled()
 })
