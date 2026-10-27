@@ -28,7 +28,7 @@ jobs:
       image: node:24.22.1-trixie-slim@sha256:43b9ba1142b8dcf33fa8f922ca1be85714adc444e0586c7cf7726daaeabc1bea
     steps:
       - name: Инструменты
-        run: apt-get update && apt-get install -y --no-install-recommends git python3 ca-certificates
+        run: apt-get update && apt-get install -y --no-install-recommends git python3 ca-certificates gcc libc6-dev make
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
