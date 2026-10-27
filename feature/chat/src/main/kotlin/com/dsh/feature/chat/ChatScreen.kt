@@ -171,6 +171,10 @@ fun ModernChatScreen(
     todos: List<com.dsh.core.model.TodoEntryInfo> = emptyList(),
     /** Цель сессии (проекция `goal`). */
     goal: com.dsh.core.model.GoalInfo? = null,
+    /** Изменить цель (пауза, продолжить, текст, готово, убрать); для EDIT передаётся новый текст. */
+    onGoalAction: suspend (GoalAction, String?) -> Result<Unit> = { _, _ -> Result.failure(IllegalStateException("goal")) },
+    /** Кандидаты ссылки «@»: файлы и папки рабочей папки, другие сессии; null — Host недоступен. */
+    loadReferences: suspend (query: String, filesOnly: Boolean) -> com.dsh.core.data.ContextRepository.Candidates? = { _, _ -> null },
     /** Файлы — результат хода (`deliverables/presented`). */
     deliverables: List<com.dsh.core.protocol.PresentedFileInfo> = emptyList(),
     /** Изменения файлов за последний ход (workspace/changes). */
@@ -377,6 +381,26 @@ fun ModernChatScreen(
     val activeCommandLabel = activeCommandToken?.let { token -> commandLabelRes(token)?.let { stringResource(it) } }
     val activeCommandHint = activeCommandToken?.let { token -> commandHintRes(token)?.let { stringResource(it) } }
     val canSend = inputText.isNotBlank() || attachments.isNotEmpty() || activeCommandToken != null
+    // Ссылка «@», которую человек набирает в конце черновика, и список её кандидатов.
+    val mention = remember(inputText) { trailingMention(inputText) }
+    var mentionUi by remember { mutableStateOf<MentionUi>(MentionUi.Loading) }
+    var mentionRetry by remember { mutableStateOf(0) }
+    var composerFocusTick by remember { mutableStateOf(0) }
+    LaunchedEffect(mention?.query, mention?.quoted, mentionRetry) {
+        val q = mention ?: return@LaunchedEffect
+        if (mentionUi !is MentionUi.Ready) mentionUi = MentionUi.Loading
+        kotlinx.coroutines.delay(120)
+        val result = loadReferences(q.query, q.filesOnly)
+        mentionUi = if (result == null || result.failed) MentionUi.Failed else MentionUi.Ready(result.items)
+    }
+    val mentionStyles = com.dsh.core.designsystem.Dsh.colors.let { c ->
+        remember(c) {
+            MentionTransformation(
+                fileStyle = androidx.compose.ui.text.SpanStyle(color = c.accent),
+                sessionStyle = androidx.compose.ui.text.SpanStyle(color = c.ok, fontWeight = FontWeight.Medium),
+            )
+        }
+    }
     fun send() {
         if (!canSend) return
         // Вложения уходят как @путь в начале сообщения; картинки — отдельно.
@@ -428,7 +452,9 @@ fun ModernChatScreen(
                         voiceEnabled -> onVoiceStart()
                     }
                 },
-                chipsOpen = composerFocused || canSend,
+                chipsOpen = (composerFocused || canSend) && mention == null,
+                visualTransformation = mentionStyles,
+                focusRequest = composerFocusTick,
                 onFocus = { composerFocused = it },
                 chips = {
                     com.dsh.plugin.nativehost.OfficialSlot(slot = com.deepseek.dsh.plugin.nativesdk.slots.NativeSlot.COMPOSER_MODEL) {
@@ -453,6 +479,23 @@ fun ModernChatScreen(
                     com.dsh.plugin.nativehost.OfficialSlot(slot = com.deepseek.dsh.plugin.nativesdk.slots.NativeSlot.COMPOSER_PLAN) {}
                 },
                 above = {
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = mention != null && composerFocused,
+                        enter = androidx.compose.animation.expandVertically(com.dsh.core.designsystem.DshMotion.snappy()) + fadeIn(),
+                        exit = androidx.compose.animation.shrinkVertically(com.dsh.core.designsystem.DshMotion.snappy()) + fadeOut(),
+                    ) {
+                        val q = mention
+                        if (q != null) Column {
+                            MentionPanel(
+                                query = q,
+                                state = mentionUi,
+                                onPick = { inputText = applyMention(inputText, q, it) },
+                                onDrill = { dir -> inputText = drillMention(inputText, q, dir) },
+                                onRetry = { mentionRetry++ },
+                            )
+                            Box(Modifier.fillMaxWidth().padding(bottom = 4.dp).height(1.dp).background(com.dsh.core.designsystem.Dsh.colors.line))
+                        }
+                    }
                     if (activeCommandLabel != null) Row(Modifier.padding(start = 6.dp, top = 4.dp, bottom = 2.dp)) {
                         ComposerChip("/$activeCommandLabel", com.dsh.core.designsystem.DshGlyphs.X, accent = true, onClick = { activeCommandToken = null })
                     }
@@ -565,6 +608,11 @@ fun ModernChatScreen(
                             ?: android.widget.Toast.makeText(ctx, noLink, android.widget.Toast.LENGTH_SHORT).show()
                     },
                     terminal = terminalContext,
+                    onReference = {
+                        commandSheetOpen = false
+                        inputText = (if (inputText.isBlank()) "" else inputText.trimEnd() + " ") + "@"
+                        composerFocusTick++
+                    },
                     onTerminal = {
                         commandSheetOpen = false
                         terminalContext?.let { t -> append("\n```\n$ ${t.command}\n${t.output.takeLast(3000)}\n```\n") }
@@ -848,7 +896,7 @@ fun ModernChatScreen(
 
                 )
             }
-            if (goal != null || todos.isNotEmpty()) PlanDock(goal, todos)
+            if (goal != null || todos.isNotEmpty()) PlanDock(goal, todos, onGoalAction)
             // Док прячется, пока открыта клавиатура (`.dock.away`).
             AnimatedVisibility(
                 visible = !composerFocused,

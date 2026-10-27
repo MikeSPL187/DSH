@@ -3331,7 +3331,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   });
   field.addEventListener("input", () => { const t = mnToken(); if (t && !mnState) mnLoad(); else if (t) mnRender(); else mnClose(); });
   field.addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== field) mnClose(); }, 120));
-  $("#sheet-plus .srcs").insertAdjacentHTML("beforeend", '<button class="src" id="srcRef"><svg class="i sm"><use href="#i-at"/></svg>Файл или сессия</button>');
+  $("#sheet-plus .ctx").insertAdjacentHTML("afterbegin", '<button class="crow2" id="srcRef"><svg class="i sm"><use href="#i-at"/></svg><span class="tx">Файл или сессия</span></button>');
   $("#srcRef").addEventListener("click", () => { sheetClose(); setTimeout(() => mnStart(), 260); });
   function mnStart() { field.focus(); const sel = getSelection(); const r = document.createRange(); r.selectNodeContents(field); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); const pre = field.textContent && !/\s$/.test(field.textContent) ? " @" : "@"; document.execCommand("insertText", false, pre); }
 

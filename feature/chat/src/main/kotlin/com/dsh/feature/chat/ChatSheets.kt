@@ -229,6 +229,7 @@ fun ColumnScope.PlusSheetBody(
     onLink: () -> Unit,
     terminal: ChatTerminalContext?,
     onTerminal: () -> Unit,
+    onReference: () -> Unit,
     planMode: Boolean,
     onPlan: () -> Unit,
     onGoal: () -> Unit,
@@ -250,6 +251,16 @@ fun ColumnScope.PlusSheetBody(
         ),
         onClick = { i -> when (i) { 0 -> onFile(); 1 -> onProject(); 2 -> onPaste(); else -> onLink() } },
     )
+    // `.ctx` / `.crow2`: «Файл или сессия» — начать ссылку «@» в поле ввода.
+    Row(
+        Modifier.padding(top = 10.dp).fillMaxWidth().height(48.dp).clip(RoundedCornerShape(16.dp)).background(c.s2)
+            .clickable(role = Role.Button, onClick = onReference).padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        androidx.compose.material3.Icon(com.dsh.core.designsystem.DshGlyphs.At, null, tint = c.t2, modifier = Modifier.size(18.dp))
+        Text(stringResource(R.string.plus_reference), style = ckBody(14.5.sp, 18.sp), color = c.t1, modifier = Modifier.weight(1f), maxLines = 1)
+    }
     if (terminal != null) {
         // `.ctx` / `.crow2`
         Row(

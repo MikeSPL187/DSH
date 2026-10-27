@@ -396,4 +396,100 @@ class ScreensGalleryTest {
             ) { content() }
         }
     }
+
+    // ── Ссылки «@» и цель сессии ──
+    private val refFiles = listOf(
+        com.dsh.core.model.ReferenceCandidate(com.dsh.core.model.ReferenceCandidate.Kind.DIRECTORY, "app/", "@app/"),
+        com.dsh.core.model.ReferenceCandidate(com.dsh.core.model.ReferenceCandidate.Kind.DIRECTORY, "gradle/", "@gradle/"),
+        com.dsh.core.model.ReferenceCandidate(com.dsh.core.model.ReferenceCandidate.Kind.FILE, "build.gradle.kts", "@build.gradle.kts"),
+        com.dsh.core.model.ReferenceCandidate(com.dsh.core.model.ReferenceCandidate.Kind.FILE, "README.md", "@README.md"),
+        com.dsh.core.model.ReferenceCandidate(com.dsh.core.model.ReferenceCandidate.Kind.SESSION, "Архитектура плагинов", "@[Архитектура плагинов](dsh-session:YWE)", createdAt = System.currentTimeMillis() - 3 * 86_400_000L),
+        com.dsh.core.model.ReferenceCandidate(com.dsh.core.model.ReferenceCandidate.Kind.SESSION, "Разбор протокола bridge", "@[Разбор протокола bridge](dsh-session:YmI)", detail = "/workspace/Bridge", createdAt = System.currentTimeMillis() - 2 * 3_600_000L),
+    )
+    private val refApp = listOf(
+        com.dsh.core.model.ReferenceCandidate(com.dsh.core.model.ReferenceCandidate.Kind.DIRECTORY, "app/src/", "@app/src/"),
+        com.dsh.core.model.ReferenceCandidate(com.dsh.core.model.ReferenceCandidate.Kind.FILE, "app/build.gradle.kts", "@app/build.gradle.kts"),
+        com.dsh.core.model.ReferenceCandidate(com.dsh.core.model.ReferenceCandidate.Kind.FILE, "app/proguard-rules.pro", "@app/proguard-rules.pro"),
+    )
+
+    private fun renderMention(name: String, dark: Boolean = false, typed: String = "@", fail: Boolean = false) {
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            DshTheme(darkTheme = dark) {
+                com.dsh.feature.chat.ModernChatScreen(
+                    messages = emptyList(), onSendMessage = {},
+                    loadReferences = { q, _ ->
+                        val items = (if (q.startsWith("app/")) refApp else refFiles).filter { it.title.contains(q.substringAfterLast('/'), ignoreCase = true) }
+                        com.dsh.core.data.ContextRepository.Candidates(if (fail) emptyList() else items, failed = fail)
+                    },
+                )
+            }
+        }
+        compose.mainClock.advanceTimeBy(500)
+        compose.onNode(androidx.compose.ui.test.hasContentDescription("Сообщение")).performTextInput(typed)
+        compose.mainClock.advanceTimeBy(1_500)
+        ScreenShots.capture(compose, name, compose.activity)
+    }
+
+    @Test fun mentionRoot() = renderMention("18_mention")
+    @Test fun mentionRootDark() = renderMention("18b_mention_dark", dark = true)
+    @Test @Config(qualifiers = "ru-w360dp-h780dp-xxhdpi") fun mentionRoot360() = renderMention("18c_mention_360")
+    @Test @Config(qualifiers = "ru-w390dp-h844dp-xxhdpi") fun mentionRoot390() = renderMention("18d_mention_390", dark = true)
+    @Test fun mentionDrill() = renderMention("18e_mention_drill", typed = "посмотри @app/")
+    @Test @Config(qualifiers = "ru-w360dp-h780dp-xxhdpi") fun mentionDrill360() = renderMention("18f_mention_drill_360_dark", dark = true, typed = "@app/")
+    @Test fun mentionEmpty() = renderMention("18g_mention_empty", typed = "@zzz")
+    @Test fun mentionError() = renderMention("18h_mention_error_dark", dark = true, fail = true)
+
+    private val goalDemo = com.dsh.core.model.GoalInfo(
+        objective = "Сборка зелёная после обновления Compose, все тесты проходят на x86_64 и arm64",
+        phase = "active", roundsStarted = 3, maxGoalRounds = 10, id = "g1", revision = 2,
+    )
+
+    private fun renderGoal(name: String, dark: Boolean = false, goal: com.dsh.core.model.GoalInfo = goalDemo, steps: androidx.compose.ui.test.junit4.AndroidComposeTestRule<*, *>.() -> Unit = {}) {
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            DshTheme(darkTheme = dark) {
+                com.dsh.feature.chat.ModernChatScreen(
+                    messages = agentTurn.take(2), onSendMessage = {}, goal = goal,
+                    todos = listOf(
+                        com.dsh.core.model.TodoEntryInfo("Найти несовместимую версию", "completed"),
+                        com.dsh.core.model.TodoEntryInfo("Обновить Kotlin до 2.0.21", "in_progress"),
+                        com.dsh.core.model.TodoEntryInfo("Прогнать тесты", "pending"),
+                    ),
+                    onGoalAction = { _, _ -> Result.success(Unit) },
+                )
+            }
+        }
+        compose.mainClock.advanceTimeBy(800)
+        compose.steps()
+        compose.mainClock.advanceTimeBy(1_500)
+        ScreenShots.capture(compose, name, compose.activity)
+    }
+
+    private fun androidx.compose.ui.test.junit4.AndroidComposeTestRule<*, *>.openGoal() =
+        onAllNodes(androidx.compose.ui.test.hasText("Сборка зелёная", substring = true))[0].performClick()
+
+    @Test fun goalCollapsed() = renderGoal("19_goal")
+    @Test fun goalOpen() = renderGoal("19b_goal_open") { openGoal() }
+    @Test @Config(qualifiers = "ru-w360dp-h780dp-xxhdpi") fun goalOpen360() = renderGoal("19c_goal_open_360_dark", dark = true) { openGoal() }
+    @Test fun goalPausedSure() = renderGoal("19d_goal_paused_sure", goal = goalDemo.copy(phase = "paused")) {
+        openGoal(); mainClock.advanceTimeBy(500)
+        onNode(androidx.compose.ui.test.hasText("Убрать")).performClick()
+    }
+    @Test fun goalEdit() = renderGoal("19e_goal_edit_dark", dark = true) {
+        openGoal(); mainClock.advanceTimeBy(500)
+        onNode(androidx.compose.ui.test.hasText("Изменить")).performClick()
+    }
+
+    @Test
+    fun chatMentionsSent() = render("20_chat_mentions_sent") {
+        com.dsh.feature.chat.ModernChatScreen(
+            messages = listOf(
+                msg("m1", com.dsh.core.model.MessageRole.USER, "Сравни @app/build.gradle.kts с решением из @[Архитектура плагинов](dsh-session:YWE) и поправь"),
+                msg("a1", com.dsh.core.model.MessageRole.ASSISTANT, "Прочитал файл и сессию: версии плагинов совпадают, отличается только `compileSdk`."),
+            ),
+            onSendMessage = {},
+        )
+    }
+
 }

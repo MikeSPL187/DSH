@@ -263,7 +263,26 @@ data class GoalInfo(
     val blockedReason: String? = null,
     val roundsStarted: Int = 0,
     val maxGoalRounds: Int = 0,
+    /** Ссылка `{id, revision}` для изменений цели (`goals/pause` и другие); пусто — цель только для показа. */
+    val id: String = "",
+    val revision: Int = 0,
 )
+
+/** Кандидат для ссылки «@» в поле ввода: файл, папка или другая сессия. */
+@Serializable
+data class ReferenceCandidate(
+    val kind: Kind,
+    /** Путь от рабочей папки (файл, папка) или название сессии. */
+    val title: String,
+    /** Текст, который уходит агенту: `@путь`, `@"путь с пробелами"` или `@[название](dsh-session:id)`. */
+    val mention: String,
+    /** Пояснение строки: рабочая папка другой сессии; пусто — не нужно. */
+    val detail: String = "",
+    /** Время создания сессии (мс); 0 — не известно. */
+    val createdAt: Long = 0,
+) {
+    enum class Kind { FILE, DIRECTORY, SESSION }
+}
 
 /** Слэш-команда из `commands/list`. */
 @Serializable

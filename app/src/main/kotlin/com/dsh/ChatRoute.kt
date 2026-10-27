@@ -146,6 +146,27 @@ internal fun ChatRoute(d: ChatDeps) {
         onRefreshSkills = { withSession { runCatching { repository.commands.refreshHostSkills(hostId, it) } } },
         todos = todos,
         goal = goal,
+        onGoalAction = { action, text ->
+            val sid = ui.selectedSessionId
+            val g = goal
+            if (sid == null || g == null) Result.failure(IllegalStateException("goal"))
+            else when (action) {
+                com.dsh.feature.chat.GoalAction.PAUSE -> repository.context.pauseGoal(hostId, sid, g)
+                com.dsh.feature.chat.GoalAction.RESUME -> repository.context.resumeGoal(hostId, sid, g)
+                com.dsh.feature.chat.GoalAction.COMPLETE -> repository.context.completeGoal(hostId, sid, g)
+                com.dsh.feature.chat.GoalAction.CLEAR -> repository.context.clearGoal(hostId, sid, g)
+                com.dsh.feature.chat.GoalAction.EDIT -> repository.context.editGoal(hostId, sid, g, text.orEmpty())
+            }
+        },
+        loadReferences = { query, filesOnly ->
+            val sid = ui.selectedSessionId
+            if (sid != null) repository.context.candidates(hostId, sid, query, filesOnly)
+            else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                // Новый чат: у Host ещё нет сессии — файлы берутся из рабочей папки на устройстве.
+                val root = java.io.File(StorageAccess.workspaceRoot(context), runtimeUi.activeWorkspaceName)
+                com.dsh.core.data.ContextRepository.Candidates(com.dsh.core.data.localFileCandidates(root, query), failed = false)
+            }
+        },
         deliverables = deliverables,
         queuedMessages = queued,
         onQueueAction = { id, kind, text -> withSession { repository.updateQueue(hostId, it, id, kind, text) } },

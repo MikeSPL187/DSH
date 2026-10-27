@@ -81,13 +81,13 @@ class HostProjectionsTest {
     }
 
     @Test
-    fun `goal reads objective, phase, blocked reason and rounds`() {
+    fun `goal reads objective, phase, blocked reason, rounds and ref`() {
         val value = json(
             """{"roundsStarted":3,"goal":{"objective":"Ship","phase":"blocked",
-                "blockedReason":{"message":"Needs key"},"maxGoalRounds":10}}""",
+                "blockedReason":{"message":"Needs key"},"maxGoalRounds":10,"id":"g1","revision":7}}""",
         )
         assertEquals(
-            GoalInfo(objective = "Ship", phase = "blocked", blockedReason = "Needs key", roundsStarted = 3, maxGoalRounds = 10),
+            GoalInfo(objective = "Ship", phase = "blocked", blockedReason = "Needs key", roundsStarted = 3, maxGoalRounds = 10, id = "g1", revision = 7),
             parseGoal(value),
         )
         assertNull(parseGoal(json("""{"roundsStarted":1}""")))

@@ -64,6 +64,7 @@ class DshRepository(
     val tasks = TasksRepository(client, calls, scope)
     val terminals = TerminalRepository(client, calls)
     val commands = CommandsRepository(calls)
+    val context = ContextRepository(calls)
     val approvals = ApprovalsRepository(client, scope)
     val hostSettings = HostSettingsRepository(client, calls)
     val speech = SpeechRepository(calls)

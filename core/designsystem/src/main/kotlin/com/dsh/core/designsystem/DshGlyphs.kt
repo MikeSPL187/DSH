@@ -53,6 +53,7 @@ object DshGlyphs {
     val Search: ImageVector get() = get("search")
     val File: ImageVector get() = get("file")
     val Check: ImageVector get() = get("check")
+    val Pause: ImageVector get() = get("pause")
     val X: ImageVector get() = get("x")
     val Alert: ImageVector get() = get("alert")
     val Copy: ImageVector get() = get("copy")
@@ -117,6 +118,7 @@ object DshGlyphs {
         "search" to listOf(P("M4,11a7,7 0 1,0 14,0a7,7 0 1,0 -14,0Z", false, true, null), P("m20 20-3.5-3.5", false, true, null)),
         "file" to listOf(P("M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z", false, true, null), P("M14 3v5h5", false, true, null)),
         "check" to listOf(P("m5 12 4.5 4.5L19 7", false, true, null)),
+        "pause" to listOf(P("M9 6v12M15 6v12", false, true, null)),
         "x" to listOf(P("M6 6l12 12M18 6 6 18", false, true, null)),
         "alert" to listOf(P("M12 9v4M12 17h.01", false, true, null), P("M10.3 3.9 2.4 17.6A2 2 0 0 0 4.1 20.6h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z", false, true, null)),
         "copy" to listOf(P("M11.5,9h6a2.5,2.5 0 0 1 2.5,2.5v6a2.5,2.5 0 0 1 -2.5,2.5h-6a2.5,2.5 0 0 1 -2.5,-2.5v-6a2.5,2.5 0 0 1 2.5,-2.5Z", false, true, null), P("M5 15a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2", false, true, null)),

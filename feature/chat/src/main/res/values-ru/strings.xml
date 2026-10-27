@@ -123,4 +123,26 @@
     <string name="chat_approval_allow_once">Разрешить</string>
     <string name="chat_approval_armed_hint">Нажмите ещё раз в течение 3 секунд</string>
     <string name="tool_detail_truncated">Показаны первые %1$d КБ из %2$d КБ</string>
+    <string name="mention_files">Файлы</string>
+    <string name="mention_sessions">Сессии</string>
+    <string name="mention_root">Папка</string>
+    <string name="mention_folder">папка</string>
+    <string name="mention_file">файл</string>
+    <string name="mention_open_dir">Открыть папку</string>
+    <string name="mention_empty">Ничего не найдено по «%1$s»</string>
+    <string name="mention_error">Не удалось получить список</string>
+    <string name="plus_reference">Файл или сессия</string>
+    <string name="goal_state_active">Цель активна</string>
+    <string name="goal_state_rounds">Цель активна · раунд %1$d из %2$d</string>
+    <string name="goal_state_paused">На паузе · агент не продолжит сам</string>
+    <string name="goal_state_blocked">Остановлена</string>
+    <string name="goal_pause">Пауза</string>
+    <string name="goal_resume">Продолжить</string>
+    <string name="goal_edit">Изменить</string>
+    <string name="goal_done">Готово</string>
+    <string name="goal_clear">Убрать</string>
+    <string name="goal_clear_sure">Точно убрать?</string>
+    <string name="goal_save">Сохранить</string>
+    <string name="goal_field">Цель</string>
+    <string name="goal_failed">Не удалось изменить цель</string>
 </resources>

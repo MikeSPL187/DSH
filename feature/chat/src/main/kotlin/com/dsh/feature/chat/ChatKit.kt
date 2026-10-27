@@ -53,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -70,6 +71,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.launch
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -402,9 +404,20 @@ fun ChatComposer(
     chips: @Composable RowScope.() -> Unit = {},
     above: @Composable ColumnScope.() -> Unit = {},
     leading: @Composable () -> Unit = {},
+    visualTransformation: androidx.compose.ui.text.input.VisualTransformation = androidx.compose.ui.text.input.VisualTransformation.None,
+    /** Каждое увеличение ставит фокус в поле и открывает клавиатуру. */
+    focusRequest: Int = 0,
 ) {
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    LaunchedEffect(focusRequest) {
+        if (focusRequest > 0) { runCatching { focus.requestFocus() }; keyboard?.show() }
+    }
     val c = Dsh.colors
     val shape = RoundedCornerShape(28.dp)
+    // Текст, подставленный снаружи (ссылка «@», голос, команда), ставит курсор в конец, а не на старое место.
+    var field by remember { androidx.compose.runtime.mutableStateOf(androidx.compose.ui.text.input.TextFieldValue(text, androidx.compose.ui.text.TextRange(text.length))) }
+    if (field.text != text) field = androidx.compose.ui.text.input.TextFieldValue(text, androidx.compose.ui.text.TextRange(text.length))
     Column(
         modifier.fillMaxWidth().floatShadow(shape, c.isDark).clip(shape).background(c.glass.compositeOn(c.bg))
             .border(1.dp, c.glassLine, shape).padding(6.dp),
@@ -431,12 +444,14 @@ fun ChatComposer(
             leading()
             val fieldDesc = stringResource(R.string.ck_field)
             BasicTextField(
-                value = text,
-                onValueChange = onText,
+                value = field,
+                onValueChange = { field = it; if (it.text != text) onText(it.text) },
+                visualTransformation = visualTransformation,
                 textStyle = ckBody(16.sp, 22.4.sp).copy(color = c.t1),
                 cursorBrush = SolidColor(c.accent),
                 maxLines = 5,
                 modifier = Modifier.weight(1f).heightIn(min = 42.dp, max = 120.dp)
+                    .focusRequester(focus)
                     .onFocusChanged { onFocus(it.isFocused) }
                     .semantics { contentDescription = fieldDesc },
                 decorationBox = { inner ->
@@ -651,37 +666,123 @@ internal fun PlanModeBar(onExit: () -> Unit) {
     }
 }
 
+/** Действие с целью сессии из [PlanDock]. */
+enum class GoalAction { PAUSE, RESUME, EDIT, COMPLETE, CLEAR }
+
 /**
- * Цель и план сессии (goal / todos Host): свёрнуто — текущий шаг и полоса прогресса,
- * развёрнуто — все шаги с отметками.
+ * Цель и план сессии (goal / todos Host): свёрнуто — цель или текущий шаг, состояние и полоса прогресса;
+ * развёрнуто — полный текст цели, «Пауза/Продолжить», «Изменить», «Готово», «Убрать» (вторым касанием)
+ * и все шаги с отметками. Ошибка изменения показывается здесь же.
+ * @param onGoal выполнить действие; для [GoalAction.EDIT] передаётся новый текст.
  */
 @Composable
-internal fun PlanDock(goal: com.dsh.core.model.GoalInfo?, todos: List<com.dsh.core.model.TodoEntryInfo>) {
+internal fun PlanDock(
+    goal: com.dsh.core.model.GoalInfo?,
+    todos: List<com.dsh.core.model.TodoEntryInfo>,
+    onGoal: suspend (GoalAction, String?) -> Result<Unit> = { _, _ -> Result.success(Unit) },
+) {
     val c = Dsh.colors
     var open by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var editing by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var draft by remember { androidx.compose.runtime.mutableStateOf("") }
+    var sure by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var busy by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var failed by remember { androidx.compose.runtime.mutableStateOf(false) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    LaunchedEffect(sure) { if (sure) { kotlinx.coroutines.delay(3000); sure = false } }
+    fun run(action: GoalAction, text: String? = null) {
+        if (busy) return
+        busy = true; failed = false
+        scope.launch {
+            val ok = onGoal(action, text).isSuccess
+            busy = false; failed = !ok
+            if (ok && action == GoalAction.EDIT) editing = false
+        }
+    }
     val done = todos.count { it.status == "completed" }
     val current = todos.firstOrNull { it.status == "in_progress" } ?: todos.firstOrNull { it.status != "completed" }
     val shape = RoundedCornerShape(18.dp)
+    val canAct = goal != null && goal.id.isNotEmpty() && goal.phase != "complete"
     Column(
         Modifier.padding(start = 10.dp, end = 10.dp, bottom = 8.dp).fillMaxWidth().floatShadow(shape, c.isDark).clip(shape)
             .background(c.glass.compositeOn(c.bg)).border(1.dp, c.glassLine, shape)
-            .clickable(role = Role.Button) { open = !open }.padding(horizontal = 14.dp, vertical = 10.dp),
+            .padding(horizontal = 14.dp, vertical = 4.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 40.dp).clickable(role = Role.Button) { open = !open; editing = false },
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             Icon(if (goal != null) DshGlyphs.Flow else DshGlyphs.Tasks, null, tint = c.accent, modifier = Modifier.size(16.dp))
             Text(
                 goal?.objective ?: (current?.content ?: stringResource(R.string.ck_plan_done)),
-                style = ckBody(14.sp, 18.sp, FontWeight.Medium), color = c.t1, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+                style = ckBody(14.sp, 18.sp, FontWeight.Medium), color = c.t1,
+                maxLines = if (open) 6 else 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
             )
             if (todos.isNotEmpty()) Text(stringResource(R.string.ck_plan_progress, done, todos.size), style = ckBody(12.5.sp, 16.sp), color = c.t3)
             Icon(DshGlyphs.Chev, null, tint = c.t3, modifier = Modifier.size(16.dp).graphicsLayer { rotationZ = if (open) 180f else 0f })
         }
-        if (todos.isNotEmpty()) Box(Modifier.padding(top = 8.dp).fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(c.s3)) {
-            Box(Modifier.fillMaxWidth(done / todos.size.toFloat()).height(4.dp).clip(RoundedCornerShape(2.dp)).background(c.accent))
+        if (goal != null) {
+            val paused = goal.phase == "paused"
+            val blocked = goal.phase == "blocked"
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(Modifier.size(7.dp).clip(CircleShape).background(if (paused || blocked) c.warn else c.ok))
+                Text(
+                    when {
+                        paused -> stringResource(R.string.goal_state_paused)
+                        blocked -> stringResource(R.string.goal_state_blocked)
+                        goal.maxGoalRounds > 0 -> stringResource(R.string.goal_state_rounds, goal.roundsStarted.coerceAtLeast(1), goal.maxGoalRounds)
+                        else -> stringResource(R.string.goal_state_active)
+                    },
+                    style = ckBody(12.5.sp, 16.sp), color = c.t3, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        val progress = when {
+            todos.isNotEmpty() -> done / todos.size.toFloat()
+            goal != null && goal.maxGoalRounds > 0 -> (goal.roundsStarted / goal.maxGoalRounds.toFloat()).coerceIn(0f, 1f)
+            else -> null
+        }
+        if (progress != null) Box(Modifier.padding(top = 8.dp).fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(c.s3)) {
+            Box(Modifier.fillMaxWidth(progress).height(4.dp).clip(RoundedCornerShape(2.dp)).background(c.accent))
         }
         goal?.blockedReason?.takeIf { it.isNotBlank() }?.let { Text(it, style = ckBody(12.5.sp, 16.sp), color = c.warn, modifier = Modifier.padding(top = 6.dp)) }
+        if (failed) Text(stringResource(R.string.goal_failed), style = ckBody(12.5.sp, 16.sp), color = c.danger, modifier = Modifier.padding(top = 6.dp))
+        AnimatedVisibility(open && canAct && !editing, enter = expandVertically(DshMotion.snappy()) + fadeIn(), exit = shrinkVertically(DshMotion.snappy()) + fadeOut()) {
+            val g = goal!!
+            Column(Modifier.padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val resume = g.phase != "active"
+                    GoalButton(if (resume) DshGlyphs.Play else DshGlyphs.Pause, stringResource(if (resume) R.string.goal_resume else R.string.goal_pause), Modifier.weight(1f), enabled = !busy) {
+                        run(if (resume) GoalAction.RESUME else GoalAction.PAUSE)
+                    }
+                    GoalButton(DshGlyphs.Pencil, stringResource(R.string.goal_edit), Modifier.weight(1f), enabled = !busy) { draft = g.objective; editing = true }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    GoalButton(DshGlyphs.Check, stringResource(R.string.goal_done), Modifier.weight(1f), enabled = !busy) { run(GoalAction.COMPLETE) }
+                    GoalButton(DshGlyphs.X, stringResource(if (sure) R.string.goal_clear_sure else R.string.goal_clear), Modifier.weight(1f), danger = sure, enabled = !busy) {
+                        if (sure) { sure = false; run(GoalAction.CLEAR) } else sure = true
+                    }
+                }
+            }
+        }
+        AnimatedVisibility(open && editing, enter = expandVertically(DshMotion.snappy()) + fadeIn(), exit = shrinkVertically(DshMotion.snappy()) + fadeOut()) {
+            Column(Modifier.padding(top = 10.dp, bottom = 4.dp)) {
+                val fieldDesc = stringResource(R.string.goal_field)
+                BasicTextField(
+                    value = draft, onValueChange = { draft = it },
+                    textStyle = ckBody(14.sp, 19.sp).copy(color = c.t1), cursorBrush = SolidColor(c.accent),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp).clip(RoundedCornerShape(12.dp)).background(c.s1)
+                        .border(1.dp, c.accent, RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 10.dp)
+                        .semantics { contentDescription = fieldDesc },
+                )
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End)) {
+                    GoalButton(null, stringResource(R.string.action_cancel), enabled = !busy) { editing = false }
+                    GoalButton(null, stringResource(R.string.goal_save), accent = true, enabled = !busy && draft.isNotBlank()) { run(GoalAction.EDIT, draft.trim()) }
+                }
+            }
+        }
         AnimatedVisibility(open && todos.isNotEmpty(), enter = expandVertically(DshMotion.snappy()) + fadeIn(), exit = shrinkVertically(DshMotion.snappy()) + fadeOut()) {
-            Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(Modifier.padding(top = 8.dp, bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 todos.forEach { t ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         val st = when (t.status) { "completed" -> c.ok; "in_progress" -> c.accent; else -> c.t3 }
@@ -694,5 +795,39 @@ internal fun PlanDock(goal: com.dsh.core.model.GoalInfo?, todos: List<com.dsh.co
                 }
             }
         }
+        Spacer(Modifier.height(6.dp))
+    }
+}
+
+/** Кнопка действия с целью: 40 dp, R12, значок 14 dp. */
+@Composable
+private fun GoalButton(
+    icon: ImageVector?,
+    label: String,
+    modifier: Modifier = Modifier,
+    accent: Boolean = false,
+    danger: Boolean = false,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    val c = Dsh.colors
+    val bg = when {
+        accent -> c.accent
+        danger -> c.danger.copy(alpha = 0.14f)
+        else -> c.s2
+    }
+    val fg = when {
+        accent -> c.onAccent
+        danger -> c.danger
+        else -> c.t1
+    }
+    Row(
+        modifier.height(40.dp).clip(RoundedCornerShape(12.dp)).background(bg).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 12.dp).graphicsLayer { alpha = if (enabled) 1f else 0.5f },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+    ) {
+        if (icon != null) Icon(icon, null, tint = fg, modifier = Modifier.size(14.dp))
+        Text(label, style = ckBody(13.5.sp, 18.sp), color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

@@ -99,5 +99,7 @@ internal fun parseGoal(value: JsonElement?): GoalInfo? {
         blockedReason = (goal["blockedReason"] as? JsonObject)?.str("message"),
         roundsStarted = obj.str("roundsStarted")?.toIntOrNull() ?: 0,
         maxGoalRounds = goal.str("maxGoalRounds")?.toIntOrNull() ?: 0,
+        id = goal.str("id").orEmpty(),
+        revision = goal.str("revision")?.toIntOrNull() ?: 0,
     )
 }

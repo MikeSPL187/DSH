@@ -133,4 +133,26 @@
     <string name="chat_approval_allow_once">Allow</string>
     <string name="chat_approval_armed_hint">Tap again within 3 seconds to confirm</string>
     <string name="tool_detail_truncated">Showing the first %1$d KB of %2$d KB</string>
+    <string name="mention_files">Files</string>
+    <string name="mention_sessions">Sessions</string>
+    <string name="mention_root">Folder</string>
+    <string name="mention_folder">folder</string>
+    <string name="mention_file">file</string>
+    <string name="mention_open_dir">Open folder</string>
+    <string name="mention_empty">Nothing found for “%1$s”</string>
+    <string name="mention_error">Couldn\'t get the list</string>
+    <string name="plus_reference">File or session</string>
+    <string name="goal_state_active">Goal active</string>
+    <string name="goal_state_rounds">Goal active · round %1$d of %2$d</string>
+    <string name="goal_state_paused">Paused · the agent won\'t continue on its own</string>
+    <string name="goal_state_blocked">Stopped</string>
+    <string name="goal_pause">Pause</string>
+    <string name="goal_resume">Resume</string>
+    <string name="goal_edit">Edit</string>
+    <string name="goal_done">Done</string>
+    <string name="goal_clear">Remove</string>
+    <string name="goal_clear_sure">Remove for sure?</string>
+    <string name="goal_save">Save</string>
+    <string name="goal_field">Goal</string>
+    <string name="goal_failed">Couldn\'t change the goal</string>
 </resources>
