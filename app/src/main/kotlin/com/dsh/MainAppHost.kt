@@ -792,6 +792,10 @@ fun MainAppHost(
             commitMessage = { info -> com.dsh.ai.CommitMessageWriter.write(context, filesGit, info) },
             gitHub = filesGitHub,
             pullText = { commits -> com.dsh.ai.PullTextWriter.write(context, commits) },
+            onAskText = { text ->
+                runtimeUi.voiceTranscript = text
+                ui.activePage = ActivePage.CHAT
+            },
             onShare = { f ->
                 if (!shareWorkspaceFile(context, f)) android.widget.Toast.makeText(context, context.getString(R.string.share_failed), android.widget.Toast.LENGTH_LONG).show()
             },

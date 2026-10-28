@@ -82,6 +82,23 @@
     <string name="fs_deleted">Удалено</string>
     <string name="fs_ask_prompt">Объясни, что делает %1$s</string>
     <string name="fs_review_prompt">Проверь мои изменения перед коммитом</string>
+    <string name="fs_history">История</string>
+    <string name="fs_history_branch">ветка %1$s</string>
+    <string name="fs_history_all">Вся история</string>
+    <plurals name="fs_commits_n"><item quantity="one">%d коммит</item><item quantity="few">%d коммита</item><item quantity="many">%d коммитов</item><item quantity="other">%d коммита</item></plurals>
+    <string name="fs_history_sub">ветка %1$s · %2$s</string>
+    <string name="fs_history_more">Показать ещё</string>
+    <string name="fs_history_none">Коммитов пока нет</string>
+    <string name="fs_unpushed_tag">не отправлен</string>
+    <string name="fs_commit_title">Коммит</string>
+    <string name="fs_commit_on_remote">в origin/%1$s</string>
+    <string name="fs_commit_ask">Спросить DSH о коммите</string>
+    <string name="fs_commit_ask_prompt">Объясни коммит %1$s «%2$s»: что и зачем в нём изменено</string>
+    <string name="fs_commit_failed">Не удалось прочитать коммит</string>
+    <string name="fs_commit_in">в коммите %1$s</string>
+    <string name="fs_commit_nodiff">Разницу не показать: двоичный файл или слишком много строк</string>
+    <string name="fs_badge_del">удалён</string>
+    <string name="fs_badge_bin">двоичный</string>
     <string name="fs_commit_writing">Пишу сообщение…</string>
     <string name="fs_cm_title">Коммит в %1$s</string>
     <string name="fs_cm_title_plain">Коммит</string>

@@ -1034,6 +1034,29 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .ch-sum p { margin: 0; font-size: 14px; color: var(--t2); }
 .ch-sum .stat { font-size: 14px; }
 .ch-acts { display: grid; gap: 8px; margin-top: 14px; }
+/* История коммитов (hc — history commit; cv — commit view) */
+.hc { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 58px; padding: 8px 10px 8px 12px; text-align: left; }
+.hc + .hc, .gl .hc-all { border-top: 1px solid var(--line); }
+.hc .hc-ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex: none; background: var(--s2); color: var(--t2); }
+.hc .hc-ic.new { background: var(--accent-soft); color: var(--accent); }
+.hc .tx { flex: 1; min-width: 0; line-height: 1.3; }
+.hc .tx b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-weight: 500; font-size: 15px; line-height: 1.3; overflow-wrap: anywhere; }
+.hc .tx small { margin-top: 2px; }
+.hc-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px; } .hc-top .hc-tag { margin-top: 1px; }
+.hc .tx small { display: block; font-size: 12.5px; color: var(--t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hc .tx small code { font-family: var(--font-mono); font-size: 12px; }
+.hc .go { color: var(--t3); flex: none; }
+.hc-tag { flex: none; font-size: 11.5px; font-weight: 600; border-radius: 6px; padding: 2px 6px; background: var(--warn-soft); color: var(--warn); }
+.hc-all { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 48px; padding: 0 14px 0 16px; font-size: 14.5px; color: var(--accent); }
+.hc-all .go { color: var(--t3); }
+.cv-head { background: var(--s1); border: 1px solid var(--line); border-radius: 22px; padding: 16px; }
+.cv-head .row1 { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 13px; color: var(--t2); }
+.cv-head .row1 .br { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 9px; border-radius: 8px; background: var(--s2); font-family: var(--font-mono); font-size: 12px; color: var(--t1); }
+.cv-head h3 { margin: 10px 0 0; font-family: var(--font-display); font-size: 19px; line-height: 1.3; font-weight: 600; overflow-wrap: anywhere; }
+.cv-head .body { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--t2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.cv-head .meta { margin-top: 10px; font-size: 13px; color: var(--t3); }
+.cv-head .meta .stat { font-size: 13px; }
+.chg.D { background: var(--danger-soft); color: color-mix(in srgb, var(--danger) 85%, var(--t1)); }
 .ch-acts .btn { height: 48px; border-radius: 15px; flex: none; width: 100%; }
 /* Лист «Коммит»: сообщение, «Написать по изменениям», автор при первом коммите */
 .cm-msg { display: block; width: 100%; min-height: 96px; padding: 12px 14px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--s1); font: inherit; font-size: 15px; line-height: 1.5; color: var(--t1); resize: none; outline: none; }
@@ -3152,12 +3175,58 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     return `<div class="ch-push"><div class="row"><span class="si c1"><svg class="i"><use href="#i-git"/></svg></span><span class="tx"><b>Ветка на GitHub</b><small class="mono">${esc2(GIT.branch)} → ${esc2(GIT.base)}</small></span></div>
       <button class="btn primary" id="chPr"><svg class="i sm"><use href="#i-up"/></svg>Создать запрос на слияние</button></div>`;
   }
+  // ── История коммитов: последние на «Изменениях», вся — отдельным экраном, коммит — файлы и разница ──
+  const HIST = [
+    { h: "9f2c41e", s: "Ночной архив: исключить build и .gradle", b: "", who: "Михаил", when: "вчера, 21:40", pushed: true,
+      files: [{ p: "scripts/backup.sh", k: "M", a: 2, d: 1, diff: [["h", "@@ -8,4 +8,5 @@"], [" ", 8, 'tar -czf "$DST/ws-$(date +%F).tgz" \\'], ["-", 9, "  --exclude='build' \\"], ["+", 9, "  --exclude='build' --exclude='.gradle' \\"], ["+", 10, "  --exclude='node_modules' \\"], [" ", 11, '  -C "$SRC" .']] }] },
+    { h: "4b81d07", s: "README: как собрать и где ночной архив", b: "Коротко о сборке из терминала DSH и о скрипте\nscripts/backup.sh, который запускается в 03:00.", who: "DSH (агент)", when: "вчера, 18:12", pushed: true,
+      files: [{ p: "README.md", k: "M", a: 6, d: 0, diff: [["h", "@@ -2,3 +2,9 @@"], [" ", 2, ""], [" ", 3, "Рабочая папка агента на телефоне."], ["+", 4, ""], ["+", 5, "## Сборка"], ["+", 6, "./gradlew :app:assembleDebug"], ["+", 7, ""], ["+", 8, "## Ночной архив"], ["+", 9, "scripts/backup.sh — запускается в 03:00"]] }] },
+    { h: "e07aa93", s: "Главный экран: приветствие и проверка сборки", b: "", who: "Михаил", when: "12 окт", pushed: true,
+      files: [{ p: "app/src/main/MainActivity.kt", k: "M", a: 9, d: 3 }, { p: "web/index.html", k: "A", a: 11, d: 0 }] },
+    { h: "51d6c2a", s: "Обновить Compose BOM до 2024.10.01", b: "", who: "DSH (агент)", when: "10 окт", pushed: true, files: [{ p: "gradle/libs.versions.toml", k: "M", a: 1, d: 1 }] },
+    { h: "c3a90f4", s: "Удалить старый скрипт выгрузки", b: "", who: "Михаил", when: "8 окт", pushed: true, files: [{ p: "scripts/upload.sh", k: "D", a: 0, d: 14 }] },
+    { h: "77be210", s: "Gradle: каталог версий", b: "", who: "Михаил", when: "3 окт", pushed: true, files: [{ p: "gradle/libs.versions.toml", k: "A", a: 15, d: 0 }, { p: "app/build.gradle.kts", k: "M", a: 4, d: 4 }] },
+    { h: "0a1f3b9", s: "Первый коммит", b: "", who: "Михаил", when: "1 окт", pushed: true, files: [{ p: "settings.gradle.kts", k: "A", a: 3, d: 0 }, { p: "build.gradle.kts", k: "A", a: 6, d: 0 }] },
+  ];
+  const HC_SHOW = 5;
+  // Тело коммита обычно перенесено по 72 знака: склеиваем строки абзаца, пустые строки и пункты списка оставляем.
+  const unwrap = (t) => t.replace(/([^\n])\n(?![\n\-*•]|\d+\.)/g, "$1 ");
+  const hcRow = (c) => `<button class="hc" data-hc="${c.h}"><span class="hc-ic${c.pushed ? "" : " new"}"><svg class="i sm"><use href="#i-git"/></svg></span><span class="tx"><span class="hc-top"><b>${esc2(c.s)}</b>${c.pushed ? "" : `<span class="hc-tag">не отправлен</span>`}</span><small><code>${c.h}</code> · ${esc2(c.who)} · ${c.when}</small></span><svg class="i sm go"><use href="#i-right"/></svg></button>`;
+  function histHtml() {
+    if (!HIST.length) return "";
+    return `<div class="fs-sec"><span>История</span><span>ветка ${esc2(GIT.branch)}</span></div><div class="gl">${HIST.slice(0, HC_SHOW).map(hcRow).join("")}${HIST.length > HC_SHOW ? `<button class="hc-all" data-hlog="1">Вся история<svg class="i sm go"><use href="#i-right"/></svg></button>` : ""}</div>`;
+  }
+  function viewLog() {
+    const v = document.createElement("div"); v.className = "fs-view";
+    v.innerHTML = `<div class="gl">${HIST.map(hcRow).join("")}</div>`;
+    return v;
+  }
+  function viewCommit(h) {
+    const v = document.createElement("div"); v.className = "fs-view";
+    const c = HIST.find((x) => x.h === h), A = c.files.reduce((n, f) => n + f.a, 0), D = c.files.reduce((n, f) => n + f.d, 0);
+    v.innerHTML = `<div class="cv-head"><div class="row1"><span class="br"><svg class="i xs"><use href="#i-git"/></svg>${c.h}</span>${c.pushed ? `в origin/${esc2(GIT.branch)}` : `<span class="hc-tag">не отправлен</span>`}</div>
+      <h3>${esc2(c.s)}</h3>${c.b ? `<p class="body">${esc2(unwrap(c.b))}</p>` : ""}
+      <div class="meta">${esc2(c.who)} · ${c.when} · ${c.files.length} ${plural(c.files.length, "файл", "файла", "файлов")} · <span class="stat">${A ? `<span class="p">+${A}</span>` : ""}${A && D ? " " : ""}${D ? `<span class="m">−${D}</span>` : ""}</span></div></div>
+      <div class="ch-acts"><button class="btn ghost" data-hask="${c.h}"><svg class="i sm"><use href="#i-spark"/></svg>Спросить DSH о коммите</button></div>
+      <div class="fs-sec"><span>Файлы</span><span>${c.files.length}</span></div>
+      <div class="gl">${c.files.map((f, i) => `<button class="fr" data-hcf="${i}">${ftHtml(f.p)}<span class="tx"><b>${f.p.split("/").pop()}</b><small>${f.p}</small></span>${f.k !== "M" ? `<span class="chg ${f.k}">${f.k === "A" ? "новый" : "удалён"}</span>` : `<span class="stat"><span class="p">+${f.a}</span>${f.d ? ` <span class="m">−${f.d}</span>` : ""}</span>`}<svg class="i sm go"><use href="#i-right"/></svg></button>`).join("")}</div>`;
+    return v;
+  }
+  function viewCommitDiff(h, i) {
+    const v = document.createElement("div"); v.className = "fs-view";
+    const c = HIST.find((x) => x.h === h), f = c.files[i];
+    const d = f.diff || (f.k === "D" ? [["h", `@@ -1,${f.d} +0,0 @@`], ...Array.from({ length: Math.min(f.d, 6) }, (_, k) => ["-", k + 1, k ? `# строка ${k + 1}` : "#!/usr/bin/env bash"])] : [["h", `@@ -1,${f.d} +1,${f.a} @@`], ...Array.from({ length: Math.min(f.a, 6) }, (_, k) => ["+", k + 1, `// ${f.p.split("/").pop()}: строка ${k + 1}`])]);
+    v.innerHTML = `<div class="fv-head">${ftHtml(f.p)}<span class="tx"><b>${f.p.split("/").pop()}</b><small>${f.p} · <span class="stat">${f.a ? `<span class="p">+${f.a}</span>` : ""}${f.a && f.d ? " " : ""}${f.d ? `<span class="m">−${f.d}</span>` : ""}</span></small></span></div>
+      ${hunks(d).map((hk) => `<div class="hk"><div class="hk-head"><span>${hunkLabel(hk[0][1])}</span></div>
+        <div class="code">${hk.slice(1).map(([k, n, t]) => `<div class="ln ${k === "+" ? "add" : k === "-" ? "del" : ""}"><span class="n">${n}</span><span class="c">${k === " " ? " " : k} ${esc2(t)}</span></div>`).join("")}</div></div>`).join("")}`;
+    return v;
+  }
   function viewChanges() {
     const v = document.createElement("div"); v.className = "fs-view";
     const files = Object.keys(CHANGED);
     if (!files.length) {
       v.innerHTML = `<div class="fs-empty"><svg class="i" style="width:32px;height:32px;margin:0 auto 10px;color:var(--ok)"><use href="#i-check"/></svg>Изменений нет — всё сохранено в git</div>
-        ${chPushCard()}`;
+        ${chPushCard()}${histHtml()}`;
       return v;
     }
     const P = files.reduce((a, f) => a + CHANGED[f].p, 0), M = files.reduce((a, f) => a + CHANGED[f].m, 0);
@@ -3166,7 +3235,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       <p>${[CHANGED["gradle/libs.versions.toml"] && "Агент обновил Kotlin", CHANGED["scripts/backup.sh"] && "создал скрипт ночного архива"].filter(Boolean).join(" и ").replace(/^с/, "Агент с")}.</p>
       <div class="ch-acts"><button class="btn primary" id="chReview"><svg class="i sm"><use href="#i-spark"/></svg>Проверить с агентом</button><button class="btn ghost" id="chCommit"><svg class="i sm"><use href="#i-git"/></svg>Закоммитить</button></div></div>
       <div class="fs-sec"><span>Файлы</span><span>${files.length}</span></div>
-      <div class="gl">${files.map((f) => `<button class="fr" data-diff="${f}">${ftHtml(f)}<span class="tx"><b>${f.split("/").pop()}</b><small>${f}</small></span><span class="stat"><span class="p">+${CHANGED[f].p}</span>${CHANGED[f].m ? ` <span class="m">−${CHANGED[f].m}</span>` : ""}</span><svg class="i sm go"><use href="#i-right"/></svg></button>`).join("")}</div>`;
+      <div class="gl">${files.map((f) => `<button class="fr" data-diff="${f}">${ftHtml(f)}<span class="tx"><b>${f.split("/").pop()}</b><small>${f}</small></span><span class="stat"><span class="p">+${CHANGED[f].p}</span>${CHANGED[f].m ? ` <span class="m">−${CHANGED[f].m}</span>` : ""}</span><svg class="i sm go"><use href="#i-right"/></svg></button>`).join("")}</div>${histHtml()}`;
     return v;
   }
   function fsTitles() {
@@ -3177,6 +3246,9 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     if (top.t === "changes") { t = "Изменения"; sub = "DSH-Workspace · ветка " + GIT.branch; }
     if (top.t === "diff") { t = "Изменения в файле"; sub = top.p; }
     if (top.t === "search") { t = "Поиск"; sub = "по всему проекту"; }
+    if (top.t === "log") { t = "История"; sub = `ветка ${GIT.branch}`; }
+    if (top.t === "commit") { t = "Коммит"; sub = top.p; }
+    if (top.t === "cdiff") { const c = HIST.find((x) => x.h === top.p); t = c.files[top.i].p.split("/").pop(); sub = "в коммите " + top.p; }
     if (top.t === "edit") { t = top.p.split("/").pop(); sub = FE.dirty ? "Правка · не сохранено" : "Правка"; }
     const editable = top.t === "file" && !/\.(pdf|png|jpe?g|webp|gif)$/i.test(top.p);
     // Кнопки шапки: в папке — «+», у текстового файла — «Править», в правке — только «Сохранить».
@@ -3191,7 +3263,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     const n = Object.keys(CHANGED).length; $("#fsChCnt").textContent = n; $("#fsChCnt").style.display = n ? "" : "none";
     const fb = $("#filesBadge"); fb.textContent = n; fb.style.display = n ? "" : "none";
   }
-  function fsBuild(e) { return e.t === "edit" ? viewEdit(e.p) : e.t === "dir" ? viewDir(e.p) : e.t === "file" ? viewFile(e.p) : e.t === "diff" ? viewDiff(e.p) : e.t === "changes" ? viewChanges() : viewSearch(e.p); }
+  function fsBuild(e) { return e.t === "log" ? viewLog() : e.t === "commit" ? viewCommit(e.p) : e.t === "cdiff" ? viewCommitDiff(e.p, e.i) : e.t === "edit" ? viewEdit(e.p) : e.t === "dir" ? viewDir(e.p) : e.t === "file" ? viewFile(e.p) : e.t === "diff" ? viewDiff(e.p) : e.t === "changes" ? viewChanges() : viewSearch(e.p); }
   function fsPush(e, dir = 1) {
     const old = fsCur, v = fsBuild(e);
     fsStack.push(e); fsBody.appendChild(v); fsCur = v; fsTitles();
@@ -3277,6 +3349,10 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     const more = e.target.closest("[data-more]");
     if (more) { e.stopPropagation(); faPath = more.dataset.more; $("#faIc").outerHTML = ftHtml(faPath).replace('class="ft', 'id="faIc" class="ft'); $("#faName").textContent = faPath.split("/").pop(); $("#faMeta").textContent = META[faPath] || faPath; sheetOpen("file"); return; }
     const fa2 = e.target.closest("[data-fa2]"); if (fa2) { fileAction(fa2.dataset.fa2, fa2.dataset.path); return; }
+    const hc = e.target.closest("[data-hc]"); if (hc) { fsPush({ t: "commit", p: hc.dataset.hc }); return; }
+    if (e.target.closest("[data-hlog]")) { fsPush({ t: "log", p: "" }); return; }
+    const hcf = e.target.closest("[data-hcf]"); if (hcf) { fsPush({ t: "cdiff", p: fsStack[fsStack.length - 1].p, i: +hcf.dataset.hcf }); return; }
+    const hask = e.target.closest("[data-hask]"); if (hask) { const c = HIST.find((x) => x.h === hask.dataset.hask); toChat(); field.textContent = `Объясни коммит ${c.h} «${c.s}»: что и зачем в нём изменено`; setTimeout(() => { setComposerOpen(true); syncSend(); field.focus(); }, 300); return; }
     const gh = e.target.closest("[data-fg]"); if (gh) { openHit(gh.dataset.fg, +gh.dataset.at, $("#fsQ").value.trim()); return; }
     const df = e.target.closest("[data-diff]"); if (df) { if (DIFF[df.dataset.diff]) fsPush({ t: "diff", p: df.dataset.diff }); else fsPush({ t: "file", p: df.dataset.diff }); return; }
     const rv = e.target.closest("[data-revert]"); if (rv) { delete CHANGED[rv.dataset.revert]; toast("Изменение отменено · kotlin = \"2.0.0\""); fsPop(); return; }
@@ -4310,7 +4386,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   function fsRebuild() { const v = fsBuild(fsStack[fsStack.length - 1]); fsBody.replaceChild(v, fsCur); fsCur = v; fsTitles(); }
   function gitPush() {
     GIT.pushing = true; fsRebuild();
-    setTimeout(() => { GIT.pushing = false; const n = GIT.ahead; GIT.ahead = 0; fsRebuild(); toast(`Отправлено в origin/${GIT.branch} · ${n} ${n === 1 ? "коммит" : "коммита"}`); if (GIT.thenPr) { GIT.thenPr = false; setTimeout(prOpen, 400); } }, 1400);
+    setTimeout(() => { GIT.pushing = false; const n = GIT.ahead; GIT.ahead = 0; HIST.forEach((c) => c.pushed = true); fsRebuild(); toast(`Отправлено в origin/${GIT.branch} · ${n} ${n === 1 ? "коммит" : "коммита"}`); if (GIT.thenPr) { GIT.thenPr = false; setTimeout(prOpen, 400); } }, 1400);
   }
   document.addEventListener("click", (e) => {
     if (!e.target.closest("#chPush")) return;
@@ -4343,7 +4419,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   $("#sheet-commit").addEventListener("click", (e) => { if (e.target.closest("#cmWhoEdit")) { cmWho(true); cmCheck(); $("#cmName").focus(); } });
   $("#cmGo").addEventListener("click", () => {
     if ($("#cmName")) { GIT.name = $("#cmName").value.trim(); GIT.email = $("#cmMail").value.trim(); }
-    GIT.last = $("#cmMsg").value.trim(); GIT.ahead += 1; GIT.log.push(GIT.last);
+    GIT.last = $("#cmMsg").value.trim(); GIT.ahead += 1; GIT.log.push(GIT.last); HIST.unshift({ h: Math.random().toString(16).slice(2, 9), s: GIT.last.split("\n")[0], b: GIT.last.split("\n").slice(2).join("\n"), who: GIT.name || "Вы", when: "только что", pushed: false, files: Object.keys(CHANGED).map((p) => ({ p, k: CHANGED[p].k === "A" ? "A" : "M", a: CHANGED[p].p, d: CHANGED[p].m, diff: DIFF[p] })) });
     for (const f of Object.keys(CHANGED)) delete CHANGED[f];
     sheetClose(); setTimeout(() => { fsRebuild(); toast(`Закоммичено в ${GIT.branch}`); }, 300);
   });

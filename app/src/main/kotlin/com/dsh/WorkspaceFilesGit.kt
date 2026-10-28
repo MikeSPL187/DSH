@@ -106,6 +106,22 @@ internal class WorkspaceFilesGit(private val git: WorkspaceGit, private val proj
         )
     }
 
+    override suspend fun log(skip: Int, limit: Int): List<com.dsh.feature.files.CommitInfo>? = git.log(project, skip, limit)?.map {
+        com.dsh.feature.files.CommitInfo(it.hash, it.short, it.author, it.time, it.subject, it.body, it.pushed)
+    }
+
+    override suspend fun commitFiles(hash: String): List<com.dsh.feature.files.CommitFile>? = git.commitFiles(project, hash)?.map {
+        com.dsh.feature.files.CommitFile(it.path, it.oldPath, it.kind.toUi(), it.added, it.deleted)
+    }
+
+    override suspend fun commitDiff(hash: String, file: com.dsh.feature.files.CommitFile): List<DiffRow> =
+        git.commitDiff(project, hash, WorkspaceGit.CommitFile(file.path, file.oldPath, file.kind.toHost(), file.added, file.deleted)).map {
+            when (it) {
+                is WorkspaceGit.DiffLine.Hunk -> DiffRow.Hunk(it.text)
+                is WorkspaceGit.DiffLine.Line -> DiffRow.Line(it.sign, it.number, it.text)
+            }
+        }
+
     private fun WorkspaceGit.Kind.toUi() = when (this) {
         WorkspaceGit.Kind.MODIFIED -> ChangeKind.MODIFIED
         WorkspaceGit.Kind.ADDED -> ChangeKind.ADDED

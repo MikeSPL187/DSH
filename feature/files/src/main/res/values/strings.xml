@@ -83,6 +83,23 @@
     <string name="fs_deleted">Deleted</string>
     <string name="fs_ask_prompt">Explain what %1$s does</string>
     <string name="fs_review_prompt">Review my changes before committing</string>
+    <string name="fs_history">History</string>
+    <string name="fs_history_branch">branch %1$s</string>
+    <string name="fs_history_all">All history</string>
+    <plurals name="fs_commits_n"><item quantity="one">%d commit</item><item quantity="other">%d commits</item></plurals>
+    <string name="fs_history_sub">branch %1$s · %2$s</string>
+    <string name="fs_history_more">Show more</string>
+    <string name="fs_history_none">No commits yet</string>
+    <string name="fs_unpushed_tag">not pushed</string>
+    <string name="fs_commit_title">Commit</string>
+    <string name="fs_commit_on_remote">on origin/%1$s</string>
+    <string name="fs_commit_ask">Ask DSH about this commit</string>
+    <string name="fs_commit_ask_prompt">Explain commit %1$s “%2$s”: what changed and why</string>
+    <string name="fs_commit_failed">Could not read the commit</string>
+    <string name="fs_commit_in">in commit %1$s</string>
+    <string name="fs_commit_nodiff">No diff to show: binary file or too many lines</string>
+    <string name="fs_badge_del">deleted</string>
+    <string name="fs_badge_bin">binary</string>
     <string name="fs_commit_writing">Writing the message…</string>
     <string name="fs_cm_title">Commit to %1$s</string>
     <string name="fs_cm_title_plain">Commit</string>

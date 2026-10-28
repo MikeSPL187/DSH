@@ -13,7 +13,13 @@ import com.dsh.core.model.HostDescriptor
 import com.dsh.feature.files.FileItem
 import com.dsh.feature.files.FilesScreen
 import com.dsh.feature.runtime.OnboardingScreen
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -91,6 +97,43 @@ class ScreensGalleryTest {
         )
         override suspend fun revert(change: com.dsh.feature.files.GitChange) = true
         override suspend fun clone(url: String, intoDir: String) = Result.success(Unit)
+    }
+
+    /** История ветки: первый коммит не отправлен, у второго есть тело. */
+    private val histGit = object : com.dsh.feature.files.FilesGit by fakeGit {
+        private val now = System.currentTimeMillis()
+        private val h = 3_600_000L
+        private val all = listOf(
+            Triple("9f2c41e", "Ночной архив: исключить build и .gradle", "Михаил") to (h / 2 to false),
+            Triple("4b81d07", "README: как собрать и где ночной архив", "DSH (агент)") to (20 * h to true),
+            Triple("e07aa93", "Главный экран: приветствие и проверка сборки", "Михаил") to (60 * h to true),
+            Triple("51d6c2a", "Обновить Compose BOM до 2024.10.01", "DSH (агент)") to (110 * h to true),
+            Triple("c3a90f4", "Удалить старый скрипт выгрузки", "Михаил") to (160 * h to true),
+            Triple("77be210", "Gradle: каталог версий", "Михаил") to (300 * h to true),
+            Triple("0a1f3b9", "Первый коммит", "Михаил") to (400 * h to true),
+        ).map { (t, w) ->
+            com.dsh.feature.files.CommitInfo(
+                t.first + "0".repeat(33), t.first, t.third, now - w.first, t.second,
+                if (t.first == "4b81d07") "Коротко о сборке из терминала DSH и о скрипте\nscripts/backup.sh, который запускается в 03:00." else "",
+                w.second,
+            )
+        }
+        override suspend fun log(skip: Int, limit: Int) = all.drop(skip).take(limit)
+        override suspend fun commitFiles(hash: String) = listOf(
+            com.dsh.feature.files.CommitFile("app/src/main/MainActivity.kt", null, com.dsh.feature.files.ChangeKind.MODIFIED, 9, 3),
+            com.dsh.feature.files.CommitFile("web/index.html", null, com.dsh.feature.files.ChangeKind.ADDED, 11, 0),
+            com.dsh.feature.files.CommitFile("scripts/upload.sh", null, com.dsh.feature.files.ChangeKind.DELETED, 0, 14),
+            com.dsh.feature.files.CommitFile("docs/logo.png", null, com.dsh.feature.files.ChangeKind.MODIFIED, -1, -1),
+        )
+        override suspend fun commitDiff(hash: String, file: com.dsh.feature.files.CommitFile) = listOf(
+            com.dsh.feature.files.DiffRow.Hunk("@@ -2,3 +2,9 @@"),
+            com.dsh.feature.files.DiffRow.Line(' ', 2, ""),
+            com.dsh.feature.files.DiffRow.Line(' ', 3, "Рабочая папка агента на телефоне."),
+            com.dsh.feature.files.DiffRow.Line('+', 4, ""),
+            com.dsh.feature.files.DiffRow.Line('+', 5, "## Сборка"),
+            com.dsh.feature.files.DiffRow.Line('+', 6, "./gradlew :app:assembleDebug"),
+            com.dsh.feature.files.DiffRow.Line('-', 7, "Старый текст"),
+        )
     }
 
     /** Всё закоммичено, один коммит ещё не отправлен. */
@@ -242,6 +285,38 @@ class ScreensGalleryTest {
     @Test fun filesDiffHunks() = renderFiles("34c_files_diff_hunks_360", tab = 1) { open("libs.versions.toml") }
     @Config(qualifiers = "ru-w412dp-h915dp-xxhdpi")
     @Test fun filesDiffHunksDark() = renderFiles("34d_files_diff_hunks_412_dark", dark = true, tab = 1) { open("libs.versions.toml") }
+    /** Первый узел с текстом: ждём, пока он появится (данные приходят из корутины), без печати дерева при промахе. */
+    private fun androidx.compose.ui.test.junit4.AndroidComposeTestRule<*, *>.first(text: String): androidx.compose.ui.test.SemanticsNodeInteraction {
+        val m = androidx.compose.ui.test.hasText(text, substring = true)
+        repeat(40) { if (onAllNodes(m).fetchSemanticsNodes().isNotEmpty()) return onAllNodes(m)[0]; mainClock.advanceTimeBy(100) }
+        error("нет узла «$text»")
+    }
+    private fun androidx.compose.ui.test.junit4.AndroidComposeTestRule<*, *>.settle() {
+        mainClock.autoAdvance = true; waitForIdle(); mainClock.autoAdvance = false; mainClock.advanceTimeBy(1_000)
+    }
+    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    @Test fun filesHistory() = renderFiles("34e_files_history_360", tab = 1, git = histGit) {
+        settle()
+        repeat(3) { onRoot().performTouchInput { swipeUp() }; mainClock.advanceTimeBy(600) }
+    }
+    @Config(qualifiers = "ru-w412dp-h915dp-xxhdpi")
+    @Test fun filesLogDark() = renderFiles("34f_files_log_412_dark", dark = true, tab = 1, git = histGit) {
+        settle(); first("Вся история").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick); settle()
+    }
+    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    @Test fun filesHistoryCommit() = renderFiles("34g_files_commit_360", tab = 1, git = histGit) {
+        settle(); first("README: как собрать").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick); settle()
+    }
+    @Config(qualifiers = "ru-w390dp-h844dp-xxhdpi")
+    @Test fun filesHistoryCommitDark() = renderFiles("34h_files_commit_390_dark", dark = true, tab = 1, git = histGit) {
+        settle(); first("README: как собрать").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick); settle()
+        repeat(2) { onRoot().performTouchInput { swipeUp() }; mainClock.advanceTimeBy(600) }
+    }
+    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    @Test fun filesHistoryCommitDiff() = renderFiles("34i_files_commit_diff_360", tab = 1, git = histGit) {
+        settle(); first("README: как собрать").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick); settle()
+        first("MainActivity.kt").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick); settle()
+    }
     @Test fun filesChangesDark() = renderFiles("34b_files_changes_dark", dark = true, tab = 1)
     @Test fun filesSearch() = renderFiles("35_files_search") {
         onAllNodes(androidx.compose.ui.test.hasContentDescription("Поиск"))[0].performClick()

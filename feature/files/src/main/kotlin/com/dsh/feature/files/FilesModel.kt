@@ -55,7 +55,34 @@ interface FilesGit {
 
     /** Открыть запрос на слияние из текущей ветки в базу; ошибка — [PullException]. */
     suspend fun createPull(title: String, body: String, draft: Boolean): Result<PullInfo> = Result.failure(PullException(PullProblem.OTHER))
+
+    /** История текущей ветки, новые первыми: [limit] коммитов после [skip]; null — git недоступен. */
+    suspend fun log(skip: Int, limit: Int): List<CommitInfo>? = null
+
+    /** Файлы коммита против первого родителя; null — не прочитать. */
+    suspend fun commitFiles(hash: String): List<CommitFile>? = null
+
+    /** Разница файла [file] в коммите [hash]. */
+    suspend fun commitDiff(hash: String, file: CommitFile): List<DiffRow> = emptyList()
 }
+
+/**
+ * Коммит истории: хэши, автор, время (мс), тема и тело. [pushed] — есть ли на удалённом репозитории;
+ * null — удалённых нет (метку «не отправлен» не показываем).
+ */
+data class CommitInfo(val hash: String, val short: String, val author: String, val time: Long, val subject: String, val body: String, val pushed: Boolean?)
+
+/** Файл коммита: путь, прежний путь при переименовании, вид, строки (-1 — двоичный). */
+data class CommitFile(val path: String, val oldPath: String?, val kind: ChangeKind, val added: Int, val deleted: Int)
+
+/** Сколько коммитов показать на «Изменениях» до «Вся история». */
+const val HISTORY_SHOW = 5
+/** Страница «Всей истории». */
+const val HISTORY_PAGE = 50
+
+/** Тело коммита для телефона: строки абзаца, перенесённые по 72 знака, склеиваются; пустые строки и пункты списка остаются. */
+internal fun unwrapBody(text: String): String =
+    text.replace(Regex("""([^\n])\n(?![\n\-*•]|\d+\.)"""), "$1 ")
 
 /** Запрос на слияние на GitHub. */
 data class PullInfo(val number: Int, val url: String, val title: String, val draft: Boolean)

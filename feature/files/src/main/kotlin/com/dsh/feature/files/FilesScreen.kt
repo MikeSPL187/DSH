@@ -119,6 +119,12 @@ private sealed interface Entry {
     data class Edit(val path: String) : Entry
     data object Changes : Entry
     data object Search : Entry
+    /** Вся история ветки. */
+    data object Log : Entry
+    /** Коммит: шапка, «Спросить DSH», файлы. */
+    data class Commit(val info: CommitInfo) : Entry
+    /** Разница файла в коммите. */
+    data class CommitDiff(val info: CommitInfo, val file: CommitFile) : Entry
 }
 
 /** Открытый лист. */
@@ -166,6 +172,7 @@ private fun editable(path: String) = path.substringAfterLast('.', "").lowercase(
  * @param onShare системное «Поделиться».
  * @param onImport импорт с телефона в папку.
  * @param onToast короткое сообщение внизу.
+ * @param onAskText открыть чат с подставленным вопросом (например, о коммите).
  */
 @Composable
 fun FilesScreen(
@@ -191,6 +198,7 @@ fun FilesScreen(
     gitHub: FilesGitHub? = null,
     /** Описание запроса на слияние по сообщениям коммитов (ИИ); null — недоступно. */
     pullText: (suspend (List<String>) -> Result<String>)? = null,
+    onAskText: (String) -> Unit = {},
 ) {
     val c = Dsh.colors
     val scope = rememberCoroutineScope()
@@ -376,6 +384,17 @@ fun FilesScreen(
                         onNewBranch = { subject -> branchState?.let { sheet = Sheet.Branch(branchSlug(subject), it.base) } },
                         onCreatePull = { st -> if (gitHub?.signedIn() == true) sheet = Sheet.Pull(st) else needLogin { openPull() } },
                         onOpenPull = { url -> runCatching { uri.openUri(url) } },
+                        onCommitOpen = { push(Entry.Commit(it)) },
+                        onLog = { push(Entry.Log) },
+                    )
+                    Entry.Log -> LogView(git, version, onOpen = { push(Entry.Commit(it)) })
+                    is Entry.Commit -> {
+                        val prompt = stringResource(R.string.fs_commit_ask_prompt, e.info.short, e.info.subject)
+                        CommitView(e.info, git, gitInfo?.branch.orEmpty(), onFile = { push(Entry.CommitDiff(e.info, it)) }, onAsk = { onAskText(prompt) })
+                    }
+                    is Entry.CommitDiff -> DiffView(
+                        e.file.path, GitChange(e.file.path, e.file.kind, e.file.added, e.file.deleted), git, version,
+                        onRevert = {}, history = { git?.commitDiff(e.info.hash, e.file).orEmpty() },
                     )
                     Entry.Search -> SearchView(
                         root, query, version, changedPaths,
@@ -406,6 +425,9 @@ private fun titles(top: Entry, root: File, rootName: String, git: GitInfo?, dirt
         is Entry.Edit -> File(top.path).name to stringResource(if (dirty) R.string.fe_sub_dirty else R.string.fe_sub)
         Entry.Changes -> stringResource(R.string.fs_changes_title) to (git?.branch?.takeIf { it.isNotEmpty() }?.let { stringResource(R.string.fs_changes_sub, rootName, it) } ?: rootName)
         Entry.Search -> stringResource(R.string.fs_search_title) to stringResource(R.string.fs_search_sub)
+        Entry.Log -> stringResource(R.string.fs_history) to (git?.branch?.takeIf { it.isNotEmpty() }?.let { stringResource(R.string.fs_history_branch, it) } ?: rootName)
+        is Entry.Commit -> stringResource(R.string.fs_commit_title) to top.info.short
+        is Entry.CommitDiff -> top.file.path.substringAfterLast('/') to stringResource(R.string.fs_commit_in, top.info.short)
     }
 }
 
@@ -1026,10 +1048,12 @@ private fun DiffView(
     onHunk: (Boolean) -> Unit = {},
     /** Изменений в файле больше нет (отменён последний фрагмент). */
     onEmpty: () -> Unit = {},
+    /** Разница из истории (файл в коммите): только просмотр, без «Отменить». */
+    history: (suspend () -> List<DiffRow>)? = null,
 ) {
     val c = Dsh.colors
     val scope = rememberCoroutineScope()
-    val rows by produceState<List<DiffRow>?>(null, path, version) { value = runCatching { git?.diff(path) }.getOrNull().orEmpty() }
+    val rows by produceState<List<DiffRow>?>(null, path, version) { value = runCatching { if (history != null) history() else git?.diff(path) }.getOrNull().orEmpty() }
     var reverted by remember(path) { mutableStateOf(false) }
     LaunchedEffect(rows) { if (reverted && rows?.isEmpty() == true) onEmpty() }
     val name = path.substringAfterLast('/')
@@ -1042,10 +1066,11 @@ private fun DiffView(
                 Text(
                     buildAnnotatedString {
                         append(path)
-                        if (change != null) {
+                        if (change != null && change.added >= 0) {
                             append(" · ")
-                            withStyle(SpanStyle(color = c.ok)) { append("+${change.added}") }
-                            if (change.deleted > 0) { append(" "); withStyle(SpanStyle(color = c.danger)) { append("−${change.deleted}") } }
+                            if (change.added > 0 || change.deleted == 0) withStyle(SpanStyle(color = c.ok)) { append("+${change.added}") }
+                            if (change.added > 0 && change.deleted > 0) append(" ")
+                            if (change.deleted > 0) withStyle(SpanStyle(color = c.danger)) { append("−${change.deleted}") }
                         }
                     },
                     style = TextStyle(fontFamily = DshFonts.body, fontSize = 12.5.sp),
@@ -1113,7 +1138,10 @@ private fun DiffView(
             }
             }
         }
-        if (change != null) {
+        if (history != null && list?.isEmpty() == true) {
+            Empty(stringResource(R.string.fs_commit_nodiff))
+        }
+        if (change != null && history == null) {
             // `.ch-acts`
             DshButton(
                 stringResource(R.string.fs_revert),
@@ -1146,9 +1174,13 @@ private fun ChangesView(
     onNewBranch: (subject: String) -> Unit = {},
     onCreatePull: (BranchState) -> Unit = {},
     onOpenPull: (String) -> Unit = {},
+    onCommitOpen: (CommitInfo) -> Unit = {},
+    onLog: () -> Unit = {},
 ) {
     val c = Dsh.colors
     val gitReady = git != null
+    // Последние коммиты (на один больше показываемых — чтобы знать, нужна ли «Вся история»).
+    val history by produceState<List<CommitInfo>?>(null, git, version, info) { value = runCatching { git?.log(0, HISTORY_SHOW + 1) }.getOrNull() }
     val files = info?.changes.orEmpty()
     // Неотправленные коммиты — после каждого обновления статуса (коммит, правки агента).
     var unpushed by remember { mutableStateOf<Pair<Int, String>?>(null) }
@@ -1231,8 +1263,199 @@ private fun ChangesView(
                 }
             }
         }
+        // `.fs-sec` «История»: последние коммиты ветки и «Вся история».
+        val commits = history.orEmpty()
+        if (info != null && commits.isNotEmpty()) {
+            Section(stringResource(R.string.fs_history), info.branch.takeIf { it.isNotEmpty() }?.let { stringResource(R.string.fs_history_branch, it) })
+            Group {
+                commits.take(HISTORY_SHOW).forEachIndexed { i, ci -> CommitRow(ci, i == 0) { onCommitOpen(ci) } }
+                if (commits.size > HISTORY_SHOW) {
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
+                    Row(
+                        Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button, onClick = onLog).padding(start = 16.dp, end = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(stringResource(R.string.fs_history_all), style = TextStyle(fontFamily = DshFonts.body, fontSize = 14.5.sp), color = c.accent, modifier = Modifier.weight(1f))
+                        Icon(DshGlyphs.Right, null, tint = c.t3, modifier = Modifier.size(18.dp))
+                    }
+                }
+            }
+        }
         Spacer(Modifier.navigationBarsPadding())
     }
+}
+
+/** `.hc`: коммит в истории — тема (до двух строк), «хэш · автор · когда», «не отправлен» или стрелка. */
+@Composable
+private fun CommitRow(ci: CommitInfo, first: Boolean, onClick: () -> Unit) {
+    val c = Dsh.colors
+    Column {
+        if (!first) Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 58.dp).clickable(role = Role.Button, onClick = onClick).padding(start = 12.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            val fresh = ci.pushed == false
+            Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(if (fresh) c.accentSoft else c.s2), contentAlignment = Alignment.Center) {
+                Icon(DshGlyphs.xs("git"), null, tint = if (fresh) c.accent else c.t2, modifier = Modifier.size(18.dp))
+            }
+            Column(Modifier.weight(1f)) {
+                // Метка «не отправлен» — в строке темы: строке «хэш · автор · когда» остаётся вся ширина.
+                Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(ci.subject, style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Medium, fontSize = 15.sp, lineHeight = 19.5.sp), color = c.t1, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    if (ci.pushed == false) Box(Modifier.padding(top = 1.dp)) { UnpushedTag() }
+                }
+                Text(
+                    buildAnnotatedString {
+                        withStyle(SpanStyle(fontFamily = DshFonts.mono, fontSize = 12.sp)) { append(ci.short) }
+                        append(" · ${ci.author} · ${relativeTime(ci.time)}")
+                    },
+                    style = TextStyle(fontFamily = DshFonts.body, fontSize = 12.5.sp, lineHeight = 16.sp), color = c.t3, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+            Icon(DshGlyphs.Right, null, tint = c.t3, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+/** `.hc-tag`: «не отправлен». */
+@Composable
+private fun UnpushedTag() {
+    val c = Dsh.colors
+    Text(
+        stringResource(R.string.fs_unpushed_tag), style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 11.5.sp), color = c.warn,
+        modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(c.warnSoft).padding(horizontal = 6.dp, vertical = 2.dp),
+    )
+}
+
+/** Вся история ветки страницами по [HISTORY_PAGE]; «Показать ещё», пока страница полная. */
+@Composable
+private fun LogView(git: FilesGit?, version: Int, onOpen: (CommitInfo) -> Unit) {
+    val c = Dsh.colors
+    val scope = rememberCoroutineScope()
+    val items = remember(version) { androidx.compose.runtime.mutableStateListOf<CommitInfo>() }
+    var more by remember(version) { mutableStateOf(false) }
+    var loaded by remember(version) { mutableStateOf(false) }
+    var loading by remember(version) { mutableStateOf(false) }
+    suspend fun page() {
+        loading = true
+        val next = runCatching { git?.log(items.size, HISTORY_PAGE) }.getOrNull().orEmpty()
+        items += next
+        more = next.size == HISTORY_PAGE
+        loaded = true
+        loading = false
+    }
+    LaunchedEffect(git, version) { page() }
+    Column(Modifier.fillMaxSize().background(c.bg).verticalScroll(rememberScrollState()).padding(ViewPadding)) {
+        when {
+            !loaded -> Unit
+            items.isEmpty() -> Empty(stringResource(R.string.fs_history_none))
+            else -> {
+                Group { items.forEachIndexed { i, ci -> CommitRow(ci, i == 0) { onOpen(ci) } } }
+                if (more) DshButton(
+                    stringResource(R.string.fs_history_more), { if (!loading) scope.launch { page() } },
+                    Modifier.padding(top = 12.dp).fillMaxWidth().height(48.dp), kind = DshButtonKind.Ghost,
+                )
+            }
+        }
+        Spacer(Modifier.navigationBarsPadding())
+    }
+}
+
+/** Коммит (`.cv-head`): хэш и где он, тема, тело, автор и время, всего строк; «Спросить DSH»; файлы → разница. */
+@Composable
+private fun CommitView(ci: CommitInfo, git: FilesGit?, branch: String, onFile: (CommitFile) -> Unit, onAsk: () -> Unit) {
+    val c = Dsh.colors
+    // null — читаем; пусто при ошибке git — «не удалось».
+    val files by produceState<List<CommitFile>?>(null, ci.hash) { value = runCatching { git?.commitFiles(ci.hash) }.getOrNull() ?: emptyList() }
+    Column(Modifier.fillMaxSize().background(c.bg).verticalScroll(rememberScrollState()).padding(ViewPadding)) {
+        Column(Modifier.padding(top = 4.dp).fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(c.s1).border(1.dp, c.line, RoundedCornerShape(22.dp)).padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    Modifier.height(26.dp).clip(RoundedCornerShape(8.dp)).background(c.s2).padding(horizontal = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    Icon(DshGlyphs.xs("git"), null, tint = c.t1, modifier = Modifier.size(15.dp))
+                    Text(ci.short, style = Mono.copy(fontSize = 12.sp), color = c.t1, maxLines = 1)
+                }
+                when {
+                    ci.pushed == false -> UnpushedTag()
+                    ci.pushed == true && branch.isNotEmpty() -> Text(stringResource(R.string.fs_commit_on_remote, branch), style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.sp), color = c.t2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            Text(
+                ci.subject, style = TextStyle(fontFamily = DshFonts.display, fontWeight = FontWeight.SemiBold, fontSize = 19.sp, lineHeight = 25.sp), color = c.t1,
+                modifier = Modifier.padding(top = 10.dp),
+            )
+            if (ci.body.isNotBlank()) Text(
+                unwrapBody(ci.body), style = TextStyle(fontFamily = DshFonts.body, fontSize = 14.sp, lineHeight = 21.sp), color = c.t2,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            val list = files.orEmpty()
+            val plus = list.sumOf { it.added.coerceAtLeast(0) }
+            val minus = list.sumOf { it.deleted.coerceAtLeast(0) }
+            Text(
+                buildAnnotatedString {
+                    append("${ci.author} · ${relativeTime(ci.time)}")
+                    if (list.isNotEmpty()) {
+                        append(" · " + pluralStringResource(R.plurals.fs_files_n, list.size, list.size) + " · ")
+                        withStyle(SpanStyle(fontFamily = DshFonts.mono)) {
+                            if (plus > 0 || minus == 0) withStyle(SpanStyle(color = c.ok)) { append("+$plus") }
+                            // Неразрывный пробел: «+20 −17» не разъезжается по строкам.
+                            if (plus > 0 && minus > 0) append("\u00A0")
+                            if (minus > 0) withStyle(SpanStyle(color = c.danger)) { append("−$minus") }
+                        }
+                    }
+                },
+                style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.sp, lineHeight = 18.sp), color = c.t3,
+                modifier = Modifier.padding(top = 10.dp),
+            )
+        }
+        DshButton(stringResource(R.string.fs_commit_ask), onAsk, Modifier.padding(top = 14.dp).fillMaxWidth().height(48.dp), kind = DshButtonKind.Ghost, icon = DshGlyphs.Spark)
+        val list = files
+        when {
+            list == null -> Unit
+            list.isEmpty() -> Empty(stringResource(R.string.fs_commit_failed))
+            else -> {
+                Section(stringResource(R.string.fs_files), "${list.size}")
+                Group {
+                    list.forEachIndexed { i, f ->
+                        FileRow(
+                            name = f.path.substringAfterLast('/'), meta = f.oldPath?.let { "$it → ${f.path}" } ?: f.path, dir = false, first = i == 0,
+                            change = null, onClick = { onFile(f) }, onMore = null,
+                            trailing = {
+                                when {
+                                    f.kind == ChangeKind.ADDED -> Badge(stringResource(R.string.fs_badge_new), c.ok, c.okSoft)
+                                    f.kind == ChangeKind.DELETED -> Badge(stringResource(R.string.fs_badge_del), c.danger, c.dangerSoft)
+                                    f.added < 0 -> Badge(stringResource(R.string.fs_badge_bin), c.t2, c.s2)
+                                    else -> Text(
+                                        buildAnnotatedString {
+                                            if (f.added > 0 || f.deleted == 0) withStyle(SpanStyle(color = c.ok)) { append("+${f.added}") }
+                                            if (f.added > 0 && f.deleted > 0) append(" ")
+                                            if (f.deleted > 0) withStyle(SpanStyle(color = c.danger)) { append("−${f.deleted}") }
+                                        },
+                                        style = Mono.copy(fontSize = 13.sp),
+                                    )
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.navigationBarsPadding())
+    }
+}
+
+/** `.chg`: метка вида файла. */
+@Composable
+private fun Badge(text: String, ink: Color, bg: Color) {
+    Text(
+        text, style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 11.5.sp), color = ink,
+        modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(bg).padding(horizontal = 6.dp, vertical = 2.dp),
+    )
 }
 
 /**

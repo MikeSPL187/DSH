@@ -113,6 +113,52 @@ class WorkspaceGit(private val layout: RuntimeLayout, private val workspaceRoot:
     /** Неотправленные коммиты: сколько и тема последнего коммита. */
     data class Unpushed(val count: Int, val lastSubject: String)
 
+    /**
+     * Коммит истории: полный и короткий хэш, автор, время (мс), тема и тело (без темы).
+     * [pushed]: есть ли он на удалённом репозитории; null — удалённых нет, отправлять некуда.
+     */
+    data class Commit(val hash: String, val short: String, val author: String, val time: Long, val subject: String, val body: String, val pushed: Boolean? = null)
+
+    /** Файл коммита: путь (новый), прежний путь при переименовании, вид и строки (-1 — двоичный). */
+    data class CommitFile(val path: String, val oldPath: String?, val kind: Kind, val added: Int, val deleted: Int)
+
+    /** История текущей ветки, новые первыми: [limit] коммитов после [skip]; пусто — коммитов нет; null — git недоступен. */
+    suspend fun log(project: String, skip: Int, limit: Int): List<Commit>? = withContext(Dispatchers.IO) {
+        if (!available()) return@withContext null
+        if (git(project, "rev-parse", "--verify", "-q", "HEAD") == null) return@withContext emptyList()
+        val raw = git(project, "log", "--no-color", "-z", "--format=%H%x1f%h%x1f%an%x1f%at%x1f%B", "--skip=${skip.coerceAtLeast(0)}", "-n", "${limit.coerceIn(1, 200)}", "HEAD")
+            ?: return@withContext null
+        val hasRemote = git(project, "remote")?.isNotBlank() == true
+        val unpushed = if (hasRemote) git(project, "rev-list", "-n", "1000", "HEAD", "--not", "--remotes").orEmpty().lines().map { it.trim() }.toSet() else emptySet()
+        parseLog(raw).map { it.copy(pushed = if (hasRemote) it.hash !in unpushed else null) }
+    }
+
+    /** Файлы коммита [hash] против первого родителя (у первого коммита — против пустого дерева). */
+    suspend fun commitFiles(project: String, hash: String): List<CommitFile>? = withContext(Dispatchers.IO) {
+        if (!available() || !HASH.matches(hash)) return@withContext null
+        val base = parentOf(project, hash) ?: return@withContext null
+        val kinds = git(project, "diff-tree", "-r", "-M", "-z", "--no-commit-id", "--name-status", base, hash) ?: return@withContext null
+        val stats = parseNumstat(git(project, "diff-tree", "-r", "-M", "-z", "--no-commit-id", "--numstat", base, hash).orEmpty())
+        parseNameStatus(kinds).map { (path, old, kind) ->
+            val st = stats[path]
+            CommitFile(path, old, kind, st?.first ?: 0, st?.second ?: 0)
+        }
+    }
+
+    /** Разница файла [file] в коммите [hash]. */
+    suspend fun commitDiff(project: String, hash: String, file: CommitFile): List<DiffLine> = withContext(Dispatchers.IO) {
+        if (!available() || !HASH.matches(hash)) return@withContext emptyList()
+        val base = parentOf(project, hash) ?: return@withContext emptyList()
+        val paths = listOfNotNull(file.oldPath, file.path)
+        parseUnified(git(project, *(listOf("diff", "--no-ext-diff", "--no-textconv", "--no-color", "-U3", "-M", base, hash, "--") + paths).toTypedArray()).orEmpty())
+    }
+
+    /** Первый родитель коммита или пустое дерево у первого коммита; null — коммита нет. */
+    private fun parentOf(project: String, hash: String): String? {
+        val line = git(project, "rev-list", "--parents", "-n", "1", hash)?.trim() ?: return null
+        return line.split(' ').getOrNull(1) ?: EMPTY_TREE
+    }
+
     private fun lastLine(out: String, fallback: String) = out.lines().lastOrNull { it.isNotBlank() }?.trim() ?: fallback
 
     /** `git clone` в новую папку [dir] внутри проекта. */
@@ -190,6 +236,46 @@ class WorkspaceGit(private val layout: RuntimeLayout, private val workspaceRoot:
             return true
         }
         private const val MAX_LINES = 2_000
+
+        /** Хэш коммита: только шестнадцатеричные знаки — в git не уйдёт ничего похожего на флаг. */
+        private val HASH = Regex("^[0-9a-f]{7,40}$")
+
+        /** Хэш пустого дерева git: база разницы для первого коммита. */
+        private const val EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
+        /** Разбор `log -z --format=%H%x1f%h%x1f%an%x1f%at%x1f%B`: тема — первая строка сообщения, тело — остальное. */
+        fun parseLog(raw: String): List<Commit> = raw.split('\u0000').mapNotNull { rec ->
+            val f = rec.trimStart('\n').split('\u001f', limit = 5)
+            if (f.size < 5 || f[0].isBlank()) return@mapNotNull null
+            val msg = f[4].trimEnd()
+            val subject = msg.substringBefore('\n').trim()
+            val body = if ('\n' in msg) msg.substringAfter('\n').trim('\n', ' ') else ""
+            Commit(f[0].trim(), f[1].trim(), f[2], (f[3].trim().toLongOrNull() ?: 0L) * 1000, subject, body)
+        }
+
+        /** Разбор `diff-tree --name-status -z`: (путь, прежний путь, вид); у R/C следом идут старый и новый путь. */
+        fun parseNameStatus(raw: String): List<Triple<String, String?, Kind>> {
+            val parts = raw.split('\u0000')
+            val out = mutableListOf<Triple<String, String?, Kind>>()
+            var i = 0
+            while (i < parts.size) {
+                val st = parts[i]
+                if (st.isEmpty() || i + 1 >= parts.size) { i++; continue }
+                when (st[0]) {
+                    'R', 'C' -> {
+                        if (i + 2 >= parts.size) break
+                        out += Triple(parts[i + 2], parts[i + 1], if (st[0] == 'R') Kind.RENAMED else Kind.ADDED)
+                        i += 3
+                    }
+                    else -> {
+                        val kind = when (st[0]) { 'A' -> Kind.ADDED; 'D' -> Kind.DELETED; else -> Kind.MODIFIED }
+                        out += Triple(parts[i + 1], null, kind)
+                        i += 2
+                    }
+                }
+            }
+            return out
+        }
 
         /** Разбор `status --porcelain=v1 -z`: путь и вид изменения. */
         fun parsePorcelain(raw: String): List<Pair<String, Kind>> {

@@ -176,3 +176,11 @@ class GrepTextTest {
         assertEquals(1, capped.lines)
     }
 }
+
+class CommitBodyTest {
+    @Test
+    fun `wrapped lines are joined, paragraphs and lists are kept`() {
+        val body = "Первая строка абзаца\nего продолжение.\n\nСписок:\n- один\n- два\n1. три"
+        assertEquals("Первая строка абзаца его продолжение.\n\nСписок:\n- один\n- два\n1. три", unwrapBody(body))
+    }
+}
