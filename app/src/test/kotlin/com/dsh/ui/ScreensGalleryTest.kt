@@ -238,6 +238,10 @@ class ScreensGalleryTest {
     @Test fun filesDocDark() = renderFiles("32b_files_doc_dark", dark = true) { open("libs.versions.toml") }
     @Test fun filesDiff() = renderFiles("33_files_diff") { open("libs.versions.toml"); open("Изменения") }
     @Test fun filesChanges() = renderFiles("34_files_changes", tab = 1)
+    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    @Test fun filesDiffHunks() = renderFiles("34c_files_diff_hunks_360", tab = 1) { open("libs.versions.toml") }
+    @Config(qualifiers = "ru-w412dp-h915dp-xxhdpi")
+    @Test fun filesDiffHunksDark() = renderFiles("34d_files_diff_hunks_412_dark", dark = true, tab = 1) { open("libs.versions.toml") }
     @Test fun filesChangesDark() = renderFiles("34b_files_changes_dark", dark = true, tab = 1)
     @Test fun filesSearch() = renderFiles("35_files_search") {
         onAllNodes(androidx.compose.ui.test.hasContentDescription("Поиск"))[0].performClick()

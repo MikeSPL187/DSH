@@ -1008,6 +1008,11 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .code .ln.add { background: var(--ok-soft); } .code .ln.add .c { color: var(--ok); }
 .code .ln.del { background: var(--danger-soft); } .code .ln.del .c { color: var(--danger); }
 .code .ln.hunk .c { color: var(--t3); }
+/* Дифф по фрагментам: у каждого — подпись строк и «Отменить» */
+.hk + .hk { margin-top: 14px; }
+.hk-head { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 2px 6px 4px; font-size: 13px; color: var(--t2); }
+.hk-head span { flex: 1; min-width: 0; }
+.hk-undo { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 12px; border-radius: 12px; background: var(--s2); font-size: 13.5px; font-weight: 500; color: var(--t1); }
 .tk-k { color: var(--accent); } .tk-s { color: var(--ok); } .tk-c { color: var(--t3); font-style: italic; } .tk-n { color: var(--warn); }
 /* изменения */
 .ch-sum { background: var(--s1); border: 1px solid var(--line); border-radius: 22px; padding: 16px; }
@@ -3103,11 +3108,22 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   function feSaved() { SRC[FE.path] = $("#feArea").value; feDirty(false); toast("Сохранено"); }
   $("#feOverwrite").addEventListener("click", () => { FE.stamp = 0; sheetClose(); feSaved(); });
   $("#feReload").addEventListener("click", () => { FE.stamp = 0; sheetClose(); $("#feArea").value = SRC[FE.path] || ""; feDirty(false); toast("Открыта новая версия файла"); });
+  // Фрагменты диффа: каждый начинается заголовком @@; подпись — строки в новой версии.
+  function hunks(d) { const out = []; for (const r of d) { if (r[0] === "h") out.push([r]); else if (out.length) out[out.length - 1].push(r); } return out; }
+  function hunkLabel(h) { const m = /\+(\d+)(?:,(\d+))?/.exec(h) || [0, 1, 1]; const a = +m[1], n = m[2] === undefined ? 1 : +m[2]; return n === 0 ? `Удаление после строки ${a}` : n === 1 ? `Строка ${a}` : `Строки ${a}–${a + n - 1}`; }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-hunk]"); if (!b) return;
+    e.stopPropagation(); const path = fsStack[fsStack.length - 1].p, hs = hunks(DIFF[path]); hs.splice(+b.dataset.hunk, 1);
+    DIFF[path] = hs.flat();
+    if (!hs.length) { delete CHANGED[path]; delete DIFF[path]; fsPop(); } else fsRebuild();
+    toast("Фрагмент отменён");
+  });
   function viewDiff(path) {
     const v = document.createElement("div"); v.className = "fs-view";
     const c = CHANGED[path], d = DIFF[path];
     v.innerHTML = `<div class="fv-head">${ftHtml(path)}<span class="tx"><b>${path.split("/").pop()}</b><small>${path} · <span class="stat"><span class="p">+${c.p}</span> <span class="m">−${c.m}</span></span></small></span></div>
-      <div class="code">${d.map(([k, n, t]) => k === "h" ? `<div class="ln hunk"><span class="n"></span><span class="c">${esc2(n)}</span></div>` : `<div class="ln ${k === "+" ? "add" : k === "-" ? "del" : ""}"><span class="n">${n}</span><span class="c">${k === " " ? " " : k} ${esc2(t)}</span></div>`).join("")}</div>
+      ${hunks(d).map((h, i) => `<div class="hk"><div class="hk-head"><span>${hunkLabel(h[0][1])}</span>${c.k === "M" ? `<button class="hk-undo" data-hunk="${i}"><svg class="i xs"><use href="#i-undo"/></svg>Отменить</button>` : ""}</div>
+        <div class="code">${h.slice(1).map(([k, n, t]) => `<div class="ln ${k === "+" ? "add" : k === "-" ? "del" : ""}"><span class="n">${n}</span><span class="c">${k === " " ? " " : k} ${esc2(t)}</span></div>`).join("")}</div></div>`).join("")}
       <div class="ch-acts"><button class="btn ghost" data-revert="${path}"><svg class="i sm"><use href="#i-undo"/></svg>Отменить изменение</button></div>`;
     return v;
   }

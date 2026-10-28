@@ -275,6 +275,8 @@ fun FilesScreen(
     val pullAuth = stringResource(R.string.fs_pr_auth)
 
     val revertedText = stringResource(R.string.fs_reverted)
+    val hunkReverted = stringResource(R.string.fs_hunk_done)
+    val hunkStale = stringResource(R.string.fs_hunk_stale)
     val top = stack.last()
     val searching = top == Entry.Search
     BackHandler(enabled = sheet == null && stack.size > 1) { pop() }
@@ -356,7 +358,10 @@ fun FilesScreen(
                     is Entry.Dir -> DirView(root, rootLabel, e.path, version, changedPaths, onOpen = { f -> push(if (f.isDirectory) Entry.Dir(relPath(root, f)) else Entry.Doc(relPath(root, f))) }, onCrumb = { p -> forward = false; stack = stack.takeWhile { it !is Entry.Dir || (it as Entry.Dir).path != p } + Entry.Dir(p) }, onMore = { sheet = Sheet.Actions(it) })
                     is Entry.Doc -> DocView(file(e.path), e.path, changedPaths[e.path], onDiff = { push(Entry.Diff(e.path)) }, onAsk = { onAsk(file(e.path)) }, onAttach = { onAttach(file(e.path)) }, onMore = { sheet = Sheet.Actions(e.path) }, markdown = markdown, onOpenInBrowser = onOpenInBrowser)
                     is Entry.Edit -> EditView(file(e.path), editor)
-                    is Entry.Diff -> DiffView(e.path, changedPaths[e.path], git, version, onRevert = { ch ->
+                    is Entry.Diff -> DiffView(e.path, changedPaths[e.path], git, version, file = file(e.path),
+                        onHunk = { ok -> onToast(if (ok) hunkReverted else hunkStale); refresh() },
+                        onEmpty = { pop() },
+                        onRevert = { ch ->
                         scope.launch {
                             val ok = runCatching { git?.revert(ch) ?: false }.getOrDefault(false)
                             if (ok) { onToast(revertedText); refresh(); pop() }
@@ -1003,9 +1008,23 @@ private fun ImagePreview(f: File) {
 
 /** Дифф файла и «Отменить изменение». */
 @Composable
-private fun DiffView(path: String, change: GitChange?, git: FilesGit?, version: Int, onRevert: (GitChange) -> Unit) {
+private fun DiffView(
+    path: String,
+    change: GitChange?,
+    git: FilesGit?,
+    version: Int,
+    onRevert: (GitChange) -> Unit,
+    file: File? = null,
+    /** Фрагмент отменён (true) или файл уже не такой, как в диффе (false). */
+    onHunk: (Boolean) -> Unit = {},
+    /** Изменений в файле больше нет (отменён последний фрагмент). */
+    onEmpty: () -> Unit = {},
+) {
     val c = Dsh.colors
+    val scope = rememberCoroutineScope()
     val rows by produceState<List<DiffRow>?>(null, path, version) { value = runCatching { git?.diff(path) }.getOrNull().orEmpty() }
+    var reverted by remember(path) { mutableStateOf(false) }
+    LaunchedEffect(rows) { if (reverted && rows?.isEmpty() == true) onEmpty() }
     val name = path.substringAfterLast('/')
     Column(Modifier.fillMaxSize().background(c.bg).verticalScroll(rememberScrollState()).padding(ViewPadding)) {
         // `.fv-head`
@@ -1032,9 +1051,44 @@ private fun DiffView(path: String, change: GitChange?, git: FilesGit?, version: 
         val list = rows
         if (list != null && list.isNotEmpty()) {
             val style = Mono.copy(fontSize = 12.5.sp, lineHeight = 21.25.sp)
-            Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.termBg).border(1.dp, c.line, RoundedCornerShape(16.dp))) {
-                Column(Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
-                    list.forEach { r ->
+            // По фрагментам (`.hk`): подпись строк и «Отменить» — только у изменённого файла (новый и удалённый — целиком).
+            hunksOf(list).forEachIndexed { hi, hunk ->
+            val header = (hunk.first() as DiffRow.Hunk).text
+            Row(
+                Modifier.padding(top = if (hi > 0) 14.dp else 0.dp, bottom = 6.dp).fillMaxWidth().heightIn(min = 44.dp).padding(start = 4.dp, end = 2.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                val range = hunkNewRange(header)
+                Text(
+                    when {
+                        range == null -> header
+                        range.second == 0 -> stringResource(R.string.fs_hunk_del, range.first)
+                        range.second == 1 -> stringResource(R.string.fs_hunk_line, range.first)
+                        else -> stringResource(R.string.fs_hunk_lines, range.first, range.first + range.second - 1)
+                    },
+                    style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.sp), color = c.t2, modifier = Modifier.weight(1f),
+                )
+                if (change?.kind == ChangeKind.MODIFIED && file != null) {
+                    com.dsh.core.designsystem.kit.KBtn(
+                        stringResource(R.string.fs_hunk_revert), {
+                            scope.launch {
+                                val ok = withContext(Dispatchers.IO) {
+                                    val doc = openForEdit(file).getOrNull() ?: return@withContext false
+                                    val next = revertHunk(doc.text, hunk) ?: return@withContext false
+                                    saveEdit(file, next, doc.crlf, doc.stamp).getOrNull() is SaveResult.Saved
+                                }
+                                if (ok) reverted = true
+                                onHunk(ok)
+                            }
+                        },
+                        kind = com.dsh.core.designsystem.kit.BtnKind.Ghost, icon = DshGlyphs.Undo, height = 40.dp, radius = 12.dp, fontSize = 13.5.sp, horizontal = 12.dp,
+                    )
+                }
+            }
+            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.termBg).border(1.dp, c.line, RoundedCornerShape(16.dp))) {
+                // Фон строк «+»/«−» — на всю ширину блока (или самой длинной строки), как `.ln` в прототипе.
+                Column(Modifier.horizontalScroll(rememberScrollState()).widthIn(min = maxWidth).width(androidx.compose.foundation.layout.IntrinsicSize.Max).padding(vertical = 8.dp)) {
+                    hunk.drop(1).forEach { r ->
                         val (bg, ink, num, text) = when (r) {
                             is DiffRow.Hunk -> Quad(Color.Transparent, c.t3, "", r.text)
                             is DiffRow.Line -> when (r.sign) {
@@ -1043,12 +1097,13 @@ private fun DiffView(path: String, change: GitChange?, git: FilesGit?, version: 
                                 else -> Quad(Color.Transparent, c.termText, "${r.number}", "  ${r.text}")
                             }
                         }
-                        Row(Modifier.background(bg).padding(end = 14.dp)) {
+                        Row(Modifier.fillMaxWidth().background(bg).padding(end = 14.dp)) {
                             Text(num, style = style.copy(textAlign = TextAlign.End), color = c.t3.copy(alpha = 0.8f), modifier = Modifier.width(38.dp).padding(end = 12.dp))
                             Text(text, style = style, color = ink, softWrap = false)
                         }
                     }
                 }
+            }
             }
         }
         if (change != null) {

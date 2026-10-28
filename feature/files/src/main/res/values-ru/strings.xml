@@ -197,4 +197,10 @@
     <string name="fe_replaced">Заменено: %1$d</string>
     <string name="fs_create_failed">Не удалось создать «%1$s» — проверьте доступ к папке</string>
     <string name="fe_empty">Файл пуст — начните печатать</string>
+    <string name="fs_hunk_line">Строка %1$d</string>
+    <string name="fs_hunk_lines">Строки %1$d–%2$d</string>
+    <string name="fs_hunk_del">Удаление после строки %1$d</string>
+    <string name="fs_hunk_revert">Отменить</string>
+    <string name="fs_hunk_done">Фрагмент отменён</string>
+    <string name="fs_hunk_stale">Файл изменился — обновите изменения и попробуйте снова</string>
 </resources>

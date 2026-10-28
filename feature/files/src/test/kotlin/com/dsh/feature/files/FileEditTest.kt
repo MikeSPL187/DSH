@@ -97,3 +97,30 @@ class EditorHighlightTest {
         assertTrue(out.spanStyles.isNotEmpty())
     }
 }
+
+class RevertHunkTest {
+    private fun rows(vararg r: DiffRow) = r.toList()
+
+    @Test
+    fun `one fragment is reverted, the other stays`() {
+        val text = "a\nB\nc\nd\ne\nf\nG\nh\n"
+        val diff = rows(
+            DiffRow.Hunk("@@ -1,3 +1,3 @@"), DiffRow.Line(' ', 1, "a"), DiffRow.Line('-', 2, "b"), DiffRow.Line('+', 2, "B"), DiffRow.Line(' ', 3, "c"),
+            DiffRow.Hunk("@@ -6,2 +6,3 @@"), DiffRow.Line(' ', 6, "f"), DiffRow.Line('+', 7, "G"), DiffRow.Line(' ', 8, "h"),
+        )
+        val hunks = hunksOf(diff)
+        assertEquals(2, hunks.size)
+        assertEquals("a\nb\nc\nd\ne\nf\nG\nh\n", revertHunk(text, hunks[0]))
+        assertEquals("a\nB\nc\nd\ne\nf\nh\n", revertHunk(text, hunks[1]))
+    }
+
+    @Test
+    fun `a pure deletion is put back, a changed file is refused`() {
+        val text = "x\nz\n"
+        val del = rows(DiffRow.Hunk("@@ -1,3 +1,2 @@"), DiffRow.Line(' ', 1, "x"), DiffRow.Line('-', 2, "y"), DiffRow.Line(' ', 2, "z"))
+        assertEquals("x\ny\nz\n", revertHunk(text, del))
+        val tail = rows(DiffRow.Hunk("@@ -2 +1,0 @@"), DiffRow.Line('-', 2, "gone"))
+        assertEquals("x\ngone\nz\n", revertHunk(text, tail))
+        assertEquals(null, revertHunk("x\nCHANGED\n", del))
+    }
+}

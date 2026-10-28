@@ -196,4 +196,10 @@
     <string name="fe_replaced">Replaced: %1$d</string>
     <string name="fs_create_failed">Couldn’t create “%1$s” — check access to the folder</string>
     <string name="fe_empty">The file is empty — start typing</string>
+    <string name="fs_hunk_line">Line %1$d</string>
+    <string name="fs_hunk_lines">Lines %1$d–%2$d</string>
+    <string name="fs_hunk_del">Deletion after line %1$d</string>
+    <string name="fs_hunk_revert">Revert</string>
+    <string name="fs_hunk_done">Fragment reverted</string>
+    <string name="fs_hunk_stale">The file changed — refresh the changes and try again</string>
 </resources>

@@ -306,3 +306,36 @@ internal fun replaceAll(text: String, query: String, replacement: String): Pair<
     sb.append(text, p, text.length)
     return sb.toString() to m.size
 }
+
+/** Фрагменты диффа: каждый начинается заголовком `@@`. */
+internal fun hunksOf(rows: List<DiffRow>): List<List<DiffRow>> {
+    val out = ArrayList<MutableList<DiffRow>>()
+    for (r in rows) if (r is DiffRow.Hunk) out += mutableListOf<DiffRow>(r) else out.lastOrNull()?.add(r)
+    return out
+}
+
+/** Начало и число строк фрагмента в новой версии (`+c,d`); нет заголовка — null. */
+internal fun hunkNewRange(header: String): Pair<Int, Int>? {
+    val m = Regex("""\+(\d+)(?:,(\d+))?""").find(header) ?: return null
+    return m.groupValues[1].toInt() to (m.groupValues[2].ifEmpty { "1" }).toInt()
+}
+
+/**
+ * Текст [text] (переводы строк — `\n`) с отменённым фрагментом [hunk]: его новые строки (контекст и «+»)
+ * заменяются старыми (контекст и «−»). null — файл уже не такой, как в диффе (фрагмент не совпал).
+ */
+internal fun revertHunk(text: String, hunk: List<DiffRow>): String? {
+    val header = hunk.firstOrNull() as? DiffRow.Hunk ?: return null
+    val (start, count) = hunkNewRange(header.text) ?: return null
+    val lines = hunk.filterIsInstance<DiffRow.Line>()
+    val newSide = lines.filter { it.sign != '-' }.map { it.text }
+    val oldSide = lines.filter { it.sign != '+' }.map { it.text }
+    if (newSide.size != count) return null
+    val all = text.split('\n').toMutableList()
+    // `+c,0` — вставка после строки c; иначе строки c…c+d−1 (с единицы).
+    val from = if (count == 0) start else start - 1
+    if (from < 0 || from + count > all.size || all.subList(from, from + count) != newSide) return null
+    repeat(count) { all.removeAt(from) }
+    all.addAll(from, oldSide)
+    return all.joinToString("\n")
+}
