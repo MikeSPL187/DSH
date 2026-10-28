@@ -215,6 +215,15 @@ class ScreensGalleryTest {
         mainClock.autoAdvance = true; waitForIdle(); mainClock.autoAdvance = false
         mainClock.advanceTimeBy(600)
     }
+    @Config(qualifiers = "ru-w390dp-h844dp-xxhdpi")
+    @Test fun filesNewFileEdit() = renderFiles("39e_files_new_file_edit") {
+        onAllNodes(androidx.compose.ui.test.hasContentDescription("Добавить"))[0].performClick()
+        mainClock.advanceTimeBy(1_200)
+        open("Файл")
+        onAllNodes(androidx.compose.ui.test.hasSetTextAction())[0].performTextInput("notes.md")
+        mainClock.advanceTimeBy(400)
+        open("Создать")
+    }
     @Config(qualifiers = "ru-w412dp-h915dp-xxhdpi")
     @Test fun filesEditBinary() = renderFiles("39c_files_edit_binary_412", prepare = { java.io.File(it, "data.bin").writeBytes(byteArrayOf(1, 0, 2, 3)) }) { editFile("data.bin") }
 

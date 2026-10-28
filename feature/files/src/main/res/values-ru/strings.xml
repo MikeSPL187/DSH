@@ -195,4 +195,6 @@
     <string name="fe_replace">Заменить</string>
     <string name="fe_replace_all">Все</string>
     <string name="fe_replaced">Заменено: %1$d</string>
+    <string name="fs_create_failed">Не удалось создать «%1$s» — проверьте доступ к папке</string>
+    <string name="fe_empty">Файл пуст — начните печатать</string>
 </resources>

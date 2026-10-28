@@ -1234,6 +1234,7 @@ private fun ColumnScope.SheetBody(
 ) {
     val c = Dsh.colors
     val scope = rememberCoroutineScope()
+    val createFailed = stringResource(R.string.fs_create_failed, "%s")
     when (sheet) {
         Sheet.EditDiscard -> EditDiscardSheet(onEditDrop, onEditKeep)
         Sheet.EditConflict -> EditConflictSheet(onEditReload, onEditOverwrite)
@@ -1307,7 +1308,12 @@ private fun ColumnScope.SheetBody(
         ) { name ->
             val target = File(file(currentDir), name)
             val ok = runCatching { if (sheet.folder) target.mkdirs() else target.createNewFile() }.getOrDefault(false)
-            if (ok) { refresh(); onDone() }
+            when {
+                !ok -> onToast(createFailed.format(name))
+                sheet.folder -> { refresh(); onDone() }
+                // Новый файл — сразу в правку: его создают, чтобы заполнить.
+                else -> { refresh(); onEdit(if (currentDir.isEmpty()) name else "$currentDir/$name") }
+            }
         }
         is Sheet.Rename -> {
             val f = file(sheet.path)

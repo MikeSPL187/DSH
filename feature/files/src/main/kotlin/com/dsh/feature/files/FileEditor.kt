@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
@@ -195,6 +196,9 @@ internal fun EditView(file: File, editor: FileEditor) {
         val edge by animateColorAsState(if (focused) c.accent else c.line, tween(250), label = "fe-edge")
         val shape = RoundedCornerShape(16.dp)
         val label = stringResource(R.string.fe_area)
+        // Правку открывают, чтобы печатать: курсор — сразу в поле (как в прототипе).
+        val focus = androidx.compose.runtime.remember { androidx.compose.ui.focus.FocusRequester() }
+        LaunchedEffect(editor.doc != null) { if (editor.doc != null) runCatching { focus.requestFocus() } }
         BasicTextField(
             editor.value, { editor.change(it) },
             textStyle = TextStyle(fontFamily = DshFonts.mono, fontSize = 13.5.sp, lineHeight = 21.sp, color = c.t1),
@@ -211,7 +215,15 @@ internal fun EditView(file: File, editor: FileEditor) {
                 current = editor.current,
             ),
             modifier = Modifier.weight(1f).fillMaxWidth().clip(shape).background(c.s1).border(1.5.dp, edge, shape)
-                .padding(horizontal = 14.dp, vertical = 12.dp).onFocusChanged { focused = it.isFocused }.semantics { contentDescription = label },
+                .padding(horizontal = 14.dp, vertical = 12.dp).focusRequester(focus).onFocusChanged { focused = it.isFocused }.semantics { contentDescription = label },
+            decorationBox = { inner ->
+                Box {
+                    if (editor.doc != null && editor.value.text.isEmpty()) {
+                        Text(stringResource(R.string.fe_empty), style = TextStyle(fontFamily = DshFonts.mono, fontSize = 13.5.sp, lineHeight = 21.sp), color = c.t3)
+                    }
+                    inner()
+                }
+            },
         )
         val before = editor.value.text.substring(0, editor.value.selection.start.coerceIn(0, editor.value.text.length))
         val line = before.count { it == '\n' } + 1

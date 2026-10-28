@@ -979,6 +979,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .fe-view { display: flex; flex-direction: column; padding-bottom: 0; }
 .fe-area { flex: 1; width: 100%; min-height: 0; padding: 12px 14px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--s1); font-family: var(--font-mono); font-size: 13.5px; line-height: 1.55; color: var(--t1); resize: none; outline: none; white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; tab-size: 4; }
 .fe-area:focus { border-color: var(--accent); }
+.fe-area::placeholder { color: var(--t3); }
 .fe-keys { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 10px 0 14px; flex: none; }
 .fe-find { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin-bottom: 8px; flex: none; }
 .fe-find .row { display: flex; align-items: center; gap: 6px; }
@@ -3051,7 +3052,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <div class="row"><input id="feQ" placeholder="Найти" aria-label="Найти в файле" autocomplete="off" spellcheck="false" autocapitalize="off"><span class="cnt" id="feCnt"></span><button class="iconbtn" data-fef="prev" aria-label="Предыдущее"><svg class="i sm"><use href="#i-up"/></svg></button><button class="iconbtn" data-fef="next" aria-label="Следующее"><svg class="i sm" style="transform:rotate(180deg)"><use href="#i-up"/></svg></button><button class="iconbtn" data-fef="close" aria-label="Закрыть поиск"><svg class="i sm"><use href="#i-x"/></svg></button></div>
         <div class="row"><input id="feR" placeholder="Заменить на" aria-label="Заменить на" autocomplete="off" spellcheck="false" autocapitalize="off"><button class="fb" data-fef="one" disabled>Заменить</button><button class="fb" data-fef="all" disabled>Все</button></div>
       </div>
-      <textarea class="fe-area" id="feArea" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Текст файла"></textarea>
+      <textarea class="fe-area" id="feArea" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Текст файла" placeholder="Файл пуст — начните печатать"></textarea>
       <div class="fe-pos" id="fePos">строка 1, столбец 1</div>
       <div class="fe-keys" role="toolbar" aria-label="Символы"><button data-feu="undo" aria-label="Отменить" disabled><svg class="i sm"><use href="#i-undo"/></svg></button><button data-feu="redo" aria-label="Вернуть" disabled><svg class="i sm"><use href="#i-redo"/></svg></button><button data-fef="open" aria-label="Найти и заменить"><svg class="i sm"><use href="#i-search"/></svg></button>${["Tab", "{", "}", "(", ")", "[", "]", "<", ">", "=", ";", ":", "\"", "'", "/", "|", "&", "-", "_"].map((k) => `<button data-fek="${k === "\"" ? "&quot;" : k}" aria-label="${k === "Tab" ? "Табуляция" : k === "\"" ? "Кавычка" : k}">${k === "Tab" ? "⇥" : esc2(k)}</button>`).join("")}</div>`;
     $("textarea", v).value = src; FE.path = path; FE.stamp = 0; FE.undo = []; FE.redo = []; FE.last = 0;
@@ -3205,7 +3206,12 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   $("#fsQ").addEventListener("input", () => { fsBody.innerHTML = ""; fsStack = []; fsStack.push({ t: "search", p: $("#fsQ").value.trim() }); fsCur = fsBuild(fsStack[0]); fsBody.appendChild(fsCur); fsTitles(); });
   $("#fsBack").addEventListener("click", () => { if ($("#fsSearch").classList.contains("on") && fsStack.length <= 1) closeSearch(); else fsPop(); });
   $("#fsAdd").addEventListener("click", () => sheetOpen("fsadd"));
-  $$("[data-fsadd]").forEach((b) => b.addEventListener("click", () => { sheetClose(); toast(b.dataset.fsadd + " — в версии приложения"); }));
+  $$("[data-fsadd]").forEach((b) => b.addEventListener("click", () => {
+    sheetClose();
+    // Новый файл сразу открывается в правке: его создают, чтобы заполнить.
+    if (b.dataset.fsadd === "Новый файл") { const top = fsStack[fsStack.length - 1], p = (top.t === "dir" ? top.p : "") + "notes.md"; SRC[p] = ""; setTimeout(() => { FE.dirty = false; fsPush({ t: "edit", p }); setTimeout(() => $("#feArea")?.focus(), 400); }, 300); return; }
+    toast(b.dataset.fsadd + " — в версии приложения");
+  }));
   // нажатия внутри экрана
   let faPath = "";
   fsBody.addEventListener("click", (e) => {

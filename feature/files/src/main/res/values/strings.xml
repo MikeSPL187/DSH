@@ -194,4 +194,6 @@
     <string name="fe_replace">Replace</string>
     <string name="fe_replace_all">All</string>
     <string name="fe_replaced">Replaced: %1$d</string>
+    <string name="fs_create_failed">Couldn’t create “%1$s” — check access to the folder</string>
+    <string name="fe_empty">The file is empty — start typing</string>
 </resources>
