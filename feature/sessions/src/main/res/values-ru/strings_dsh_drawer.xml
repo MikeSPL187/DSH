@@ -42,4 +42,6 @@
         <item quantity="many">%1$d сессий</item>
         <item quantity="other">%1$d сессии</item>
     </plurals>
+    <string name="dw_share">Поделиться разговором</string>
+    <string name="dw_share_sub">Текстом Markdown, секреты скрыты</string>
 </resources>

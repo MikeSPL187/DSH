@@ -66,6 +66,8 @@ class AppChatServices(
 
     override fun exportSession() = withSession { sid -> scope.launch { performSessionExport(context, repository, host, sid) } }
 
+    override fun shareText(title: String, text: String, fileName: String) = shareMarkdown(context, title, text, fileName)
+
     /** Точка «как было» перед последним возвратом файлов — по сессии; состояние Compose, чтобы лист видел отмену. */
     private val undoPoints = androidx.compose.runtime.mutableStateMapOf<String, com.dsh.runtime.host.FileCheckpoints.Point>()
 

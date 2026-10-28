@@ -319,6 +319,7 @@ fun ModernChatScreen(
     var contextOpen by remember { mutableStateOf(initialSheet == "context") }
     var trajectoryOpen by remember { mutableStateOf(false) }
     var actionMessage by remember { mutableStateOf(if (initialSheet == "msg") messages.firstOrNull { it.role == MessageRole.USER } else null) }
+    var shareOpen by remember { mutableStateOf(initialSheet == "share") }
     var rewindMessage by remember { mutableStateOf(if (initialSheet == "rewind") messages.firstOrNull { it.role == MessageRole.USER } else null) }
     val localContext = LocalContext.current
     // Навыки читаются при каждом открытии меню: .dsh/skills рабочей папки могли только что поменяться.
@@ -566,7 +567,7 @@ fun ModernChatScreen(
             lastScroll = y
         }
     }
-    val closeSheets = { actionMessage = null; rewindMessage = null; trajectoryOpen = false; pendingConfirm = null; modelMenuOpen = false; permissionMenuOpen = false; agentPresetMenuOpen = false; toolDetail = null; changeDiffIndex = null; commandSheetOpen = false; subagentsOpen = false; contextOpen = false }
+    val closeSheets = { actionMessage = null; rewindMessage = null; shareOpen = false; trajectoryOpen = false; pendingConfirm = null; modelMenuOpen = false; permissionMenuOpen = false; agentPresetMenuOpen = false; toolDetail = null; changeDiffIndex = null; commandSheetOpen = false; subagentsOpen = false; contextOpen = false }
     val effortOptions = reasoningOptions
     val sheet: (@Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit)? = when {
         modelMenuOpen -> {
@@ -651,7 +652,11 @@ fun ModernChatScreen(
                         add(PlusCommand(com.dsh.core.designsystem.DshGlyphs.Cpu, stringResource(R.string.cmd_model), stringResource(R.string.cmd_model_desc)) { commandSheetOpen = false; modelMenuOpen = true })
                         add(PlusCommand(com.dsh.core.designsystem.DshGlyphs.Shield, stringResource(R.string.cmd_permission), stringResource(R.string.cmd_permission_desc)) { commandSheetOpen = false; permissionMenuOpen = true })
                         add(PlusCommand(com.dsh.core.designsystem.DshGlyphs.Msg, stringResource(R.string.cmd_feedback), stringResource(R.string.cmd_feedback_desc)) { command("feedback") })
-                        add(PlusCommand(com.dsh.core.designsystem.DshGlyphs.Share, stringResource(R.string.cmd_export), stringResource(R.string.cmd_export_desc)) { command("export") })
+                        if (messages.any { it.role == MessageRole.USER }) {
+                            add(PlusCommand(com.dsh.core.designsystem.DshGlyphs.Share, stringResource(R.string.sh_title), stringResource(R.string.dw_share_sub_chat)) { commandSheetOpen = false; shareOpen = true })
+                        }
+                        // «Экспорт» — журнал целиком для переноса или отладки; значок «скачать», чтобы не путать с «Поделиться».
+                        add(PlusCommand(com.dsh.core.designsystem.DshGlyphs.Down, stringResource(R.string.cmd_export), stringResource(R.string.cmd_export_desc)) { command("export") })
                         sheetSkills.value.forEach { sk -> add(PlusCommand(com.dsh.core.designsystem.DshGlyphs.Spark, "/${sk.name}", sk.description.ifBlank { null }) { commandSheetOpen = false; append("/${sk.name} ") }) }
                         hostCommands.forEach { hc -> add(PlusCommand(com.dsh.core.designsystem.DshGlyphs.Slash, "/${hc.name}", hc.description.ifBlank { null }) { command(hc.name) }) }
                     },
@@ -667,6 +672,25 @@ fun ModernChatScreen(
                     onPermissionSelected(preset)
                     pendingConfirm = null
                 }
+            }
+            body
+        }
+        shareOpen -> {
+            val body: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
+                val ctx = LocalContext.current
+                val copiedText = stringResource(R.string.sh_copied)
+                val title = sessionTitle?.takeIf { it.isNotBlank() } ?: stringResource(R.string.sh_title)
+                val date = remember { java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy", java.util.Locale.getDefault())) }
+                ShareSessionSheetBody(
+                    title, "DSH · $date", messages,
+                    onCopy = { text ->
+                        (ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
+                            .setPrimaryClip(android.content.ClipData.newPlainText(title, text))
+                        android.widget.Toast.makeText(ctx, copiedText, android.widget.Toast.LENGTH_SHORT).show()
+                        shareOpen = false
+                    },
+                    onShare = { text, name -> shareOpen = false; services.shareText(title, text, name) },
+                )
             }
             body
         }

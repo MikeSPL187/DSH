@@ -44,6 +44,9 @@ interface ChatServices {
     /** Выгрузить журнал сессии. */
     fun exportSession() {}
 
+    /** Отдать текст разговора системному «Поделиться» (длинный — файлом [fileName]). */
+    fun shareText(title: String, text: String, fileName: String) {}
+
     /** Что даст возврат к сообщению пользователя; null — возврат недоступен (пункта «Вернуться сюда» нет). */
     suspend fun rewindPlan(message: com.dsh.core.model.ChatMessage): RewindPlan? = null
 

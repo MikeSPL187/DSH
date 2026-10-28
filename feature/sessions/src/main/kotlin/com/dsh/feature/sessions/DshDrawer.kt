@@ -513,12 +513,14 @@ fun ColumnScope.SessionSheetBody(
     onPin: () -> Unit,
     onFork: () -> Unit,
     onArchive: () -> Unit,
+    onShare: (() -> Unit)? = null,
 ) {
     DshSheetTitle(session.title)
     DshSheetList {
         DshSheetItem(DshGlyphs.Pencil, stringResource(R.string.dw_rename), onRename, first = true)
         DshSheetItem(DshGlyphs.Pin, stringResource(if (session.pinned) R.string.dw_unpin else R.string.dw_pin), onPin)
         DshSheetItem(DshGlyphs.Git, stringResource(R.string.dw_fork), onFork, sub = stringResource(R.string.dw_fork_sub))
+        if (onShare != null) DshSheetItem(DshGlyphs.Share, stringResource(R.string.dw_share), onShare, sub = stringResource(R.string.dw_share_sub))
     }
     Spacer(Modifier.height(10.dp))
     DshSheetList {

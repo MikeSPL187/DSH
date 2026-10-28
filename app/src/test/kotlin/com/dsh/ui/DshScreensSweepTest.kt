@@ -1,5 +1,6 @@
 package com.dsh.ui
 
+import com.dsh.feature.sessions.SessionSheetBody
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -522,6 +523,7 @@ class DshScreensSweepTest {
                 "chat-msg-sheet" to @Composable { withRewind(rewindDemo) { chatAgent(done = true, sheet = "msg") } },
                 "chat-rewind-sheet" to @Composable { withRewind(rewindDemo) { chatAgent(done = true, sheet = "rewind") } },
                 "chat-rewind-many-sheet" to @Composable { withRewind(rewindMany) { chatAgent(done = true, sheet = "rewind") } },
+                "chat-share-sheet" to @Composable { chatAgent(done = true, sheet = "share") },
                 "chat-rewind-none-sheet" to @Composable { withRewind(com.dsh.feature.chat.RewindPlan(false, emptyList())) { chatAgent(done = true, sheet = "rewind") } },
             ),
         ),
@@ -574,6 +576,16 @@ class DshScreensSweepTest {
                 "chat-drawer" to @Composable { drawer() },
                 "chat-drawer-empty" to @Composable { drawer(emptyList()) },
                 "chat-drawer-search" to @Composable { drawer(query = "сборка") },
+                "chat-sess-sheet" to @Composable {
+                    com.dsh.core.designsystem.DshSheetScaffold(
+                        sheet = {
+                            SessionSheetBody(
+                                drawerSessions()[2], onRename = {}, onPin = {}, onFork = {}, onArchive = {}, onShare = {},
+                            )
+                        },
+                        onDismiss = {},
+                    ) { chatHome() }
+                },
             ),
         ),
     )

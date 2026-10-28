@@ -40,4 +40,6 @@
         <item quantity="one">%1$d session</item>
         <item quantity="other">%1$d sessions</item>
     </plurals>
+    <string name="dw_share">Share conversation</string>
+    <string name="dw_share_sub">As Markdown text, secrets hidden</string>
 </resources>

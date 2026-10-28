@@ -275,4 +275,31 @@
     </plurals>
     <string name="rw_failed">Не удалось вернуть файлы</string>
     <string name="rw_talk_new">Новая ветка разговора</string>
+    <!-- Поделиться разговором -->
+    <string name="sh_title">Поделиться разговором</string>
+    <string name="sh_you">Вы</string>
+    <string name="sh_agent">DSH</string>
+    <string name="sh_failed">ошибка</string>
+    <plurals name="sh_messages">
+        <item quantity="one">%d сообщение</item>
+        <item quantity="few">%d сообщения</item>
+        <item quantity="many">%d сообщений</item>
+        <item quantity="other">%d сообщения</item>
+    </plurals>
+    <plurals name="sh_steps">
+        <item quantity="one">%d шаг агента</item>
+        <item quantity="few">%d шага агента</item>
+        <item quantity="many">%d шагов агента</item>
+        <item quantity="other">%d шага агента</item>
+    </plurals>
+    <string name="sh_kb">%1$d КБ</string>
+    <string name="sh_steps_title">Шаги агента</string>
+    <string name="sh_steps_sub">Команды и изменённые файлы</string>
+    <string name="sh_secrets">Ключи и токены скрыты — видны только последние 4 символа</string>
+    <string name="sh_copy">Скопировать</string>
+    <string name="sh_go">Поделиться</string>
+    <string name="sh_copied">Разговор скопирован · секреты скрыты</string>
+    <string name="sh_loading">Загружаю переписку…</string>
+    <string name="sh_empty">Переписка ещё не загружена на этот телефон — откройте сессию и повторите.</string>
+    <string name="dw_share_sub_chat">Текстом Markdown, секреты скрыты</string>
 </resources>

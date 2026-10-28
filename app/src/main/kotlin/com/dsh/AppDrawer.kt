@@ -149,6 +149,10 @@ internal fun AppDrawer(
                         state.sheet = null
                         scope.launch { repository.setSessionArchived(ui.activeHostId, item.id, !item.archived) }
                     },
+                    onShare = {
+                        val title = display?.title?.takeIf { it.isNotBlank() } ?: item.title
+                        state.sheet = { ShareSessionSheet(context, repository, ui.activeHostId, item.id, title, projectName.orEmpty()) { state.sheet = null } }
+                    },
                 )
             }
         },

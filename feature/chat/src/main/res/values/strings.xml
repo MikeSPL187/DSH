@@ -267,4 +267,27 @@
     </plurals>
     <string name="rw_failed">Couldn’t restore files</string>
     <string name="rw_talk_new">New conversation branch</string>
+    <!-- Share conversation -->
+    <string name="sh_title">Share conversation</string>
+    <string name="sh_you">You</string>
+    <string name="sh_agent">DSH</string>
+    <string name="sh_failed">failed</string>
+    <plurals name="sh_messages">
+        <item quantity="one">%d message</item>
+        <item quantity="other">%d messages</item>
+    </plurals>
+    <plurals name="sh_steps">
+        <item quantity="one">%d agent step</item>
+        <item quantity="other">%d agent steps</item>
+    </plurals>
+    <string name="sh_kb">%1$d KB</string>
+    <string name="sh_steps_title">Agent steps</string>
+    <string name="sh_steps_sub">Commands and changed files</string>
+    <string name="sh_secrets">Keys and tokens are hidden — only the last 4 characters show</string>
+    <string name="sh_copy">Copy</string>
+    <string name="sh_go">Share</string>
+    <string name="sh_copied">Conversation copied · secrets hidden</string>
+    <string name="sh_loading">Loading the conversation…</string>
+    <string name="sh_empty">The conversation isn’t loaded on this phone yet — open the session and try again.</string>
+    <string name="dw_share_sub_chat">As Markdown text, secrets hidden</string>
 </resources>
