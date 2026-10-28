@@ -206,6 +206,15 @@ class ScreensGalleryTest {
         onAllNodes(androidx.compose.ui.test.hasText("{"))[0].performClick()
         mainClock.advanceTimeBy(600)
     }
+    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    @Test fun filesEditFind() = renderFiles("39d_files_edit_find_360") {
+        editFile("gradle", "libs.versions.toml")
+        onAllNodes(androidx.compose.ui.test.hasContentDescription("Найти и заменить"))[0].performClick()
+        mainClock.advanceTimeBy(400)
+        onAllNodes(androidx.compose.ui.test.hasContentDescription("Найти"))[0].performTextInput("version")
+        mainClock.autoAdvance = true; waitForIdle(); mainClock.autoAdvance = false
+        mainClock.advanceTimeBy(600)
+    }
     @Config(qualifiers = "ru-w412dp-h915dp-xxhdpi")
     @Test fun filesEditBinary() = renderFiles("39c_files_edit_binary_412", prepare = { java.io.File(it, "data.bin").writeBytes(byteArrayOf(1, 0, 2, 3)) }) { editFile("data.bin") }
 

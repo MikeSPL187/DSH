@@ -66,3 +66,23 @@ class FileEditorHistoryTest {
         assertEquals("ab x", e.value.text)
     }
 }
+
+class FindReplaceTest {
+    @Test
+    fun `find ignores case, replace all is one undo step`() {
+        assertEquals(listOf(0, 8), findAll("Version version", "version").let { listOf(it[0], it[1]) })
+        assertEquals(emptyList<Int>(), findAll("abc", ""))
+        assertEquals("x.x.x" to 3, replaceAll("a.A.a", "a", "x"))
+        val e = FileEditor()
+        e.change(androidx.compose.ui.text.input.TextFieldValue("kotlin = 1\nkotlin = 2"), now = 1)
+        e.findOpen = true; e.query = "KOTLIN"; e.replacement = "java"
+        e.seek(0)
+        assertEquals(0, e.current)
+        e.seek(1)
+        assertEquals(11, e.value.selection.start)
+        assertEquals(2, e.replaceEverything())
+        assertEquals("java = 1\njava = 2", e.value.text)
+        e.undo()
+        assertEquals("kotlin = 1\nkotlin = 2", e.value.text)
+    }
+}

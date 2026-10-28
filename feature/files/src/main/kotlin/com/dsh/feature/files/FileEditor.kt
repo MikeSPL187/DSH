@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
@@ -109,6 +110,53 @@ internal class FileEditor {
         value = TextFieldValue(v.text.substring(0, s) + text + v.text.substring(e), TextRange(s + text.length))
     }
 
+    // ── Найти и заменить ──
+    var findOpen by mutableStateOf(false)
+    var query by mutableStateOf("")
+    var replacement by mutableStateOf("")
+    /** Номер текущего совпадения; −1 — нет. */
+    var current by mutableStateOf(-1)
+    val matches: List<Int> get() = findAll(value.text, query)
+
+    /** Открыть поиск: выделенное слово (в одну строку) становится запросом. */
+    fun openFind() {
+        val v = value
+        val sel = v.text.substring(minOf(v.selection.start, v.selection.end), maxOf(v.selection.start, v.selection.end))
+        if (sel.isNotEmpty() && '\n' !in sel) query = sel
+        findOpen = true
+        seek(0)
+    }
+
+    /** К совпадению: [move] = 0 — первое от курсора, ±1 — следующее/предыдущее по кругу; выделяет его. */
+    fun seek(move: Int) {
+        val m = matches
+        if (m.isEmpty()) { current = -1; return }
+        current = if (move == 0) m.indexOfFirst { it >= minOf(value.selection.start, value.selection.end) }.let { if (it < 0) 0 else it }
+        else ((if (current < 0) 0 else current) + move + m.size) % m.size
+        val at = m[current]
+        value = value.copy(selection = TextRange(at, at + query.length))
+    }
+
+    fun replaceCurrent() {
+        val m = matches
+        if (m.isEmpty()) return
+        val at = m[current.coerceIn(0, m.lastIndex)]
+        snapshot(value, force = true, now = System.currentTimeMillis())
+        val t = value.text
+        value = TextFieldValue(t.substring(0, at) + replacement + t.substring(at + query.length), TextRange(at + replacement.length))
+        seek(0)
+    }
+
+    /** Заменить все (один шаг отмены); возвращает число замен. */
+    fun replaceEverything(): Int {
+        val (text, n) = replaceAll(value.text, query, replacement)
+        if (n == 0) return 0
+        snapshot(value, force = true, now = System.currentTimeMillis())
+        value = TextFieldValue(text, TextRange(minOf(value.selection.start, text.length)))
+        current = -1
+        return n
+    }
+
     private companion object {
         const val STEP_MS = 800L
         const val MAX_HISTORY = 200
@@ -142,6 +190,7 @@ internal fun EditView(file: File, editor: FileEditor) {
             )
             return@Column
         }
+        if (editor.findOpen) FindBar(editor)
         var focused by androidx.compose.runtime.remember { mutableStateOf(false) }
         val edge by animateColorAsState(if (focused) c.accent else c.line, tween(250), label = "fe-edge")
         val shape = RoundedCornerShape(16.dp)
@@ -152,6 +201,8 @@ internal fun EditView(file: File, editor: FileEditor) {
             cursorBrush = SolidColor(c.accent),
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false),
             enabled = editor.doc != null,
+            // Совпадения поиска подсвечены (текущее — ярче): поле не в фокусе выделения не показывает.
+            visualTransformation = if (editor.findOpen && editor.query.isNotEmpty()) MatchHighlight(editor.query, editor.matches, editor.current, c.accentSoft, c.accent.copy(alpha = 0.45f)) else androidx.compose.ui.text.input.VisualTransformation.None,
             modifier = Modifier.weight(1f).fillMaxWidth().clip(shape).background(c.s1).border(1.5.dp, edge, shape)
                 .padding(horizontal = 14.dp, vertical = 12.dp).onFocusChanged { focused = it.isFocused }.semantics { contentDescription = label },
         )
@@ -169,6 +220,7 @@ internal fun EditView(file: File, editor: FileEditor) {
             val tab = stringResource(R.string.fe_tab)
             HistoryKey(com.dsh.core.designsystem.DshGlyphs.Undo, stringResource(R.string.fe_undo), editor.canUndo) { editor.undo() }
             HistoryKey(com.dsh.core.designsystem.DshGlyphs.Redo, stringResource(R.string.fe_redo), editor.canRedo) { editor.redo() }
+            HistoryKey(com.dsh.core.designsystem.DshGlyphs.Search, stringResource(R.string.fe_find_open), editor.doc != null) { if (editor.findOpen) editor.findOpen = false else editor.openFind() }
             KEYS.forEach { k ->
                 Box(
                     Modifier.height(40.dp).widthIn(min = 40.dp).clip(RoundedCornerShape(11.dp)).background(c.s2)
@@ -178,6 +230,92 @@ internal fun EditView(file: File, editor: FileEditor) {
                 ) { Text(if (k == "\t") "⇥" else k, style = TextStyle(fontFamily = DshFonts.mono, fontSize = 14.sp), color = c.t1) }
             }
         }
+    }
+}
+
+/** Подсветка совпадений: все — мягким акцентом, текущее — плотнее. */
+private class MatchHighlight(
+    private val query: String,
+    private val matches: List<Int>,
+    private val current: Int,
+    private val soft: androidx.compose.ui.graphics.Color,
+    private val strong: androidx.compose.ui.graphics.Color,
+) : androidx.compose.ui.text.input.VisualTransformation {
+    override fun filter(text: androidx.compose.ui.text.AnnotatedString): androidx.compose.ui.text.input.TransformedText {
+        val b = androidx.compose.ui.text.AnnotatedString.Builder(text)
+        matches.forEachIndexed { i, at ->
+            if (at + query.length <= text.length) b.addStyle(androidx.compose.ui.text.SpanStyle(background = if (i == current) strong else soft), at, at + query.length)
+        }
+        return androidx.compose.ui.text.input.TransformedText(b.toAnnotatedString(), androidx.compose.ui.text.input.OffsetMapping.Identity)
+    }
+}
+
+/** `.fe-find`: «Найти» (N из M, ↑ ↓, ✕) и «Заменить на» («Заменить», «Все»). */
+@Composable
+private fun FindBar(editor: FileEditor) {
+    val c = Dsh.colors
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val m = editor.matches
+    Column(Modifier.padding(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            FindField(editor.query, { editor.query = it; editor.seek(0) }, stringResource(R.string.fe_find), Modifier.weight(1f))
+            Text(
+                when {
+                    editor.query.isEmpty() -> ""
+                    m.isEmpty() -> stringResource(R.string.fe_find_none)
+                    else -> stringResource(R.string.fe_find_n, editor.current + 1, m.size)
+                },
+                style = TextStyle(fontFamily = DshFonts.body, fontSize = 12.5.sp), color = if (editor.query.isNotEmpty() && m.isEmpty()) c.danger else c.t3,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.widthIn(min = 44.dp),
+            )
+            FindIcon(com.dsh.core.designsystem.DshGlyphs.Up, stringResource(R.string.fe_find_prev), m.isNotEmpty()) { editor.seek(-1) }
+            FindIcon(com.dsh.core.designsystem.DshGlyphs.Up, stringResource(R.string.fe_find_next), m.isNotEmpty(), rotate = 180f) { editor.seek(1) }
+            FindIcon(com.dsh.core.designsystem.DshGlyphs.get("x"), stringResource(R.string.fe_find_close), true) { editor.findOpen = false }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            FindField(editor.replacement, { editor.replacement = it }, stringResource(R.string.fe_replace_with), Modifier.weight(1f))
+            KBtn(stringResource(R.string.fe_replace), { editor.replaceCurrent() }, kind = BtnKind.Ghost, height = 40.dp, radius = 12.dp, fontSize = 13.5.sp, horizontal = 12.dp, enabled = m.isNotEmpty())
+            KBtn(
+                stringResource(R.string.fe_replace_all), {
+                    val n = editor.replaceEverything()
+                    if (n > 0) android.widget.Toast.makeText(ctx, ctx.getString(R.string.fe_replaced, n), android.widget.Toast.LENGTH_SHORT).show()
+                },
+                kind = BtnKind.Ghost, height = 40.dp, radius = 12.dp, fontSize = 13.5.sp, horizontal = 12.dp, enabled = m.isNotEmpty(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun FindField(value: String, onChange: (String) -> Unit, placeholder: String, modifier: Modifier) {
+    val c = Dsh.colors
+    var focused by androidx.compose.runtime.remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(12.dp)
+    Box(
+        modifier.height(40.dp).clip(shape).background(c.s1).border(1.5.dp, if (focused) c.accent else c.line, shape).padding(horizontal = 12.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        val style = TextStyle(fontFamily = DshFonts.mono, fontSize = 14.sp, color = c.t1)
+        if (value.isEmpty()) Text(placeholder, style = style.copy(fontFamily = DshFonts.body, color = c.t3), maxLines = 1)
+        BasicTextField(
+            value, onChange, singleLine = true, textStyle = style, cursorBrush = SolidColor(c.accent),
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false),
+            modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }.semantics { contentDescription = placeholder },
+        )
+    }
+}
+
+@Composable
+private fun FindIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, enabled: Boolean, rotate: Float = 0f, onClick: () -> Unit) {
+    val c = Dsh.colors
+    Box(
+        Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).clickable(enabled = enabled, role = Role.Button, onClick = onClick).semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        androidx.compose.material3.Icon(
+            icon, null, tint = if (enabled) c.t1 else c.t3.copy(alpha = 0.55f),
+            modifier = Modifier.size(18.dp).then(if (rotate != 0f) Modifier.rotate(rotate) else Modifier),
+        )
     }
 }
 

@@ -184,4 +184,15 @@
     <string name="fe_reloaded">Открыта новая версия файла</string>
     <string name="fe_undo">Отменить</string>
     <string name="fe_redo">Вернуть</string>
+    <string name="fe_find_open">Найти и заменить</string>
+    <string name="fe_find">Найти</string>
+    <string name="fe_find_none">нет</string>
+    <string name="fe_find_n">%1$d из %2$d</string>
+    <string name="fe_find_prev">Предыдущее</string>
+    <string name="fe_find_next">Следующее</string>
+    <string name="fe_find_close">Закрыть поиск</string>
+    <string name="fe_replace_with">Заменить на</string>
+    <string name="fe_replace">Заменить</string>
+    <string name="fe_replace_all">Все</string>
+    <string name="fe_replaced">Заменено: %1$d</string>
 </resources>

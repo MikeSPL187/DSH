@@ -183,4 +183,15 @@
     <string name="fe_reloaded">Opened the new version of the file</string>
     <string name="fe_undo">Undo</string>
     <string name="fe_redo">Redo</string>
+    <string name="fe_find_open">Find and replace</string>
+    <string name="fe_find">Find</string>
+    <string name="fe_find_none">none</string>
+    <string name="fe_find_n">%1$d of %2$d</string>
+    <string name="fe_find_prev">Previous</string>
+    <string name="fe_find_next">Next</string>
+    <string name="fe_find_close">Close search</string>
+    <string name="fe_replace_with">Replace with</string>
+    <string name="fe_replace">Replace</string>
+    <string name="fe_replace_all">All</string>
+    <string name="fe_replaced">Replaced: %1$d</string>
 </resources>

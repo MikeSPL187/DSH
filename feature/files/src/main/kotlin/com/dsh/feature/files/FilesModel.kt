@@ -287,3 +287,22 @@ internal fun saveEdit(file: File, text: String, crlf: Boolean, expected: Pair<Lo
     }
     SaveResult.Saved(stampOf(file))
 }
+/** Совпадения [query] в [text] без учёта регистра (начала, не пересекаются). */
+internal fun findAll(text: String, query: String): List<Int> {
+    if (query.isEmpty()) return emptyList()
+    val out = ArrayList<Int>()
+    var i = text.indexOf(query, ignoreCase = true)
+    while (i >= 0) { out += i; i = text.indexOf(query, i + query.length, ignoreCase = true) }
+    return out
+}
+
+/** Заменить все совпадения [query] на [replacement]; итог и сколько заменено. */
+internal fun replaceAll(text: String, query: String, replacement: String): Pair<String, Int> {
+    val m = findAll(text, query)
+    if (m.isEmpty()) return text to 0
+    val sb = StringBuilder()
+    var p = 0
+    for (i in m) { sb.append(text, p, i).append(replacement); p = i + query.length }
+    sb.append(text, p, text.length)
+    return sb.toString() to m.size
+}
