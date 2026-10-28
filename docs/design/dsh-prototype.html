@@ -980,6 +980,15 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .fe-area { flex: 1; width: 100%; min-height: 0; padding: 12px 14px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--s1); font-family: var(--font-mono); font-size: 13.5px; line-height: 1.55; color: var(--t1); resize: none; outline: none; white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; tab-size: 4; }
 .fe-area:focus { border-color: var(--accent); }
 .fe-keys { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 10px 0 14px; flex: none; }
+.fe-find { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin-bottom: 8px; flex: none; }
+.fe-find .row { display: flex; align-items: center; gap: 6px; }
+.fe-find input { flex: 1; min-width: 0; height: 40px; padding: 0 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--s1); font-family: var(--font-mono); font-size: 14px; color: var(--t1); outline: none; }
+.fe-find input:focus { border-color: var(--accent); }
+.fe-find .cnt { flex: none; min-width: 44px; text-align: center; font-size: 12.5px; color: var(--t3); }
+.fe-find .cnt.none { color: var(--danger); }
+.fe-find .iconbtn { width: 40px; height: 40px; flex: none; }
+.fe-find .fb { height: 40px; padding: 0 12px; border-radius: 12px; background: var(--s2); font-size: 13.5px; font-weight: 500; color: var(--t1); flex: none; }
+.fe-find .fb[disabled] { color: var(--t3); }
 .fe-keys button[disabled] { color: var(--t3); opacity: .55; }
 .fe-keys button .i { display: block; margin: auto; }
 .fe-keys button { height: 40px; min-width: 40px; padding: 0 10px; border-radius: 11px; background: var(--s2); font-family: var(--font-mono); font-size: 14px; color: var(--t1); flex: none; }
@@ -3038,9 +3047,13 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   function viewEdit(path) {
     const v = document.createElement("div"); v.className = "fs-view fe-view";
     const src = SRC[path] || `// ${path.split("/").pop()}\n`;
-    v.innerHTML = `<textarea class="fe-area" id="feArea" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Текст файла"></textarea>
+    v.innerHTML = `<div class="fe-find" id="feFind" hidden>
+        <div class="row"><input id="feQ" placeholder="Найти" aria-label="Найти в файле" autocomplete="off" spellcheck="false" autocapitalize="off"><span class="cnt" id="feCnt"></span><button class="iconbtn" data-fef="prev" aria-label="Предыдущее"><svg class="i sm"><use href="#i-up"/></svg></button><button class="iconbtn" data-fef="next" aria-label="Следующее"><svg class="i sm" style="transform:rotate(180deg)"><use href="#i-up"/></svg></button><button class="iconbtn" data-fef="close" aria-label="Закрыть поиск"><svg class="i sm"><use href="#i-x"/></svg></button></div>
+        <div class="row"><input id="feR" placeholder="Заменить на" aria-label="Заменить на" autocomplete="off" spellcheck="false" autocapitalize="off"><button class="fb" data-fef="one" disabled>Заменить</button><button class="fb" data-fef="all" disabled>Все</button></div>
+      </div>
+      <textarea class="fe-area" id="feArea" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Текст файла"></textarea>
       <div class="fe-pos" id="fePos">строка 1, столбец 1</div>
-      <div class="fe-keys" role="toolbar" aria-label="Символы"><button data-feu="undo" aria-label="Отменить" disabled><svg class="i sm"><use href="#i-undo"/></svg></button><button data-feu="redo" aria-label="Вернуть" disabled><svg class="i sm"><use href="#i-redo"/></svg></button>${["Tab", "{", "}", "(", ")", "[", "]", "<", ">", "=", ";", ":", "\"", "'", "/", "|", "&", "-", "_"].map((k) => `<button data-fek="${k === "\"" ? "&quot;" : k}" aria-label="${k === "Tab" ? "Табуляция" : k === "\"" ? "Кавычка" : k}">${k === "Tab" ? "⇥" : esc2(k)}</button>`).join("")}</div>`;
+      <div class="fe-keys" role="toolbar" aria-label="Символы"><button data-feu="undo" aria-label="Отменить" disabled><svg class="i sm"><use href="#i-undo"/></svg></button><button data-feu="redo" aria-label="Вернуть" disabled><svg class="i sm"><use href="#i-redo"/></svg></button><button data-fef="open" aria-label="Найти и заменить"><svg class="i sm"><use href="#i-search"/></svg></button>${["Tab", "{", "}", "(", ")", "[", "]", "<", ">", "=", ";", ":", "\"", "'", "/", "|", "&", "-", "_"].map((k) => `<button data-fek="${k === "\"" ? "&quot;" : k}" aria-label="${k === "Tab" ? "Табуляция" : k === "\"" ? "Кавычка" : k}">${k === "Tab" ? "⇥" : esc2(k)}</button>`).join("")}</div>`;
     $("textarea", v).value = src; FE.path = path; FE.stamp = 0; FE.undo = []; FE.redo = []; FE.last = 0;
     return v;
   }
@@ -3059,6 +3072,32 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     const u = e.target.closest("[data-feu]");
     if (u) { const a = $("#feArea"), from = u.dataset.feu === "undo" ? FE.undo : FE.redo, to = u.dataset.feu === "undo" ? FE.redo : FE.undo; if (!from.length) return; to.push(a.value); a.value = from.pop(); FE.last = 0; feUndoBtns(); feDirty(a.value !== (SRC[FE.path] || "")); a.focus(); fePos(); return; }
     if (e.target.closest("#feSave")) { if (FE.stamp) { sheetOpen("feconflict"); return; } feSaved(); }
+  });
+  // Найти и заменить: совпадения без учёта регистра, текущее — выделено в поле; «Все» — один шаг истории.
+  const FF = { at: -1 };
+  function ffMatches() { const q = $("#feQ").value; if (!q) return []; const t = $("#feArea").value.toLowerCase(), ql = q.toLowerCase(), out = []; for (let i = t.indexOf(ql); i >= 0; i = t.indexOf(ql, i + Math.max(1, ql.length))) out.push(i); return out; }
+  function ffShow(move) {
+    const m = ffMatches(), a = $("#feArea"), q = $("#feQ").value, cnt = $("#feCnt");
+    if (!m.length) { FF.at = -1; cnt.textContent = q ? "нет" : ""; cnt.classList.toggle("none", !!q); }
+    else {
+      if (move) FF.at = (FF.at + move + m.length) % m.length; else FF.at = Math.max(0, m.findIndex((i) => i >= a.selectionStart));
+      if (FF.at < 0) FF.at = 0; cnt.classList.remove("none"); cnt.textContent = `${FF.at + 1} из ${m.length}`;
+      a.setSelectionRange(m[FF.at], m[FF.at] + q.length);
+    }
+    $$('[data-fef="one"], [data-fef="all"]').forEach((b) => b.disabled = !m.length);
+  }
+  document.addEventListener("input", (e) => { if (e.target.id === "feQ") ffShow(0); });
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-fef]"); if (!b) return;
+    const k = b.dataset.fef, f = $("#feFind"), a = $("#feArea");
+    if (k === "open") { f.hidden = !f.hidden; if (!f.hidden) { const sel = a.value.slice(a.selectionStart, a.selectionEnd); if (sel && !sel.includes("\n")) $("#feQ").value = sel; $("#feQ").focus(); ffShow(0); } return; }
+    if (k === "close") { f.hidden = true; a.focus(); return; }
+    if (k === "prev" || k === "next") { ffShow(k === "next" ? 1 : -1); return; }
+    const q = $("#feQ").value, r = $("#feR").value, m = ffMatches(); if (!m.length) return;
+    FE.prev = a.value; feSnap(true);
+    if (k === "one") { const i = m[Math.max(0, FF.at)]; a.setRangeText(r, i, i + q.length, "end"); }
+    else { let t = a.value, low = t.toLowerCase(), ql = q.toLowerCase(), out = "", p = 0; for (const i of m) { out += t.slice(p, i) + r; p = i + q.length; } a.value = out + t.slice(p); toast(`Заменено: ${m.length}`); }
+    feDirty(a.value !== (SRC[FE.path] || "")); ffShow(0);
   });
   function feSaved() { SRC[FE.path] = $("#feArea").value; feDirty(false); toast("Сохранено"); }
   $("#feOverwrite").addEventListener("click", () => { FE.stamp = 0; sheetClose(); feSaved(); });
