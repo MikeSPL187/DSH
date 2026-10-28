@@ -36,6 +36,8 @@ class ChatSender(
     private val pendingMessages: SnapshotStateList<ChatMessage>,
     private val attachments: SnapshotStateList<ChatAttachment>,
     private val workspaceRoot: () -> File,
+    /** Точки возврата файлов открытого проекта; null — недоступны. */
+    private val checkpoints: () -> com.dsh.runtime.host.FileCheckpoints? = { null },
 ) {
     /** Что отправить: текст пузыря, текст для Host (с префиксом плана), картинки и модель новой сессии. */
     private data class Outgoing(
@@ -204,14 +206,28 @@ class ChatSender(
                 runCatching { PromptImageEncoder.encode(file, mediaType, name) }.getOrNull()
             }
         }
+        snapshotBefore(sid, outgoing.prompt)
         return repository.sendMessage(ui.activeHostId, sid, outgoing.prompt, encodedImages)
             .exceptionOrNull()?.let { it.message.orEmpty() }
+    }
+
+    /**
+     * Точка возврата файлов перед сообщением. Ждём её не дольше [SNAPSHOT_WAIT_MS]: обычно снимок после прогрева
+     * занимает доли секунды, а первая правка агента случается не раньше ответа модели. Не успела — снимок
+     * доделается в фоне, отправка не задерживается; не снялась — отправка от этого не зависит.
+     */
+    private suspend fun snapshotBefore(sid: String, prompt: String) {
+        val cp = checkpoints() ?: return
+        val job = scope.launch(kotlinx.coroutines.Dispatchers.IO) { cp.snapshot(sid, prompt) }
+        kotlinx.coroutines.withTimeoutOrNull(SNAPSHOT_WAIT_MS) { job.join() }
     }
 
     private fun toast(text: String, long: Boolean = false) = android.widget.Toast.makeText(
         context, text, if (long) android.widget.Toast.LENGTH_LONG else android.widget.Toast.LENGTH_SHORT,
     ).show()
 }
+
+private const val SNAPSHOT_WAIT_MS = 2_000L
 
 /** Тип картинки, которая уходит частью image внутри prompt; null — файл уходит ссылкой @. */
 private fun imageTypeOf(name: String): String? = when (name.substringAfterLast('.', "").lowercase()) {

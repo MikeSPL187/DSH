@@ -15,7 +15,7 @@ import java.io.File
 object StorageScanner {
     private const val WEEK = 7 * 86_400_000L
 
-    fun scan(context: Context, rootfs: File?, workspace: File?, logsDir: File): StorageUsage {
+    fun scan(context: Context, rootfs: File?, workspace: File?, logsDir: File, checkpointsDir: File? = null): StorageUsage {
         val files = context.filesDir.parentFile ?: context.filesDir
         val linux = rootfs?.let(::size) ?: 0L
         val projects = workspace?.takeIf { it.exists() }?.let(::size) ?: 0L
@@ -25,12 +25,13 @@ object StorageScanner {
         val other = (all - (if (inside(rootfs)) linux else 0) - (if (inside(workspace)) projects else 0) - size(context.cacheDir)).coerceAtLeast(0)
         val logs = oldLogs(logsDir).sumOf { it.length() }
         val device = runCatching { StatFs(context.filesDir.absolutePath).totalBytes }.getOrDefault(0L)
-        return StorageUsage(linux, projects, cache, other, logs, device)
+        return StorageUsage(linux, projects, cache, other, logs, device, checkpoints = checkpointsDir?.takeIf { it.exists() }?.let(::size) ?: 0L)
     }
 
     /** Очистить: `cache` — кэш приложения, `logs` — старые журналы. Возвращает освобождённые байты. */
-    fun clean(context: Context, kind: String, logsDir: File): Long = when (kind) {
+    fun clean(context: Context, kind: String, logsDir: File, checkpointsDir: File? = null): Long = when (kind) {
         "cache" -> cleanCache(listOfNotNull(context.cacheDir, context.externalCacheDir))
+        "checkpoints" -> checkpointsDir?.let { cleanCache(listOf(it)) } ?: 0L
         "logs" -> oldLogs(logsDir).sumOf { f -> val l = f.length(); if (f.delete()) l else 0L }
         else -> 0L
     }

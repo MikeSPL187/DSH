@@ -515,9 +515,16 @@ fun MainAppHost(
     fun workspaceLabelOf(name: String) = if (name == DEFAULT_WORKSPACE_DIR_NAME) defaultWorkspaceLabel else name
     val currentWorkspace = androidx.compose.runtime.rememberUpdatedState(activeWorkspace)
     val chatSender = remember(dshRepository, runtimeManager) {
-        ChatSender(context, scope, dshRepository, ui, runtimeUi, runtimeManager, pendingMessages, chatAttachments) { currentWorkspace.value }
+        ChatSender(
+            context, scope, dshRepository, ui, runtimeUi, runtimeManager, pendingMessages, chatAttachments, { currentWorkspace.value },
+            checkpoints = { ProjectCheckpoints.of(java.io.File(currentWorkspace.value, runtimeUi.activeWorkspaceName), layout) },
+        )
     }
     val activeWorkspaceFolderPath = java.io.File(activeWorkspace, runtimeUi.activeWorkspaceName).absolutePath
+    // Прогрев точек возврата: первый снимок большой папки долгий — пусть он пройдёт до первого сообщения.
+    LaunchedEffect(activeWorkspaceFolderPath) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { ProjectCheckpoints.of(java.io.File(activeWorkspaceFolderPath), layout).warm() }
+    }
 
     // Системный выбор файлов (SAF): несколько картинок или любых файлов копируются в
     // рабочую папку и показываются в поле ввода; при отправке — ссылкой @<путь> в начале сообщения.
@@ -863,7 +870,13 @@ fun MainAppHost(
         if (!terminalSupported && ui.activePage == ActivePage.TERMINAL) ui.activePage = ActivePage.CHAT
     }
 
-    val chatServices = remember(dshRepository) { AppChatServices(context, dshRepository, ui, scope) }
+    val chatServices = remember(dshRepository) {
+        AppChatServices(
+            context, dshRepository, ui, scope,
+            checkpoints = { ProjectCheckpoints.of(java.io.File(currentWorkspace.value, runtimeUi.activeWorkspaceName), layout) },
+            onDraft = { text -> runtimeUi.voiceTranscript = text },
+        )
+    }
     androidx.compose.runtime.CompositionLocalProvider(com.dsh.feature.chat.LocalChatServices provides chatServices) {
     Box(modifier = Modifier.fillMaxSize()) {
         com.dsh.core.designsystem.DshSheetScaffold(

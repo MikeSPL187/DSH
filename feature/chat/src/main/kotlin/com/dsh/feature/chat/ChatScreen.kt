@@ -318,7 +318,8 @@ fun ModernChatScreen(
     var subagentsOpen by remember { mutableStateOf(initialSheet == "subagents") }
     var contextOpen by remember { mutableStateOf(initialSheet == "context") }
     var trajectoryOpen by remember { mutableStateOf(false) }
-    var actionMessage by remember { mutableStateOf<ChatMessage?>(null) }
+    var actionMessage by remember { mutableStateOf(if (initialSheet == "msg") messages.firstOrNull { it.role == MessageRole.USER } else null) }
+    var rewindMessage by remember { mutableStateOf(if (initialSheet == "rewind") messages.firstOrNull { it.role == MessageRole.USER } else null) }
     val localContext = LocalContext.current
     // Навыки читаются при каждом открытии меню: .dsh/skills рабочей папки могли только что поменяться.
     val sheetSkills = remember { mutableStateOf(skills) }
@@ -565,7 +566,7 @@ fun ModernChatScreen(
             lastScroll = y
         }
     }
-    val closeSheets = { actionMessage = null; trajectoryOpen = false; pendingConfirm = null; modelMenuOpen = false; permissionMenuOpen = false; agentPresetMenuOpen = false; toolDetail = null; changeDiffIndex = null; commandSheetOpen = false; subagentsOpen = false; contextOpen = false }
+    val closeSheets = { actionMessage = null; rewindMessage = null; trajectoryOpen = false; pendingConfirm = null; modelMenuOpen = false; permissionMenuOpen = false; agentPresetMenuOpen = false; toolDetail = null; changeDiffIndex = null; commandSheetOpen = false; subagentsOpen = false; contextOpen = false }
     val effortOptions = reasoningOptions
     val sheet: (@Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit)? = when {
         modelMenuOpen -> {
@@ -669,11 +670,24 @@ fun ModernChatScreen(
             }
             body
         }
+        rewindMessage != null -> {
+            val m = rewindMessage!!
+            val body: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
+                val ctx = LocalContext.current
+                RewindSheetBody(m, services) { text ->
+                    rewindMessage = null
+                    text?.let { android.widget.Toast.makeText(ctx, it, android.widget.Toast.LENGTH_SHORT).show() }
+                }
+            }
+            body
+        }
         actionMessage != null -> {
             val m = actionMessage!!
             val body: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
                 val ctx = LocalContext.current
                 val copied = stringResource(R.string.ck_copied)
+                val canUndo = services.canUndoRewind()
+                val undoScope = rememberCoroutineScope()
                 MessageActionsBody(
                     message = m,
                     onCopy = { text ->
@@ -683,6 +697,15 @@ fun ModernChatScreen(
                     },
                     onFork = services::forkAt,
                     onDismiss = { actionMessage = null },
+                    onRewind = { actionMessage = null; rewindMessage = m },
+                    onUndo = if (canUndo) ({
+                        actionMessage = null
+                        undoScope.launch {
+                            val r = services.undoRewind()
+                            val text = r.fold({ n -> ctx.resources.getQuantityString(R.plurals.rw_undone, n, n) }, { ctx.getString(R.string.rw_failed) })
+                            android.widget.Toast.makeText(ctx, text, android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }) else null,
                 )
             }
             body

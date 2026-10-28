@@ -289,6 +289,8 @@
     <string name="st_cache_sub">Rebuilt when needed</string>
     <string name="st_logs">Logs</string>
     <string name="st_logs_sub">Older than 7 days</string>
+    <string name="st_checkpoints">File checkpoints</string>
+    <string name="st_checkpoints_sub">You won’t be able to go back to older messages</string>
     <string name="st_done">Done</string>
     <string name="st_freed">Freed %1$s</string>
     <string name="st_backup">Backup</string>

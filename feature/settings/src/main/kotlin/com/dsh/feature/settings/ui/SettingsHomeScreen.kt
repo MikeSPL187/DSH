@@ -97,6 +97,8 @@ data class StorageUsage(
     val other: Long = 0,
     val logs: Long = 0,
     val device: Long = 0,
+    /** Точки возврата файлов (часть «Прочего»): очистка — и вернуться к старым сообщениям будет нельзя. */
+    val checkpoints: Long = 0,
 ) {
     val total: Long get() = linux + projects + cache + other
 }
@@ -238,7 +240,7 @@ interface SettingsActions {
     fun pairRemote() {}
     fun openTerminal() {}
     fun shareHostLog() {}
-    /** Очистить кэш ("cache") или журналы ("logs"); возвращает освобождённые байты. */
+    /** Очистить кэш ("cache"), журналы ("logs") или точки возврата файлов ("checkpoints"); возвращает освобождённые байты. */
     suspend fun clean(kind: String): Long = 0
     fun exportSessions() {}
     fun restoreBackup() {}
@@ -1014,6 +1016,7 @@ private fun StoragePage(ui: SettingsUi, a: SettingsActions, toast: ToastState) {
         Gl {
             row { CleanRow(stringResource(R.string.st_cache), stringResource(R.string.st_cache_sub), s?.cache, "cache", a, toast) }
             row { CleanRow(stringResource(R.string.st_logs), stringResource(R.string.st_logs_sub), s?.logs, "logs", a, toast) }
+            row { CleanRow(stringResource(R.string.st_checkpoints), stringResource(R.string.st_checkpoints_sub), s?.checkpoints, "checkpoints", a, toast) }
         }
         GLabel(stringResource(R.string.st_workspace))
         Gl(Modifier.selectableGroup()) {

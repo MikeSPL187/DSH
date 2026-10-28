@@ -175,7 +175,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
 
     // Место на телефоне.
     var storage by remember { mutableStateOf<StorageUsage?>(null) }
-    LaunchedEffect(tick) { storage = withContext(Dispatchers.IO) { StorageScanner.scan(context, d.layout.rootfsDir, d.workspace, d.layout.logsDir) } }
+    LaunchedEffect(tick) { storage = withContext(Dispatchers.IO) { StorageScanner.scan(context, d.layout.rootfsDir, d.workspace, d.layout.logsDir, java.io.File(d.layout.runtimeMetaDir, "checkpoints")) } }
 
     // Рабочая папка и тема — живые значения, без перезапуска экрана.
     var sharedWs by remember { mutableStateOf(!StorageAccess.usesPrivateWorkspace(context)) }
@@ -516,7 +516,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         }
 
         override suspend fun clean(kind: String): Long {
-            val freed = withContext(Dispatchers.IO) { StorageScanner.clean(context, kind, d.layout.logsDir) }
+            val freed = withContext(Dispatchers.IO) { StorageScanner.clean(context, kind, d.layout.logsDir, java.io.File(d.layout.runtimeMetaDir, "checkpoints")) }
             tick++
             return freed
         }

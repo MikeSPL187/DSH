@@ -1318,6 +1318,18 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
 .main.net-on .thread { padding-top: 172px; }
 .thread { transition: padding-top var(--t-smooth) var(--e-smooth); }
 .msg-user.pending { opacity: .6; }
+.msg-user { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.msg-user.held { transform: scale(.97); transition: transform .2s; }
+/* Возврат к сообщению: цитата, что изменится, варианты */
+.rw-quote { margin: -6px 4px 14px; padding-left: 10px; border-left: 3px solid var(--line); font-size: 14px; line-height: 1.45; color: var(--t2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.rw-files { margin-bottom: 12px; border-radius: 18px; background: var(--s2); padding: 4px 14px; }
+.rw-files .rf { display: flex; align-items: center; gap: 10px; min-height: 40px; font-size: 13px; }
+.rw-files .rf + .rf { border-top: 1px solid var(--line); }
+.rw-files .rf span { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: 12.5px; color: var(--t1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rw-files .rf b { flex: none; font-weight: 500; font-size: 12.5px; }
+.rw-files .rf b.mod { color: var(--t2); } .rw-files .rf b.add { color: var(--danger); } .rw-files .rf b.del { color: var(--ok); }
+.rw-files .more { min-height: 36px; display: flex; align-items: center; font-size: 13px; color: var(--t3); border-top: 1px solid var(--line); }
+.rw-note { margin: -4px 4px 14px; font-size: 13.5px; line-height: 1.45; color: var(--t2); }
 .msg-user .pend { display: block; margin-top: 4px; font-size: 12px; color: var(--t3); }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1693,6 +1705,22 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <div class="glabel">Автор</div>
         <div id="cmWho"></div>
         <div class="cm-btns"><button class="btn ghost" data-act="close">Отмена</button><button class="btn primary" id="cmGo" disabled>Закоммитить</button></div>
+      </section>
+
+      <!-- Лист: действия с сообщением (долгое нажатие) -->
+      <section class="sheet" id="sheet-msg" aria-label="Сообщение">
+        <div class="grab"></div>
+        <h3>Сообщение</h3>
+        <div class="list" id="msgList"></div>
+      </section>
+
+      <!-- Лист: вернуться к сообщению -->
+      <section class="sheet" id="sheet-rewind" aria-label="Вернуться к сообщению">
+        <div class="grab"></div>
+        <h3>Вернуться к сообщению</h3>
+        <p class="rw-quote" id="rwQuote"></p>
+        <div id="rwBody"></div>
+        <div class="list" id="rwList"></div>
       </section>
 
       <!-- Лист: новая ветка для неотправленных коммитов -->
@@ -3528,7 +3556,8 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <div class="leg"><span><i style="background:#5a4cf0"></i>Linux 1,2 ГБ</span><span><i style="background:#2f7de1"></i>Проекты 1,3 ГБ</span><span><i style="background:#d97706"></i>Кэш 410 МБ</span><span><i style="background:#6b7280"></i>Прочее 240 МБ</span></div></div>
       <div class="glabel">Освободить место</div>
       <div class="gl"><div class="st-row"><span class="tx">Кэш сборок и пакетов<small>Пересоздастся при необходимости</small></span><button class="clean" data-stclean="410 МБ">410 МБ</button></div>
-        <div class="st-row"><span class="tx">Журналы<small>Старше 7 дней</small></span><button class="clean" data-stclean="38 МБ">38 МБ</button></div></div>
+        <div class="st-row"><span class="tx">Журналы<small>Старше 7 дней</small></span><button class="clean" data-stclean="38 МБ">38 МБ</button></div>
+        <div class="st-row"><span class="tx">Точки возврата файлов<small>Вернуться к старым сообщениям будет нельзя</small></span><button class="clean" data-stclean="96 МБ">96 МБ</button></div></div>
       <div class="glabel">Рабочая папка</div>
       <div class="gl" role="radiogroup">${[["private", "Внутри DSH", "Приватно, разрешения не нужны"], ["shared", "В памяти телефона", "Видна другим приложениям, нужен доступ ко всем файлам"]].map(([k, n, d]) => `<button class="rad" role="radio" aria-checked="${ST.ws === k}" data-stws="${k}"><span class="ob-radio"></span><span class="tx">${n}<small>${d}</small></span></button>`).join("")}</div>
       <div class="glabel">Резервная копия</div>
@@ -3911,6 +3940,45 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   $("#mcpDel").addEventListener("click", () => {
     if (!mcpDelArm) { mcpDelArm = true; $("#mcpDel").textContent = "Ещё раз — удалить"; return; }
     MCP.list = MCP.list.filter((m) => m.name !== mcpSel); MCP.pending = true; sheetClose(); stRefresh(); toast("Удалено · нужен перезапуск Host");
+  });
+
+  // ── Сообщение: долгое нажатие → действия; «Вернуться сюда» → файлы и/или разговор ──
+  // Точка возврата файлов снимается перед каждым сообщением; демо — агент после этого сообщения изменил 2 файла.
+  const RW = { msg: null, undo: false, files: [["gradle/libs.versions.toml", "mod"], ["scripts/backup.sh", "add"]] };
+  const RW_KIND = { mod: "изменится", add: "удалится", del: "вернётся" };
+  function liHtml(id, icon, title, sub, danger) { return `<button class="li${danger ? " fa-del" : ""}" id="${id}"><span class="lic"><svg class="i sm"><use href="#${icon}"/></svg></span><span class="tx">${title}${sub ? `<small>${sub}</small>` : ""}</span></button>`; }
+  function msgSheet(el) {
+    RW.msg = el;
+    $("#msgList").innerHTML = liHtml("maCopy", "i-copy", "Копировать текст") + liHtml("maFork", "i-flow", "Ответвить отсюда", "Новая сессия с этого места")
+      + liHtml("maRewind", "i-undo", "Вернуться сюда", "Файлы и разговор — на выбор") + (RW.undo ? liHtml("maUndo", "i-redo", "Отменить возврат файлов", "Файлы станут как до возврата") : "");
+    sheetOpen("msg");
+  }
+  function rwSheet() {
+    $("#rwQuote").textContent = RW.msg.textContent;
+    const n = RW.files.length;
+    $("#rwBody").innerHTML = !n ? `<p class="rw-note">Файлы с этого сообщения не менялись.</p>`
+      : `<div class="glabel" style="margin-top:0">После возврата · ${n} ${n === 1 ? "файл" : n < 5 ? "файла" : "файлов"}</div><div class="rw-files">${RW.files.slice(0, 4).map(([f, k]) => `<div class="rf"><span>${esc2(f)}</span><b class="${k}">${RW_KIND[k]}</b></div>`).join("")}${n > 4 ? `<div class="more">и ещё ${n - 4}</div>` : ""}</div>`;
+    $("#rwList").innerHTML = (n ? liHtml("rwFiles", "i-undo", "Вернуть файлы", "Разговор останется как есть") + liHtml("rwBoth", "i-flow", "Вернуть файлы и разговор", "Новая ветка до этого сообщения, его текст — в поле ввода") : "")
+      + liHtml("rwTalk", "i-flow", n ? "Только разговор" : "Вернуть разговор", n ? "Файлы не меняются" : "Новая ветка до этого сообщения, его текст — в поле ввода");
+    sheetOpen("rewind");
+  }
+  let holdT = null;
+  thread.addEventListener("contextmenu", (e) => { const m = e.target.closest(".msg-user"); if (!m) return; e.preventDefault(); msgSheet(m); });
+  thread.addEventListener("pointerdown", (e) => { const m = e.target.closest(".msg-user"); if (!m) return; m.classList.add("held"); holdT = setTimeout(() => { m.classList.remove("held"); msgSheet(m); }, 500); });
+  ["pointerup", "pointercancel", "pointerleave"].forEach((ev) => thread.addEventListener(ev, () => { clearTimeout(holdT); $$(".msg-user.held", thread).forEach((m) => m.classList.remove("held")); }));
+  document.addEventListener("click", (e) => {
+    const id = e.target.closest("#msgList .li, #rwList .li")?.id; if (!id) return;
+    if (id === "maCopy") { sheetClose(); toast("Текст скопирован"); }
+    if (id === "maFork") { sheetClose(); toast("Новая сессия с этого места"); }
+    if (id === "maRewind") { sheetClose(); setTimeout(rwSheet, 320); }
+    if (id === "maUndo") { RW.undo = false; RW.files = [["gradle/libs.versions.toml", "mod"], ["scripts/backup.sh", "add"]]; sheetClose(); toast("Возврат файлов отменён · 2 файла"); }
+    if (id === "rwFiles") { const n = RW.files.length; RW.undo = true; RW.files = []; sheetClose(); toast(`Файлы возвращены · ${n} ${n === 1 ? "файл" : "файла"}`); }
+    if (id === "rwBoth" || id === "rwTalk") {
+      const text = RW.msg.textContent, n = RW.files.length;
+      if (id === "rwBoth") { RW.undo = true; RW.files = []; }
+      sheetClose(); toast(id === "rwBoth" ? `Файлы возвращены · ${n} ${n === 1 ? "файл" : "файла"} · новая ветка разговора` : "Новая ветка разговора");
+      const f = $("#field"); f.textContent = text; f.dispatchEvent(new Event("input", { bubbles: true }));
+    }
   });
 
   // ── Новая ветка и запрос на слияние ──

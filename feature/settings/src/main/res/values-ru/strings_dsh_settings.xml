@@ -295,6 +295,8 @@
     <string name="st_cache_sub">Пересоздастся при необходимости</string>
     <string name="st_logs">Журналы</string>
     <string name="st_logs_sub">Старше 7 дней</string>
+    <string name="st_checkpoints">Точки возврата файлов</string>
+    <string name="st_checkpoints_sub">Вернуться к старым сообщениям будет нельзя</string>
     <string name="st_done">Готово</string>
     <string name="st_freed">Освобождено %1$s</string>
     <string name="st_backup">Резервная копия</string>

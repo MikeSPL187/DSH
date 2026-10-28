@@ -228,4 +228,43 @@
     </plurals>
     <string name="secret_warning">The message contains a key %1$s — the agent and the session log will get it in full</string>
     <string name="secret_remove">Remove</string>
+    <!-- Rewind to a message -->
+    <string name="message_action_fork_sub">New session from this point</string>
+    <string name="rw_here">Go back here</string>
+    <string name="rw_here_sub">Files, conversation or both</string>
+    <string name="rw_undo">Undo file restore</string>
+    <string name="rw_undo_sub">Files go back to how they were before it</string>
+    <string name="rw_title">Go back to message</string>
+    <string name="rw_loading">Comparing files…</string>
+    <string name="rw_no_point">There’s no file checkpoint for this message: one is taken before every message starting with this DSH version.</string>
+    <string name="rw_unchanged">Files haven’t changed since this message.</string>
+    <plurals name="rw_after">
+        <item quantity="one">After going back · %d file</item>
+        <item quantity="other">After going back · %d files</item>
+    </plurals>
+    <string name="rw_mod">changes</string>
+    <string name="rw_removed">is deleted</string>
+    <string name="rw_restored">comes back</string>
+    <string name="rw_more">and %1$d more</string>
+    <string name="rw_files">Restore files</string>
+    <string name="rw_files_sub">The conversation stays as it is</string>
+    <string name="rw_both">Restore files and conversation</string>
+    <string name="rw_both_sub">New branch before this message, its text goes to the input</string>
+    <string name="rw_talk">Conversation only</string>
+    <string name="rw_talk_sub">Files don’t change</string>
+    <string name="rw_talk_only">Restore conversation</string>
+    <plurals name="rw_done">
+        <item quantity="one">Files restored · %d file</item>
+        <item quantity="other">Files restored · %d files</item>
+    </plurals>
+    <plurals name="rw_done_both">
+        <item quantity="one">Files restored · %d file · new conversation branch</item>
+        <item quantity="other">Files restored · %d files · new conversation branch</item>
+    </plurals>
+    <plurals name="rw_undone">
+        <item quantity="one">File restore undone · %d file</item>
+        <item quantity="other">File restore undone · %d files</item>
+    </plurals>
+    <string name="rw_failed">Couldn’t restore files</string>
+    <string name="rw_talk_new">New conversation branch</string>
 </resources>

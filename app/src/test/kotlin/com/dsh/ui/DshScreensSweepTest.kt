@@ -439,6 +439,30 @@ class DshScreensSweepTest {
         uncachedInputTokens = 182_000, cacheReadTokens = 640_000, outputTokens = 46_000,
     )
 
+    private val rewindDemo = com.dsh.feature.chat.RewindPlan(
+        true, listOf("gradle/libs.versions.toml" to com.dsh.feature.chat.RewindChange.MODIFIED, "scripts/backup.sh" to com.dsh.feature.chat.RewindChange.REMOVED),
+    )
+    private val rewindMany = com.dsh.feature.chat.RewindPlan(
+        true,
+        listOf(
+            "app/src/main/kotlin/com/dsh/feature/chat/very/long/path/ChatScreen.kt" to com.dsh.feature.chat.RewindChange.MODIFIED,
+            "scripts/backup.sh" to com.dsh.feature.chat.RewindChange.REMOVED,
+            "docs/old-notes.md" to com.dsh.feature.chat.RewindChange.RESTORED,
+            "README.md" to com.dsh.feature.chat.RewindChange.MODIFIED,
+            "build.gradle.kts" to com.dsh.feature.chat.RewindChange.MODIFIED,
+            "settings.gradle.kts" to com.dsh.feature.chat.RewindChange.MODIFIED,
+        ),
+    )
+
+    @Composable
+    private fun withRewind(plan: com.dsh.feature.chat.RewindPlan, content: @Composable () -> Unit) {
+        val services = object : com.dsh.feature.chat.ChatServices {
+            override suspend fun rewindPlan(message: com.dsh.core.model.ChatMessage) = plan
+            override fun canUndoRewind() = true
+        }
+        androidx.compose.runtime.CompositionLocalProvider(com.dsh.feature.chat.LocalChatServices provides services, content = content)
+    }
+
     @Composable
     private fun chatAgent(
         done: Boolean, approval: com.dsh.feature.chat.ChatApproval? = null, online: Boolean = true,
@@ -495,6 +519,10 @@ class DshScreensSweepTest {
                 "chat-ctx-warn-sheet" to @Composable { chatAgent(done = true, stats = ctxStats(850_000), sheet = "context", spent = null) },
                 "chat-ctx-danger" to @Composable { chatAgent(done = true, stats = ctxStats(968_000)) },
                 "chat-ctx-danger-sheet" to @Composable { chatAgent(done = true, stats = ctxStats(968_000), sheet = "context") },
+                "chat-msg-sheet" to @Composable { withRewind(rewindDemo) { chatAgent(done = true, sheet = "msg") } },
+                "chat-rewind-sheet" to @Composable { withRewind(rewindDemo) { chatAgent(done = true, sheet = "rewind") } },
+                "chat-rewind-many-sheet" to @Composable { withRewind(rewindMany) { chatAgent(done = true, sheet = "rewind") } },
+                "chat-rewind-none-sheet" to @Composable { withRewind(com.dsh.feature.chat.RewindPlan(false, emptyList())) { chatAgent(done = true, sheet = "rewind") } },
             ),
         ),
     )

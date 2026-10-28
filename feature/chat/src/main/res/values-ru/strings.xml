@@ -228,4 +228,51 @@
     </plurals>
     <string name="secret_warning">В сообщении ключ %1$s — агент и журнал сессии получат его целиком</string>
     <string name="secret_remove">Убрать</string>
+    <!-- Возврат к сообщению -->
+    <string name="message_action_fork_sub">Новая сессия с этого места</string>
+    <string name="rw_here">Вернуться сюда</string>
+    <string name="rw_here_sub">Файлы и разговор — на выбор</string>
+    <string name="rw_undo">Отменить возврат файлов</string>
+    <string name="rw_undo_sub">Файлы станут как до возврата</string>
+    <string name="rw_title">Вернуться к сообщению</string>
+    <string name="rw_loading">Сравниваю файлы…</string>
+    <string name="rw_no_point">Для этого сообщения нет точки возврата файлов: она снимается перед каждым сообщением, начиная с этой версии DSH.</string>
+    <string name="rw_unchanged">Файлы с этого сообщения не менялись.</string>
+    <plurals name="rw_after">
+        <item quantity="one">После возврата · %d файл</item>
+        <item quantity="few">После возврата · %d файла</item>
+        <item quantity="many">После возврата · %d файлов</item>
+        <item quantity="other">После возврата · %d файла</item>
+    </plurals>
+    <string name="rw_mod">изменится</string>
+    <string name="rw_removed">удалится</string>
+    <string name="rw_restored">вернётся</string>
+    <string name="rw_more">и ещё %1$d</string>
+    <string name="rw_files">Вернуть файлы</string>
+    <string name="rw_files_sub">Разговор останется как есть</string>
+    <string name="rw_both">Вернуть файлы и разговор</string>
+    <string name="rw_both_sub">Новая ветка до этого сообщения, его текст — в поле ввода</string>
+    <string name="rw_talk">Только разговор</string>
+    <string name="rw_talk_sub">Файлы не меняются</string>
+    <string name="rw_talk_only">Вернуть разговор</string>
+    <plurals name="rw_done">
+        <item quantity="one">Файлы возвращены · %d файл</item>
+        <item quantity="few">Файлы возвращены · %d файла</item>
+        <item quantity="many">Файлы возвращены · %d файлов</item>
+        <item quantity="other">Файлы возвращены · %d файла</item>
+    </plurals>
+    <plurals name="rw_done_both">
+        <item quantity="one">Файлы возвращены · %d файл · новая ветка разговора</item>
+        <item quantity="few">Файлы возвращены · %d файла · новая ветка разговора</item>
+        <item quantity="many">Файлы возвращены · %d файлов · новая ветка разговора</item>
+        <item quantity="other">Файлы возвращены · %d файла · новая ветка разговора</item>
+    </plurals>
+    <plurals name="rw_undone">
+        <item quantity="one">Возврат файлов отменён · %d файл</item>
+        <item quantity="few">Возврат файлов отменён · %d файла</item>
+        <item quantity="many">Возврат файлов отменён · %d файлов</item>
+        <item quantity="other">Возврат файлов отменён · %d файла</item>
+    </plurals>
+    <string name="rw_failed">Не удалось вернуть файлы</string>
+    <string name="rw_talk_new">Новая ветка разговора</string>
 </resources>

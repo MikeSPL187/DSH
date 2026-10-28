@@ -44,8 +44,34 @@ interface ChatServices {
     /** Выгрузить журнал сессии. */
     fun exportSession() {}
 
+    /** Что даст возврат к сообщению пользователя; null — возврат недоступен (пункта «Вернуться сюда» нет). */
+    suspend fun rewindPlan(message: com.dsh.core.model.ChatMessage): RewindPlan? = null
+
+    /** Вернуть файлы проекта к моменту перед [message]; успех — сколько файлов изменилось. */
+    suspend fun rewindFiles(message: com.dsh.core.model.ChatMessage): Result<Int> = Result.failure(UnsupportedOperationException())
+
+    /** Новая ветка разговора до [message], его текст — в поле ввода. */
+    fun rewindConversation(message: com.dsh.core.model.ChatMessage) {}
+
+    /** Можно ли отменить последний возврат файлов в открытой сессии (читается в композиции — состояние Compose). */
+    fun canUndoRewind(): Boolean = false
+
+    /** Отменить последний возврат файлов; успех — сколько файлов изменилось. */
+    suspend fun undoRewind(): Result<Int> = Result.failure(UnsupportedOperationException())
+
     object None : ChatServices
 }
+
+/** Что станет с файлом при возврате: изменится, удалится (создан после сообщения), вернётся (удалён после). */
+enum class RewindChange { MODIFIED, REMOVED, RESTORED }
+
+/**
+ * План возврата к сообщению.
+ *
+ * @param hasPoint есть ли точка возврата файлов (снимается перед каждым сообщением).
+ * @param files что изменится в файлах; пусто — с тех пор не менялись.
+ */
+data class RewindPlan(val hasPoint: Boolean, val files: List<Pair<String, RewindChange>>)
 
 private val NoImages = MutableStateFlow<Map<String, List<AttachmentImageRef>>>(emptyMap())
 
