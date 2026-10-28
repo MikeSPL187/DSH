@@ -86,3 +86,14 @@ class FindReplaceTest {
         assertEquals("kotlin = 1\nkotlin = 2", e.value.text)
     }
 }
+
+class EditorHighlightTest {
+    @Test
+    fun `syntax highlight keeps the text so offsets stay valid`() {
+        val text = "[versions]\nkotlin = \"2.0.21\" # comment\n// note\nfun main() {}\n"
+        val colors = com.dsh.core.designsystem.DshPorcelain
+        val out = highlight(text.split('\n'), "toml", colors)
+        assertEquals(text, out.text)
+        assertTrue(out.spanStyles.isNotEmpty())
+    }
+}

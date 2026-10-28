@@ -957,7 +957,7 @@ private fun CodeBlock(lines: List<String>, ext: String) {
 }
 
 /** Подсветка как `hl()` в прототипе: комментарии, строки, ключевые слова, секции TOML, заголовки Markdown. */
-private fun highlight(lines: List<String>, ext: String, c: com.dsh.core.designsystem.DshColors): AnnotatedString = buildAnnotatedString {
+internal fun highlight(lines: List<String>, ext: String, c: com.dsh.core.designsystem.DshColors): AnnotatedString = buildAnnotatedString {
     val token = Regex("(\"[^\"]*\"|'[^']*')|\\b(package|import|class|object|interface|override|fun|val|var|set|if|else|then|fi|for|while|return|echo|mkdir|tar|true|false|null|def|from|const|let|function|export)\\b|^(\\[[\\w.-]+\\])")
     lines.forEachIndexed { i, line ->
         if (i > 0) append("\n")

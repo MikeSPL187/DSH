@@ -201,8 +201,15 @@ internal fun EditView(file: File, editor: FileEditor) {
             cursorBrush = SolidColor(c.accent),
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false),
             enabled = editor.doc != null,
-            // Совпадения поиска подсвечены (текущее — ярче): поле не в фокусе выделения не показывает.
-            visualTransformation = if (editor.findOpen && editor.query.isNotEmpty()) MatchHighlight(editor.query, editor.matches, editor.current, c.accentSoft, c.accent.copy(alpha = 0.45f)) else androidx.compose.ui.text.input.VisualTransformation.None,
+            // Подсветка синтаксиса, как в просмотре (файлы до [HIGHLIGHT_MAX] — на каждое нажатие она пересчитывается),
+            // и совпадения поиска (текущее — ярче): поле не в фокусе выделения не показывает.
+            visualTransformation = EditorLook(
+                ext = file.extension.lowercase(),
+                colors = c,
+                query = if (editor.findOpen) editor.query else "",
+                matches = if (editor.findOpen) editor.matches else emptyList(),
+                current = editor.current,
+            ),
             modifier = Modifier.weight(1f).fillMaxWidth().clip(shape).background(c.s1).border(1.5.dp, edge, shape)
                 .padding(horizontal = 14.dp, vertical = 12.dp).onFocusChanged { focused = it.isFocused }.semantics { contentDescription = label },
         )
@@ -233,18 +240,27 @@ internal fun EditView(file: File, editor: FileEditor) {
     }
 }
 
-/** Подсветка совпадений: все — мягким акцентом, текущее — плотнее. */
-private class MatchHighlight(
-    private val query: String,
-    private val matches: List<Int>,
-    private val current: Int,
-    private val soft: androidx.compose.ui.graphics.Color,
-    private val strong: androidx.compose.ui.graphics.Color,
+/** Больше — без подсветки синтаксиса в правке. */
+private const val HIGHLIGHT_MAX = 50_000
+
+/**
+ * Вид текста в правке: подсветка синтаксиса ([highlight] просмотра — текст тот же, меняются только цвета) и
+ * совпадения поиска — все мягким акцентом, текущее плотнее. Смещения не меняются.
+ */
+private data class EditorLook(
+    val ext: String,
+    val colors: com.dsh.core.designsystem.DshColors,
+    val query: String,
+    val matches: List<Int>,
+    val current: Int,
 ) : androidx.compose.ui.text.input.VisualTransformation {
     override fun filter(text: androidx.compose.ui.text.AnnotatedString): androidx.compose.ui.text.input.TransformedText {
-        val b = androidx.compose.ui.text.AnnotatedString.Builder(text)
-        matches.forEachIndexed { i, at ->
-            if (at + query.length <= text.length) b.addStyle(androidx.compose.ui.text.SpanStyle(background = if (i == current) strong else soft), at, at + query.length)
+        val base = if (text.length <= HIGHLIGHT_MAX) highlight(text.text.split('\n'), ext, colors).takeIf { it.length == text.length } ?: text else text
+        val b = androidx.compose.ui.text.AnnotatedString.Builder(base)
+        if (query.isNotEmpty()) matches.forEachIndexed { i, at ->
+            if (at + query.length <= text.length) {
+                b.addStyle(androidx.compose.ui.text.SpanStyle(background = if (i == current) colors.accent.copy(alpha = 0.45f) else colors.accentSoft), at, at + query.length)
+            }
         }
         return androidx.compose.ui.text.input.TransformedText(b.toAnnotatedString(), androidx.compose.ui.text.input.OffsetMapping.Identity)
     }
