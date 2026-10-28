@@ -93,10 +93,17 @@ class ScreensGalleryTest {
         override suspend fun clone(url: String, intoDir: String) = Result.success(Unit)
     }
 
+    /** Всё закоммичено, один коммит ещё не отправлен. */
+    private val cleanGit = object : com.dsh.feature.files.FilesGit by fakeGit {
+        override suspend fun status() = com.dsh.feature.files.GitInfo("main", emptyList())
+        override suspend fun unpushed() = 1 to "Обновить Kotlin до 2.0.21, добавить ночной архив"
+    }
+
     private fun renderFiles(
         name: String,
         dark: Boolean = false,
         tab: Int = 0,
+        git: com.dsh.feature.files.FilesGit = fakeGit,
         prepare: (java.io.File) -> Unit = {},
         steps: androidx.compose.ui.test.junit4.AndroidComposeTestRule<*, *>.() -> Unit = {},
     ) {
@@ -105,7 +112,7 @@ class ScreensGalleryTest {
         compose.setContent {
             DshTheme(darkTheme = dark) {
                 FilesScreen(
-                    root = root, rootLabel = "DSH-Workspace", refreshKey = 0, git = fakeGit,
+                    root = root, rootLabel = "DSH-Workspace", refreshKey = 0, git = git,
                     onClose = {}, onAttach = {}, onAsk = {}, onReview = {}, commitMessage = null, onShare = {}, onImport = {}, onToast = {},
                     initialTab = tab,
                     markdown = { com.dsh.feature.chat.MarkdownMessageText(it) },
@@ -131,6 +138,14 @@ class ScreensGalleryTest {
         mainClock.autoAdvance = true; waitForIdle(); mainClock.autoAdvance = false
         mainClock.advanceTimeBy(1_200)
     }
+
+    // ── Коммит из «Изменений» ──
+    @Config(qualifiers = "ru-w390dp-h844dp-xxhdpi")
+    @Test fun filesCommit() = renderFiles("26_files_commit_sheet", tab = 1) { open("Закоммитить") }
+    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    @Test fun filesCommitDark() = renderFiles("26b_files_commit_sheet_360_dark", dark = true, tab = 1) { open("Закоммитить") }
+    @Config(qualifiers = "ru-w390dp-h844dp-xxhdpi")
+    @Test fun filesUnpushed() = renderFiles("26c_files_unpushed", tab = 1, git = cleanGit)
 
     @Test fun files() = renderFiles("30_files")
     @Test fun filesDark() = renderFiles("30b_files_dark", dark = true)

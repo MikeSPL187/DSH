@@ -124,6 +124,7 @@ private sealed interface Sheet {
     data class Delete(val path: String) : Sheet
     data class NewItem(val folder: Boolean) : Sheet
     data object Clone : Sheet
+    data class Commit(val info: GitInfo) : Sheet
 }
 
 /**
@@ -199,7 +200,7 @@ fun FilesScreen(
     BackHandler(enabled = sheet == null && stack.size > 1) { pop() }
 
     DshSheetScaffold(
-        sheet = sheet?.let { s -> { SheetBody(s, root, changedPaths, ::file, onDone = { sheet = null }, onSheet = { sheet = it }, git, onAsk, onAttach, onShare, onImport, onToast, ::refresh, currentDir = (stack.lastOrNull { it is Entry.Dir } as? Entry.Dir)?.path ?: "") } },
+        sheet = sheet?.let { s -> { SheetBody(s, root, changedPaths, ::file, onDone = { sheet = null }, onSheet = { sheet = it }, git, onAsk, onAttach, onShare, onImport, onToast, ::refresh, currentDir = (stack.lastOrNull { it is Entry.Dir } as? Entry.Dir)?.path ?: "", commitMessage = commitMessage) } },
         onDismiss = { sheet = null },
         modifier = modifier,
     ) {
@@ -256,7 +257,7 @@ fun FilesScreen(
                             if (ok) { onToast(revertedText); refresh(); pop() }
                         }
                     })
-                    Entry.Changes -> ChangesView(gitInfo, git != null, onReview = onReview, commitMessage = commitMessage, onToast = onToast, onOpen = { push(Entry.Diff(it)) })
+                    Entry.Changes -> ChangesView(gitInfo, git, version, onReview = onReview, onCommit = { sheet = Sheet.Commit(it) }, onOpen = { push(Entry.Diff(it)) })
                     Entry.Search -> SearchView(root, query, version, changedPaths, onOpen = { f -> push(if (f.isDirectory) Entry.Dir(relPath(root, f)) else Entry.Doc(relPath(root, f))) }, onMore = { sheet = Sheet.Actions(it) })
                 }
             }
@@ -957,18 +958,25 @@ private data class Quad(val bg: Color, val ink: Color, val num: String, val text
 @Composable
 private fun ChangesView(
     info: GitInfo?,
-    gitReady: Boolean,
+    git: FilesGit?,
+    version: Int,
     onReview: (String) -> Unit,
-    commitMessage: (suspend (GitInfo) -> Result<String>)?,
-    onToast: (String) -> Unit,
+    onCommit: (GitInfo) -> Unit,
     onOpen: (String) -> Unit,
 ) {
     val c = Dsh.colors
+    val gitReady = git != null
     val files = info?.changes.orEmpty()
+    // Неотправленные коммиты — после каждого обновления статуса (коммит, правки агента).
+    var unpushed by remember { mutableStateOf<Pair<Int, String>?>(null) }
+    LaunchedEffect(git, version, info) { unpushed = git?.unpushed() }
     Column(Modifier.fillMaxSize().background(c.bg).verticalScroll(rememberScrollState()).padding(ViewPadding)) {
         when {
             info == null -> Empty(stringResource(if (gitReady) R.string.fs_no_changes else R.string.fs_no_git), icon = if (gitReady) DshGlyphs.Check else null)
-            files.isEmpty() -> Empty(stringResource(R.string.fs_no_changes), icon = DshGlyphs.Check)
+            files.isEmpty() -> {
+                Empty(stringResource(R.string.fs_no_changes), icon = DshGlyphs.Check)
+                unpushed?.takeIf { it.first > 0 }?.let { (n, subject) -> UnpushedCard(n, subject) }
+            }
             else -> {
                 val plus = files.sumOf { it.added.coerceAtLeast(0) }
                 val minus = files.sumOf { it.deleted.coerceAtLeast(0) }
@@ -1003,27 +1011,11 @@ private fun ChangesView(
                         color = c.t2,
                     )
                     val review = stringResource(R.string.fs_review_prompt)
-                    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
-                    val copied = stringResource(R.string.fs_commit_copied)
-                    val scope = rememberCoroutineScope()
-                    var writing by remember { mutableStateOf(false) }
                     Column(Modifier.padding(top = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         DshButton(stringResource(R.string.fs_review), { onReview(review) }, Modifier.fillMaxWidth().height(48.dp), icon = DshGlyphs.Spark)
-                        if (commitMessage != null) DshButton(
-                            stringResource(if (writing) R.string.fs_commit_writing else R.string.fs_commit_msg),
-                            {
-                                writing = true
-                                scope.launch {
-                                    commitMessage(info)
-                                        .onSuccess { msg ->
-                                            clipboard.setText(androidx.compose.ui.text.AnnotatedString(msg))
-                                            onToast(copied.format(msg.lineSequence().first()))
-                                        }
-                                        .onFailure { onToast(it.message.orEmpty()) }
-                                    writing = false
-                                }
-                            },
-                            Modifier.fillMaxWidth().height(48.dp), kind = DshButtonKind.Ghost, enabled = !writing, icon = DshGlyphs.Msg,
+                        if (gitReady) DshButton(
+                            stringResource(R.string.fs_cm_go), { onCommit(info) },
+                            Modifier.fillMaxWidth().height(48.dp), kind = DshButtonKind.Ghost, icon = DshGlyphs.xs("git"),
                         )
                     }
                 }
@@ -1101,10 +1093,19 @@ private fun ColumnScope.SheetBody(
     onToast: (String) -> Unit,
     refresh: () -> Unit,
     currentDir: String,
+    commitMessage: (suspend (GitInfo) -> Result<String>)?,
 ) {
     val c = Dsh.colors
     val scope = rememberCoroutineScope()
     when (sheet) {
+        is Sheet.Commit -> {
+            val done = stringResource(R.string.fs_cm_done, sheet.info.branch.ifEmpty { "git" }, "%s")
+            if (git != null) CommitSheetBody(
+                sheet.info, git, commitMessage, onCancel = onDone,
+                onCommitted = { _, subject -> onToast(done.format(subject)); refresh(); onDone() },
+                onToast = onToast,
+            )
+        }
         is Sheet.Actions -> {
             val f = file(sheet.path)
             // `.fa-head`

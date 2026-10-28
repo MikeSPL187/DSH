@@ -28,7 +28,6 @@
     <string name="fs_diff_title">Изменения в файле</string>
     <string name="fs_uncommitted">не закоммичено</string>
     <string name="fs_review">Проверить с агентом</string>
-    <string name="fs_commit_msg">Сообщение коммита</string>
     <string name="fs_files">Файлы</string>
     <string name="fs_no_changes">Изменений нет — всё сохранено в git</string>
     <string name="fs_no_git">Изменения появятся, когда Linux будет готов</string>
@@ -76,8 +75,23 @@
     <string name="fs_deleted">Удалено</string>
     <string name="fs_ask_prompt">Объясни, что делает %1$s</string>
     <string name="fs_review_prompt">Проверь мои изменения перед коммитом</string>
-    <string name="fs_commit_copied">Скопировано: «%1$s»</string>
     <string name="fs_commit_writing">Пишу сообщение…</string>
+    <string name="fs_cm_title">Коммит в %1$s</string>
+    <string name="fs_cm_title_plain">Коммит</string>
+    <string name="fs_cm_ph">Что изменилось — коротко, в повелительном наклонении</string>
+    <string name="fs_cm_msg_label">Сообщение коммита</string>
+    <string name="fs_cm_ai">Написать по изменениям</string>
+    <string name="fs_cm_all">все изменения</string>
+    <string name="fs_cm_author">Автор</string>
+    <string name="fs_cm_as">От имени</string>
+    <string name="fs_cm_change">Изменить</string>
+    <string name="fs_cm_name">Имя</string>
+    <string name="fs_cm_email">Почта</string>
+    <string name="fs_cm_go">Закоммитить</string>
+    <string name="fs_cm_committing">Коммичу…</string>
+    <string name="fs_cm_done">Закоммичено в %1$s · %2$s</string>
+    <string name="fs_cm_who_failed">Не удалось сохранить автора в git. Попробуйте ещё раз</string>
+    <plurals name="fs_unpushed"><item quantity="one">%d коммит не отправлен</item><item quantity="few">%d коммита не отправлены</item><item quantity="many">%d коммитов не отправлены</item><item quantity="other">%d коммита не отправлены</item></plurals>
     <string name="fs_now">только что</string>
     <string name="fs_today">сегодня, %1$s</string>
     <string name="fs_yesterday">вчера</string>

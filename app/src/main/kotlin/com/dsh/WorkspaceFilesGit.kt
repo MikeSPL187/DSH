@@ -26,6 +26,14 @@ internal class WorkspaceFilesGit(private val git: WorkspaceGit, private val proj
 
     override suspend fun clone(url: String, intoDir: String): Result<Unit> = git.clone(project, url, intoDir)
 
+    override suspend fun identity(): Pair<String, String>? = git.identity(project)
+
+    override suspend fun setIdentity(name: String, email: String): Boolean = git.setIdentity(project, name, email)
+
+    override suspend fun commit(message: String): Result<String> = git.commit(project, message)
+
+    override suspend fun unpushed(): Pair<Int, String>? = git.unpushed(project)?.let { it.count to it.lastSubject }
+
     private fun WorkspaceGit.Kind.toUi() = when (this) {
         WorkspaceGit.Kind.MODIFIED -> ChangeKind.MODIFIED
         WorkspaceGit.Kind.ADDED -> ChangeKind.ADDED

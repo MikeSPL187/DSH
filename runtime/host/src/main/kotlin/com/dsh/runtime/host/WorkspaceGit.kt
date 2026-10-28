@@ -77,6 +77,44 @@ class WorkspaceGit(private val layout: RuntimeLayout, private val workspaceRoot:
         }
     }
 
+    /** Автор коммитов (`user.name`, `user.email` проекта или общий); null — не задан. */
+    suspend fun identity(project: String): Pair<String, String>? = withContext(Dispatchers.IO) {
+        val name = git(project, "config", "user.name")?.trim().orEmpty()
+        val email = git(project, "config", "user.email")?.trim().orEmpty()
+        if (name.isEmpty() || email.isEmpty()) null else name to email
+    }
+
+    /** Запомнить автора для всех проектов (`git config --global` в Linux DSH). */
+    suspend fun setIdentity(project: String, name: String, email: String): Boolean = withContext(Dispatchers.IO) {
+        git(project, "config", "--global", "user.name", name) != null && git(project, "config", "--global", "user.email", email) != null
+    }
+
+    /**
+     * Закоммитить все изменения проекта (`git add -A`, затем `commit -m`); хуки и подпись выключены [HARDENING].
+     * Сообщение уходит отдельным аргументом, без оболочки. Успех — короткий хэш нового коммита.
+     */
+    suspend fun commit(project: String, message: String): Result<String> = withContext(Dispatchers.IO) {
+        if (!available() || !repoConfigSafe(File(workspaceRoot, project))) return@withContext Result.failure(IllegalStateException("git"))
+        val base = listOf(GIT) + HARDENING + listOf("-c", "core.quotepath=off", "-C", "/workspace/$project")
+        val add = run(base + listOf("add", "-A"))
+        if (add.first != 0) return@withContext Result.failure(IllegalStateException(lastLine(add.second, "git add")))
+        val done = run(base + listOf("commit", "--no-verify", "-m", message), timeoutSec = 60)
+        if (done.first != 0) return@withContext Result.failure(IllegalStateException(lastLine(done.second, "git commit")))
+        Result.success(git(project, "rev-parse", "--short", "HEAD")?.trim().orEmpty())
+    }
+
+    /** Коммиты, которых нет ни на одном удалённом репозитории, и тема последнего; null — git недоступен. */
+    suspend fun unpushed(project: String): Unpushed? = withContext(Dispatchers.IO) {
+        if (!available() || git(project, "rev-parse", "--verify", "-q", "HEAD") == null) return@withContext null
+        val count = git(project, "rev-list", "--count", "HEAD", "--not", "--remotes")?.trim()?.toIntOrNull() ?: return@withContext null
+        Unpushed(count, git(project, "log", "-1", "--format=%s")?.trim().orEmpty())
+    }
+
+    /** Неотправленные коммиты: сколько и тема последнего коммита. */
+    data class Unpushed(val count: Int, val lastSubject: String)
+
+    private fun lastLine(out: String, fallback: String) = out.lines().lastOrNull { it.isNotBlank() }?.trim() ?: fallback
+
     /** `git clone` в новую папку [dir] внутри проекта. */
     suspend fun clone(project: String, url: String, dir: String): Result<Unit> = withContext(Dispatchers.IO) {
         if (!available()) return@withContext Result.failure(IllegalStateException("git"))

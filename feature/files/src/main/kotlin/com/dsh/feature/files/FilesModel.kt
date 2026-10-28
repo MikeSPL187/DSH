@@ -27,6 +27,16 @@ interface FilesGit {
     suspend fun diff(path: String): List<DiffRow>
     suspend fun revert(change: GitChange): Boolean
     suspend fun clone(url: String, intoDir: String): Result<Unit>
+
+    /** Автор коммитов (имя, почта); null — не задан, лист коммита спросит. */
+    suspend fun identity(): Pair<String, String>? = null
+    suspend fun setIdentity(name: String, email: String): Boolean = false
+
+    /** Закоммитить все изменения; успех — короткий хэш, ошибка — последняя строка git. */
+    suspend fun commit(message: String): Result<String> = Result.failure(UnsupportedOperationException())
+
+    /** Неотправленные коммиты (число, тема последнего); null — не узнать. */
+    suspend fun unpushed(): Pair<Int, String>? = null
 }
 
 /** Путь [file] от корня [root] через `/`; пустая строка — сам корень. */

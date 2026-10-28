@@ -998,6 +998,23 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .ch-sum .stat { font-size: 14px; }
 .ch-acts { display: grid; gap: 8px; margin-top: 14px; }
 .ch-acts .btn { height: 48px; border-radius: 15px; flex: none; width: 100%; }
+/* Лист «Коммит»: сообщение, «Написать по изменениям», автор при первом коммите */
+.cm-msg { display: block; width: 100%; min-height: 96px; padding: 12px 14px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--s1); font: inherit; font-size: 15px; line-height: 1.5; color: var(--t1); resize: none; outline: none; }
+.cm-msg:focus, .cm-in:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.cm-msg::placeholder, .cm-in::placeholder { color: var(--t3); }
+.cm-ai { display: inline-flex; align-items: center; gap: 6px; height: 40px; margin: 8px 0 0; padding: 0 12px; border-radius: 12px; background: var(--accent-soft); color: color-mix(in srgb, var(--accent) 82%, var(--t1)); font-size: 14px; font-weight: 500; }
+.cm-ai[disabled] { opacity: .6; }
+.cm-meta { display: flex; align-items: center; gap: 8px; margin: 12px 4px 0; font-size: 13.5px; color: var(--t2); }
+.cm-meta .p { color: var(--ok); } .cm-meta .m { color: var(--danger); }
+.cm-who { display: grid; gap: 8px; margin-top: 4px; }
+.cm-in { width: 100%; height: 48px; padding: 0 14px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--s1); font: inherit; font-size: 15px; color: var(--t1); outline: none; }
+.cm-author { display: flex; align-items: center; gap: 10px; min-height: 44px; margin-top: 4px; padding: 0 4px; font-size: 14px; color: var(--t2); }
+.cm-author b { font-weight: 500; color: var(--t1); }
+.cm-author button { margin-left: auto; height: 40px; padding: 0 10px; border-radius: 10px; font-size: 14px; font-weight: 500; color: color-mix(in srgb, var(--accent) 82%, var(--t1)); }
+.cm-btns { display: grid; grid-template-columns: 1fr 1.35fr; gap: 8px; margin-top: 16px; }
+.cm-btns .btn { height: 52px; border-radius: 16px; font-size: 16px; }
+.ch-push { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 14px 14px 14px 16px; border-radius: 20px; background: var(--s1); border: 1px solid var(--line); text-align: left; }
+.ch-push .tx { flex: 1; min-width: 0; } .ch-push .tx b { display: block; font-weight: 500; font-size: 15px; } .ch-push .tx small { display: block; margin-top: 2px; font-size: 13px; line-height: 1.4; color: var(--t3); overflow-wrap: anywhere; }
 .fa-head { display: flex; align-items: center; gap: 12px; margin: 0 4px 14px; }
 .fa-head b { display: block; font-family: var(--font-mono); font-size: 15px; font-weight: 500; }
 .fa-head small { font-size: 12.5px; color: var(--t3); }
@@ -1599,6 +1616,18 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <button class="sa-row" data-sa="Проверка тестов"><span class="sa-st"><i class="run"></i></span><span class="tx"><b>Проверка тестов</b><small>работает · 2 мин</small></span><span class="mode cont">продолжаемый</span><svg class="i sm go"><use href="#i-right"/></svg></button>
         <button class="sa-row" data-sa="Поиск устаревших API"><span class="sa-st"><i class="ok"></i></span><span class="tx"><b>Поиск устаревших API</b><small>готово · 5 мин назад</small></span><span class="mode">разовый</span><svg class="i sm go"><use href="#i-right"/></svg></button>
         <button class="sa-row" data-sa="Codex: ревью diff"><span class="sa-st"><i></i></span><span class="tx"><b>Codex: ревью diff</b><small>внешний · вчера</small></span><span class="mode">внешний</span></button>
+      </section>
+
+      <!-- Лист: коммит -->
+      <section class="sheet" id="sheet-commit" aria-label="Коммит">
+        <div class="grab"></div>
+        <h3 id="cmTitle">Коммит в main</h3>
+        <textarea class="cm-msg" id="cmMsg" placeholder="Что изменилось — коротко, в повелительном наклонении" aria-label="Сообщение коммита"></textarea>
+        <button class="cm-ai" id="cmAi"><svg class="i sm"><use href="#i-spark"/></svg><span>Написать по изменениям</span></button>
+        <div class="cm-meta" id="cmMeta"></div>
+        <div class="glabel">Автор</div>
+        <div id="cmWho"></div>
+        <div class="cm-btns"><button class="btn ghost" data-act="close">Отмена</button><button class="btn primary" id="cmGo" disabled>Закоммитить</button></div>
       </section>
 
       <!-- Лист: несохранённые инструкции -->
@@ -2822,12 +2851,16 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   function viewChanges() {
     const v = document.createElement("div"); v.className = "fs-view";
     const files = Object.keys(CHANGED);
-    if (!files.length) { v.innerHTML = `<div class="fs-empty"><svg class="i" style="width:32px;height:32px;margin:0 auto 10px;color:var(--ok)"><use href="#i-check"/></svg>Изменений нет — всё сохранено в git</div>`; return v; }
+    if (!files.length) {
+      v.innerHTML = `<div class="fs-empty"><svg class="i" style="width:32px;height:32px;margin:0 auto 10px;color:var(--ok)"><use href="#i-check"/></svg>Изменений нет — всё сохранено в git</div>
+        ${GIT.ahead ? `<div class="ch-push"><span class="si c1"><svg class="i"><use href="#i-git"/></svg></span><span class="tx"><b>${GIT.ahead} ${GIT.ahead === 1 ? "коммит не отправлен" : "коммита не отправлены"}</b><small>${esc2(GIT.last)}</small></span></div>` : ""}`;
+      return v;
+    }
     const P = files.reduce((a, f) => a + CHANGED[f].p, 0), M = files.reduce((a, f) => a + CHANGED[f].m, 0);
     v.innerHTML = `<div class="ch-sum"><div class="row1"><span class="br"><svg class="i xs"><use href="#i-git"/></svg>main</span>не закоммичено</div>
       <h3>${files.length} ${files.length === 1 ? "файл" : "файла"} · <span class="stat"><span class="p">+${P}</span>${M ? ` <span class="m">−${M}</span>` : ""}</span></h3>
       <p>${[CHANGED["gradle/libs.versions.toml"] && "Агент обновил Kotlin", CHANGED["scripts/backup.sh"] && "создал скрипт ночного архива"].filter(Boolean).join(" и ").replace(/^с/, "Агент с")}.</p>
-      <div class="ch-acts"><button class="btn primary" id="chReview"><svg class="i sm"><use href="#i-spark"/></svg>Проверить с агентом</button><button class="btn ghost" id="chCommit"><svg class="i sm"><use href="#i-msg"/></svg>Сообщение коммита</button></div></div>
+      <div class="ch-acts"><button class="btn primary" id="chReview"><svg class="i sm"><use href="#i-spark"/></svg>Проверить с агентом</button><button class="btn ghost" id="chCommit"><svg class="i sm"><use href="#i-git"/></svg>Закоммитить</button></div></div>
       <div class="fs-sec"><span>Файлы</span><span>${files.length}</span></div>
       <div class="gl">${files.map((f) => `<button class="fr" data-diff="${f}">${ftHtml(f)}<span class="tx"><b>${f.split("/").pop()}</b><small>${f}</small></span><span class="stat"><span class="p">+${CHANGED[f].p}</span>${CHANGED[f].m ? ` <span class="m">−${CHANGED[f].m}</span>` : ""}</span><svg class="i sm go"><use href="#i-right"/></svg></button>`).join("")}</div>`;
     return v;
@@ -2900,7 +2933,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     const df = e.target.closest("[data-diff]"); if (df) { if (DIFF[df.dataset.diff]) fsPush({ t: "diff", p: df.dataset.diff }); else fsPush({ t: "file", p: df.dataset.diff }); return; }
     const rv = e.target.closest("[data-revert]"); if (rv) { delete CHANGED[rv.dataset.revert]; toast("Изменение отменено · kotlin = \"2.0.0\""); fsPop(); return; }
     if (e.target.closest("#chReview")) { reviewChanges(); return; }
-    if (e.target.closest("#chCommit")) { toast("Скопировано: «Обновить Kotlin до 2.0.21, добавить ночной архив»"); return; }
+    if (e.target.closest("#chCommit")) { cmOpen(); return; }
     const r = e.target.closest("[data-path]");
     if (r) { const p = r.dataset.path; if (r.closest(".crumbs")) { while (fsStack.length > 1 && fsStack[fsStack.length - 1].p !== p) { fsStack.pop(); } if (fsStack[fsStack.length - 1].p !== p) fsReplace({ t: "dir", p }); else { const cur = fsCur; fsCur = fsBuild(fsStack[fsStack.length - 1]); fsBody.appendChild(fsCur); cur.remove(); fsTitles(); } return; }
       fsPush(p === "" || p.endsWith("/") ? { t: "dir", p } : { t: "file", p }); }
@@ -3704,6 +3737,36 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   $("#limPlus").addEventListener("click", () => { const L = LIM[limKey]; limDraft = L.v[Math.min(L.v.length - 1, L.v.indexOf(limDraft) + 1)]; limShow(); });
   $("#limReset").addEventListener("click", () => { delete LIMV[limKey]; sheetClose(); stRefresh(); toast("Вернули стандартное значение"); });
   $("#limSave").addEventListener("click", () => { if (limDraft === LIM[limKey].d) delete LIMV[limKey]; else LIMV[limKey] = limDraft; sheetClose(); stRefresh(); toast("Сохранено · действует со следующего шага агента"); });
+  // ── Коммит из «Изменений»: git add -A и commit; автор спрашивается один раз (git config --global) ──
+  const GIT = { name: "", email: "", ahead: 0, last: "" };
+  function cmWho(edit) {
+    $("#cmWho").innerHTML = GIT.name && !edit
+      ? `<div class="cm-author"><span>От имени <b>${esc2(GIT.name)}</b> · ${esc2(GIT.email)}</span><button id="cmWhoEdit">Изменить</button></div>`
+      : `<div class="cm-who"><input class="cm-in" id="cmName" placeholder="Имя" autocomplete="name" value="${esc2(GIT.name)}"><input class="cm-in" id="cmMail" placeholder="Почта" inputmode="email" autocomplete="email" value="${esc2(GIT.email)}"></div>`;
+  }
+  function cmCheck() {
+    const msg = $("#cmMsg").value.trim(), name = $("#cmName")?.value.trim() ?? GIT.name, mail = $("#cmMail")?.value.trim() ?? GIT.email;
+    $("#cmGo").disabled = !msg || !name || !/^[^@\s]+@[^@\s]+$/.test(mail);
+  }
+  function cmOpen() {
+    const files = Object.keys(CHANGED), P = files.reduce((a, f) => a + CHANGED[f].p, 0), M = files.reduce((a, f) => a + CHANGED[f].m, 0);
+    $("#cmMsg").value = ""; cmWho(false);
+    $("#cmMeta").innerHTML = `<svg class="i sm"><use href="#i-file"/></svg>${files.length} ${files.length === 1 ? "файл" : "файла"} · <span class="p">+${P}</span>${M ? ` <span class="m">−${M}</span>` : ""} · все изменения`;
+    cmCheck(); sheetOpen("commit");
+  }
+  $("#cmAi").addEventListener("click", () => {
+    const b = $("#cmAi"); b.disabled = true; $("span", b).textContent = "Пишу сообщение…";
+    setTimeout(() => { $("#cmMsg").value = "Обновить Kotlin до 2.0.21, добавить ночной архив"; b.disabled = false; $("span", b).textContent = "Написать по изменениям"; cmCheck(); }, 900);
+  });
+  $("#sheet-commit").addEventListener("input", cmCheck);
+  $("#sheet-commit").addEventListener("click", (e) => { if (e.target.closest("#cmWhoEdit")) { cmWho(true); cmCheck(); $("#cmName").focus(); } });
+  $("#cmGo").addEventListener("click", () => {
+    if ($("#cmName")) { GIT.name = $("#cmName").value.trim(); GIT.email = $("#cmMail").value.trim(); }
+    GIT.last = $("#cmMsg").value.trim(); GIT.ahead += 1;
+    for (const f of Object.keys(CHANGED)) delete CHANGED[f];
+    sheetClose(); setTimeout(() => { const v = fsBuild(fsStack[fsStack.length - 1]); fsBody.replaceChild(v, fsCur); fsCur = v; fsTitles(); toast("Закоммичено в main"); }, 300);
+  });
+
   // ── Инструкции для агента: ~/.dsh/AGENTS.md, AGENTS.md проекта, AGENTS.local.md (как dsh-agent-instructions) ──
   const INST_TPL = "# Проект\n\nКоротко: что это и для кого.\n\n## Как собрать и проверить\n- Сборка: `./gradlew assembleDebug`\n- Тесты: `./gradlew test`\n\n## Правила кода\n- Пиши как в соседнем коде: те же имена и стиль.\n- Новое поведение — с тестами.\n\n## Чего не делать\n- Не меняй публичные API без вопроса.\n- Не добавляй в репозиторий ключи и пароли.\n";
   const INST = {

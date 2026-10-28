@@ -29,7 +29,6 @@
     <string name="fs_diff_title">Changes in file</string>
     <string name="fs_uncommitted">not committed</string>
     <string name="fs_review">Review with the agent</string>
-    <string name="fs_commit_msg">Commit message</string>
     <string name="fs_files">Files</string>
     <string name="fs_no_changes">No changes — everything is committed</string>
     <string name="fs_no_git">Changes will appear once Linux is ready</string>
@@ -77,8 +76,23 @@
     <string name="fs_deleted">Deleted</string>
     <string name="fs_ask_prompt">Explain what %1$s does</string>
     <string name="fs_review_prompt">Review my changes before committing</string>
-    <string name="fs_commit_copied">Copied: “%1$s”</string>
     <string name="fs_commit_writing">Writing the message…</string>
+    <string name="fs_cm_title">Commit to %1$s</string>
+    <string name="fs_cm_title_plain">Commit</string>
+    <string name="fs_cm_ph">What changed — short, in the imperative mood</string>
+    <string name="fs_cm_msg_label">Commit message</string>
+    <string name="fs_cm_ai">Write from the changes</string>
+    <string name="fs_cm_all">all changes</string>
+    <string name="fs_cm_author">Author</string>
+    <string name="fs_cm_as">As</string>
+    <string name="fs_cm_change">Change</string>
+    <string name="fs_cm_name">Name</string>
+    <string name="fs_cm_email">Email</string>
+    <string name="fs_cm_go">Commit</string>
+    <string name="fs_cm_committing">Committing…</string>
+    <string name="fs_cm_done">Committed to %1$s · %2$s</string>
+    <string name="fs_cm_who_failed">Could not save the author in git. Try again</string>
+    <plurals name="fs_unpushed"><item quantity="one">%d commit not pushed</item><item quantity="other">%d commits not pushed</item></plurals>
     <string name="fs_now">just now</string>
     <string name="fs_today">today, %1$s</string>
     <string name="fs_yesterday">yesterday</string>
