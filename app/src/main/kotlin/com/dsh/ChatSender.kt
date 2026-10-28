@@ -50,6 +50,20 @@ class ChatSender(
     /** Неотправленные сообщения: id пузыря → что отправить по «Повторить». */
     private val failed = mutableMapOf<String, Outgoing>()
 
+    /**
+     * «Сжать сейчас» из листа «Контекст и расход»: `/compact` прямо в `commands/execute`, мимо поля ввода —
+     * черновик и вложения остаются на месте. Итог Host — тостом, затем свежая заполненность.
+     */
+    fun compactNow() {
+        val sid = ui.selectedSessionId ?: return
+        toast(context.getString(com.dsh.feature.chat.R.string.ctx_compacting))
+        scope.launch {
+            val result = repository.commands.executeHostCommand(ui.activeHostId, sid, "/compact")
+            toast(result?.let { it.text ?: it.kind } ?: context.getString(com.dsh.feature.chat.R.string.ctx_compact_failed))
+            repository.refreshSessionStats(ui.activeHostId, sid)
+        }
+    }
+
     fun send(text: String, model: ModelChoice) {
         // Слэш-команда идёт в commands/execute; незнакомую Host отправляем обычным prompt.
         val commandLine = text.trim()

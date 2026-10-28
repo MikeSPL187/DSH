@@ -55,6 +55,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -134,6 +135,8 @@ fun ChatTopBar(
     onMenu: () -> Unit,
     onNew: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Заполненность контекста: кольцо в подзаголовке, заголовок — кнопка листа «Контекст и расход». */
+    context: ChatContextChip? = null,
     extra: @Composable RowScope.() -> Unit = {},
 ) {
     val c = Dsh.colors
@@ -147,15 +150,29 @@ fun ChatTopBar(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         ChatIconBtn(DshGlyphs.Menu, stringResource(R.string.ck_menu), onClick = onMenu)
-        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+        val shownTitle = title.ifBlank { stringResource(R.string.ck_new_session) }
+        val headDescription = context?.let { stringResource(R.string.ctx_head, shownTitle, it.percent) }
+        Column(
+            Modifier.weight(1f).then(
+                if (context == null) Modifier
+                else Modifier.heightIn(min = 44.dp).clip(RoundedCornerShape(14.dp))
+                    .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = context.onClick)
+                    .semantics(mergeDescendants = true) { contentDescription = headDescription.orEmpty() },
+            ),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
             Text(
-                title.ifBlank { stringResource(R.string.ck_new_session) },
+                shownTitle,
                 style = ckDisplay(16.sp, 19.2.sp), color = c.t1, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.semantics { heading() },
             )
-            if (!workspace.isNullOrBlank()) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Box(Modifier.size(6.dp).clip(CircleShape).background(if (live) c.ok else c.t3))
-                Text(workspace, style = ckBody(12.sp, 14.4.sp), color = c.t3, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (!workspace.isNullOrBlank() || context != null) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (!workspace.isNullOrBlank()) {
+                    Box(Modifier.size(6.dp).clip(CircleShape).background(if (live) c.ok else c.t3))
+                    Text(workspace, style = ckBody(12.sp, 14.4.sp), color = c.t3, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                }
+                if (context != null) ContextMini(context.percent)
             }
         }
         extra()
@@ -382,14 +399,14 @@ internal fun Badge(n: Int) {
     }
 }
 
-/** Чип над полем ввода `.chip`: 36 dp; `accent` — модель. */
+/** Чип над полем ввода `.chip`: 40 dp (касаемая зона); `accent` — модель. */
 @Composable
 fun ComposerChip(text: String, icon: ImageVector?, accent: Boolean = false, chevron: Boolean = false, onClick: () -> Unit) {
     val c = Dsh.colors
     val ia = remember { MutableInteractionSource() }
     val ink = if (accent) lerp(c.t1, c.accent, 0.82f) else c.t2
     Row(
-        Modifier.height(36.dp).pressScale(ia, 0.95f).clip(CircleShape).background(if (accent) c.accentSoft else c.s2)
+        Modifier.height(40.dp).pressScale(ia, 0.95f).clip(CircleShape).background(if (accent) c.accentSoft else c.s2)
             .clickable(ia, ripple(), role = Role.Button, onClick = onClick).padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -444,8 +461,23 @@ fun ChatComposer(
         // У свёрнутых `.chips` остаётся отступ 4 + 2.
         if (!chipsOpen) Spacer(Modifier.height(6.dp))
         AnimatedVisibility(chipsOpen, enter = expandVertically(DshMotion.snappy()) + fadeIn(), exit = shrinkVertically(DshMotion.snappy()) + fadeOut()) {
+            // `.chips.more`: лента прокручивается, а правый край гаснет на 28 dp, пока справа есть ещё чипы.
+            val chipsScroll = rememberScrollState()
             Row(
-                Modifier.fillMaxWidth().height(44.dp).horizontalScroll(rememberScrollState()).padding(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 2.dp),
+                Modifier.fillMaxWidth().height(46.dp)
+                    .graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
+                    .drawWithContent {
+                        drawContent()
+                        if (chipsScroll.canScrollForward) {
+                            val fade = 28.dp.toPx()
+                            drawRect(
+                                androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(Color.Black, Color.Transparent), startX = size.width - fade, endX = size.width),
+                                topLeft = Offset(size.width - fade, 0f), size = androidx.compose.ui.geometry.Size(fade, size.height),
+                                blendMode = androidx.compose.ui.graphics.BlendMode.DstIn,
+                            )
+                        }
+                    }
+                    .horizontalScroll(chipsScroll).padding(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 2.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 content = chips,

@@ -882,12 +882,13 @@ fun MainAppHost(
             // Вложенные страницы «Плагинов», «Автоматизации» и «Настроек» закрывает их собственный стек.
             BackHandler(enabled = ui.activePage != ActivePage.CHAT) { ui.activePage = ActivePage.CHAT }
             // Шапка чата живёт внутри экрана чата: под листами она уменьшается вместе с ним.
-            val chatTopBar: @Composable (Boolean) -> Unit = { scrolled ->
+            val chatTopBar: @Composable (Boolean, com.dsh.feature.chat.ChatContextChip?) -> Unit = { scrolled, contextChip ->
                 androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxWidth()) {
                             ModernTopAppBar(
                                 workspace = runtimeUi.activeWorkspaceName,
                                 live = status.phase == RuntimePhase.RUNNING || ui.activeHostId != com.dsh.core.model.HostDescriptor.Local().id,
                                 scrolled = scrolled,
+                                context = contextChip,
                                 onNew = {
                                     // Новая сессия создаётся на Host только с первым сообщением.
                                     ui.selectedSessionId = null

@@ -115,6 +115,8 @@ fun ModernTopAppBar(
     onOpenInspector: () -> Unit = {},
     /** Панели нативных плагинов; null — ни один плагин их не добавил. */
     onToggleRightPane: (() -> Unit)? = null,
+    /** Заполненность контекста сессии; null — неизвестна или не сессия. */
+    context: com.dsh.feature.chat.ChatContextChip? = null,
     onMenuClick: () -> Unit
 ) {
     val c = com.dsh.core.designsystem.Dsh.colors
@@ -130,6 +132,7 @@ fun ModernTopAppBar(
             scrolled = scrolled,
             onMenu = onMenuClick,
             onNew = onNew,
+            context = context,
         ) {
             // Дополнительные действия сессии — те же круглые кнопки шапки.
             if (onToggleRightPane != null) {

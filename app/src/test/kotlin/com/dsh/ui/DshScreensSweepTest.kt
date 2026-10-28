@@ -395,10 +395,21 @@ class DshScreensSweepTest {
     )
 
     @Composable
-    private fun chatAgent(done: Boolean, approval: com.dsh.feature.chat.ChatApproval? = null, online: Boolean = true) = com.dsh.feature.chat.ModernChatScreen(
+    private fun ctxStats(used: Long) = com.dsh.core.model.ComposerStats(
+        contextPercent = (used * 100 / 1_000_000).toInt(), contextUsed = used, contextWindow = 1_000_000,
+        systemTokens = 11_800, toolsTokens = 23_400, messageTokens = used - 35_200,
+        uncachedInputTokens = 182_000, cacheReadTokens = 640_000, outputTokens = 46_000,
+    )
+
+    @Composable
+    private fun chatAgent(
+        done: Boolean, approval: com.dsh.feature.chat.ChatApproval? = null, online: Boolean = true,
+        stats: com.dsh.core.model.ComposerStats = ctxStats(412_000), sheet: String? = null, spent: String? = "0.38 USD",
+    ) = com.dsh.feature.chat.ModernChatScreen(
         messages = agentMessages(done), onSendMessage = {}, isThinking = !done, isSending = !done, approval = approval, online = online,
+        stats = stats, initialSheet = sheet, spentToday = spent,
         sessionTitle = "Скрипт резервного копирования",
-        topBar = { com.dsh.ModernTopAppBar(title = "Сборка падает после обновления Compose", workspace = "DSH-Workspace", scrolled = it, onMenuClick = {}) },
+        topBar = { sc, ctx -> com.dsh.ModernTopAppBar(title = "Сборка падает после обновления Compose", workspace = "DSH-Workspace", scrolled = sc, context = ctx, onMenuClick = {}) },
         filesBadge = 2, onOpenTerminal = {}, voiceEnabled = true,
         selectedModel = "DeepSeek V4", availableModels = listOf("DeepSeek V4"),
     )
@@ -423,7 +434,7 @@ class DshScreensSweepTest {
     private fun chatHome(sheet: String? = null) = com.dsh.feature.chat.ModernChatScreen(
         initialSheet = sheet, modelGroups = models, online = true, defaultModelId = "deepseek-v4", reasoningOptions = efforts, selectedReasoningId = "high",
         terminalContext = com.dsh.feature.chat.ChatTerminalContext("adb devices", 127, "bash: adb: команда не найдена"), onTakePhoto = {},
-        messages = emptyList(), onSendMessage = {}, topBar = { chatTop(it) }, userName = "Михаил",
+        messages = emptyList(), onSendMessage = {}, topBar = { sc, _ -> chatTop(sc) }, userName = "Михаил",
         resume = com.dsh.feature.chat.ChatResume("s1", "Сборка падает после обновления Compose", 3, 5),
         filesBadge = 2, onOpenTerminal = {}, voiceEnabled = true,
         selectedModel = "DeepSeek V4", availableModels = listOf("DeepSeek V4"),
@@ -442,6 +453,10 @@ class DshScreensSweepTest {
                 "chat-model" to @Composable { chatHome(sheet = "model") },
                 "chat-plus" to @Composable { chatHome(sheet = "plus") },
                 "chat-perm" to @Composable { chatHome(sheet = "permission") },
+                "chat-ctx-sheet" to @Composable { chatAgent(done = true, sheet = "context") },
+                "chat-ctx-warn-sheet" to @Composable { chatAgent(done = true, stats = ctxStats(850_000), sheet = "context", spent = null) },
+                "chat-ctx-danger" to @Composable { chatAgent(done = true, stats = ctxStats(968_000)) },
+                "chat-ctx-danger-sheet" to @Composable { chatAgent(done = true, stats = ctxStats(968_000), sheet = "context") },
             ),
         ),
     )

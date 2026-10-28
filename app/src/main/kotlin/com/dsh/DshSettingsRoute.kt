@@ -107,7 +107,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         }
         if (ApiKeyVault.lost(DEEPSEEK_VAULT_REF)) toast.show(context.getString(R.string.key_lost_reenter))
         balance = result?.second
-        balance?.let { (amount, _) -> ledger = withContext(Dispatchers.IO) { BalanceLedger.record(context, amount) } }
+        balance?.let { (amount, currency) -> ledger = withContext(Dispatchers.IO) { BalanceLedger.record(context, amount, currency = currency) } }
     }
     val money = { v: Double -> balance?.let { String.format(Locale.getDefault(), "%.2f %s", v, it.second) } }
 

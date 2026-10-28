@@ -120,8 +120,9 @@ internal fun ColumnScope.SubagentsSheetBody(items: List<SubagentInfo>, running: 
     }
 }
 
+/** Заголовок листа чата `.sheet h3`: 19/23, отступы 2 / 4 / 14. */
 @Composable
-private fun DshSheetTitleText(text: String) {
+internal fun DshSheetTitleText(text: String) {
     Text(
         text, style = ckDisplay(19.sp, 23.sp), color = Dsh.colors.t1,
         modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 2.dp, bottom = 14.dp),

@@ -127,6 +127,43 @@ svg { display: block; }
 .sbar .title span { display: block; }
 .sbar .title span .live { display: inline-block; vertical-align: 1px; margin-right: 4px; }
 .title .live { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+/* Контекст в подзаголовке сессии: кольцо и процент; заголовок становится кнопкой листа «Контекст и расход» */
+.title.tap { cursor: pointer; min-height: 44px; display: flex; flex-direction: column; justify-content: center; border-radius: 14px; }
+.title.tap:active { background: var(--s2); }
+.title em { font-style: normal; }
+.title .ctx { display: inline-flex; align-items: center; gap: 3px; flex: none; }
+.title .ctx { margin-left: 4px; }
+.title .ctx[hidden] { display: none; }
+.ring { width: 12px; height: 12px; transform: rotate(-90deg); flex: none; }
+.ring circle { fill: none; stroke-width: 2.4; }
+.ring .tr { stroke: color-mix(in srgb, var(--t3) 32%, transparent); }
+.ring .fl { stroke: var(--accent); stroke-linecap: round; transition: stroke-dasharray .6s var(--e-snappy); }
+.ctx.warn, .cx-top.warn b { color: var(--warn); } .ctx.warn .fl { stroke: var(--warn); }
+.ctx.danger, .cx-top.danger b { color: var(--danger); } .ctx.danger .fl { stroke: var(--danger); }
+/* Лист «Контекст и расход» */
+.cx-top { display: flex; align-items: baseline; gap: 10px; margin: -4px 4px 10px; }
+.cx-top b { font-family: var(--font-display); font-size: 32px; font-weight: 600; line-height: 1.1; }
+.cx-top span { font-size: 14px; color: var(--t2); }
+.cx-bar { display: flex; gap: 2px; height: 10px; border-radius: 6px; background: var(--s2); overflow: hidden; margin: 0 4px; }
+.cx-bar i { display: block; height: 100%; min-width: 3px; transition: width .6s var(--e-snappy); }
+.cx-bar i[style*="width: 0"] { min-width: 0; }
+.k1 { background: #d97706; } .k2 { background: #0e9aa7; } .k3 { background: var(--accent); }
+.cx-leg { display: grid; gap: 2px; margin: 12px 4px 4px; }
+.cx-leg div { display: flex; align-items: center; gap: 8px; min-height: 30px; font-size: 14px; color: var(--t2); }
+.cx-leg div i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.cx-leg div b { margin-left: auto; font-weight: 500; color: var(--t1); font-variant-numeric: tabular-nums; }
+.cx-note { margin: 8px 4px 0; padding: 10px 12px; border-radius: 14px; font-size: 13.5px; line-height: 1.45; background: var(--warn-soft); color: var(--warn); }
+.cx-note[hidden] { display: none; }
+.cx-rows { border-radius: 18px; background: var(--s2); padding: 2px 14px; }
+.cx-rows div { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; font-size: 14.5px; }
+.cx-rows div + div { border-top: 1px solid var(--line); }
+.cx-rows small { display: block; font-size: 12.5px; color: var(--t3); }
+.cx-rows b { font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cx-money { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; margin-top: 8px; padding: 6px 12px 6px 14px; border-radius: 18px; background: var(--s2); text-align: left; font-size: 14.5px; color: var(--t1); }
+.cx-money .tx { flex: 1; min-width: 0; } .cx-money small { display: block; font-size: 12.5px; color: var(--t3); }
+.cx-money .val { color: var(--t3); font-size: 14px; white-space: nowrap; }
+.cx-go { width: 100%; height: 52px; border-radius: 16px; margin-top: 14px; font-size: 16px; gap: 8px; }
+.cx-hint { margin: 8px 6px 0; font-size: 12.5px; line-height: 1.45; color: var(--t3); text-align: center; }
 
 .thread { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 112px 20px 190px; scroll-behavior: smooth; overscroll-behavior: contain; }
 .thread::-webkit-scrollbar { width: 0; }
@@ -256,8 +293,11 @@ svg { display: block; }
   border: 1px solid var(--glass-line); box-shadow: var(--shadow-float); padding: 6px; }
 @media (max-width: 760px) { .composer { bottom: calc(10px + env(safe-area-inset-bottom, 0px)); } .dock { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); } }
 .chips { display: flex; gap: 6px; padding: 4px 4px 2px; overflow: hidden; height: 0; opacity: 0; }
-.composer.open .chips { height: 44px; opacity: 1; }
-.chip { display: inline-flex; align-items: center; gap: 5px; height: 36px; padding: 0 10px; border-radius: 999px; background: var(--s2); font-size: 13px; color: var(--t2); white-space: nowrap; flex: none; }
+.composer.open .chips { height: 46px; opacity: 1; }
+/* Чипы не обрезаются: лента прокручивается, а край гаснет, когда справа есть ещё */
+.composer.open .chips { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.chips.more { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+.chip { display: inline-flex; align-items: center; gap: 5px; height: 40px; padding: 0 10px; border-radius: 999px; background: var(--s2); font-size: 13px; color: var(--t2); white-space: nowrap; flex: none; }
 .chip .i { width: 14px; height: 14px; }
 .chip.accent { background: var(--accent-soft); color: color-mix(in srgb, var(--accent) 82%, var(--t1)); }
 
@@ -1357,7 +1397,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       <div class="main" id="main">
         <header class="topbar" id="topbar">
           <button class="iconbtn" data-act="drawer" aria-label="Открыть меню"><svg class="i"><use href="#i-menu"/></svg></button>
-          <div class="title" id="title"><b>Новая сессия</b><span><i class="live"></i>DSH-Workspace</span></div>
+          <div class="title" id="title"><b>Новая сессия</b><span><i class="live"></i>DSH-Workspace<em class="ctx" id="ctxMini" hidden><svg class="ring" viewBox="0 0 14 14" aria-hidden="true"><circle class="tr" cx="7" cy="7" r="5.5"/><circle class="fl" cx="7" cy="7" r="5.5"/></svg><em id="ctxMiniPct">0%</em></em></span></div>
           <button class="iconbtn" data-act="new" aria-label="Новая сессия"><svg class="i"><use href="#i-new"/></svg></button>
         </header>
 
@@ -1545,6 +1585,30 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <button class="sa-row" data-sa="Проверка тестов"><span class="sa-st"><i class="run"></i></span><span class="tx"><b>Проверка тестов</b><small>работает · 2 мин</small></span><span class="mode cont">продолжаемый</span><svg class="i sm go"><use href="#i-right"/></svg></button>
         <button class="sa-row" data-sa="Поиск устаревших API"><span class="sa-st"><i class="ok"></i></span><span class="tx"><b>Поиск устаревших API</b><small>готово · 5 мин назад</small></span><span class="mode">разовый</span><svg class="i sm go"><use href="#i-right"/></svg></button>
         <button class="sa-row" data-sa="Codex: ревью diff"><span class="sa-st"><i></i></span><span class="tx"><b>Codex: ревью diff</b><small>внешний · вчера</small></span><span class="mode">внешний</span></button>
+      </section>
+
+      <!-- Лист: контекст и расход сессии -->
+      <section class="sheet" id="sheet-ctx" aria-label="Контекст и расход">
+        <div class="grab"></div>
+        <h3>Контекст и расход</h3>
+        <div class="cx-top" id="cxTop"><b id="cxPct">41%</b><span id="cxOf">412 тыс. из 1 млн токенов</span></div>
+        <div class="cx-bar" id="cxBar" role="img" aria-label="Заполненность контекста"><i class="k1"></i><i class="k2"></i><i class="k3"></i></div>
+        <div class="cx-leg">
+          <div><i class="k1"></i>Инструкции и правила<b id="cxK1"></b></div>
+          <div><i class="k2"></i>Описания инструментов<b id="cxK2"></b></div>
+          <div><i class="k3"></i>Разговор и результаты<b id="cxK3"></b></div>
+        </div>
+        <p class="cx-note" id="cxNote" hidden></p>
+        <div class="glabel">Расход за сессию</div>
+        <div class="cx-rows">
+          <div><span>Новый ввод</span><b id="cxIn"></b></div>
+          <div><span>Из кэша<small>дешевле нового ввода</small></span><b id="cxCache"></b></div>
+          <div><span>Ответы модели</span><b id="cxOut"></b></div>
+          <div><span>Всего</span><b id="cxTotal"></b></div>
+        </div>
+        <button class="cx-money" id="cxMoney"><span class="si c3"><svg class="i"><use href="#i-key"/></svg></span><span class="tx">Потрачено сегодня<small>по балансу DeepSeek</small></span><span class="val">0,38 $</span><svg class="i sm chev-r"><use href="#i-right"/></svg></button>
+        <button class="btn primary cx-go" id="cxCompact"><svg class="i sm"><use href="#i-box"/></svg>Сжать сейчас</button>
+        <p class="cx-hint">Ранние сообщения заменяются кратким пересказом. Файлы и последние шаги не меняются.</p>
       </section>
 
       <!-- Лист: модель -->
@@ -1984,7 +2048,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     if (composer.classList.contains("open") === open) return;
     composer.classList.toggle("open", open);
     const chips = $("#chips");
-    anim(chips, [{ height: open ? "0px" : "44px", opacity: open ? 0 : 1 }, { height: open ? "44px" : "0px", opacity: open ? 1 : 0 }], SNAPPY);
+    anim(chips, [{ height: open ? "0px" : "46px", opacity: open ? 0 : 1 }, { height: open ? "46px" : "0px", opacity: open ? 1 : 0 }], SNAPPY);
   }
   let busy = false;
   function syncSend() {
@@ -2030,7 +2094,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   // ---------- Главный экран ----------
   function hour() { const h = new Date().getHours(); return h < 5 ? "Доброй ночи" : h < 12 ? "Доброе утро" : h < 18 ? "Добрый день" : "Добрый вечер"; }
   function renderHome() {
-    stopRun(true); hideDecision(true);
+    stopRun(true); hideDecision(true); if (window.ctxSet) window.ctxSet({ on: false });
     title.textContent = "Новая сессия";
     thread.innerHTML = `
       <div class="home">
@@ -2515,6 +2579,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   function resetArm() { clearTimeout(armT); dcYes.classList.remove("arm"); dcYes.textContent = "Удалить"; $("#dcHint").textContent = "Удаление — двумя касаниями"; }
 
   async function renderDanger() {
+    window.ctxSet({ on: true, used: 128000, k: [11800, 23400, 92800] });
     stopRun(true);
     const my = runId;
     title.textContent = "Скрипт резервного копирования";
@@ -2828,6 +2893,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   }
   $$("[data-fa]").forEach((b) => b.addEventListener("click", () => { sheetClose(); setTimeout(() => fileAction(b.dataset.fa, faPath), 200); }));
   async function reviewChanges() {
+    window.ctxSet({ on: true, used: 846000, k: [11800, 23400, 810800] });
     toChat(); await wait(350);
     stopRun(true); hideDecision(true);
     const my = runId;
@@ -3611,7 +3677,42 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   $("#limPlus").addEventListener("click", () => { const L = LIM[limKey]; limDraft = L.v[Math.min(L.v.length - 1, L.v.indexOf(limDraft) + 1)]; limShow(); });
   $("#limReset").addEventListener("click", () => { delete LIMV[limKey]; sheetClose(); stRefresh(); toast("Вернули стандартное значение"); });
   $("#limSave").addEventListener("click", () => { if (limDraft === LIM[limKey].d) delete LIMV[limKey]; else LIMV[limKey] = limDraft; sheetClose(); stRefresh(); toast("Сохранено · действует со следующего шага агента"); });
+  // ── Контекст и расход: числа как у проекций contextPressure / contextBreakdown / tokenUsage ──
+  const CTX = { on: false, used: 412000, win: 1000000, k: [11800, 23400, 376800], inNew: 182000, inCache: 640000, out: 46000 };
+  const tk = (n) => n >= 1e6 ? String(+(n / 1e6).toFixed(1)).replace(".", ",") + " млн" : n >= 1000 ? Math.round(n / 1000) + " тыс." : String(n);
+  function ctxRender() {
+    const pct = Math.min(100, Math.round(CTX.used / CTX.win * 100)), lvl = pct >= 95 ? "danger" : pct >= 80 ? "warn" : "";
+    const mini = $("#ctxMini"), t = $("#title");
+    mini.hidden = !CTX.on; t.classList.toggle("tap", CTX.on);
+    if (CTX.on) { t.setAttribute("role", "button"); t.setAttribute("tabindex", "0"); t.setAttribute("aria-label", `${$("#title b").textContent}. Контекст занят на ${pct}%`); }
+    else { t.removeAttribute("role"); t.removeAttribute("tabindex"); t.removeAttribute("aria-label"); }
+    mini.className = "ctx " + lvl; $("#ctxMiniPct").textContent = pct + "%";
+    const C = 2 * Math.PI * 5.5; $(".fl", mini).setAttribute("stroke-dasharray", `${C * Math.max(pct, 2) / 100} ${C}`);
+    $("#cxTop").className = "cx-top " + lvl; $("#cxPct").textContent = pct + "%"; $("#cxOf").textContent = `${tk(CTX.used)} из ${tk(CTX.win)} токенов`;
+    const sum = CTX.k[0] + CTX.k[1] + CTX.k[2];
+    $$("#cxBar i").forEach((i, n) => { i.style.width = (pct * CTX.k[n] / sum).toFixed(2) + "%"; });
+    ["#cxK1", "#cxK2", "#cxK3"].forEach((id, n) => { $(id).textContent = "≈ " + tk(Math.round(CTX.used * CTX.k[n] / sum)); });
+    const note = $("#cxNote"); note.hidden = !lvl;
+    note.textContent = lvl === "danger" ? "Контекст почти заполнен: следующий шаг агента запустит сжатие сам. Сожмите сейчас, чтобы не прерывать работу." : "Осталось меньше пятой части: скоро ранние сообщения будут сжаты автоматически.";
+    $("#cxIn").textContent = tk(CTX.inNew);
+    $("#cxCache").textContent = `${tk(CTX.inCache)} · ${Math.round(CTX.inCache / (CTX.inCache + CTX.inNew) * 100)}%`;
+    $("#cxOut").textContent = tk(CTX.out); $("#cxTotal").textContent = tk(CTX.inNew + CTX.inCache + CTX.out);
+    $("#cxCompact").disabled = pct < 5;
+  }
+  window.ctxSet = (o) => { Object.assign(CTX, o); ctxRender(); };
+  const chipsEl = $("#chips"), chipsMore = () => chipsEl.classList.toggle("more", chipsEl.scrollLeft + chipsEl.clientWidth < chipsEl.scrollWidth - 2);
+  chipsEl.addEventListener("scroll", chipsMore, { passive: true });
+  new ResizeObserver(chipsMore).observe(chipsEl); new MutationObserver(chipsMore).observe(chipsEl, { childList: true });
+  $("#title").addEventListener("click", () => { if (CTX.on) sheetOpen("ctx"); });
+  $("#title").addEventListener("keydown", (e) => { if (CTX.on && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); sheetOpen("ctx"); } });
+  $("#cxMoney").addEventListener("click", () => { sheetClose(); setTimeout(() => { screenOpen("settings"); setTimeout(() => $('[data-stgo="models"]')?.click(), 450); }, 250); });
+  $("#cxCompact").addEventListener("click", () => {
+    const before = Math.round(CTX.used / CTX.win * 100); sheetClose(); toast("Сжимаю контекст…");
+    setTimeout(() => { CTX.used = Math.round(CTX.used * 0.22); CTX.k[2] = Math.round(CTX.k[2] * 0.18); ctxRender(); toast(`Контекст сжат · ${before}% → ${Math.round(CTX.used / CTX.win * 100)}%`); }, 1300);
+  });
+
   function startAgentDemo() {
+    window.ctxSet({ on: true, used: 412000, k: [11800, 23400, 376800] });
     if (openSheet) sheetClose(true);
     goalShow(false);
     saBand.classList.remove("on"); $("#dockSa").hidden = true;

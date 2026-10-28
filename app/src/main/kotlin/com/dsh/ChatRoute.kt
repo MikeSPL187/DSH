@@ -35,7 +35,7 @@ internal class ChatDeps(
     val runtimeUi: AppRuntimeUiState,
     val repository: DshRepository,
     val settingsRepository: DefaultSettingsRepository,
-    val topBar: @Composable (Boolean) -> Unit,
+    val topBar: @Composable (Boolean, com.dsh.feature.chat.ChatContextChip?) -> Unit,
     val userName: String?,
     val hasApiKey: Boolean,
     val sessions: List<SessionInfo>,
@@ -331,6 +331,17 @@ internal fun ChatRoute(d: ChatDeps) {
             scope.launch { d.settingsRepository.updateSettings { it.copy(defaultReasoningLevel = level.name) } }
         },
         stats = stats,
+        // Трата за сегодня — из журнала баланса, который ведут «Настройки»; сети здесь не нужно.
+        spentToday = remember(sessionId, stats) {
+            com.dsh.feature.settings.logic.BalanceLedger.peek(context)?.let { (summary, currency) ->
+                String.format(java.util.Locale.getDefault(), "%.2f %s", summary.today, currency.orEmpty()).trim()
+            }
+        },
+        onOpenSpending = {
+            ui.settingsInitialSection = com.dsh.feature.settings.ui.StPage.Models
+            ui.activePage = ActivePage.SETTINGS
+        },
+        onCompactNow = { d.sender.compactNow() },
         voiceEnabled = d.voiceEnabled,
         voiceRecording = runtimeUi.voiceRecording,
         voiceSeconds = runtimeUi.voiceSeconds,

@@ -148,7 +148,7 @@ class ScreenPreviewActivity : ComponentActivity() {
         com.dsh.feature.chat.ModernChatScreen(
             messages = messages, onSendMessage = {}, isThinking = state != "chat-home", isSending = state != "chat-home",
             approval = approval, sessionTitle = "Скрипт резервного копирования",
-            topBar = { sc -> com.dsh.ModernTopAppBar(title = if (state == "chat-home") "" else "Сборка падает после обновления Compose", workspace = "DSH-Workspace", scrolled = sc, onMenuClick = onMenu) },
+            topBar = { sc, ctx -> com.dsh.ModernTopAppBar(context = ctx, title = if (state == "chat-home") "" else "Сборка падает после обновления Compose", workspace = "DSH-Workspace", scrolled = sc, onMenuClick = onMenu) },
             userName = "Михаил", resume = if (state == "chat-home") com.dsh.feature.chat.ChatResume("s1", "Сборка падает после обновления Compose") else null,
             filesBadge = 2, onOpenTerminal = {}, voiceEnabled = true, selectedModel = "DeepSeek V4", availableModels = listOf("DeepSeek V4"),
         )

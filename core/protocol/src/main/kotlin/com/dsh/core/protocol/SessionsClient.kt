@@ -358,35 +358,7 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                     } else null
 
                     if (values is kotlinx.serialization.json.JsonObject) {
-                        val statsObj = values["sessionStats"] as? kotlinx.serialization.json.JsonObject
-                        if (statsObj != null) {
-                            val decodeMs = statsObj["decodeMs"]?.let { runCatching { it.toString().toDouble() }.getOrNull() } ?: 0.0
-                            val decodeTokens = statsObj["decodeTokens"]?.let { runCatching { it.toString().toDouble() }.getOrNull() } ?: 0.0
-                            val speed = if (decodeMs > 0.0) {
-                                Math.round((decodeTokens / (decodeMs / 1000.0)) * 10.0) / 10.0
-                            } else 0.0
-
-                            val tokenUsage = values["tokenUsage"] as? kotlinx.serialization.json.JsonObject
-                            val uncached = tokenUsage?.get("uncachedInputTokens")?.let { runCatching { it.toString().toDouble() }.getOrNull() } ?: 0.0
-                            val cacheRead = tokenUsage?.get("cacheReadTokens")?.let { runCatching { it.toString().toDouble() }.getOrNull() } ?: 0.0
-                            val cacheWrite = tokenUsage?.get("cacheWriteTokens")?.let { runCatching { it.toString().toDouble() }.getOrNull() } ?: 0.0
-                            val totalInput = uncached + cacheRead + cacheWrite
-                            val cacheHit = if (totalInput > 0.0) {
-                                Math.round((cacheRead / totalInput) * 100.0).toInt().coerceIn(0, 100)
-                            } else 0
-
-                            val contextPercent = if (totalInput > 0.0) {
-                                Math.min(100, Math.max(1, Math.round((totalInput / 64000.0) * 100.0).toInt()))
-                            } else 0
-
-                            return@withContext RemoteResult.Success(
-                                ComposerStats(
-                                    outputSpeedTokensPerSec = speed,
-                                    contextPercent = contextPercent,
-                                    cacheHitPercent = cacheHit
-                                )
-                            )
-                        }
+                        return@withContext RemoteResult.Success(parseComposerStats(values))
                     }
                 }
             }

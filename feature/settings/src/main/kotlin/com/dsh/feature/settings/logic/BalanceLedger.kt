@@ -24,14 +24,26 @@ object BalanceLedger {
         return (0 until arr.length()).mapNotNull { i -> arr.optJSONObject(i)?.let { Sample(it.optLong("t"), it.optDouble("a")) } }.toMutableList()
     }
 
-    /** Записать текущий баланс и вернуть сводку. */
-    fun record(context: Context, amount: Double, now: Long = System.currentTimeMillis()): Summary {
+    /** Записать текущий баланс (и его валюту, если известна) и вернуть сводку. */
+    fun record(context: Context, amount: Double, now: Long = System.currentTimeMillis(), currency: String? = null): Summary {
         val list = load(context)
         if (list.lastOrNull()?.amount != amount || now - (list.lastOrNull()?.at ?: 0) > 6 * 3600_000L) list += Sample(now, amount)
         while (list.size > 400) list.removeAt(0)
         val arr = JSONArray().apply { list.forEach { put(JSONObject().put("t", it.at).put("a", it.amount)) } }
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("samples", arr.toString()).apply()
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("samples", arr.toString())
+            .apply { if (currency != null) putString("currency", currency) }.apply()
         return summarize(list.map { it.at to it.amount }, amount, now)
+    }
+
+    /**
+     * Сводка по уже записанным снимкам, без запроса баланса: для экранов вне «Настроек» (лист «Контекст и расход»).
+     * null — снимков нет (ключа нет или баланс ещё ни разу не читали). Вторая часть — валюта последнего замера.
+     */
+    fun peek(context: Context, now: Long = System.currentTimeMillis()): Pair<Summary, String?>? {
+        val list = load(context)
+        val last = list.lastOrNull() ?: return null
+        val currency = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("currency", null)
+        return summarize(list.map { it.at to it.amount }, last.amount, now) to currency
     }
 
     /** Сводка по снимкам (время, баланс); вынесено для тестов. */

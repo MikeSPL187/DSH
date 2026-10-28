@@ -263,8 +263,14 @@ fun ModernChatScreen(
     onVoiceTranscriptConsumed: () -> Unit = {},
     isThinking: Boolean = false,
     onStopClick: () -> Unit = {},
-    /** Шапка `.topbar`; получает «лента прокручена» для стеклянного фона. */
-    topBar: (@Composable (scrolled: Boolean) -> Unit)? = null,
+    /** Шапка `.topbar`; получает «лента прокручена» для стеклянного фона и заполненность контекста (null — неизвестна). */
+    topBar: (@Composable (scrolled: Boolean, context: ChatContextChip?) -> Unit)? = null,
+    /** Трата за сегодня по балансу DeepSeek — строка листа «Контекст и расход»; null — баланс ещё не читали. */
+    spentToday: String? = null,
+    /** Открыть «Модели и ключи», где баланс и расход. */
+    onOpenSpending: () -> Unit = {},
+    /** Сжать контекст сессии сейчас (`/compact`), не трогая поле ввода. */
+    onCompactNow: () -> Unit = {},
     /** Имя из профиля аккаунта для приветствия. */
     userName: String? = null,
     /** Сессия, где агент сейчас работает, — карточка на главном. */
@@ -310,6 +316,7 @@ fun ModernChatScreen(
     var currentPermission by remember(selectedPermission) { mutableStateOf(selectedPermission) }
     var commandSheetOpen by remember { mutableStateOf(initialSheet == "plus") }
     var subagentsOpen by remember { mutableStateOf(initialSheet == "subagents") }
+    var contextOpen by remember { mutableStateOf(initialSheet == "context") }
     var trajectoryOpen by remember { mutableStateOf(false) }
     var actionMessage by remember { mutableStateOf<ChatMessage?>(null) }
     val localContext = LocalContext.current
@@ -558,7 +565,7 @@ fun ModernChatScreen(
             lastScroll = y
         }
     }
-    val closeSheets = { actionMessage = null; trajectoryOpen = false; pendingConfirm = null; modelMenuOpen = false; permissionMenuOpen = false; agentPresetMenuOpen = false; toolDetail = null; changeDiffIndex = null; commandSheetOpen = false; subagentsOpen = false }
+    val closeSheets = { actionMessage = null; trajectoryOpen = false; pendingConfirm = null; modelMenuOpen = false; permissionMenuOpen = false; agentPresetMenuOpen = false; toolDetail = null; changeDiffIndex = null; commandSheetOpen = false; subagentsOpen = false; contextOpen = false }
     val effortOptions = reasoningOptions
     val sheet: (@Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit)? = when {
         modelMenuOpen -> {
@@ -683,6 +690,16 @@ fun ModernChatScreen(
         subagentsOpen -> {
             val body: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
                 SubagentsSheetBody(subagents, runningSessionIds) { s -> subagentsOpen = false; onOpenSubagent(s) }
+            }
+            body
+        }
+        contextOpen -> {
+            val body: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
+                ContextSheetBody(
+                    stats, spentToday,
+                    onMoney = { contextOpen = false; onOpenSpending() },
+                    onCompact = { contextOpen = false; onCompactNow() },
+                )
             }
             body
         }
@@ -959,7 +976,11 @@ fun ModernChatScreen(
                 }
             }
         }
-        topBar?.invoke(scrolled)
+        // Заполненность — только у самой сессии: в разговоре субагента числа родителя ввели бы в заблуждение.
+        topBar?.invoke(
+            scrolled,
+            if (stats.hasContext && messages.isNotEmpty() && subagentView == null) ChatContextChip(stats.contextPercent) { contextOpen = true } else null,
+        )
         if (subagentView != null) SubagentBand(subagentView, onSubagentBack, Modifier.padding(top = statusTop + 64.dp + netShift + if (net != null) 22.dp else 0.dp))
         androidx.compose.animation.AnimatedVisibility(
             visible = net != null,

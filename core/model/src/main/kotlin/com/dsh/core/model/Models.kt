@@ -157,12 +157,34 @@ enum class SurfaceKind {
     UNKNOWN
 }
 
+/**
+ * Контекст и расход сессии из проекций Host (`session/projections`).
+ *
+ * [contextUsed] / [contextWindow] — точная заполненность (`contextPressure`: прогноз следующего запроса, иначе последний
+ * замер провайдера; окно — то, что объявил маршрут модели). [systemTokens], [toolsTokens], [messageTokens] — эвристический
+ * состав (`contextBreakdown`): годится только для долей, в сумме не равен [contextUsed]. Расход — `tokenUsage` за всю сессию.
+ */
 @Serializable
 data class ComposerStats(
     val outputSpeedTokensPerSec: Double = 0.0,
     val contextPercent: Int = 0,
-    val cacheHitPercent: Int = 0
-)
+    val cacheHitPercent: Int = 0,
+    val contextUsed: Long = 0,
+    val contextWindow: Long = 0,
+    val systemTokens: Long = 0,
+    val toolsTokens: Long = 0,
+    val messageTokens: Long = 0,
+    val uncachedInputTokens: Long = 0,
+    val cacheReadTokens: Long = 0,
+    val cacheWriteTokens: Long = 0,
+    val outputTokens: Long = 0,
+) {
+    /** Заполненность известна: провайдер прислал замер и маршрут объявил окно. */
+    val hasContext: Boolean get() = contextWindow > 0 && contextUsed > 0
+
+    /** Всего токенов за сессию: ввод (новый, из кэша, в кэш) и ответы. */
+    val totalTokens: Long get() = uncachedInputTokens + cacheReadTokens + cacheWriteTokens + outputTokens
+}
 
 @Serializable
 data class BuiltInPluginInfo(
