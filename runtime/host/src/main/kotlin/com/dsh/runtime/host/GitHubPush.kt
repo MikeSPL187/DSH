@@ -4,6 +4,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.lib.Constants
+import org.eclipse.jgit.lib.ObjectId
+import org.eclipse.jgit.lib.RefUpdate
+import org.eclipse.jgit.lib.Repository
+import org.eclipse.jgit.revwalk.RevWalk
 import org.eclipse.jgit.transport.RefSpec
 import org.eclipse.jgit.transport.RemoteRefUpdate
 import org.eclipse.jgit.storage.file.FileBasedConfig
@@ -92,6 +96,68 @@ object GitHubPush {
             Target("https://github.com/$owner/$name.git", owner, name, full.removePrefix(Constants.R_HEADS))
         }
     }
+
+    /** Имя ветки, допустимое для git (и не похожее на ключ командной строки). */
+    fun validBranch(name: String): Boolean =
+        name.isNotEmpty() && name.length <= 100 && !name.startsWith("-") && Repository.isValidRefName(Constants.R_HEADS + name)
+
+    /** Состояние ветки для запроса на слияние: имя, есть ли она на GitHub (`origin/<ветка>`), ветка по умолчанию локально. */
+    data class BranchInfo(val branch: String, val onRemote: Boolean, val localDefault: String?)
+
+    fun branchInfo(dir: File): Result<BranchInfo> = runCatching {
+        isolate()
+        Git.open(dir).use { git ->
+            val repo = git.repository
+            val full = repo.fullBranch?.takeIf { it.startsWith(Constants.R_HEADS) } ?: throw PushException(Failure.Detached)
+            val branch = full.removePrefix(Constants.R_HEADS)
+            // `origin/HEAD` ставит git clone; без него ветка по умолчанию неизвестна (её скажет GitHub).
+            val originHead = repo.exactRef("refs/remotes/origin/HEAD")?.target?.name
+                ?.takeIf { it.startsWith("refs/remotes/origin/") }?.removePrefix("refs/remotes/origin/")
+            BranchInfo(branch, repo.exactRef("refs/remotes/origin/$branch") != null, originHead)
+        }
+    }
+
+    /**
+     * Перенести неотправленные коммиты в новую ветку [name]: она создаётся на HEAD, HEAD переходит на неё, а прежняя
+     * ветка возвращается к своей версии на GitHub (`origin/<ветка>`), если та — предок HEAD. Файлы и индекс не
+     * меняются: коммит тот же, переключается только ссылка.
+     */
+    fun moveToNewBranch(dir: File, name: String): Result<Unit> = runCatching {
+        isolate()
+        require(validBranch(name)) { "bad branch name" }
+        Git.open(dir).use { git ->
+            val repo = git.repository
+            val full = repo.fullBranch?.takeIf { it.startsWith(Constants.R_HEADS) } ?: throw PushException(Failure.Detached)
+            val old = full.removePrefix(Constants.R_HEADS)
+            check(repo.exactRef(Constants.R_HEADS + name) == null) { "branch exists" }
+            val head = repo.resolve(Constants.HEAD) ?: error("no commits")
+            val created = repo.updateRef(Constants.R_HEADS + name).run {
+                setNewObjectId(head); setExpectedOldObjectId(ObjectId.zeroId()); setRefLogMessage("branch: created by DSH from $old", false); update()
+            }
+            check(created == RefUpdate.Result.NEW) { "cannot create branch: $created" }
+            val linked = repo.updateRef(Constants.HEAD).link(Constants.R_HEADS + name)
+            check(linked == RefUpdate.Result.FORCED || linked == RefUpdate.Result.NEW || linked == RefUpdate.Result.NO_CHANGE) { "cannot switch: $linked" }
+            val upstream = repo.resolve("refs/remotes/origin/$old") ?: return@use
+            val merged = RevWalk(repo).use { w -> w.isMergedInto(w.parseCommit(upstream), w.parseCommit(head)) }
+            if (merged) repo.updateRef(Constants.R_HEADS + old).run {
+                setNewObjectId(upstream); setExpectedOldObjectId(head); setRefLogMessage("reset: commits moved to $name by DSH", false); forceUpdate()
+            }
+        }
+    }
+
+    /** Сообщения коммитов ветки, которых нет в `origin/<base>` (новые первыми, не больше [limit]). */
+    fun commitsSince(dir: File, base: String, limit: Int = 30): List<String> = runCatching {
+        isolate()
+        Git.open(dir).use { git ->
+            val repo = git.repository
+            val head = repo.resolve(Constants.HEAD) ?: return@use emptyList()
+            RevWalk(repo).use { w ->
+                w.markStart(w.parseCommit(head))
+                repo.resolve("refs/remotes/origin/$base")?.let { w.markUninteresting(w.parseCommit(it)) }
+                w.take(limit).map { it.fullMessage.trim() }
+            }
+        }
+    }.getOrDefault(emptyList())
 
     /**
      * Отправить текущую ветку в `origin` той же ветки. Успех — цель; затем локальная `refs/remotes/origin/<ветка>`

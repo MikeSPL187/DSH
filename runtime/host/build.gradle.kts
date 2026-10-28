@@ -43,4 +43,5 @@ dependencies {
     implementation(libs.jgit)
     implementation("org.apache.commons:commons-compress:1.27.1")
     testImplementation(libs.junit)
+    testImplementation(libs.okhttp.mockwebserver)
 }

@@ -126,8 +126,12 @@ private sealed interface Sheet {
     data class NewItem(val folder: Boolean) : Sheet
     data object Clone : Sheet
     data class Commit(val info: GitInfo) : Sheet
-    /** Вход в GitHub; после входа — сразу отправка, ради которой он понадобился. */
+    /** Вход в GitHub; после входа — сразу действие, ради которого он понадобился. */
     data object GitHubLogin : Sheet
+    /** Новая ветка для неотправленных коммитов. */
+    data class Branch(val suggested: String, val base: String) : Sheet
+    /** Запрос на слияние из текущей ветки. */
+    data class Pull(val state: BranchState) : Sheet
 }
 
 /**
@@ -172,6 +176,8 @@ fun FilesScreen(
     onOpenInBrowser: ((File) -> Unit)? = null,
     /** Вход в GitHub для «Отправить»; null — отправки нет. */
     gitHub: FilesGitHub? = null,
+    /** Описание запроса на слияние по сообщениям коммитов (ИИ); null — недоступно. */
+    pullText: (suspend (List<String>) -> Result<String>)? = null,
 ) {
     val c = Dsh.colors
     val scope = rememberCoroutineScope()
@@ -200,21 +206,37 @@ fun FilesScreen(
     fun refresh() { tick++ }
     var pushing by remember { mutableStateOf(false) }
     val pushMsgs = PushMessages.load()
-    fun doPush() {
+    // Ветка, база и запрос на слияние — только когда есть вход в GitHub для отправки.
+    var loginTick by remember { mutableIntStateOf(0) }
+    val branchState by produceState<BranchState?>(null, git, version, loginTick, tab) {
+        value = if (gitHub != null && tab == 1) runCatching { git?.branchState() }.getOrNull() else null
+    }
+    // Что сделать после входа в GitHub: отправку или запрос на слияние, ради которых он понадобился.
+    var afterLogin by remember { mutableStateOf<(() -> Unit)?>(null) }
+    fun needLogin(then: () -> Unit) { afterLogin = then; sheet = Sheet.GitHubLogin }
+    fun openPull() {
+        val g = git ?: return
+        scope.launch { g.branchState()?.takeIf { it.branch != it.base }?.let { sheet = Sheet.Pull(it) } }
+    }
+    fun doPush(thenPull: Boolean = false) {
         val g = git ?: return
         if (pushing) return
         pushing = true
         scope.launch {
             g.push()
-                .onSuccess { onToast(pushMsgs.done.format(it)); refresh() }
+                .onSuccess { onToast(pushMsgs.done.format(it)); refresh(); if (thenPull) openPull() }
                 .onFailure { e ->
                     val problem = (e as? PushException)?.problem ?: PushProblem.OTHER
-                    if (problem == PushProblem.NEED_LOGIN && gitHub != null) sheet = Sheet.GitHubLogin
+                    if (problem == PushProblem.NEED_LOGIN && gitHub != null) needLogin { doPush(thenPull) }
                     else onToast(pushMsgs.of(problem, e.message.orEmpty()))
                 }
             pushing = false
         }
     }
+    val uri = androidx.compose.ui.platform.LocalUriHandler.current
+    val res = androidx.compose.ui.platform.LocalContext.current.resources
+    val pullExists = stringResource(R.string.fs_pr_exists)
+    val pullAuth = stringResource(R.string.fs_pr_auth)
 
     val revertedText = stringResource(R.string.fs_reverted)
     val top = stack.last()
@@ -222,7 +244,14 @@ fun FilesScreen(
     BackHandler(enabled = sheet == null && stack.size > 1) { pop() }
 
     DshSheetScaffold(
-        sheet = sheet?.let { s -> { SheetBody(s, root, changedPaths, ::file, onDone = { sheet = null }, onSheet = { sheet = it }, git, onAsk, onAttach, onShare, onImport, onToast, ::refresh, currentDir = (stack.lastOrNull { it is Entry.Dir } as? Entry.Dir)?.path ?: "", commitMessage = commitMessage, gitHub = gitHub, afterLogin = ::doPush) } },
+        sheet = sheet?.let { s -> { SheetBody(s, root, changedPaths, ::file, onDone = { sheet = null }, onSheet = { sheet = it }, git, onAsk, onAttach, onShare, onImport, onToast, ::refresh, currentDir = (stack.lastOrNull { it is Entry.Dir } as? Entry.Dir)?.path ?: "", commitMessage = commitMessage, gitHub = gitHub,
+            afterLogin = { loginTick++; val then = afterLogin ?: { doPush() }; afterLogin = null; then() },
+            pullText = pullText,
+            onMoved = { refresh(); doPush(thenPull = true) },
+            onPullCreated = { p -> sheet = null; refresh(); onToast(res.getString(R.string.fs_pr_done, p.number)) },
+            onPullLogin = { auth -> if (auth) onToast(pullAuth); val s = (sheet as? Sheet.Pull)?.state; needLogin { s?.let { sheet = Sheet.Pull(it) } } },
+            onPullExists = { sheet = null; refresh(); onToast(pullExists) },
+        ) } },
         onDismiss = { sheet = null },
         modifier = modifier,
     ) {
@@ -281,7 +310,11 @@ fun FilesScreen(
                     })
                     Entry.Changes -> ChangesView(
                         gitInfo, git, version, onReview = onReview, onCommit = { sheet = Sheet.Commit(it) }, onOpen = { push(Entry.Diff(it)) },
-                        pushing = pushing, signedIn = gitHub?.signedIn() == true, canPush = gitHub != null, onPush = ::doPush,
+                        pushing = pushing, signedIn = gitHub?.signedIn() == true, canPush = gitHub != null, onPush = { doPush() },
+                        branchState = branchState,
+                        onNewBranch = { subject -> branchState?.let { sheet = Sheet.Branch(branchSlug(subject), it.base) } },
+                        onCreatePull = { st -> if (gitHub?.signedIn() == true) sheet = Sheet.Pull(st) else needLogin { openPull() } },
+                        onOpenPull = { url -> runCatching { uri.openUri(url) } },
                     )
                     Entry.Search -> SearchView(root, query, version, changedPaths, onOpen = { f -> push(if (f.isDirectory) Entry.Dir(relPath(root, f)) else Entry.Doc(relPath(root, f))) }, onMore = { sheet = Sheet.Actions(it) })
                 }
@@ -439,7 +472,7 @@ private fun SearchField(query: String, onQuery: (String) -> Unit, onClose: () ->
 // Строки и плитки
 // ---------------------------------------------------------------------------
 
-private val Mono = TextStyle(fontFamily = DshFonts.mono)
+internal val Mono = TextStyle(fontFamily = DshFonts.mono)
 
 /** `.ft`: плитка типа файла 34 dp. */
 @Composable
@@ -992,6 +1025,10 @@ private fun ChangesView(
     signedIn: Boolean = false,
     canPush: Boolean = false,
     onPush: () -> Unit = {},
+    branchState: BranchState? = null,
+    onNewBranch: (subject: String) -> Unit = {},
+    onCreatePull: (BranchState) -> Unit = {},
+    onOpenPull: (String) -> Unit = {},
 ) {
     val c = Dsh.colors
     val gitReady = git != null
@@ -1005,7 +1042,10 @@ private fun ChangesView(
             info == null -> Empty(stringResource(if (gitReady) R.string.fs_no_changes else R.string.fs_no_git), icon = if (gitReady) DshGlyphs.Check else null)
             files.isEmpty() -> {
                 Empty(stringResource(R.string.fs_no_changes), icon = DshGlyphs.Check)
-                unpushed?.takeIf { it.first > 0 }?.let { (n, subject) -> UnpushedCard(n, subject, target, pushing, signedIn, onPush) }
+                val ahead = unpushed?.takeIf { it.first > 0 }
+                val onBase = branchState != null && branchState.branch == branchState.base
+                if (ahead != null) UnpushedCard(ahead.first, ahead.second, target, pushing, signedIn, onPush, onNewBranch = if (onBase && target != null) ({ onNewBranch(ahead.second) }) else null)
+                else if (branchState != null && !onBase && branchState.onRemote) PullCard(branchState, { onCreatePull(branchState) }, onOpenPull)
             }
             else -> {
                 val plus = files.sumOf { it.added.coerceAtLeast(0) }
@@ -1126,10 +1166,19 @@ private fun ColumnScope.SheetBody(
     commitMessage: (suspend (GitInfo) -> Result<String>)?,
     gitHub: FilesGitHub?,
     afterLogin: () -> Unit,
+    pullText: (suspend (List<String>) -> Result<String>)?,
+    onMoved: () -> Unit,
+    onPullCreated: (PullInfo) -> Unit,
+    onPullLogin: (auth: Boolean) -> Unit,
+    onPullExists: () -> Unit,
 ) {
     val c = Dsh.colors
     val scope = rememberCoroutineScope()
     when (sheet) {
+        is Sheet.Branch -> if (git != null) BranchSheetBody(sheet.suggested, sheet.base, git, onCancel = onDone, onMoved = { onDone(); onMoved() })
+        is Sheet.Pull -> if (git != null) PullSheetBody(
+            sheet.state, git, pullText, onCancel = onDone, onCreated = onPullCreated, onNeedLogin = onPullLogin, onExists = onPullExists, onToast = onToast,
+        )
         Sheet.GitHubLogin -> if (gitHub != null) {
             val signed = stringResource(R.string.fs_gh_signed, "%s")
             DeviceSignInSheetBody(

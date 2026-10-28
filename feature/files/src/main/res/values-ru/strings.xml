@@ -126,4 +126,39 @@
         <item quantity="many">%d страниц</item>
         <item quantity="other">%d страницы</item>
     </plurals>
+    <!-- Ветка и запрос на слияние -->
+    <string name="fs_new_branch_pr">В новую ветку и запрос на слияние</string>
+    <string name="fs_br_title">Новая ветка</string>
+    <string name="fs_br_hint">Неотправленные коммиты уйдут в неё на GitHub, а %1$s останется как там. Потом откроется запрос на слияние.</string>
+    <string name="fs_br_label">Имя ветки</string>
+    <string name="fs_br_chars">Латиница, цифры и «- _ . /», без пробелов</string>
+    <string name="fs_br_form">Так ветку назвать нельзя</string>
+    <string name="fs_br_is_base">Это ветка %1$s — нужно другое имя</string>
+    <string name="fs_br_exists">Ветка с таким именем уже есть</string>
+    <string name="fs_br_go">Отправить</string>
+    <string name="fs_br_failed">Не удалось создать ветку: %1$s</string>
+    <string name="fs_pr_card">Ветка на GitHub</string>
+    <string name="fs_pr_create">Создать запрос на слияние</string>
+    <string name="fs_pr_n">Запрос на слияние #%1$d</string>
+    <string name="fs_pr_state_open">открыт</string>
+    <string name="fs_pr_state_draft">черновик</string>
+    <string name="fs_pr_open">Открыть на GitHub</string>
+    <string name="fs_pr_title">Запрос на слияние</string>
+    <string name="fs_pr_name_ph">Название</string>
+    <string name="fs_pr_body_ph">Что сделано и как проверить — необязательно</string>
+    <string name="fs_pr_body_label">Описание запроса</string>
+    <string name="fs_pr_ai">Написать по коммитам</string>
+    <string name="fs_pr_writing">Пишу описание…</string>
+    <string name="fs_pr_draft">Черновик</string>
+    <string name="fs_pr_draft_hint">Ревьюеры не получат запрос, пока вы не отметите его готовым</string>
+    <string name="fs_pr_go">Создать</string>
+    <string name="fs_pr_creating">Создаю…</string>
+    <string name="fs_pr_done">Запрос на слияние #%1$d создан</string>
+    <string name="fs_pr_auth">Вход в GitHub больше не действует — войдите заново</string>
+    <string name="fs_pr_no_access">Нет доступа к репозиторию. Если он в организации, разрешите приложение DSH в её настройках на GitHub</string>
+    <string name="fs_pr_exists">Запрос из этой ветки уже открыт</string>
+    <string name="fs_pr_no_commits">В ветке нет коммитов, которых нет в %1$s</string>
+    <string name="fs_pr_draft_unsupported">Черновики в этом репозитории недоступны — выключите «Черновик»</string>
+    <string name="fs_pr_not_github">Проект не на GitHub</string>
+    <string name="fs_pr_failed">Не удалось создать запрос: %1$s</string>
 </resources>

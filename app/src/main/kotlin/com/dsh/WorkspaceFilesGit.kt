@@ -57,6 +57,55 @@ internal class WorkspaceFilesGit(private val git: WorkspaceGit, private val proj
         },
     )
 
+    override suspend fun branchState(): com.dsh.feature.files.BranchState? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val target = com.dsh.runtime.host.GitHubPush.target(dir).getOrNull() ?: return@withContext null
+        val info = com.dsh.runtime.host.GitHubPush.branchInfo(dir).getOrNull() ?: return@withContext null
+        val base = baseOf(target, info)
+        val pull = if (info.onRemote && info.branch != base) GitHubAccount.openPull(target.owner, target.repo, info.branch) else null
+        com.dsh.feature.files.BranchState(info.branch, base, info.onRemote, pull?.let { com.dsh.feature.files.PullInfo(it.number, it.url, it.title, it.draft) })
+    }
+
+    /** База запроса: `origin/HEAD` после клонирования, иначе ответ GitHub, иначе main/master по имени ветки. */
+    private suspend fun baseOf(target: com.dsh.runtime.host.GitHubPush.Target, info: com.dsh.runtime.host.GitHubPush.BranchInfo): String =
+        info.localDefault ?: GitHubAccount.defaultBranch(target.owner, target.repo) ?: info.branch.takeIf { it == "main" || it == "master" } ?: "main"
+
+    override suspend fun moveToBranch(name: String): Result<Unit> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        com.dsh.runtime.host.GitHubPush.moveToNewBranch(dir, name).recoverCatching { e ->
+            throw if (e.message == "branch exists") com.dsh.feature.files.BranchExistsException() else e
+        }
+    }
+
+    override suspend fun branchCommits(): List<String> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val target = com.dsh.runtime.host.GitHubPush.target(dir).getOrNull() ?: return@withContext emptyList()
+        val info = com.dsh.runtime.host.GitHubPush.branchInfo(dir).getOrNull() ?: return@withContext emptyList()
+        com.dsh.runtime.host.GitHubPush.commitsSince(dir, baseOf(target, info))
+    }
+
+    override suspend fun createPull(title: String, body: String, draft: Boolean): Result<com.dsh.feature.files.PullInfo> {
+        val target = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.dsh.runtime.host.GitHubPush.target(dir).getOrNull() }
+            ?: return Result.failure(com.dsh.feature.files.PullException(com.dsh.feature.files.PullProblem.NOT_GITHUB))
+        val info = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.dsh.runtime.host.GitHubPush.branchInfo(dir).getOrNull() }
+            ?: return Result.failure(com.dsh.feature.files.PullException(com.dsh.feature.files.PullProblem.OTHER))
+        return GitHubAccount.createPull(target.owner, target.repo, info.branch, baseOf(target, info), title, body, draft).fold(
+            onSuccess = { Result.success(com.dsh.feature.files.PullInfo(it.number, it.url, it.title, it.draft)) },
+            onFailure = { e ->
+                val problem = when {
+                    e is GitHubAccount.NeedLoginException -> com.dsh.feature.files.PullProblem.NEED_LOGIN
+                    e is com.dsh.runtime.host.GitHubPulls.PullException -> when (e.failure) {
+                        com.dsh.runtime.host.GitHubPulls.Failure.Auth -> com.dsh.feature.files.PullProblem.AUTH
+                        com.dsh.runtime.host.GitHubPulls.Failure.NoAccess -> com.dsh.feature.files.PullProblem.NO_ACCESS
+                        com.dsh.runtime.host.GitHubPulls.Failure.Exists -> com.dsh.feature.files.PullProblem.EXISTS
+                        com.dsh.runtime.host.GitHubPulls.Failure.NoCommits -> com.dsh.feature.files.PullProblem.NO_COMMITS
+                        com.dsh.runtime.host.GitHubPulls.Failure.DraftUnsupported -> com.dsh.feature.files.PullProblem.DRAFT_UNSUPPORTED
+                        is com.dsh.runtime.host.GitHubPulls.Failure.Other -> com.dsh.feature.files.PullProblem.OTHER
+                    }
+                    else -> com.dsh.feature.files.PullProblem.OTHER
+                }
+                Result.failure(com.dsh.feature.files.PullException(problem, (e as? com.dsh.runtime.host.GitHubPulls.PullException)?.failure?.let { (it as? com.dsh.runtime.host.GitHubPulls.Failure.Other)?.message } ?: e.message))
+            },
+        )
+    }
+
     private fun WorkspaceGit.Kind.toUi() = when (this) {
         WorkspaceGit.Kind.MODIFIED -> ChangeKind.MODIFIED
         WorkspaceGit.Kind.ADDED -> ChangeKind.ADDED

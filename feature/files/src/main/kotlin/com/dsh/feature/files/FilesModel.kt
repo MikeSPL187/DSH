@@ -43,6 +43,64 @@ interface FilesGit {
 
     /** Отправить текущую ветку; успех — куда ушло, ошибка — [PushException]. */
     suspend fun push(): Result<String> = Result.failure(PushException(PushProblem.OTHER))
+
+    /** Ветка, база и запрос на слияние из неё; null — проект не на GitHub или ветку не узнать. */
+    suspend fun branchState(): BranchState? = null
+
+    /** Перенести неотправленные коммиты в новую ветку [name] и перейти на неё; файлы не меняются. */
+    suspend fun moveToBranch(name: String): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /** Сообщения коммитов ветки, которых нет в базе (новые первыми), — для названия и описания запроса. */
+    suspend fun branchCommits(): List<String> = emptyList()
+
+    /** Открыть запрос на слияние из текущей ветки в базу; ошибка — [PullException]. */
+    suspend fun createPull(title: String, body: String, draft: Boolean): Result<PullInfo> = Result.failure(PullException(PullProblem.OTHER))
+}
+
+/** Запрос на слияние на GitHub. */
+data class PullInfo(val number: Int, val url: String, val title: String, val draft: Boolean)
+
+/**
+ * Ветка для запроса на слияние.
+ *
+ * @param base ветка по умолчанию на GitHub — куда сливать.
+ * @param onRemote ветка уже есть на GitHub (`origin/<ветка>`).
+ * @param pull открытый запрос из этой ветки; null — нет (или не вошли в GitHub и не узнать).
+ */
+data class BranchState(val branch: String, val base: String, val onRemote: Boolean, val pull: PullInfo?)
+
+/** Почему запрос на слияние не создан — у каждой причины своё объяснение. */
+enum class PullProblem { NEED_LOGIN, AUTH, NO_ACCESS, EXISTS, NO_COMMITS, DRAFT_UNSUPPORTED, NOT_GITHUB, OTHER }
+
+/** Ветка с таким именем уже есть. */
+class BranchExistsException : Exception("branch exists")
+
+class PullException(val problem: PullProblem, detail: String? = null) : Exception(detail ?: problem.name)
+
+private val TRANSLIT = mapOf(
+    'а' to "a", 'б' to "b", 'в' to "v", 'г' to "g", 'д' to "d", 'е' to "e", 'ё' to "e", 'ж' to "zh", 'з' to "z", 'и' to "i",
+    'й' to "y", 'к' to "k", 'л' to "l", 'м' to "m", 'н' to "n", 'о' to "o", 'п' to "p", 'р' to "r", 'с' to "s", 'т' to "t",
+    'у' to "u", 'ф' to "f", 'х' to "h", 'ц' to "c", 'ч' to "ch", 'ш' to "sh", 'щ' to "sch", 'ъ' to "", 'ы' to "y", 'ь' to "",
+    'э' to "e", 'ю' to "yu", 'я' to "ya",
+)
+
+/** Имя новой ветки по теме коммита: `dsh/` и тема латиницей через «-», не длиннее 40 символов после префикса. */
+fun branchSlug(subject: String): String {
+    val latin = subject.lowercase().map { ch -> TRANSLIT[ch] ?: ch.toString() }.joinToString("")
+    val slug = latin.replace(Regex("[^a-z0-9]+"), "-").trim('-').take(40).trimEnd('-')
+    return "dsh/" + slug.ifEmpty { "changes" }
+}
+
+/** Что не так с именем ветки (правила `git check-ref-format`); null — годится. */
+enum class BranchNameProblem { CHARS, FORM, IS_BASE }
+
+fun branchNameProblem(name: String, base: String): BranchNameProblem? = when {
+    name.isEmpty() -> null
+    !Regex("^[A-Za-z0-9._/-]+$").matches(name) -> BranchNameProblem.CHARS
+    name.startsWith("-") || name.startsWith("/") || name.startsWith(".") || name.endsWith("/") || name.endsWith(".") ||
+        ".." in name || "//" in name || "/." in name || name.endsWith(".lock") || name.length > 100 -> BranchNameProblem.FORM
+    name == base -> BranchNameProblem.IS_BASE
+    else -> null
 }
 
 /** Почему отправка не удалась — у каждой причины своё объяснение пользователю. */

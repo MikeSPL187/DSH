@@ -9,6 +9,7 @@
     <string name="ob_restore_done">Restored %1$d files. Enter the API key again — backups don\'t include it</string>
     <string name="ob_restore_failed">Couldn\'t restore — this isn\'t a DSH backup</string>
     <string name="commit_prompt">Write a git commit message in English for these changes. First line up to 72 characters, imperative mood, no trailing period. If useful, after a blank line add 1–3 short bullet points. Output only the message.</string>
+    <string name="pr_prompt">Write a GitHub pull request description in English from these commit messages. Start with one or two sentences on what changed and why, then a short “Testing” section with how to check it. Markdown, no title, no more than 120 words. Output only the description.</string>
     <string name="commit_empty">The model returned nothing — try again</string>
     <string name="jobs_title">Background jobs</string>
     <string name="team_title">Agent team</string>

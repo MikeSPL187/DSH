@@ -125,4 +125,39 @@
         <item quantity="one">%d page</item>
         <item quantity="other">%d pages</item>
     </plurals>
+    <!-- Branch and pull request -->
+    <string name="fs_new_branch_pr">To a new branch and pull request</string>
+    <string name="fs_br_title">New branch</string>
+    <string name="fs_br_hint">Unpushed commits go to it on GitHub, and %1$s stays as it is there. Then a pull request opens.</string>
+    <string name="fs_br_label">Branch name</string>
+    <string name="fs_br_chars">Latin letters, digits and “- _ . /”, no spaces</string>
+    <string name="fs_br_form">A branch can’t be named like that</string>
+    <string name="fs_br_is_base">That’s %1$s — choose another name</string>
+    <string name="fs_br_exists">A branch with this name already exists</string>
+    <string name="fs_br_go">Push</string>
+    <string name="fs_br_failed">Couldn’t create the branch: %1$s</string>
+    <string name="fs_pr_card">Branch on GitHub</string>
+    <string name="fs_pr_create">Create pull request</string>
+    <string name="fs_pr_n">Pull request #%1$d</string>
+    <string name="fs_pr_state_open">open</string>
+    <string name="fs_pr_state_draft">draft</string>
+    <string name="fs_pr_open">Open on GitHub</string>
+    <string name="fs_pr_title">Pull request</string>
+    <string name="fs_pr_name_ph">Title</string>
+    <string name="fs_pr_body_ph">What changed and how to test — optional</string>
+    <string name="fs_pr_body_label">Pull request description</string>
+    <string name="fs_pr_ai">Write from commits</string>
+    <string name="fs_pr_writing">Writing…</string>
+    <string name="fs_pr_draft">Draft</string>
+    <string name="fs_pr_draft_hint">Reviewers aren’t asked until you mark it ready</string>
+    <string name="fs_pr_go">Create</string>
+    <string name="fs_pr_creating">Creating…</string>
+    <string name="fs_pr_done">Pull request #%1$d created</string>
+    <string name="fs_pr_auth">GitHub sign-in expired — sign in again</string>
+    <string name="fs_pr_no_access">No access to the repository. If it belongs to an organization, allow the DSH app in its GitHub settings</string>
+    <string name="fs_pr_exists">A pull request from this branch is already open</string>
+    <string name="fs_pr_no_commits">The branch has no commits that %1$s doesn’t have</string>
+    <string name="fs_pr_draft_unsupported">Drafts aren’t available in this repository — turn off “Draft”</string>
+    <string name="fs_pr_not_github">The project isn’t on GitHub</string>
+    <string name="fs_pr_failed">Couldn’t create the pull request: %1$s</string>
 </resources>

@@ -98,6 +98,22 @@ class ScreensGalleryTest {
         override suspend fun status() = com.dsh.feature.files.GitInfo("main", emptyList())
         override suspend fun unpushed() = 1 to "Обновить Kotlin до 2.0.21, добавить ночной архив"
         override suspend fun pushTarget() = "origin/main"
+        override suspend fun branchState() = com.dsh.feature.files.BranchState("main", "main", onRemote = true, pull = null)
+    }
+
+    /** Ветка отправлена на GitHub, запроса на слияние ещё нет. */
+    private val branchGit = object : com.dsh.feature.files.FilesGit by fakeGit {
+        override suspend fun status() = com.dsh.feature.files.GitInfo("dsh/obnovit-kotlin-do-2-0-21", emptyList())
+        override suspend fun branchState() = com.dsh.feature.files.BranchState("dsh/obnovit-kotlin-do-2-0-21", "main", onRemote = true, pull = null)
+        override suspend fun branchCommits() = listOf("Обновить Kotlin до 2.0.21, добавить ночной архив\n\n- scripts/backup.sh запускается в 03:00")
+    }
+
+    /** Запрос на слияние из ветки уже открыт. */
+    private val pullGit = object : com.dsh.feature.files.FilesGit by branchGit {
+        override suspend fun branchState() = com.dsh.feature.files.BranchState(
+            "dsh/obnovit-kotlin-do-2-0-21", "main", onRemote = true,
+            pull = com.dsh.feature.files.PullInfo(12, "https://github.com/mikespl187/dsh/pull/12", "Обновить Kotlin до 2.0.21, добавить ночной архив", draft = true),
+        )
     }
 
     private val noGitHub = object : com.dsh.feature.files.FilesGitHub {
@@ -107,11 +123,16 @@ class ScreensGalleryTest {
         override fun errorOf(t: Throwable) = com.dsh.core.designsystem.kit.DeviceSignInError.Other(t.message.orEmpty())
     }
 
+    private val yesGitHub = object : com.dsh.feature.files.FilesGitHub by noGitHub {
+        override fun signedIn() = true
+    }
+
     private fun renderFiles(
         name: String,
         dark: Boolean = false,
         tab: Int = 0,
         git: com.dsh.feature.files.FilesGit = fakeGit,
+        gitHub: com.dsh.feature.files.FilesGitHub = noGitHub,
         prepare: (java.io.File) -> Unit = {},
         steps: androidx.compose.ui.test.junit4.AndroidComposeTestRule<*, *>.() -> Unit = {},
     ) {
@@ -125,7 +146,8 @@ class ScreensGalleryTest {
                     initialTab = tab,
                     markdown = { com.dsh.feature.chat.MarkdownMessageText(it) },
                     onOpenInBrowser = {},
-                    gitHub = noGitHub,
+                    gitHub = gitHub,
+                    pullText = { Result.success("") },
                 )
             }
         }
@@ -155,6 +177,19 @@ class ScreensGalleryTest {
     @Test fun filesCommitDark() = renderFiles("26b_files_commit_sheet_360_dark", dark = true, tab = 1) { open("Закоммитить") }
     @Config(qualifiers = "ru-w390dp-h844dp-xxhdpi")
     @Test fun filesUnpushed() = renderFiles("26c_files_unpushed", tab = 1, git = cleanGit)
+    // ── Новая ветка и запрос на слияние ──
+    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    @Test fun filesNewBranch() = renderFiles("26d_files_new_branch_360", tab = 1, git = cleanGit) { open("В новую ветку и запрос на слияние") }
+    @Config(qualifiers = "ru-w412dp-h915dp-xxhdpi")
+    @Test fun filesNewBranchDark() = renderFiles("26d2_files_new_branch_412_dark", dark = true, tab = 1, git = cleanGit) { open("В новую ветку и запрос на слияние") }
+    @Config(qualifiers = "ru-w390dp-h844dp-xxhdpi")
+    @Test fun filesBranchCard() = renderFiles("26e_files_branch_card", tab = 1, git = branchGit, gitHub = yesGitHub)
+    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    @Test fun filesPullSheet() = renderFiles("26f_files_pull_sheet_360", tab = 1, git = branchGit, gitHub = yesGitHub) { open("Создать запрос на слияние") }
+    @Config(qualifiers = "ru-w412dp-h915dp-xxhdpi")
+    @Test fun filesPullSheetDark() = renderFiles("26f2_files_pull_sheet_412_dark", dark = true, tab = 1, git = branchGit, gitHub = yesGitHub) { open("Создать запрос на слияние") }
+    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    @Test fun filesPullOpen() = renderFiles("26g_files_pull_open_360_dark", dark = true, tab = 1, git = pullGit, gitHub = yesGitHub)
 
     @Test fun files() = renderFiles("30_files")
     @Test fun filesDark() = renderFiles("30b_files_dark", dark = true)

@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -194,11 +195,13 @@ private fun CmField(
     singleLine: Boolean = true,
     capitalize: Boolean = false,
     keyboard: KeyboardType = KeyboardType.Text,
+    mono: Boolean = false,
 ) {
     val c = Dsh.colors
     var focused by remember { mutableStateOf(false) }
     val shape = RoundedCornerShape(if (singleLine) 14.dp else 16.dp)
-    val style = TextStyle(fontFamily = DshFonts.body, fontSize = 15.sp, lineHeight = 22.5.sp, color = c.t1)
+    val style = if (mono) TextStyle(fontFamily = DshFonts.mono, fontSize = 14.sp, lineHeight = 21.sp, color = c.t1)
+    else TextStyle(fontFamily = DshFonts.body, fontSize = 15.sp, lineHeight = 22.5.sp, color = c.t1)
     Box(
         Modifier.fillMaxWidth()
             .drawBehind {
@@ -222,13 +225,18 @@ private fun CmField(
             ),
             modifier = Modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }.semantics { contentDescription = description }
                 .then(if (singleLine) Modifier.height(minHeight) else Modifier),
+            // Одна строка — по центру поля высотой [minHeight] (вся высота принимает касание).
+            decorationBox = { inner -> Box(Modifier.fillMaxWidth(), contentAlignment = if (singleLine) Alignment.CenterStart else Alignment.TopStart) { inner() } },
         )
     }
 }
 
-/** Карточка `.ch-push`: столько-то коммитов не отправлено, тема последнего и «Отправить в origin/<ветка>». */
+/**
+ * Карточка `.ch-push`: столько-то коммитов не отправлено, тема последнего и «Отправить в origin/<ветка>».
+ * [onNewBranch] (на ветке по умолчанию) — ещё `.ch-alt` «В новую ветку и запрос на слияние».
+ */
 @Composable
-internal fun UnpushedCard(count: Int, subject: String, target: String?, pushing: Boolean, signedIn: Boolean, onPush: () -> Unit) {
+internal fun UnpushedCard(count: Int, subject: String, target: String?, pushing: Boolean, signedIn: Boolean, onPush: () -> Unit, onNewBranch: (() -> Unit)? = null) {
     val c = Dsh.colors
     Column(
         Modifier.padding(top = 12.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(c.s1).border(1.dp, c.line, RoundedCornerShape(20.dp))
@@ -249,6 +257,17 @@ internal fun UnpushedCard(count: Int, subject: String, target: String?, pushing:
                 Modifier.padding(top = 12.dp).fillMaxWidth(), kind = BtnKind.Primary, icon = if (pushing) null else DshGlyphs.Up,
                 height = 48.dp, radius = 15.dp, enabled = !pushing, busy = pushing,
             )
+            if (onNewBranch != null && !pushing) {
+                val ink = androidx.compose.ui.graphics.lerp(c.t1, c.accent, 0.82f)
+                Row(
+                    Modifier.padding(top = 6.dp).fillMaxWidth().height(40.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button, onClick = onNewBranch),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                ) {
+                    Icon(DshGlyphs.xs("git"), null, tint = ink, modifier = Modifier.size(18.dp))
+                    Text(stringResource(R.string.fs_new_branch_pr), style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Medium, fontSize = 14.sp), color = ink, maxLines = 1)
+                }
+            }
             if (!signedIn) Text(
                 stringResource(R.string.fs_push_hint), style = TextStyle(fontFamily = DshFonts.body, fontSize = 12.5.sp, lineHeight = 17.sp), color = c.t3,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -256,6 +275,220 @@ internal fun UnpushedCard(count: Int, subject: String, target: String?, pushing:
         }
     }
 }
+
+/**
+ * Карточка ветки на GitHub (`.ch-push` без неотправленного): нет запроса — «Ветка на GitHub», `ветка → база` и
+ * «Создать запрос на слияние»; есть — «Запрос на слияние #N», название и состояние, «Открыть на GitHub».
+ */
+@Composable
+internal fun PullCard(state: BranchState, onCreate: () -> Unit, onOpen: (String) -> Unit) {
+    val c = Dsh.colors
+    val pull = state.pull
+    Column(
+        Modifier.padding(top = 12.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(c.s1).border(1.dp, c.line, RoundedCornerShape(20.dp))
+            .padding(start = 16.dp, end = 14.dp, top = 14.dp, bottom = 14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(
+                Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(if (pull != null) com.dsh.core.designsystem.kit.Si.c3 else com.dsh.core.designsystem.kit.Si.c1),
+                contentAlignment = Alignment.Center,
+            ) { Icon(DshGlyphs.xs("git"), null, tint = Color.White, modifier = Modifier.size(18.dp)) }
+            Column(Modifier.weight(1f)) {
+                val head = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Medium, fontSize = 15.sp, lineHeight = 20.sp)
+                if (pull != null) {
+                    Text(stringResource(R.string.fs_pr_n, pull.number), style = head, color = c.t1)
+                    val st = stringResource(if (pull.draft) R.string.fs_pr_state_draft else R.string.fs_pr_state_open)
+                    Text("${pull.title} · $st", style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.sp, lineHeight = 18.2.sp), color = c.t3, modifier = Modifier.padding(top = 2.dp))
+                } else {
+                    Text(stringResource(R.string.fs_pr_card), style = head, color = c.t1)
+                    Text("${state.branch} → ${state.base}", style = Mono.copy(fontSize = 12.sp, lineHeight = 17.sp), color = c.t3, modifier = Modifier.padding(top = 2.dp))
+                }
+            }
+        }
+        if (pull != null) KBtn(
+            stringResource(R.string.fs_pr_open), { onOpen(pull.url) }, Modifier.padding(top = 12.dp).fillMaxWidth(),
+            kind = BtnKind.Ghost, icon = DshGlyphs.Link, height = 48.dp, radius = 15.dp,
+        ) else KBtn(
+            stringResource(R.string.fs_pr_create), onCreate, Modifier.padding(top = 12.dp).fillMaxWidth(),
+            kind = BtnKind.Primary, icon = DshGlyphs.Up, height = 48.dp, radius = 15.dp,
+        )
+    }
+}
+
+/**
+ * Лист «Новая ветка» (`#sheet-branch`): имя (по теме коммита), проверка по правилам git, «Отправить» — перенос
+ * неотправленных коммитов в ветку; дальше вызывающий отправляет её и открывает лист запроса.
+ */
+@Composable
+internal fun ColumnScope.BranchSheetBody(suggested: String, base: String, git: FilesGit, onCancel: () -> Unit, onMoved: () -> Unit) {
+    val c = Dsh.colors
+    val scope = rememberCoroutineScope()
+    var name by remember { mutableStateOf(suggested) }
+    var busy by remember { mutableStateOf(false) }
+    var failure by remember { mutableStateOf<String?>(null) }
+    val n = name.trim()
+    val problem = when (branchNameProblem(n, base)) {
+        BranchNameProblem.CHARS -> stringResource(R.string.fs_br_chars)
+        BranchNameProblem.FORM -> stringResource(R.string.fs_br_form)
+        BranchNameProblem.IS_BASE -> stringResource(R.string.fs_br_is_base, base)
+        null -> null
+    }
+    val exists = stringResource(R.string.fs_br_exists)
+    val failed = stringResource(R.string.fs_br_failed, "%s")
+    DshSheetTitle(stringResource(R.string.fs_br_title))
+    Text(
+        stringResource(R.string.fs_br_hint, base), style = TextStyle(fontFamily = DshFonts.body, fontSize = 14.sp, lineHeight = 20.3.sp), color = c.t2,
+        modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 16.dp).layoutUp(6),
+    )
+    CmField(name, { name = it.replace(" ", "-"); failure = null }, "dsh/…", description = stringResource(R.string.fs_br_label), mono = true)
+    Text(
+        problem ?: failure.orEmpty(), style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.sp, lineHeight = 18.sp), color = c.danger,
+        modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 8.dp).heightIn(min = 18.dp),
+    )
+    Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        KBtn(stringResource(R.string.fs_cancel), onCancel, Modifier.weight(1f), kind = BtnKind.Ghost, height = 52.dp, radius = 16.dp, fontSize = 16.sp)
+        KBtn(
+            stringResource(R.string.fs_br_go), {
+                busy = true
+                scope.launch {
+                    git.moveToBranch(n)
+                        .onSuccess { onMoved() }
+                        .onFailure { failure = if (it is BranchExistsException) exists else failed.format(it.message.orEmpty()) }
+                    busy = false
+                }
+            },
+            Modifier.weight(1.35f), kind = BtnKind.Primary, height = 52.dp, radius = 16.dp, fontSize = 16.sp,
+            enabled = n.isNotEmpty() && problem == null && !busy, busy = busy,
+        )
+    }
+}
+
+/**
+ * Лист «Запрос на слияние» (`#sheet-pr`): маршрут `ветка → база`, название (тема последнего коммита), описание,
+ * «Написать по коммитам» (ИИ), «Черновик». Нужен вход — [onNeedLogin]; запрос уже есть — [onExists].
+ */
+@Composable
+internal fun ColumnScope.PullSheetBody(
+    state: BranchState,
+    git: FilesGit,
+    writeText: (suspend (List<String>) -> Result<String>)?,
+    onCancel: () -> Unit,
+    onCreated: (PullInfo) -> Unit,
+    onNeedLogin: (auth: Boolean) -> Unit,
+    onExists: () -> Unit,
+    onToast: (String) -> Unit,
+) {
+    val c = Dsh.colors
+    val scope = rememberCoroutineScope()
+    var title by remember { mutableStateOf("") }
+    var body by remember { mutableStateOf("") }
+    var draft by remember { mutableStateOf(false) }
+    var writing by remember { mutableStateOf(false) }
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var commits by remember { mutableStateOf<List<String>>(emptyList()) }
+    LaunchedEffect(git, state.branch) {
+        commits = git.branchCommits()
+        if (title.isEmpty()) title = commits.firstOrNull()?.lineSequence()?.first()?.trim()
+            ?: state.branch.removePrefix("dsh/").replace('-', ' ').replaceFirstChar { it.uppercase() }
+    }
+    val texts = mapOf(
+        PullProblem.NO_ACCESS to stringResource(R.string.fs_pr_no_access),
+        PullProblem.NO_COMMITS to stringResource(R.string.fs_pr_no_commits, state.base),
+        PullProblem.DRAFT_UNSUPPORTED to stringResource(R.string.fs_pr_draft_unsupported),
+        PullProblem.NOT_GITHUB to stringResource(R.string.fs_pr_not_github),
+    )
+    val failed = stringResource(R.string.fs_pr_failed, "%s")
+
+    DshSheetTitle(stringResource(R.string.fs_pr_title))
+    // `.pr-route`: ветка (обрезается многоточием) → база.
+    Row(Modifier.padding(start = 4.dp, end = 4.dp, bottom = 14.dp).layoutUp(6), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        BranchChip(state.branch, Modifier.weight(1f, fill = false))
+        Icon(DshGlyphs.get("arrow"), null, tint = c.t3, modifier = Modifier.size(18.dp))
+        BranchChip(state.base)
+    }
+    CmField(title, { title = it; error = null }, stringResource(R.string.fs_pr_name_ph), description = stringResource(R.string.fs_pr_name_ph), capitalize = true)
+    Box(Modifier.padding(top = 8.dp)) {
+        CmField(body, { body = it }, stringResource(R.string.fs_pr_body_ph), minHeight = 88.dp, singleLine = false, description = stringResource(R.string.fs_pr_body_label), capitalize = true)
+    }
+    if (writeText != null) AiButton(stringResource(if (writing) R.string.fs_pr_writing else R.string.fs_pr_ai), enabled = !writing) {
+        writing = true
+        scope.launch {
+            writeText(commits).onSuccess { body = it.trim() }.onFailure { onToast(it.message.orEmpty()) }
+            writing = false
+        }
+    }
+    // `.pr-draft`: вся строка переключает.
+    Row(
+        Modifier.padding(top = 8.dp).fillMaxWidth().heightIn(min = 56.dp).clip(RoundedCornerShape(12.dp))
+            .clickable(role = Role.Switch) { draft = !draft; error = null }.padding(horizontal = 4.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.fs_pr_draft), style = TextStyle(fontFamily = DshFonts.body, fontSize = 15.sp, lineHeight = 19.5.sp), color = c.t1)
+            Text(stringResource(R.string.fs_pr_draft_hint), style = TextStyle(fontFamily = DshFonts.body, fontSize = 12.5.sp, lineHeight = 17.5.sp), color = c.t3, modifier = Modifier.padding(top = 2.dp))
+        }
+        com.dsh.core.designsystem.DshSwitch(draft, { draft = it; error = null }, contentDescription = stringResource(R.string.fs_pr_draft))
+    }
+    error?.let { Text(it, style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.sp, lineHeight = 18.sp), color = c.danger, modifier = Modifier.padding(start = 4.dp, top = 6.dp)) }
+    Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        KBtn(stringResource(R.string.fs_cancel), onCancel, Modifier.weight(1f), kind = BtnKind.Ghost, height = 52.dp, radius = 16.dp, fontSize = 16.sp)
+        KBtn(
+            stringResource(if (busy) R.string.fs_pr_creating else R.string.fs_pr_go), {
+                busy = true
+                scope.launch {
+                    git.createPull(title.trim(), body.trim(), draft)
+                        .onSuccess(onCreated)
+                        .onFailure { e ->
+                            when (val p = (e as? PullException)?.problem ?: PullProblem.OTHER) {
+                                PullProblem.NEED_LOGIN, PullProblem.AUTH -> onNeedLogin(p == PullProblem.AUTH)
+                                PullProblem.EXISTS -> onExists()
+                                else -> error = texts[p] ?: failed.format(e.message.orEmpty())
+                            }
+                        }
+                    busy = false
+                }
+            },
+            Modifier.weight(1.35f), kind = BtnKind.Primary, height = 52.dp, radius = 16.dp, fontSize = 16.sp,
+            enabled = title.isNotBlank() && !busy, busy = busy,
+        )
+    }
+}
+
+/** Имя ветки `.pr-route .br`: моноширинное 12 sp на s2, одна строка с многоточием. */
+@Composable
+private fun BranchChip(name: String, modifier: Modifier = Modifier) {
+    val c = Dsh.colors
+    Box(modifier.height(26.dp).clip(RoundedCornerShape(8.dp)).background(c.s2).padding(horizontal = 9.dp), contentAlignment = Alignment.CenterStart) {
+        Text(name, style = Mono.copy(fontSize = 12.sp, lineHeight = 16.sp), color = c.t1, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+    }
+}
+
+/** `.cm-ai`: «Написать …» на мягком акценте. */
+@Composable
+private fun AiButton(label: String, enabled: Boolean, onClick: () -> Unit) {
+    val c = Dsh.colors
+    Row(
+        Modifier.padding(top = 8.dp).height(40.dp).clip(RoundedCornerShape(12.dp)).background(c.accentSoft)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick).padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        val ink = androidx.compose.ui.graphics.lerp(c.t1, c.accent, 0.82f)
+        Icon(DshGlyphs.Spark, null, tint = ink, modifier = Modifier.size(18.dp))
+        Text(label, style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Medium, fontSize = 14.sp), color = ink)
+    }
+}
+
+/** Поднять на [dp] без зазора снизу (как отрицательный верхний отступ `margin: -6px …`). */
+private fun Modifier.layoutUp(dp: Int): Modifier = this.then(
+    Modifier.layout { m, cons ->
+        val p = m.measure(cons)
+        val up = dp.dp.roundToPx()
+        layout(p.width, (p.height - up).coerceAtLeast(0)) { p.place(0, -up) }
+    },
+)
 
 /** Тексты итогов отправки: успех и объяснение каждой причины отказа. */
 internal class PushMessages(val done: String, private val texts: Map<PushProblem, String>, private val other: String) {

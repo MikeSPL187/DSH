@@ -1018,6 +1018,18 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .ch-push .btn { display: flex; width: 100%; height: 48px; margin-top: 12px; border-radius: 15px; gap: 8px; }
 .ch-push .btn .spin-w { width: 14px; height: 14px; }
 .ch-push .hint { display: block; margin-top: 8px; font-size: 12.5px; color: var(--t3); text-align: center; }
+.ch-alt { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; height: 40px; margin-top: 6px; border-radius: 12px; font-size: 14px; font-weight: 500; color: color-mix(in srgb, var(--accent) 82%, var(--t1)); }
+.ch-push .btn.ghost { background: var(--s2); }
+.ch-push .tx small.mono { font-family: var(--font-mono); font-size: 12px; }
+.pr-route { display: flex; align-items: center; gap: 8px; margin: -6px 4px 14px; min-width: 0; font-size: 13.5px; color: var(--t2); }
+.pr-route .br { display: inline-block; height: 26px; line-height: 26px; padding: 0 9px; border-radius: 8px; background: var(--s2); font-family: var(--font-mono); font-size: 12px; color: var(--t1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.pr-route .br.to { flex: none; }
+.pr-route .i { flex: none; color: var(--t3); }
+#sheet-pr .cm-msg { margin-top: 8px; min-height: 88px; }
+.pr-draft { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; margin-top: 8px; padding: 6px 4px; text-align: left; }
+.pr-draft .tx { flex: 1; min-width: 0; font-size: 15px; line-height: 1.3; color: var(--t1); }
+.pr-draft .tx small { display: block; margin-top: 2px; font-size: 12.5px; line-height: 1.4; color: var(--t3); }
+.br-in { font-family: var(--font-mono); font-size: 14px; }
 .ch-push .tx { flex: 1; min-width: 0; } .ch-push .tx b { display: block; font-weight: 500; font-size: 15px; } .ch-push .tx small { display: block; margin-top: 2px; font-size: 13px; line-height: 1.4; color: var(--t3); overflow-wrap: anywhere; }
 .fa-head { display: flex; align-items: center; gap: 12px; margin: 0 4px 14px; }
 .fa-head b { display: block; font-family: var(--font-mono); font-size: 15px; font-weight: 500; }
@@ -1681,6 +1693,28 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <div class="glabel">Автор</div>
         <div id="cmWho"></div>
         <div class="cm-btns"><button class="btn ghost" data-act="close">Отмена</button><button class="btn primary" id="cmGo" disabled>Закоммитить</button></div>
+      </section>
+
+      <!-- Лист: новая ветка для неотправленных коммитов -->
+      <section class="sheet" id="sheet-branch" aria-label="Новая ветка">
+        <div class="grab"></div>
+        <h3>Новая ветка</h3>
+        <p class="lim-hint" id="brHint">Неотправленные коммиты уйдут в неё на GitHub, а main останется как там. Потом откроется запрос на слияние.</p>
+        <input class="cm-in br-in" id="brName" aria-label="Имя ветки" autocomplete="off" spellcheck="false" autocapitalize="off" maxlength="60">
+        <p class="mcp-err" id="brErr" role="alert" style="margin-top:8px"></p>
+        <div class="cm-btns" style="margin-top:8px"><button class="btn ghost" data-act="close">Отмена</button><button class="btn primary" id="brGo">Отправить</button></div>
+      </section>
+
+      <!-- Лист: запрос на слияние -->
+      <section class="sheet" id="sheet-pr" aria-label="Запрос на слияние">
+        <div class="grab"></div>
+        <h3>Запрос на слияние</h3>
+        <div class="pr-route" id="prRoute"></div>
+        <input class="cm-in" id="prTitle" placeholder="Название" aria-label="Название запроса" maxlength="256">
+        <textarea class="cm-msg" id="prBody" placeholder="Что сделано и как проверить — необязательно" aria-label="Описание запроса"></textarea>
+        <button class="cm-ai" id="prAi"><svg class="i sm"><use href="#i-spark"/></svg><span>Написать по коммитам</span></button>
+        <button class="pr-draft" id="prDraft"><span class="tx">Черновик<small>Ревьюеры не получат запрос, пока вы не отметите его готовым</small></span><span class="toggle" role="switch" aria-checked="false" aria-label="Черновик"></span></button>
+        <div class="cm-btns"><button class="btn ghost" data-act="close">Отмена</button><button class="btn primary" id="prGo" disabled>Создать</button></div>
       </section>
 
       <!-- Лист: несохранённые инструкции -->
@@ -2901,18 +2935,29 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       <div class="ch-acts"><button class="btn ghost" data-revert="${path}"><svg class="i sm"><use href="#i-undo"/></svg>Отменить изменение</button></div>`;
     return v;
   }
+  // Карточка под «Изменений нет»: неотправленные коммиты — «Отправить»; ветка на GitHub — запрос на слияние.
+  function chPushCard() {
+    const main = GIT.branch === GIT.base;
+    if (GIT.ahead) return `<div class="ch-push"><div class="row"><span class="si c1"><svg class="i"><use href="#i-git"/></svg></span><span class="tx"><b>${GIT.ahead} ${GIT.ahead === 1 ? "коммит не отправлен" : "коммита не отправлены"}</b><small>${esc2(GIT.last)}</small></span></div>
+      <button class="btn primary" id="chPush"${GIT.pushing ? " disabled" : ""}>${GIT.pushing ? `<span class="spin-w"></span>Отправляю…` : `<svg class="i sm"><use href="#i-up"/></svg>Отправить в origin/${esc2(GIT.branch)}`}</button>
+      ${main && !GIT.pushing ? `<button class="ch-alt" id="chBranch"><svg class="i sm"><use href="#i-git"/></svg>В новую ветку и запрос на слияние</button>` : ""}
+      ${GH.login ? "" : `<small class="hint">Нужен вход в GitHub — DSH попросит его один раз.</small>`}</div>`;
+    if (main || !GIT.onRemote) return "";
+    if (GIT.pr) return `<div class="ch-push"><div class="row"><span class="si c3"><svg class="i"><use href="#i-git"/></svg></span><span class="tx"><b>Запрос на слияние #${GIT.pr.n}</b><small>${esc2(GIT.pr.title)} · ${GIT.pr.draft ? "черновик" : "открыт"}</small></span></div>
+      <button class="btn ghost" id="chPrOpen"><svg class="i sm"><use href="#i-link"/></svg>Открыть на GitHub</button></div>`;
+    return `<div class="ch-push"><div class="row"><span class="si c1"><svg class="i"><use href="#i-git"/></svg></span><span class="tx"><b>Ветка на GitHub</b><small class="mono">${esc2(GIT.branch)} → ${esc2(GIT.base)}</small></span></div>
+      <button class="btn primary" id="chPr"><svg class="i sm"><use href="#i-up"/></svg>Создать запрос на слияние</button></div>`;
+  }
   function viewChanges() {
     const v = document.createElement("div"); v.className = "fs-view";
     const files = Object.keys(CHANGED);
     if (!files.length) {
       v.innerHTML = `<div class="fs-empty"><svg class="i" style="width:32px;height:32px;margin:0 auto 10px;color:var(--ok)"><use href="#i-check"/></svg>Изменений нет — всё сохранено в git</div>
-        ${GIT.ahead ? `<div class="ch-push"><div class="row"><span class="si c1"><svg class="i"><use href="#i-git"/></svg></span><span class="tx"><b>${GIT.ahead} ${GIT.ahead === 1 ? "коммит не отправлен" : "коммита не отправлены"}</b><small>${esc2(GIT.last)}</small></span></div>
-          <button class="btn primary" id="chPush"${GIT.pushing ? " disabled" : ""}>${GIT.pushing ? `<span class="spin-w"></span>Отправляю…` : `<svg class="i sm"><use href="#i-up"/></svg>Отправить в origin/main`}</button>
-          ${GH.login ? "" : `<small class="hint">Нужен вход в GitHub — DSH попросит его один раз.</small>`}</div>` : ""}`;
+        ${chPushCard()}`;
       return v;
     }
     const P = files.reduce((a, f) => a + CHANGED[f].p, 0), M = files.reduce((a, f) => a + CHANGED[f].m, 0);
-    v.innerHTML = `<div class="ch-sum"><div class="row1"><span class="br"><svg class="i xs"><use href="#i-git"/></svg>main</span>не закоммичено</div>
+    v.innerHTML = `<div class="ch-sum"><div class="row1"><span class="br"><svg class="i xs"><use href="#i-git"/></svg>${esc2(GIT.branch)}</span>не закоммичено</div>
       <h3>${files.length} ${files.length === 1 ? "файл" : "файла"} · <span class="stat"><span class="p">+${P}</span>${M ? ` <span class="m">−${M}</span>` : ""}</span></h3>
       <p>${[CHANGED["gradle/libs.versions.toml"] && "Агент обновил Kotlin", CHANGED["scripts/backup.sh"] && "создал скрипт ночного архива"].filter(Boolean).join(" и ").replace(/^с/, "Агент с")}.</p>
       <div class="ch-acts"><button class="btn primary" id="chReview"><svg class="i sm"><use href="#i-spark"/></svg>Проверить с агентом</button><button class="btn ghost" id="chCommit"><svg class="i sm"><use href="#i-git"/></svg>Закоммитить</button></div></div>
@@ -2925,7 +2970,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     let t = "Файлы", sub = "DSH-Workspace · " + countIn("");
     if (top.t === "dir" && top.p) { t = top.p.replace(/\/$/, "").split("/").pop(); sub = countIn(top.p); }
     if (top.t === "file") { t = top.p.split("/").pop(); sub = (top.p.includes("/") ? top.p.slice(0, top.p.lastIndexOf("/") + 1) : "DSH-Workspace") + (META[top.p] ? " · " + META[top.p] : ""); }
-    if (top.t === "changes") { t = "Изменения"; sub = "DSH-Workspace · ветка main"; }
+    if (top.t === "changes") { t = "Изменения"; sub = "DSH-Workspace · ветка " + GIT.branch; }
     if (top.t === "diff") { t = "Изменения в файле"; sub = top.p; }
     if (top.t === "search") { t = "Поиск"; sub = "по всему проекту"; }
     $("#fsTitle").textContent = t; $("#fsSub").textContent = sub;
@@ -3868,6 +3913,45 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     MCP.list = MCP.list.filter((m) => m.name !== mcpSel); MCP.pending = true; sheetClose(); stRefresh(); toast("Удалено · нужен перезапуск Host");
   });
 
+  // ── Новая ветка и запрос на слияние ──
+  const TR = { а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh", з: "z", и: "i", й: "y", к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f", х: "h", ц: "c", ч: "ch", ш: "sh", щ: "sch", ъ: "", ы: "y", ь: "", э: "e", ю: "yu", я: "ya" };
+  function brSlug(t) { return "dsh/" + ([...t.toLowerCase()].map((ch) => TR[ch] ?? ch).join("").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40).replace(/-+$/, "") || "changes"); }
+  function brBad(n) {
+    if (!n) return "";
+    if (!/^[A-Za-z0-9._\/-]+$/.test(n)) return "Латиница, цифры и «- _ . /», без пробелов";
+    if (/^[-/.]|[/.]$|\.\.|\/\/|\/\.|\.lock$|@\{/.test(n) || n.length > 100) return "Так ветку назвать нельзя";
+    if (n === GIT.base) return `Это ветка ${GIT.base} — нужно другое имя`;
+    return "";
+  }
+  function brCheck() { const n = $("#brName").value.trim(), e = brBad(n); $("#brErr").textContent = e; $("#brGo").disabled = !n || !!e; }
+  function prCheck() { $("#prGo").disabled = !$("#prTitle").value.trim() || GIT.prBusy; }
+  function prOpen() {
+    $("#prRoute").innerHTML = `<span class="br">${esc2(GIT.branch)}</span><svg class="i sm"><use href="#i-arrow"/></svg><span class="br to">${esc2(GIT.base)}</span>`;
+    $("#prTitle").value = GIT.log.length === 1 ? GIT.log[0] : GIT.log.length ? GIT.log[GIT.log.length - 1] : GIT.branch.replace(/^dsh\//, "").replace(/-/g, " ");
+    $("#prBody").value = ""; $("#prDraft .toggle").setAttribute("aria-checked", "false"); $("#prGo").textContent = "Создать"; prCheck(); sheetOpen("pr");
+  }
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("#chBranch")) { $("#brName").value = brSlug(GIT.last); brCheck(); sheetOpen("branch"); return; }
+    if (e.target.closest("#chPr")) { if (!GH.login) { $("#ghWait").textContent = "Жду подтверждения · код действует 15 мин"; sheetOpen("gh"); return; } prOpen(); return; }
+    if (e.target.closest("#chPrOpen")) { toast(`Открываю github.com/…/pull/${GIT.pr.n}`); }
+  });
+  $("#brName").addEventListener("input", brCheck);
+  $("#brGo").addEventListener("click", () => {
+    GIT.branch = $("#brName").value.trim(); GIT.onRemote = true; GIT.thenPr = true; sheetClose();
+    if (!GH.login) { GIT.pushAfterLogin = true; setTimeout(() => sheetOpen("gh"), 350); return; }
+    setTimeout(gitPush, 300);
+  });
+  $("#sheet-pr").addEventListener("input", prCheck);
+  $("#prDraft").addEventListener("click", () => { const t = $("#prDraft .toggle"); t.setAttribute("aria-checked", String(t.getAttribute("aria-checked") !== "true")); });
+  $("#prAi").addEventListener("click", () => {
+    const b = $("#prAi"); b.disabled = true; $("span", b).textContent = "Пишу описание…";
+    setTimeout(() => { $("#prBody").value = "Kotlin 2.0.21 и ночной архив рабочей папки.\n\nПроверка: ./gradlew test, затем scripts/backup.sh --dry-run."; b.disabled = false; $("span", b).textContent = "Написать по коммитам"; prCheck(); }, 900);
+  });
+  $("#prGo").addEventListener("click", () => {
+    GIT.prBusy = true; prCheck(); $("#prGo").innerHTML = `<span class="spin-w"></span>Создаю…`;
+    setTimeout(() => { GIT.prBusy = false; GIT.pr = { n: 12, title: $("#prTitle").value.trim(), draft: $("#prDraft .toggle").getAttribute("aria-checked") === "true" }; sheetClose(); fsRebuild(); toast("Запрос на слияние #12 создан"); }, 1100);
+  });
+
   // ── GitHub: вход по коду (device flow), выход ──
   const GH = { login: "", at: "" };
   let ghTimer = null;
@@ -3886,7 +3970,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   function fsRebuild() { const v = fsBuild(fsStack[fsStack.length - 1]); fsBody.replaceChild(v, fsCur); fsCur = v; fsTitles(); }
   function gitPush() {
     GIT.pushing = true; fsRebuild();
-    setTimeout(() => { GIT.pushing = false; const n = GIT.ahead; GIT.ahead = 0; fsRebuild(); toast(`Отправлено в origin/main · ${n} ${n === 1 ? "коммит" : "коммита"}`); }, 1400);
+    setTimeout(() => { GIT.pushing = false; const n = GIT.ahead; GIT.ahead = 0; fsRebuild(); toast(`Отправлено в origin/${GIT.branch} · ${n} ${n === 1 ? "коммит" : "коммита"}`); if (GIT.thenPr) { GIT.thenPr = false; setTimeout(prOpen, 400); } }, 1400);
   }
   document.addEventListener("click", (e) => {
     if (!e.target.closest("#chPush")) return;
@@ -3895,7 +3979,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   });
 
   // ── Коммит из «Изменений»: git add -A и commit; автор спрашивается один раз (git config --global) ──
-  const GIT = { name: "", email: "", ahead: 0, last: "", pushing: false, pushAfterLogin: false };
+  const GIT = { name: "", email: "", ahead: 0, last: "", pushing: false, pushAfterLogin: false, branch: "main", base: "main", onRemote: true, pr: null, log: [] };
   function cmWho(edit) {
     $("#cmWho").innerHTML = GIT.name && !edit
       ? `<div class="cm-author"><span>От имени <b>${esc2(GIT.name)}</b> · ${esc2(GIT.email)}</span><button id="cmWhoEdit">Изменить</button></div>`
@@ -3907,7 +3991,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   }
   function cmOpen() {
     const files = Object.keys(CHANGED), P = files.reduce((a, f) => a + CHANGED[f].p, 0), M = files.reduce((a, f) => a + CHANGED[f].m, 0);
-    $("#cmMsg").value = ""; cmWho(false);
+    $("#cmMsg").value = ""; cmWho(false); $("#cmTitle").textContent = `Коммит в ${GIT.branch}`;
     $("#cmMeta").innerHTML = `<svg class="i sm"><use href="#i-file"/></svg>${files.length} ${files.length === 1 ? "файл" : "файла"} · <span class="p">+${P}</span>${M ? ` <span class="m">−${M}</span>` : ""} · все изменения`;
     cmCheck(); sheetOpen("commit");
   }
@@ -3919,9 +4003,9 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   $("#sheet-commit").addEventListener("click", (e) => { if (e.target.closest("#cmWhoEdit")) { cmWho(true); cmCheck(); $("#cmName").focus(); } });
   $("#cmGo").addEventListener("click", () => {
     if ($("#cmName")) { GIT.name = $("#cmName").value.trim(); GIT.email = $("#cmMail").value.trim(); }
-    GIT.last = $("#cmMsg").value.trim(); GIT.ahead += 1;
+    GIT.last = $("#cmMsg").value.trim(); GIT.ahead += 1; GIT.log.push(GIT.last);
     for (const f of Object.keys(CHANGED)) delete CHANGED[f];
-    sheetClose(); setTimeout(() => { fsRebuild(); toast("Закоммичено в main"); }, 300);
+    sheetClose(); setTimeout(() => { fsRebuild(); toast(`Закоммичено в ${GIT.branch}`); }, 300);
   });
 
   // ── Инструкции для агента: ~/.dsh/AGENTS.md, AGENTS.md проекта, AGENTS.local.md (как dsh-agent-instructions) ──

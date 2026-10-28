@@ -5,6 +5,7 @@ import com.dsh.core.designsystem.kit.DeviceCodeView
 import com.dsh.core.designsystem.kit.DeviceSignInError
 import com.dsh.feature.settings.logic.ApiKeyVault
 import com.dsh.runtime.host.GitHubAuth
+import com.dsh.runtime.host.GitHubPulls
 import com.dsh.runtime.host.GitHubPush
 import kotlinx.coroutines.delay
 import java.io.File
@@ -75,7 +76,35 @@ object GitHubAccount {
     /** Выйти: токен удаляется из Keystore. Права на github.com пользователь отзывает сам (Settings → Applications). */
     fun signOut(context: Context) {
         ApiKeyVault.delete(REF)
+        openPulls.clear(); defaults.clear()
         prefs(context).edit().clear().apply()
+    }
+
+    private val pulls by lazy { GitHubPulls() }
+    private val defaults = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    /** Ветка по умолчанию репозитория по ответу GitHub (запоминается на время работы); null — не вошли или нет сети. */
+    suspend fun defaultBranch(owner: String, repo: String): String? = defaults["$owner/$repo"]
+        ?: ApiKeyVault.use(REF) { token -> pulls.defaultBranch(token, owner, repo).getOrNull() }?.also { defaults["$owner/$repo"] = it }
+
+    /** Ответы «есть ли запрос из ветки» на [PULL_TTL_MS]: экран «Изменения» перечитывает состояние при каждой правке файлов. */
+    private val openPulls = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, GitHubPulls.Pull?>>()
+    private const val PULL_TTL_MS = 60_000L
+
+    /** Открытый запрос из ветки; null — нет, не вошли или не узнать (неудача не запоминается). */
+    suspend fun openPull(owner: String, repo: String, branch: String): GitHubPulls.Pull? {
+        val key = "$owner/$repo:$branch"
+        openPulls[key]?.takeIf { System.currentTimeMillis() - it.first < PULL_TTL_MS }?.let { return it.second }
+        val got = ApiKeyVault.use(REF) { token -> pulls.findOpen(token, owner, repo, branch) } ?: return null
+        return got.getOrNull().also { if (got.isSuccess) openPulls[key] = System.currentTimeMillis() to it }
+    }
+
+    /** Создать запрос на слияние; без входа — [NeedLoginException]. Новый запрос сразу виден в [openPull]. */
+    suspend fun createPull(owner: String, repo: String, branch: String, base: String, title: String, body: String, draft: Boolean): Result<GitHubPulls.Pull> {
+        val r = ApiKeyVault.use(REF) { token -> pulls.create(token, owner, repo, branch, base, title, body, draft) } ?: return Result.failure(NeedLoginException())
+        openPulls.remove("$owner/$repo:$branch")
+        r.onSuccess { openPulls["$owner/$repo:$branch"] = System.currentTimeMillis() to it }
+        return r
     }
 
     /** Отправить текущую ветку проекта [dir]; без входа — [NeedLoginException]. */
