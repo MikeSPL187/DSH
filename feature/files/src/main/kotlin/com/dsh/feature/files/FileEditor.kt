@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -62,20 +63,55 @@ internal class FileEditor {
     var saving by mutableStateOf(false)
     val dirty: Boolean get() = doc != null && value.text != doc?.text
 
-    fun reset(p: String) { path = p; doc = null; value = TextFieldValue(""); problem = null; saving = false }
+    // История: шаг — слово (пауза [STEP_MS] или пробел/перевод строки), а не каждая буква; не больше [MAX_HISTORY].
+    private val undoStack = androidx.compose.runtime.mutableStateListOf<TextFieldValue>()
+    private val redoStack = androidx.compose.runtime.mutableStateListOf<TextFieldValue>()
+    private var lastEdit = 0L
+    val canUndo: Boolean get() = undoStack.isNotEmpty()
+    val canRedo: Boolean get() = redoStack.isNotEmpty()
+
+    fun reset(p: String) { path = p; doc = null; value = TextFieldValue(""); problem = null; saving = false; clearHistory() }
+
+    private fun clearHistory() { undoStack.clear(); redoStack.clear(); lastEdit = 0L }
 
     fun load(file: File) {
         openForEdit(file)
-            .onSuccess { doc = it; value = TextFieldValue(it.text); problem = null }
+            .onSuccess { doc = it; value = TextFieldValue(it.text); problem = null; clearHistory() }
             .onFailure { problem = (it as? EditException)?.problem ?: EditProblem.UNREADABLE }
     }
 
-    /** Вставить [text] вместо выделения, курсор — после вставки. */
+    /** Новое значение поля: при смене текста — шаг истории (только движение курсора историю не трогает). */
+    fun change(next: TextFieldValue, now: Long = System.currentTimeMillis()) {
+        val prev = value
+        if (next.text != prev.text) snapshot(prev, force = false, now = now)
+        value = next
+    }
+
+    private fun snapshot(prev: TextFieldValue, force: Boolean, now: Long) {
+        if (force || undoStack.isEmpty() || now - lastEdit > STEP_MS || prev.text.lastOrNull()?.isWhitespace() == true) {
+            undoStack.add(prev)
+            if (undoStack.size > MAX_HISTORY) undoStack.removeAt(0)
+        }
+        redoStack.clear()
+        lastEdit = now
+    }
+
+    fun undo() { if (undoStack.isEmpty()) return; redoStack.add(value); value = undoStack.removeAt(undoStack.lastIndex); lastEdit = 0L }
+
+    fun redo() { if (redoStack.isEmpty()) return; undoStack.add(value); value = redoStack.removeAt(redoStack.lastIndex); lastEdit = 0L }
+
+    /** Вставить [text] вместо выделения (отдельный шаг истории), курсор — после вставки. */
     fun insert(text: String) {
         val v = value
         val s = minOf(v.selection.start, v.selection.end)
         val e = maxOf(v.selection.start, v.selection.end)
+        snapshot(v, force = true, now = System.currentTimeMillis())
         value = TextFieldValue(v.text.substring(0, s) + text + v.text.substring(e), TextRange(s + text.length))
+    }
+
+    private companion object {
+        const val STEP_MS = 800L
+        const val MAX_HISTORY = 200
     }
 }
 
@@ -111,7 +147,7 @@ internal fun EditView(file: File, editor: FileEditor) {
         val shape = RoundedCornerShape(16.dp)
         val label = stringResource(R.string.fe_area)
         BasicTextField(
-            editor.value, { editor.value = it },
+            editor.value, { editor.change(it) },
             textStyle = TextStyle(fontFamily = DshFonts.mono, fontSize = 13.5.sp, lineHeight = 21.sp, color = c.t1),
             cursorBrush = SolidColor(c.accent),
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false),
@@ -131,6 +167,8 @@ internal fun EditView(file: File, editor: FileEditor) {
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             val tab = stringResource(R.string.fe_tab)
+            HistoryKey(com.dsh.core.designsystem.DshGlyphs.Undo, stringResource(R.string.fe_undo), editor.canUndo) { editor.undo() }
+            HistoryKey(com.dsh.core.designsystem.DshGlyphs.Redo, stringResource(R.string.fe_redo), editor.canRedo) { editor.redo() }
             KEYS.forEach { k ->
                 Box(
                     Modifier.height(40.dp).widthIn(min = 40.dp).clip(RoundedCornerShape(11.dp)).background(c.s2)
@@ -141,6 +179,17 @@ internal fun EditView(file: File, editor: FileEditor) {
             }
         }
     }
+}
+
+/** ↶ / ↷ в ряду клавиш: недоступная — бледная. */
+@Composable
+private fun HistoryKey(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, enabled: Boolean, onClick: () -> Unit) {
+    val c = Dsh.colors
+    Box(
+        Modifier.height(40.dp).widthIn(min = 40.dp).clip(RoundedCornerShape(11.dp)).background(c.s2)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick).semantics { contentDescription = label }.padding(horizontal = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) { androidx.compose.material3.Icon(icon, null, tint = if (enabled) c.t1 else c.t3.copy(alpha = 0.55f), modifier = Modifier.size(18.dp)) }
 }
 
 /** Лист «Выйти без сохранения?» (`#sheet-discard`): «Не сохранять» / «Сохранить». */

@@ -181,4 +181,6 @@
     <string name="fe_reload">Open new version</string>
     <string name="fe_overwrite">Overwrite</string>
     <string name="fe_reloaded">Opened the new version of the file</string>
+    <string name="fe_undo">Undo</string>
+    <string name="fe_redo">Redo</string>
 </resources>

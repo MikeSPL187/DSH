@@ -46,3 +46,23 @@ class FileEditTest {
         assertEquals("mine", File(f.path).readText())
     }
 }
+
+class FileEditorHistoryTest {
+    @Test
+    fun `undo goes back by words, redo returns, a new edit clears redo`() {
+        val e = FileEditor()
+        fun type(t: String, at: Long) = e.change(androidx.compose.ui.text.input.TextFieldValue(t), now = at)
+        type("a", 1_000); type("ab", 1_100); type("ab ", 1_200); type("ab c", 1_300); type("ab cd", 1_400)
+        e.undo()
+        assertEquals("ab ", e.value.text)
+        e.undo()
+        assertEquals("", e.value.text)
+        e.redo()
+        assertEquals("ab ", e.value.text)
+        type("ab x", 5_000)
+        assertTrue(!e.canRedo)
+        e.insert("{")
+        e.undo()
+        assertEquals("ab x", e.value.text)
+    }
+}

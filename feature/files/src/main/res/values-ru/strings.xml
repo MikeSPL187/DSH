@@ -182,4 +182,6 @@
     <string name="fe_reload">Открыть новый</string>
     <string name="fe_overwrite">Перезаписать</string>
     <string name="fe_reloaded">Открыта новая версия файла</string>
+    <string name="fe_undo">Отменить</string>
+    <string name="fe_redo">Вернуть</string>
 </resources>
