@@ -64,6 +64,11 @@ export interface StdioConfig {
   args: string[]
   /** Extra env vars merged on top of scrubbed ambient env. */
   env: Record<string, string>
+  /**
+   * Env vars filled from the credentials service at each connection attempt: variable name → credential reference.
+   * The configuration holds only references, so a token never lands in `cordis.yml`.
+   */
+  credentialEnv?: Record<string, string>
   /** Working directory for the child process. */
   cwd: string
   /** Timeout per tool call or resource request in milliseconds. */
@@ -90,6 +95,12 @@ export interface StreamableHttpConfig {
   url: string
   /** Additional headers attached to MCP requests. */
   headers: Record<string, string>
+  /**
+   * Headers filled from the credentials service at each connection attempt: header name → credential reference and
+   * a literal prefix (for example `Bearer `). The configuration holds only references, so a token never lands in
+   * `cordis.yml`, and a rotated credential takes effect on the next reconnect.
+   */
+  credentialHeaders?: Record<string, CredentialHeader>
   /** Timeout per tool call or resource request in milliseconds. */
   toolCallTimeoutMs: number
   /** Fail plugin activation when the initial connection or tool synchronization fails. */
@@ -98,6 +109,14 @@ export interface StreamableHttpConfig {
   maxInstructionBytes?: number
   /** Automatic reconnect policy after a lost connection; omission uses the defaults. */
   reconnect?: ReconnectConfig
+}
+
+/** One header value taken from the credentials service. */
+export interface CredentialHeader {
+  /** Credential reference resolved through `ctx.credentials`. */
+  ref: string
+  /** Literal text placed before the credential value. */
+  prefix: string
 }
 
 /** Configuration for one stdio or Streamable HTTP MCP server. */
@@ -123,6 +142,7 @@ export const Config = z.union([
     command: z.string().required(),
     args: z.array(String).default([]),
     env: z.dict(String).default({}),
+    credentialEnv: z.dict(z.string().role('credential-ref')).default({}),
     cwd: z.string().default(''),
     toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
     failOnStartupError: z.boolean().default(false),
@@ -134,6 +154,10 @@ export const Config = z.union([
     serverName: z.string().required().pattern(SERVER_NAME_PATTERN),
     url: z.string().required(),
     headers: z.dict(String).default({}),
+    credentialHeaders: z.dict(z.object({
+      ref: z.string().role('credential-ref').required(),
+      prefix: z.string().default(''),
+    })).default({}),
     toolCallTimeoutMs: z.number().default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
     failOnStartupError: z.boolean().default(false),
     maxInstructionBytes: z.number().step(1).min(1).default(DEFAULT_MAX_INSTRUCTION_BYTES),

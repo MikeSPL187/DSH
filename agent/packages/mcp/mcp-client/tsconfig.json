@@ -39,6 +39,9 @@
       "path": "../mcp-resources"
     },
     {
+      "path": "../../credentials/credentials"
+    },
+    {
       "path": "../../core/system-prompt"
     }
   ]
