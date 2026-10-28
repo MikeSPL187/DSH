@@ -1252,6 +1252,28 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .st-ver { text-align: center; margin: 22px 0 6px; font-size: 12.5px; color: var(--t3); line-height: 1.6; }
 .st-ver b { display: block; font-family: var(--font-display); font-size: 15px; color: var(--t2); }
 .st-danger { color: var(--danger) !important; }
+/* MCP-серверы */
+.mcp-note { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; padding: 12px 12px 12px 14px; border-radius: 18px; background: var(--warn-soft); color: var(--warn); font-size: 14px; line-height: 1.4; }
+.mcp-note span { flex: 1; }
+.mcp-note .btn { height: 40px; padding: 0 14px; border-radius: 12px; flex: none; }
+.mcp-note .btn .spin-w { width: 14px; height: 14px; }
+.st-row .val.ok { color: var(--ok); } .st-row .val.err { color: var(--danger); } .st-row .val.wait { color: var(--warn); }
+.mcp-row .tx { min-width: 0; }
+.mcp-row .tx small { font-family: var(--font-mono); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mcp-kv div.col { flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px 0; }
+.mcp-kv div.col b { margin-left: 0; text-align: left; }
+.mcp-form { display: grid; gap: 14px; }
+.mcp-form .ob-in input { font-family: var(--font-body); }
+.mcp-form .ob-in input.mono { font-family: var(--font-mono); font-size: 14px; }
+.mcp-hint { margin: -6px 4px 0; font-size: 12.5px; line-height: 1.45; color: var(--t3); }
+.mcp-err { margin: 0 4px; font-size: 13px; color: var(--danger); min-height: 18px; }
+.mcp-go { width: 100%; height: 52px; border-radius: 16px; font-size: 16px; }
+.mcp-kv { border-radius: 18px; background: var(--s2); padding: 2px 14px; margin-bottom: 12px; }
+.mcp-kv div { display: flex; align-items: center; gap: 10px; min-height: 48px; font-size: 14px; color: var(--t2); }
+.mcp-kv div + div { border-top: 1px solid var(--line); }
+.mcp-kv b { margin-left: auto; font-weight: 500; color: var(--t1); text-align: right; overflow-wrap: anywhere; }
+.mcp-kv b.mono { font-family: var(--font-mono); font-size: 13px; }
+.mcp-kv b.err { color: var(--danger); font-weight: 400; }
 /* GitHub: вход по одноразовому коду (device flow) */
 .gh-hero { text-align: center; padding: 22px 16px 18px; border-radius: 22px; background: var(--s1); border: 1px solid var(--line); }
 .gh-hero .si { width: 56px; height: 56px; border-radius: 18px; margin: 0 auto 14px; } .gh-hero .si .i { width: 26px; height: 26px; }
@@ -1629,6 +1651,14 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <button class="sa-row" data-sa="Проверка тестов"><span class="sa-st"><i class="run"></i></span><span class="tx"><b>Проверка тестов</b><small>работает · 2 мин</small></span><span class="mode cont">продолжаемый</span><svg class="i sm go"><use href="#i-right"/></svg></button>
         <button class="sa-row" data-sa="Поиск устаревших API"><span class="sa-st"><i class="ok"></i></span><span class="tx"><b>Поиск устаревших API</b><small>готово · 5 мин назад</small></span><span class="mode">разовый</span><svg class="i sm go"><use href="#i-right"/></svg></button>
         <button class="sa-row" data-sa="Codex: ревью diff"><span class="sa-st"><i></i></span><span class="tx"><b>Codex: ревью diff</b><small>внешний · вчера</small></span><span class="mode">внешний</span></button>
+      </section>
+
+      <!-- Лист: MCP-сервер -->
+      <section class="sheet" id="sheet-mcp" aria-label="MCP-сервер">
+        <div class="grab"></div>
+        <h3 id="mcpTitle">github</h3>
+        <div class="mcp-kv" id="mcpKv"></div>
+        <div class="lim-btns"><button class="btn ghost st-danger" id="mcpDel">Удалить</button><button class="btn primary" data-act="close">Готово</button></div>
       </section>
 
       <!-- Лист: вход в GitHub по коду -->
@@ -3366,16 +3396,20 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     about: ["О приложении", ""],
     inst: ["AGENTS.md", ""],
     github: ["GitHub", "Отправка коммитов и запросы на слияние"],
+    mcp: ["MCP-серверы", "Инструменты из внешних сервисов"],
+    mcpadd: ["Новый MCP-сервер", ""],
   };
   const INDEX = [
     ["models", "API-ключ DeepSeek провайдер баланс расход модель по умолчанию"], ["look", "тема светлая тёмная язык русский english шрифт кода размер"],
-    ["github", "github гитхаб вход push отправить коммит запрос на слияние pull request токен"], ["agent", "одобрение правки разрешения буфер обмена clipboard глубина рассуждения инструкции agents.md claude.md правила проекта пределы таймаут субагенты веб-поиск"], ["host", "host linux debian сон засыпать батарея фон удалённый сопряжение перезапуск"],
+    ["mcp", "mcp сервер инструменты подключить tools model context protocol"], ["github", "github гитхаб вход push отправить коммит запрос на слияние pull request токен"], ["agent", "одобрение правки разрешения буфер обмена clipboard глубина рассуждения инструкции agents.md claude.md правила проекта пределы таймаут субагенты веб-поиск"], ["host", "host linux debian сон засыпать батарея фон удалённый сопряжение перезапуск"],
     ["storage", "место кэш rootfs логи резервная копия экспорт очистить рабочая папка"], ["security", "буфер обмена плагины доверие сертификат биометрия блокировка шифрование keystore"],
     ["notif", "уведомления задачи автоматизация вибрация"], ["about", "версия лицензии журнал отчёт об ошибке"],
   ];
   function viewSt(page) {
     const v = document.createElement("div"); v.className = "fs-view";
     if (page === "inst") { v.innerHTML = instView(); return v; }
+    if (page === "mcp") { v.innerHTML = mcpView(); return v; }
+    if (page === "mcpadd") { v.innerHTML = mcpAddView(); return v; }
     if (page === "github") {
       v.innerHTML = GH.login
         ? `<div class="gl"><div class="st-row"><span class="avatar">${GH.login[0].toUpperCase()}</span><span class="tx">@${GH.login}<small>Вошли ${GH.at}</small></span></div>${row("i-lock", "c3", "Доступ", "репозитории")}</div>
@@ -3392,7 +3426,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       <button class="st-prof" data-stgo="models"><span class="avatar">М</span><span class="tx"><b>Михаил</b><small>Свой ключ DeepSeek · по API</small></span><svg class="i sm" style="color:var(--t3)"><use href="#i-right"/></svg></button>
       <div class="st-bal"><div><b>12,40 $</b><small>баланс</small></div><div><b>0,38 $</b><small>сегодня</small></div><div><b>2,1 млн</b><small>токенов за месяц</small></div></div>
       <div class="glabel">Работа</div>
-      <div class="gl">${row(...ICON.models, "Модели и ключи", "DeepSeek V4", "models")}${row(...ICON.agent, "Агент", ST.approvals === "ask" ? "Спрашивать" : "Сам в папке", "agent")}${row(...ICON.github, "GitHub", GH.login ? "@" + GH.login : "не подключён", "github")}${row("i-puzzle", "c8", "Плагины", "3 включено", "", ' data-act="plugins"')}${row("i-clock", "c7", "Автоматизация", "3 активны", "", ' data-act="automation"')}</div>
+      <div class="gl">${row(...ICON.models, "Модели и ключи", "DeepSeek V4", "models")}${row(...ICON.agent, "Агент", ST.approvals === "ask" ? "Спрашивать" : "Сам в папке", "agent")}${row(...ICON.github, "GitHub", GH.login ? "@" + GH.login : "не подключён", "github")}${row(...ICON.mcp, "MCP-серверы", MCP.list.length ? MCP.list.length + " " + (MCP.list.length === 1 ? "сервер" : "сервера") : "нет", "mcp")}${row("i-puzzle", "c8", "Плагины", "3 включено", "", ' data-act="plugins"')}${row("i-clock", "c7", "Автоматизация", "3 активны", "", ' data-act="automation"')}</div>
       <div class="glabel">Устройство</div>
       <div class="gl">${row(...ICON.host, "Host", ST.hostOn ? "работает" : "остановлен", "host")}${row(...ICON.storage, "Хранилище", "3,1 ГБ", "storage")}${row(...ICON.notif, "Уведомления", "", "notif")}</div>
       <div class="glabel">Приложение</div>
@@ -3472,7 +3506,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       <p class="sub" style="margin:12px 6px 0">Основано на deepseek-harness-mobile 1.0.6. Работает с DeepSeek Harness.</p>`;
     return v;
   }
-  const ICON = { github: ["i-git", "c6"], models: ["i-key", "c1"], look: ["i-sun", "c8"], agent: ["i-spark", "c2"], host: ["i-server", "c3"], storage: ["i-hdd2", "c6"], security: ["i-shield", "c5"], notif: ["i-bell", "c4"], about: ["i-info", "c6"] };
+  const ICON = { mcp: ["i-puzzle", "c7"], github: ["i-git", "c6"], models: ["i-key", "c1"], look: ["i-sun", "c8"], agent: ["i-spark", "c2"], host: ["i-server", "c3"], storage: ["i-hdd2", "c6"], security: ["i-shield", "c5"], notif: ["i-bell", "c4"], about: ["i-info", "c6"] };
   function stTitles() { const k = stStack[stStack.length - 1]; $("#stTitle").textContent = PAGES[k][0]; $("#stSub").textContent = k === "root" ? "DSH 1.1.0" : PAGES[k][1]; }
   function stPush(k) { const old = stCur, v = viewSt(k); stStack.push(k); stBody.appendChild(v); stCur = v; stTitles();
     if (old) { anim(v, [{ transform: "translateX(100%)" }, { transform: "translateX(0)" }], SMOOTH); anim(old, [{ transform: "translateX(0)", opacity: 1 }, { transform: "translateX(-28%)", opacity: .6 }], SMOOTH).onfinish = () => old.remove(); } }
@@ -3772,6 +3806,68 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   $("#limPlus").addEventListener("click", () => { const L = LIM[limKey]; limDraft = L.v[Math.min(L.v.length - 1, L.v.indexOf(limDraft) + 1)]; limShow(); });
   $("#limReset").addEventListener("click", () => { delete LIMV[limKey]; sheetClose(); stRefresh(); toast("Вернули стандартное значение"); });
   $("#limSave").addEventListener("click", () => { if (limDraft === LIM[limKey].d) delete LIMV[limKey]; else LIMV[limKey] = limDraft; sheetClose(); stRefresh(); toast("Сохранено · действует со следующего шага агента"); });
+  // ── MCP-серверы: записи dsh-mcp-client в слое патчей; токен — в хранилище ключей Host по ссылке ──
+  const MCP = { pending: false, restarting: false, list: [
+    { name: "github", kind: "http", where: "https://api.githubcopilot.com/mcp/", key: "a1b2", st: "ok", tools: 41 },
+    { name: "docs", kind: "stdio", where: "npx -y @modelcontextprotocol/server-filesystem /workspace/docs", st: "err", err: "Не запустился — подробности в журнале Host" },
+  ] };
+  let mcpKind = "http", mcpSel = null, mcpDelArm = false;
+  function mcpVal(m) { return m.st === "ok" ? `<span class="val ok">работает</span>` : m.st === "err" ? `<span class="val err">ошибка</span>` : `<span class="val wait">после перезапуска</span>`; }
+  function mcpView() {
+    return `${MCP.pending ? `<div class="mcp-note" role="status"><span>Изменения вступят в силу после перезапуска Host</span><button class="btn primary" id="mcpRestart"${MCP.restarting ? " disabled" : ""}>${MCP.restarting ? `<span class="spin-w"></span>Перезапуск…` : "Перезапустить"}</button></div>` : ""}
+      <div class="glabel">Серверы</div>
+      ${MCP.list.length ? `<div class="gl">${MCP.list.map((m) => `<button class="st-row mcp-row" data-mcp="${m.name}" aria-label="${m.name}, ${m.st === "ok" ? "работает" : m.st === "err" ? "ошибка" : "после перезапуска"}"><span class="si ${m.kind === "http" ? "c7" : "c6"}"><svg class="i"><use href="#${m.kind === "http" ? "i-globe" : "i-term"}"/></svg></span><span class="tx">${m.name}<small>${esc2(m.where)}</small></span>${mcpVal(m)}<svg class="i sm chev-r"><use href="#i-right"/></svg></button>`).join("")}</div>` : `<div class="fs-empty">Серверов пока нет</div>`}
+      <div class="gl" style="margin-top:12px">${row("i-plus", "c1", "Добавить сервер", "", "mcpadd")}</div>
+      <p class="sub" style="margin:8px 6px 0">MCP-серверы дают агенту новые инструменты: GitHub, базы данных, документацию. Токены лежат в хранилище ключей Host и не показываются.</p>`;
+  }
+  function mcpAddView() {
+    const http = mcpKind === "http";
+    return `<div class="st-chips" role="radiogroup" aria-label="Как подключить" style="margin-bottom:10px"><button role="radio" data-mcpk="http" aria-checked="${http}">По адресу</button><button role="radio" data-mcpk="stdio" aria-checked="${!http}">Команда на телефоне</button></div>
+      <div class="mcp-form">
+        <label class="ob-field"><span class="ob-fl">Имя</span><span class="ob-in"><input id="mcpName" placeholder="github" autocomplete="off" spellcheck="false" maxlength="32"></span></label>
+        <p class="mcp-hint">Латиница, цифры, «-» и «_»: инструменты будут называться mcp__имя__…</p>
+        ${http ? `<label class="ob-field"><span class="ob-fl">Адрес</span><span class="ob-in"><input id="mcpWhere" class="mono" placeholder="https://example.com/mcp" inputmode="url" autocomplete="off" spellcheck="false"></span></label>
+        <label class="ob-field"><span class="ob-fl">Токен (если нужен)</span><span class="ob-in"><svg class="i sm"><use href="#i-key"/></svg><input id="mcpKey" class="mono" type="password" placeholder="ghp_…" autocomplete="off" spellcheck="false"><button class="ob-show" id="mcpEye" type="button" aria-label="Показать токен" aria-pressed="false"><svg class="i sm"><use href="#i-eye"/></svg></button></span></label>
+        <p class="mcp-hint">Уйдёт в заголовке Authorization: Bearer. Хранится в хранилище ключей Host, в настройках только ссылка.</p>`
+        : `<label class="ob-field"><span class="ob-fl">Команда</span><span class="ob-in"><input id="mcpWhere" class="mono" placeholder="npx -y @modelcontextprotocol/server-…" autocomplete="off" spellcheck="false"></span></label>
+        <p class="mcp-hint">Запускается в Linux на телефоне. Аргументы через пробел, без оболочки.</p>`}
+        <p class="mcp-err" id="mcpErr" role="alert"></p>
+        <button class="btn primary mcp-go" id="mcpSave" disabled>Добавить</button>
+      </div>`;
+  }
+  function mcpCheck() {
+    const name = $("#mcpName", stCur)?.value.trim() ?? "", where = $("#mcpWhere", stCur)?.value.trim() ?? "";
+    let err = "";
+    if (name && !/^[A-Za-z0-9_-]{1,32}$/.test(name)) err = "Имя: только латиница, цифры, «-» и «_»";
+    else if (MCP.list.some((m) => m.name === name)) err = "Сервер с таким именем уже есть";
+    else if (mcpKind === "http" && where && !/^(https:\/\/\S+|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/\S*)$/.test(where)) err = "Адрес: https://… (или http://localhost для сервера на телефоне)";
+    $("#mcpErr", stCur).textContent = err; $("#mcpSave", stCur).disabled = !!err || !name || !where;
+  }
+  function mcpSheet(name) {
+    const m = MCP.list.find((x) => x.name === name); if (!m) return; mcpSel = name; mcpDelArm = false;
+    $("#mcpTitle").textContent = m.name;
+    $("#mcpKv").innerHTML = `<div class="col">${m.kind === "http" ? "Адрес" : "Команда"}<b class="mono">${esc2(m.where)}</b></div>${m.kind === "http" ? `<div>Токен<b>${m.key ? "••••" + m.key : "нет"}</b></div>` : ""}<div>Состояние<b class="${m.st === "err" ? "err" : ""}">${m.st === "ok" ? "Подключён · инструменты mcp__" + m.name + "__…" : m.st === "err" ? esc2(m.err) : "после перезапуска Host"}</b></div>`;
+    $("#mcpDel").textContent = "Удалить"; sheetOpen("mcp");
+  }
+  document.addEventListener("click", (e) => {
+    const r = e.target.closest("[data-mcp]"); if (r) { mcpSheet(r.dataset.mcp); return; }
+    const k = e.target.closest("[data-mcpk]"); if (k) { mcpKind = k.dataset.mcpk; stRefresh(); return; }
+    if (e.target.closest("#mcpEye")) { const b = e.target.closest("#mcpEye"), on = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", String(on)); b.setAttribute("aria-label", on ? "Скрыть токен" : "Показать токен"); $("#mcpKey", stCur).type = on ? "text" : "password"; return; }
+    if (e.target.closest("#mcpSave")) {
+      const name = $("#mcpName", stCur).value.trim(), where = $("#mcpWhere", stCur).value.trim(), key = $("#mcpKey", stCur)?.value.trim() ?? "";
+      MCP.list.push({ name, kind: mcpKind, where, key: key ? key.slice(-4) : "", st: "wait" }); MCP.pending = true; stPop(); toast("Добавлено · нужен перезапуск Host"); return;
+    }
+    if (e.target.closest("#mcpRestart")) {
+      MCP.restarting = true; stRefresh();
+      setTimeout(() => { MCP.restarting = false; MCP.pending = false; MCP.list.forEach((m) => { if (m.st === "wait") { m.st = "ok"; m.tools = 12; } }); stRefresh(); toast("Host перезапущен · серверы подключены"); }, 1500);
+    }
+  });
+  document.addEventListener("input", (e) => { if (e.target.id === "mcpName" || e.target.id === "mcpWhere") mcpCheck(); });
+  $("#mcpDel").addEventListener("click", () => {
+    if (!mcpDelArm) { mcpDelArm = true; $("#mcpDel").textContent = "Ещё раз — удалить"; return; }
+    MCP.list = MCP.list.filter((m) => m.name !== mcpSel); MCP.pending = true; sheetClose(); stRefresh(); toast("Удалено · нужен перезапуск Host");
+  });
+
   // ── GitHub: вход по коду (device flow), выход ──
   const GH = { login: "", at: "" };
   let ghTimer = null;

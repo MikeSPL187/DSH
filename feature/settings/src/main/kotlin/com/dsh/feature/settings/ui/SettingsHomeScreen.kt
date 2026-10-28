@@ -74,7 +74,7 @@ import kotlinx.coroutines.launch
 import com.dsh.core.designsystem.kit.DeviceSignInSheetBody
 
 /** Страницы «Настроек» (как `PAGES` в прототипе). */
-enum class StPage { Root, Models, Look, Agent, Host, Storage, Security, Notif, About, Instructions, GitHub }
+enum class StPage { Root, Models, Look, Agent, Host, Storage, Security, Notif, About, Instructions, GitHub, Mcp, McpAdd }
 
 /** Состояние ключа провайдера. */
 enum class KeyState { Ok, Bad, Offline, Unknown, None }
@@ -152,6 +152,8 @@ data class SettingsUi(
     val instructions: List<InstructionRow> = emptyList(),
     /** Аккаунт GitHub: отправка коммитов и запросы на слияние. */
     val github: GitHubUi = GitHubUi(),
+    /** MCP-серверы Host, добавленные в приложении. */
+    val mcp: McpUi = McpUi(),
     // Оформление
     val theme: String = "system",
     val language: String = "ru",
@@ -226,6 +228,9 @@ interface SettingsActions {
     suspend fun gitHubAwait(): Result<String> = Result.failure(UnsupportedOperationException())
     fun gitHubErrorOf(t: Throwable): com.dsh.core.designsystem.kit.DeviceSignInError = com.dsh.core.designsystem.kit.DeviceSignInError.NotConfigured
     fun gitHubSignOut() {}
+    /** Добавить MCP-сервер: по адресу ([http]) с необязательным токеном или командой в Linux; false — не получилось. */
+    suspend fun mcpAdd(http: Boolean, name: String, where: String, token: String?): Boolean = false
+    suspend fun mcpRemove(name: String): Boolean = false
     suspend fun restartHost(): Boolean = true
     suspend fun setHostRunning(run: Boolean): Boolean = true
     fun setSleep(minutes: Int) {}
@@ -254,7 +259,7 @@ private object NoActions : SettingsActions
 private val PageIcon = mapOf(
     StPage.Models to ("key" to Si.c1), StPage.Look to ("sun" to Si.c8), StPage.Agent to ("spark" to Si.c2),
     StPage.Host to ("server" to Si.c3), StPage.Storage to ("hdd2" to Si.c6), StPage.Security to ("shield" to Si.c5),
-    StPage.Notif to ("bell" to Si.c4), StPage.About to ("info" to Si.c6),
+    StPage.Notif to ("bell" to Si.c4), StPage.About to ("info" to Si.c6), StPage.Mcp to ("puzzle" to Si.c7),
 )
 
 @Composable
@@ -271,6 +276,8 @@ private fun pageTitle(p: StPage): String = stringResource(
         StPage.About -> R.string.st_about
         StPage.Instructions -> R.string.st_inst
         StPage.GitHub -> R.string.st_gh
+        StPage.Mcp -> R.string.st_mcp
+        StPage.McpAdd -> R.string.st_mcp_new
     },
 )
 
@@ -284,6 +291,7 @@ private fun pageSub(p: StPage, ui: SettingsUi): String? = when (p) {
     StPage.Storage -> stringResource(R.string.st_storage_sub)
     StPage.Security -> stringResource(R.string.st_security_sub)
     StPage.GitHub -> stringResource(R.string.st_gh_sub)
+    StPage.Mcp -> stringResource(R.string.st_mcp_sub)
     else -> null
 }
 
@@ -347,6 +355,13 @@ fun SettingsHomeScreen(
                     onToast = { toast.show(it) },
                 )
             }
+            // Лист держит последний открытый сервер, чтобы не пропасть посреди анимации закрытия (и после удаления).
+            val mcpName = sheet?.removePrefix(MCP_SHEET)?.takeIf { sheet?.startsWith(MCP_SHEET) == true }
+            var lastMcp by remember { mutableStateOf<McpRow?>(null) }
+            ui.mcp.servers.firstOrNull { it.name == mcpName }?.let { lastMcp = it }
+            KSheet(mcpName != null, onDismiss = { sheet = null }) {
+                lastMcp?.let { r -> McpSheet(r, actions, toast) { sheet = null } }
+            }
             KSheet(sheet == "discard", onDismiss = { sheet = null }) {
                 DiscardSheet(
                     onDrop = { sheet = null; editor.draft = editor.saved; stack.pop() },
@@ -372,6 +387,8 @@ fun SettingsHomeScreen(
                 StPage.Security -> SecurityPage(ui, actions, toast, stack::push)
                 StPage.Notif -> NotifPage(ui, actions)
                 StPage.About -> AboutPage(ui, actions, toast)
+                StPage.Mcp -> McpPage(ui.mcp, actions, toast, onOpen = { sheet = MCP_SHEET + it }) { stack.push(StPage.McpAdd) }
+                StPage.McpAdd -> McpAddPage(ui.mcp, actions, toast) { stack.pop() }
                 StPage.GitHub -> GitHubPage(ui.github, onSignIn = { sheet = "github" }) { actions.gitHubSignOut(); toast.show(signedOutMsg) }
                 StPage.Instructions -> {
                     androidx.activity.compose.BackHandler(enabled = editor.dirty && sheet == null) { sheet = "discard" }
@@ -392,7 +409,7 @@ private fun RootPage(ui: SettingsUi, a: SettingsActions, go: (StPage) -> Unit) {
     FsView {
         FsSearch(query, { query = it }, stringResource(R.string.st_search), Modifier.padding(bottom = 12.dp).rise(0))
         if (query.isNotBlank()) {
-            val pages = listOf(StPage.Models, StPage.Look, StPage.Agent, StPage.Host, StPage.Storage, StPage.Security, StPage.Notif, StPage.About)
+            val pages = listOf(StPage.Models, StPage.Look, StPage.Agent, StPage.Host, StPage.Storage, StPage.Security, StPage.Notif, StPage.About, StPage.Mcp)
             val titles = pages.map { pageTitle(it) }
             val hits = pages.indices.filter { i -> (titles[i] + " " + index.getOrElse(i) { "" }).lowercase().contains(query.trim().lowercase()) }
             if (hits.isEmpty()) FsEmpty(stringResource(R.string.st_nothing))
@@ -413,6 +430,7 @@ private fun RootPage(ui: SettingsUi, a: SettingsActions, go: (StPage) -> Unit) {
             row { PageRow(StPage.Models, pageTitle(StPage.Models), ui.defaultModel.ifBlank { null }) { go(StPage.Models) } }
             row { PageRow(StPage.Agent, pageTitle(StPage.Agent), approveLabel(ui.autoApprove)) { go(StPage.Agent) } }
             row { StRow(pageTitle(StPage.GitHub), icon = DshGlyphs.get("git"), tile = Si.c6, value = ui.github.login?.let { if (it.isEmpty()) stringResource(R.string.st_gh_on) else "@$it" } ?: stringResource(R.string.st_gh_off), chevron = true, onClick = { go(StPage.GitHub) }) }
+            row { PageRow(StPage.Mcp, pageTitle(StPage.Mcp), mcpCount(ui.mcp)) { go(StPage.Mcp) } }
             row { StRow(stringResource(R.string.st_plugins), icon = DshGlyphs.Puzzle, tile = Si.c8, value = pluralStringResource(R.plurals.st_plugins_on, ui.pluginsOn, ui.pluginsOn), onClick = a::openPlugins) }
             row { StRow(stringResource(R.string.st_automation), icon = DshGlyphs.Clock, tile = Si.c7, value = pluralStringResource(R.plurals.st_auto_on, ui.automationsOn, ui.automationsOn), onClick = a::openAutomation) }
         }
@@ -645,7 +663,7 @@ private fun ModelSheet(title: String, models: List<String>, current: String, lev
 }
 
 @Composable
-private fun Field(
+internal fun Field(
     value: String,
     onChange: (String) -> Unit,
     placeholder: String,
@@ -876,6 +894,9 @@ private fun WebSearchPart(ui: SettingsUi, a: SettingsActions, toast: ToastState,
 
 /** Префикс листа предела: `limit:COMMAND_TIME`. */
 private const val LIMIT_SHEET = "limit:"
+
+/** Префикс листа MCP-сервера: `mcp:github`. */
+private const val MCP_SHEET = "mcp:"
 
 // ---------- Host ----------
 

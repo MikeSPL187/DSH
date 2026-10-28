@@ -937,15 +937,17 @@ class DefaultHostRuntimeManager(
             "registry.npmjs.org",
             "registry.npmmirror.com",
         )
-        writeHostsFile(infraHosts)
-        AgentNetworkPolicy.addDynamic(infraHosts)
+        // Адреса MCP-серверов, добавленных в настройках: к ним ходит сам Host.
+        val mcpHosts = McpServers(layout).list().filter { it.kind == McpServers.HTTP }.mapNotNull { hostOf(it.url) }
+        writeHostsFile(infraHosts + mcpHosts)
+        AgentNetworkPolicy.addDynamic(infraHosts + mcpHosts)
         backgroundScope.launch {
             runCatching {
                 val declared = scanDeclaredHosts()
                 // Домены, объявленные плагинами Host, нужны им для работы — сеть агента их пропускает.
                 AgentNetworkPolicy.addDynamic(declared)
                 if (declared.isNotEmpty()) {
-                    writeHostsFile((infraHosts + declared).distinct().take(160))
+                    writeHostsFile((infraHosts + mcpHosts + declared).distinct().take(160))
                 }
             }
         }

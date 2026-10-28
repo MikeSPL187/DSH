@@ -49,6 +49,15 @@ import java.io.File
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [34], qualifiers = "ru-w412dp-h2400dp-xxhdpi")
 class DshScreensSweepTest {
+    private val mcpDemo = com.dsh.feature.settings.ui.McpUi(
+        listOf(
+            com.dsh.feature.settings.ui.McpRow("github", true, "https://api.githubcopilot.com/mcp/", "a1b2", com.dsh.feature.settings.ui.McpStatus.OK),
+            com.dsh.feature.settings.ui.McpRow("docs", false, "npx -y @modelcontextprotocol/server-filesystem /workspace/docs", null, com.dsh.feature.settings.ui.McpStatus.ERROR),
+            com.dsh.feature.settings.ui.McpRow("linear", true, "https://mcp.linear.app/mcp", null, com.dsh.feature.settings.ui.McpStatus.PENDING),
+        ),
+        restartNeeded = true,
+    )
+
 
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()
@@ -161,6 +170,11 @@ class DshScreensSweepTest {
                 "st-agent-web-api" to @Composable {
                     SettingsHomeScreen(st.copy(webSearch = st.webSearch!!.copy(useApi = true, sendQuestion = false)), onClose = {}, initialPage = StPage.Agent)
                 },
+                "st-mcp" to @Composable { SettingsHomeScreen(st.copy(mcp = mcpDemo), onClose = {}, initialPage = StPage.Mcp) },
+                "st-mcp-empty" to @Composable { SettingsHomeScreen(st, onClose = {}, initialPage = StPage.Mcp) },
+                "st-mcp-sheet" to @Composable { SettingsHomeScreen(st.copy(mcp = mcpDemo), onClose = {}, initialPage = StPage.Mcp, initialSheet = "mcp:github") },
+                "st-mcp-sheet-err" to @Composable { SettingsHomeScreen(st.copy(mcp = mcpDemo), onClose = {}, initialPage = StPage.Mcp, initialSheet = "mcp:docs") },
+                "st-mcp-add" to @Composable { SettingsHomeScreen(st.copy(mcp = mcpDemo), onClose = {}, initialPage = StPage.McpAdd) },
                 "st-github-in" to @Composable { SettingsHomeScreen(st.copy(github = com.dsh.feature.settings.ui.GitHubUi("mikespl187", "28 окт")), onClose = {}, initialPage = StPage.GitHub) },
                 "st-gh-sheet" to @Composable {
                     SettingsHomeScreen(

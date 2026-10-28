@@ -36,7 +36,9 @@ module.exports = async function audit(p, scopeSel) {
       }
       if (el.matches("button, [role=button], [role=switch], [role=radio], [role=checkbox], input, a")) {
         const r = el.getBoundingClientRect();
-        if (Math.min(r.width, r.height) < 40 && !el.closest(".toggle") ) out.touch.push(`${Math.round(r.width)}×${Math.round(r.height)} · «${label(el)}»`);
+        // Поле ввода внутри <label>: касаемая зона — вся подпись (нажатие в любом её месте фокусирует поле).
+        const zone = el.tagName === "INPUT" && el.closest("label") ? el.closest("label").getBoundingClientRect() : r;
+        if (Math.min(zone.width, zone.height) < 40 && !el.closest(".toggle") ) out.touch.push(`${Math.round(r.width)}×${Math.round(r.height)} · «${label(el)}»`);
       }
       if ((cs.textOverflow === "ellipsis" || cs.overflow === "hidden") && own && el.scrollWidth > el.clientWidth + 1) out.clipped.push(`«${label(el)}»`);
     });

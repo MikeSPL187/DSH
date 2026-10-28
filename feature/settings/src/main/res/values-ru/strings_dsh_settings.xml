@@ -28,6 +28,7 @@
         <item>буфер обмена плагины доверие сертификат биометрия отпечаток блокировка шифрование keystore удалить данные</item>
         <item>уведомления задачи автоматизация</item>
         <item>версия лицензии журнал отчёт об ошибке обновления</item>
+        <item>mcp сервер инструменты подключить tools model context protocol</item>
     </string-array>
     <string name="st_prof_key">Свой ключ %1$s · по API</string>
     <string name="st_prof_nokey">Ключ не подключён — нажмите, чтобы добавить</string>
@@ -340,4 +341,54 @@
     <string name="st_about_note">Основано на deepseek-harness-mobile 1.0.6. Работает с DeepSeek Harness.</string>
     <string name="st_model_default">Модель по умолчанию</string>
     <string name="st_models_empty">Host ещё не прислал список моделей</string>
+    <!-- MCP-серверы -->
+    <string name="st_mcp">MCP-серверы</string>
+    <string name="st_mcp_sub">Инструменты из внешних сервисов</string>
+    <string name="st_mcp_new">Новый MCP-сервер</string>
+    <string name="st_mcp_none">нет</string>
+    <plurals name="st_mcp_count">
+        <item quantity="one">%d сервер</item>
+        <item quantity="few">%d сервера</item>
+        <item quantity="many">%d серверов</item>
+        <item quantity="other">%d сервера</item>
+    </plurals>
+    <string name="st_mcp_restart_note">Изменения вступят в силу после перезапуска Host</string>
+    <string name="st_mcp_restart">Перезапустить</string>
+    <string name="st_mcp_restarting">Перезапуск…</string>
+    <string name="st_mcp_restarted">Host перезапущен</string>
+    <string name="st_mcp_restart_failed">Не удалось перезапустить Host</string>
+    <string name="st_mcp_servers">Серверы</string>
+    <string name="st_mcp_empty">Серверов пока нет</string>
+    <string name="st_mcp_add">Добавить сервер</string>
+    <string name="st_mcp_note">MCP-серверы дают агенту новые инструменты: GitHub, базы данных, документацию. Токены лежат в хранилище ключей Host и не показываются.</string>
+    <string name="st_mcp_ok">работает</string>
+    <string name="st_mcp_err">ошибка</string>
+    <string name="st_mcp_pending">после перезапуска</string>
+    <string name="st_mcp_url">Адрес</string>
+    <string name="st_mcp_cmd">Команда</string>
+    <string name="st_mcp_token">Токен</string>
+    <string name="st_mcp_no_token">нет</string>
+    <string name="st_mcp_state">Состояние</string>
+    <string name="st_mcp_state_ok">Подключён · инструменты mcp__%1$s__…</string>
+    <string name="st_mcp_state_err">Не запустился — подробности в журнале Host</string>
+    <string name="st_mcp_state_pending">после перезапуска Host</string>
+    <string name="st_mcp_delete">Удалить</string>
+    <string name="st_mcp_delete_confirm">Ещё раз — удалить</string>
+    <string name="st_mcp_removed">Удалено · нужен перезапуск Host</string>
+    <string name="st_mcp_remove_failed">Не удалось удалить сервер</string>
+    <string name="st_mcp_by_url">По адресу</string>
+    <string name="st_mcp_by_cmd">Команда на телефоне</string>
+    <string name="st_mcp_name">Имя</string>
+    <string name="st_mcp_name_hint">Латиница, цифры, «-» и «_»: инструменты будут называться mcp__имя__…</string>
+    <string name="st_mcp_token_opt">Токен (если нужен)</string>
+    <string name="st_mcp_show">Показать токен</string>
+    <string name="st_mcp_hide">Скрыть токен</string>
+    <string name="st_mcp_token_hint">Уйдёт в заголовке Authorization: Bearer. Хранится в хранилище ключей Host, в настройках только ссылка.</string>
+    <string name="st_mcp_cmd_hint">Запускается в Linux на телефоне. Аргументы через пробел, без оболочки.</string>
+    <string name="st_mcp_bad_name">Имя: только латиница, цифры, «-» и «_»</string>
+    <string name="st_mcp_taken">Сервер с таким именем уже есть</string>
+    <string name="st_mcp_bad_url">Адрес: https://… (или http://localhost для сервера на телефоне)</string>
+    <string name="st_mcp_add_go">Добавить</string>
+    <string name="st_mcp_added">Добавлено · нужен перезапуск Host</string>
+    <string name="st_mcp_add_failed">Не удалось добавить: для токена Host должен работать</string>
 </resources>

@@ -28,6 +28,7 @@
         <item>clipboard plugins trust certificate biometric fingerprint lock encryption keystore wipe data</item>
         <item>notifications tasks automation</item>
         <item>version licenses log bug report updates</item>
+        <item>mcp server tools connect model context protocol</item>
     </string-array>
     <string name="st_prof_key">Own %1$s key · API</string>
     <string name="st_prof_nokey">No key connected — tap to add one</string>
@@ -334,4 +335,52 @@
     <string name="st_about_note">Based on deepseek-harness-mobile 1.0.6. Works with DeepSeek Harness.</string>
     <string name="st_model_default">Default model</string>
     <string name="st_models_empty">Host hasn\'t sent the model list yet</string>
+    <!-- MCP servers -->
+    <string name="st_mcp">MCP servers</string>
+    <string name="st_mcp_sub">Tools from external services</string>
+    <string name="st_mcp_new">New MCP server</string>
+    <string name="st_mcp_none">none</string>
+    <plurals name="st_mcp_count">
+        <item quantity="one">%d server</item>
+        <item quantity="other">%d servers</item>
+    </plurals>
+    <string name="st_mcp_restart_note">Changes take effect after Host restarts</string>
+    <string name="st_mcp_restart">Restart</string>
+    <string name="st_mcp_restarting">Restarting…</string>
+    <string name="st_mcp_restarted">Host restarted</string>
+    <string name="st_mcp_restart_failed">Couldn’t restart Host</string>
+    <string name="st_mcp_servers">Servers</string>
+    <string name="st_mcp_empty">No servers yet</string>
+    <string name="st_mcp_add">Add server</string>
+    <string name="st_mcp_note">MCP servers give the agent new tools: GitHub, databases, documentation. Tokens stay in the Host credential store and are never shown.</string>
+    <string name="st_mcp_ok">running</string>
+    <string name="st_mcp_err">error</string>
+    <string name="st_mcp_pending">after restart</string>
+    <string name="st_mcp_url">Address</string>
+    <string name="st_mcp_cmd">Command</string>
+    <string name="st_mcp_token">Token</string>
+    <string name="st_mcp_no_token">none</string>
+    <string name="st_mcp_state">Status</string>
+    <string name="st_mcp_state_ok">Connected · tools mcp__%1$s__…</string>
+    <string name="st_mcp_state_err">Didn’t start — see the Host log</string>
+    <string name="st_mcp_state_pending">after Host restarts</string>
+    <string name="st_mcp_delete">Delete</string>
+    <string name="st_mcp_delete_confirm">Tap again to delete</string>
+    <string name="st_mcp_removed">Deleted · Host restart needed</string>
+    <string name="st_mcp_remove_failed">Couldn’t delete the server</string>
+    <string name="st_mcp_by_url">By address</string>
+    <string name="st_mcp_by_cmd">Command on phone</string>
+    <string name="st_mcp_name">Name</string>
+    <string name="st_mcp_name_hint">Latin letters, digits, “-” and “_”: tools will be named mcp__name__…</string>
+    <string name="st_mcp_token_opt">Token (if needed)</string>
+    <string name="st_mcp_show">Show token</string>
+    <string name="st_mcp_hide">Hide token</string>
+    <string name="st_mcp_token_hint">Sent as Authorization: Bearer. Kept in the Host credential store; settings hold only a reference.</string>
+    <string name="st_mcp_cmd_hint">Runs in Linux on the phone. Arguments separated by spaces, no shell.</string>
+    <string name="st_mcp_bad_name">Name: Latin letters, digits, “-” and “_” only</string>
+    <string name="st_mcp_taken">A server with this name already exists</string>
+    <string name="st_mcp_bad_url">Address: https://… (or http://localhost for a server on the phone)</string>
+    <string name="st_mcp_add_go">Add</string>
+    <string name="st_mcp_added">Added · Host restart needed</string>
+    <string name="st_mcp_add_failed">Couldn’t add: Host must be running to store the token</string>
 </resources>

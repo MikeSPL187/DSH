@@ -135,6 +135,11 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
     }
     val instFile = { scope: com.dsh.feature.settings.logic.InstructionScope -> instFiles.firstOrNull { it.scope == scope }?.file }
     var limitsTick by remember { mutableIntStateOf(0) }
+    // MCP-серверы: реестр приложения и состояние их записей в Host (по id записи `mcp-<имя>`).
+    val mcpServers = remember { com.dsh.runtime.host.McpServers(d.layout) }
+    var mcpTick by remember { mutableIntStateOf(0) }
+    val mcpList = remember(mcpTick) { mcpServers.list() }
+    val pluginRows by d.repository.plugins.pluginRowsFlow.collectAsState()
     val hostUp = status?.phase == RuntimePhase.RUNNING
     LaunchedEffect(hostId, hostUp, limitsTick) {
         val read = if (hostUp) runCatching { d.repository.hostSettings.agentSettings(hostId) }.getOrNull() else null
@@ -145,6 +150,11 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
     // Host: время работы, память и процессор.
     val running = status?.phase == RuntimePhase.RUNNING
     var runningSince by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(hostId, status?.phase == RuntimePhase.RUNNING, runningSince, mcpTick) {
+        if (status?.phase != RuntimePhase.RUNNING) return@LaunchedEffect
+        // Плагины Host поднимаются после запуска не сразу: перечитать состояние несколько раз.
+        repeat(3) { runCatching { d.repository.plugins.refreshPluginInventory(hostId) }; kotlinx.coroutines.delay(2500) }
+    }
     LaunchedEffect(running) { runningSince = if (running) (status?.updatedAtMillis?.takeIf { it > 0 } ?: System.currentTimeMillis()) else 0L }
     val stats = remember { HostStats() }
     var mem by remember { mutableStateOf<Long?>(null) }
@@ -287,6 +297,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         workspaceShared = sharedWs,
         limits = limits,
         webSearch = webSearch,
+        mcp = mcpUi(mcpList, pluginRows, hostUp = status?.phase == RuntimePhase.RUNNING),
         github = com.dsh.feature.settings.ui.GitHubUi(
             login = ghLogin,
             signedAt = GitHubAccount.signedAt(context)?.let { java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())) },
@@ -457,6 +468,29 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
             d.onWorkspaceChanged()
         }
 
+        override suspend fun mcpAdd(http: Boolean, name: String, where: String, token: String?): Boolean {
+            val server = if (http) {
+                com.dsh.runtime.host.McpServers.Server(name, com.dsh.runtime.host.McpServers.HTTP, url = where, hasToken = token != null, tokenTail = token?.takeLast(4).orEmpty())
+            } else {
+                val (command, args) = com.dsh.runtime.host.McpServers.splitCommand(where) ?: return false
+                com.dsh.runtime.host.McpServers.Server(name, com.dsh.runtime.host.McpServers.STDIO, command = command, args = args)
+            }
+            // Токен — сразу в хранилище ключей Host; в записи профиля и в реестре приложения его нет.
+            if (token != null && !runCatching { d.repository.plugins.setCredential(hostId, server.tokenRef, token) }.getOrDefault(false)) return false
+            val ok = withContext(Dispatchers.IO) { runCatching { mcpServers.put(server) }.isSuccess }
+            mcpTick++
+            return ok
+        }
+
+        override suspend fun mcpRemove(name: String): Boolean {
+            val server = mcpList.firstOrNull { it.name == name } ?: return false
+            val ok = withContext(Dispatchers.IO) { runCatching { mcpServers.remove(name) }.isSuccess }
+            // Токен убирается по возможности: без работающего Host он останется в хранилище, но ни одна запись на него не ссылается.
+            if (ok && server.hasToken) runCatching { d.repository.plugins.unsetCredential(hostId, server.tokenRef) }
+            mcpTick++
+            return ok
+        }
+
         override suspend fun restartHost(): Boolean {
             val restart = com.dsh.runtime.host.HostRuntimeHolder.restartHost
             val ok = if (restart != null) restart().isSuccess else {
@@ -583,4 +617,27 @@ private suspend fun fetchDeepSeekBalance(key: String): Pair<KeyState, Pair<Doubl
             }
         } finally { c.disconnect() }
     }.getOrElse { KeyState.Offline to null }
+}
+
+/**
+ * Строки «MCP-серверов»: запись `mcp-<имя>` в Host активна — «работает», упала — «ошибка», ещё нет — «после
+ * перезапуска». Перезапуск нужен, когда есть сервер без записи или запись без сервера (удалён после запуска).
+ */
+internal fun mcpUi(servers: List<com.dsh.runtime.host.McpServers.Server>, rows: List<com.dsh.core.model.PluginRowInfo>, hostUp: Boolean): com.dsh.feature.settings.ui.McpUi {
+    val phases = rows.mapNotNull { r -> r.entryId?.takeIf { it.startsWith("mcp-") }?.let { it to r.phase } }.toMap()
+    val list = servers.map { s ->
+        val status = when (if (hostUp) phases[s.entryId] else null) {
+            "active" -> com.dsh.feature.settings.ui.McpStatus.OK
+            "failed" -> com.dsh.feature.settings.ui.McpStatus.ERROR
+            else -> com.dsh.feature.settings.ui.McpStatus.PENDING
+        }
+        com.dsh.feature.settings.ui.McpRow(
+            s.name, s.kind == com.dsh.runtime.host.McpServers.HTTP,
+            if (s.kind == com.dsh.runtime.host.McpServers.HTTP) s.url else (listOf(s.command) + s.args).joinToString(" "),
+            s.tokenTail.takeIf { s.hasToken }, status,
+        )
+    }
+    val stale = hostUp && phases.keys.any { id -> servers.none { it.entryId == id } }
+    val pending = hostUp && servers.any { it.entryId !in phases }
+    return com.dsh.feature.settings.ui.McpUi(list, restartNeeded = stale || pending)
 }

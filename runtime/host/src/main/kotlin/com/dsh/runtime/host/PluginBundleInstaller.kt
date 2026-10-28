@@ -564,11 +564,7 @@ class PluginBundleInstaller(
     }
 
     /** Файл патча `dsh-web-app`: слой подключения сторонних плагинов. */
-    private fun webAppPatchFile(): File = File(
-        layout.rootfsDir,
-        "usr/local/lib/node_modules/@deepseek-ai/dsh/node_modules/" +
-            "@deepseek-ai/dsh-web-app/cordis.patch.yml",
-    )
+    private fun webAppPatchFile(): File = webAppPatchFile(layout)
 
     // ── HTTP / архивы / манифест ───────────────────────────────────────
 
