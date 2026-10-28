@@ -980,6 +980,8 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .fe-area { flex: 1; width: 100%; min-height: 0; padding: 12px 14px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--s1); font-family: var(--font-mono); font-size: 13.5px; line-height: 1.55; color: var(--t1); resize: none; outline: none; white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; tab-size: 4; }
 .fe-area:focus { border-color: var(--accent); }
 .fe-keys { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 10px 0 14px; flex: none; }
+.fe-keys button[disabled] { color: var(--t3); opacity: .55; }
+.fe-keys button .i { display: block; margin: auto; }
 .fe-keys button { height: 40px; min-width: 40px; padding: 0 10px; border-radius: 11px; background: var(--s2); font-family: var(--font-mono); font-size: 14px; color: var(--t1); flex: none; }
 .fe-pos { font-family: var(--font-mono); font-size: 12px; color: var(--t3); padding: 6px 4px 0; flex: none; }
 .fv-acts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
@@ -3038,18 +3040,24 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     const src = SRC[path] || `// ${path.split("/").pop()}\n`;
     v.innerHTML = `<textarea class="fe-area" id="feArea" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Текст файла"></textarea>
       <div class="fe-pos" id="fePos">строка 1, столбец 1</div>
-      <div class="fe-keys" role="toolbar" aria-label="Символы">${["Tab", "{", "}", "(", ")", "[", "]", "<", ">", "=", ";", ":", "\"", "'", "/", "|", "&", "-", "_"].map((k) => `<button data-fek="${k === "\"" ? "&quot;" : k}" aria-label="${k === "Tab" ? "Табуляция" : k === "\"" ? "Кавычка" : k}">${k === "Tab" ? "⇥" : esc2(k)}</button>`).join("")}</div>`;
-    $("textarea", v).value = src; FE.path = path; FE.stamp = 0;
+      <div class="fe-keys" role="toolbar" aria-label="Символы"><button data-feu="undo" aria-label="Отменить" disabled><svg class="i sm"><use href="#i-undo"/></svg></button><button data-feu="redo" aria-label="Вернуть" disabled><svg class="i sm"><use href="#i-redo"/></svg></button>${["Tab", "{", "}", "(", ")", "[", "]", "<", ">", "=", ";", ":", "\"", "'", "/", "|", "&", "-", "_"].map((k) => `<button data-fek="${k === "\"" ? "&quot;" : k}" aria-label="${k === "Tab" ? "Табуляция" : k === "\"" ? "Кавычка" : k}">${k === "Tab" ? "⇥" : esc2(k)}</button>`).join("")}</div>`;
+    $("textarea", v).value = src; FE.path = path; FE.stamp = 0; FE.undo = []; FE.redo = []; FE.last = 0;
     return v;
   }
   function fePos() { const a = $("#feArea"); if (!a) return; const before = a.value.slice(0, a.selectionStart).split("\n"); $("#fePos").textContent = `строка ${before.length}, столбец ${before[before.length - 1].length + 1}`; }
   function feDirty(on) { FE.dirty = on; fsTitles(); }
-  document.addEventListener("input", (e) => { if (e.target.id === "feArea") { feDirty(true); fePos(); } });
+  // История правки: шаг — слово (пауза или пробел/перевод строки), не каждая буква.
+  function feSnap(force) { const a = $("#feArea"), now = Date.now(); if (force || now - FE.last > 800 || /\s$/.test(FE.prev ?? "")) { FE.undo.push(FE.prev ?? a.value); if (FE.undo.length > 200) FE.undo.shift(); FE.redo = []; } FE.last = now; feUndoBtns(); }
+  function feUndoBtns() { const u = $('[data-feu="undo"]'), r = $('[data-feu="redo"]'); if (u) u.disabled = !FE.undo.length; if (r) r.disabled = !FE.redo.length; }
+  document.addEventListener("beforeinput", (e) => { if (e.target.id === "feArea") FE.prev = e.target.value; });
+  document.addEventListener("input", (e) => { if (e.target.id === "feArea") { feSnap(false); feDirty(e.target.value !== (SRC[FE.path] || "")); fePos(); } });
   document.addEventListener("selectionchange", fePos);
   document.addEventListener("click", (e) => {
     if (e.target.closest("#fsEdit")) { const top = fsStack[fsStack.length - 1]; FE.dirty = false; fsPush({ t: "edit", p: top.p }); setTimeout(() => $("#feArea")?.focus(), 400); return; }
     const k = e.target.closest("[data-fek]");
-    if (k) { const a = $("#feArea"), ins = k.dataset.fek === "Tab" ? "    " : k.dataset.fek, st = a.selectionStart; a.setRangeText(ins, st, a.selectionEnd, "end"); a.focus(); feDirty(true); fePos(); return; }
+    if (k) { const a = $("#feArea"), ins = k.dataset.fek === "Tab" ? "    " : k.dataset.fek, st = a.selectionStart; FE.prev = a.value; feSnap(true); a.setRangeText(ins, st, a.selectionEnd, "end"); a.focus(); feDirty(true); fePos(); return; }
+    const u = e.target.closest("[data-feu]");
+    if (u) { const a = $("#feArea"), from = u.dataset.feu === "undo" ? FE.undo : FE.redo, to = u.dataset.feu === "undo" ? FE.redo : FE.undo; if (!from.length) return; to.push(a.value); a.value = from.pop(); FE.last = 0; feUndoBtns(); feDirty(a.value !== (SRC[FE.path] || "")); a.focus(); fePos(); return; }
     if (e.target.closest("#feSave")) { if (FE.stamp) { sheetOpen("feconflict"); return; } feSaved(); }
   });
   function feSaved() { SRC[FE.path] = $("#feArea").value; feDirty(false); toast("Сохранено"); }
