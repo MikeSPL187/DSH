@@ -63,6 +63,8 @@ private fun face(limit: AgentLimit): LimitFace = when (limit) {
     AgentLimit.SUBAGENT_DEPTH -> LimitFace(R.string.st_lim_depth, R.string.st_lim_depth_hint, R.string.st_lim_depth_unit, DshGlyphs.Flow, Si.c1)
     AgentLimit.SUBAGENT_ACTIVE -> LimitFace(R.string.st_lim_active, R.string.st_lim_active_hint, R.string.st_lim_active_unit, DshGlyphs.Spark, Si.c8)
     AgentLimit.PARALLEL_CALLS -> LimitFace(R.string.st_lim_parallel, R.string.st_lim_parallel_hint, R.string.st_lim_parallel_unit, DshGlyphs.Bolt, Si.c3)
+    AgentLimit.WEB_RESULTS -> LimitFace(R.string.st_lim_web_results, R.string.st_lim_web_results_hint, R.string.st_lim_web_results_unit, DshGlyphs.Search, Si.c2)
+    AgentLimit.WEB_SEARCHES -> LimitFace(R.string.st_lim_web_searches, R.string.st_lim_web_searches_hint, R.string.st_lim_web_searches_unit, DshGlyphs.Search, Si.c2)
 }
 
 /** Значение предела словами: «2 мин», «1 мин 30 с», «64 КБ», «1 МБ», «8». */
@@ -85,28 +87,75 @@ internal fun limitText(limit: AgentLimit, value: Long): String = when (limit) {
 }
 
 /**
- * Группа «Пределы агента» страницы «Агент»: пять строк со значением и пометкой «изменено».
+ * Группа «Пределы агента» страницы «Агент»: строки со значением и пометкой «изменено» (пределы веб-поиска — в своей группе).
  * Пусто — Host не работает или не отдал настройки: тогда только пояснение, без строк-пустышек.
  */
 @Composable
 internal fun AgentLimitsGroup(limits: List<AgentLimitValue>, onOpen: (AgentLimit) -> Unit) {
     GLabel(stringResource(R.string.st_limits))
-    if (limits.isEmpty()) {
+    val agent = limits.filterNot { it.limit.web }
+    if (agent.isEmpty()) {
         SubNote(stringResource(R.string.st_limits_off))
         return
     }
-    val modified = stringResource(R.string.st_limit_modified)
+    Gl { agent.forEach { v -> row { LimitRow(v, onOpen) } } }
+}
+
+/** Строка предела: название, значение, «изменено», если пользователь задал не стандартное. */
+@Composable
+private fun LimitRow(v: AgentLimitValue, onOpen: (AgentLimit) -> Unit) {
+    val f = face(v.limit)
+    StRow(
+        stringResource(f.title), icon = f.icon, tile = f.tile, value = limitText(v.limit, v.value), chevron = true,
+        badge = if (v.user && v.value != v.base) stringResource(R.string.st_limit_modified) else null, onClick = { onOpen(v.limit) },
+    )
+}
+
+/**
+ * Группа «Веб-поиск»: переключатель Search API (как в официальном `ui-settings-web-search`), предел выбранного
+ * способа, «Передавать ваш вопрос» (только Search API) и ключ — тот же ключ DeepSeek, лишь последние 4 символа,
+ * переход на «Модели и ключи». Без Host — пояснение, как у пределов.
+ */
+@Composable
+internal fun WebSearchGroup(
+    state: com.dsh.core.data.WebSearchState?,
+    limits: List<AgentLimitValue>,
+    keyLast4: String?,
+    onApi: (Boolean) -> Unit,
+    onSend: (Boolean) -> Unit,
+    onOpen: (AgentLimit) -> Unit,
+    onKey: () -> Unit,
+) {
+    GLabel(stringResource(R.string.st_web))
+    if (state == null || (!state.apiAvailable && limits.none { it.limit.web })) {
+        SubNote(stringResource(R.string.st_limits_off))
+        return
+    }
+    val byLimit = limits.associateBy { it.limit }
     Gl {
-        limits.forEach { v ->
-            val f = face(v.limit)
-            row {
-                StRow(
-                    stringResource(f.title), icon = f.icon, tile = f.tile, value = limitText(v.limit, v.value), chevron = true,
-                    badge = if (v.user && v.value != v.base) modified else null, onClick = { onOpen(v.limit) },
-                )
-            }
+        if (state.apiAvailable) row {
+            com.dsh.core.designsystem.kit.StToggle(
+                stringResource(R.string.st_web_api), state.useApi, onApi, DshGlyphs.Globe, Si.c7,
+                sub = stringResource(if (state.useApi) R.string.st_web_api_on else R.string.st_web_api_off),
+            )
+        }
+        val limit = byLimit[if (state.useApi) AgentLimit.WEB_RESULTS else AgentLimit.WEB_SEARCHES]
+        if (limit != null) row { LimitRow(limit, onOpen) }
+        val send = state.sendQuestion
+        if (state.useApi && send != null) row {
+            com.dsh.core.designsystem.kit.StToggle(
+                stringResource(R.string.st_web_send), send, onSend, DshGlyphs.Eye, Si.c5,
+                sub = stringResource(if (send) R.string.st_web_send_on else R.string.st_web_send_off),
+            )
+        }
+        row {
+            StRow(
+                stringResource(R.string.st_web_key), icon = DshGlyphs.Key, tile = Si.c1, chevron = true, onClick = onKey,
+                value = keyLast4?.let { stringResource(R.string.st_web_key_value, it) } ?: stringResource(R.string.st_web_key_none),
+            )
         }
     }
+    SubNote(stringResource(R.string.st_web_note))
 }
 
 /**

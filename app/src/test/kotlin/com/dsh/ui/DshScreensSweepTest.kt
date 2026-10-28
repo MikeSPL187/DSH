@@ -124,7 +124,10 @@ class DshScreensSweepTest {
             com.dsh.core.data.AgentLimitValue(com.dsh.core.data.AgentLimit.SUBAGENT_DEPTH, "subagent", 1, 1, 1, user = false),
             com.dsh.core.data.AgentLimitValue(com.dsh.core.data.AgentLimit.SUBAGENT_ACTIVE, "subagent", 1, 8, 8, user = false),
             com.dsh.core.data.AgentLimitValue(com.dsh.core.data.AgentLimit.PARALLEL_CALLS, "agent-loop", 0, 10, 10, user = false),
+            com.dsh.core.data.AgentLimitValue(com.dsh.core.data.AgentLimit.WEB_RESULTS, "web-deepseek-api", 2, 20, 10, user = true, ceiling = 50),
+            com.dsh.core.data.AgentLimitValue(com.dsh.core.data.AgentLimit.WEB_SEARCHES, "web-search-deepseek", 2, 5, 5, user = false),
         ),
+        webSearch = com.dsh.core.data.WebSearchState(apiAvailable = true, useApi = false, sendQuestion = true, web = null, api = null),
         trusted = listOf(
             TrustedPluginRow("bridge", "Мост устройства", "М", 160f, "A1:7C:0E…54:9B", blocked = false),
             TrustedPluginRow("md", "Markdown Preview", "M", 280f, "9D:22:B4…01:7F", blocked = true),
@@ -150,7 +153,10 @@ class DshScreensSweepTest {
                         onClose = {}, initialPage = StPage.Agent,
                     )
                 },
-                "st-agent-limits-off" to @Composable { SettingsHomeScreen(st.copy(limits = emptyList()), onClose = {}, initialPage = StPage.Agent) },
+                "st-agent-web-api" to @Composable {
+                    SettingsHomeScreen(st.copy(webSearch = st.webSearch!!.copy(useApi = true, sendQuestion = false)), onClose = {}, initialPage = StPage.Agent)
+                },
+                "st-agent-limits-off" to @Composable { SettingsHomeScreen(st.copy(limits = emptyList(), webSearch = null), onClose = {}, initialPage = StPage.Agent) },
                 "st-limit-sheet" to @Composable { SettingsHomeScreen(st, onClose = {}, initialPage = StPage.Agent, initialSheet = "limit:COMMAND_TIME") },
                 "st-agent-net-full" to @Composable { SettingsHomeScreen(st.copy(networkFull = true, networkAllowed = listOf("api.moonshot.cn")), onClose = {}, initialPage = StPage.Agent) },
             ),

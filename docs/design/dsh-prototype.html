@@ -3202,7 +3202,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   });
 
   // ---------- Настройки ----------
-  const ST = { approvals: "ask", clipboard: false, sleep: "15 мин", keepBg: true, ws: "private", lang: "Русский", codeSize: 13, notifDone: true, notifAsk: true, notifAuto: "err", haptics: true, biometric: false, analytics: false, hostOn: true };
+  const ST = { approvals: "ask", clipboard: false, sleep: "15 мин", keepBg: true, ws: "private", lang: "Русский", codeSize: 13, notifDone: true, notifAsk: true, notifAuto: "err", haptics: true, biometric: false, analytics: false, hostOn: true, searchApi: false, sendQuestion: true };
   const stBody = $("#stBody");
   let stStack = [], stCur = null, stQuery = "";
   const curTheme = () => document.documentElement.getAttribute("data-theme") || "system";
@@ -3268,7 +3268,10 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       <div class="glabel">Сессии</div>
       <div class="gl">${row("i-flow", "c1", "Сжимать длинный контекст", "автоматически")}${row("i-folder", "c2", "Рабочая папка", ST.ws === "private" ? "Внутри DSH" : "В памяти телефона", "storage")}</div>
       <div class="glabel">Пределы агента</div>
-      <div class="gl">${limRow("cmdTime")}${limRow("cmdOut")}${limRow("saDepth")}${limRow("saActive")}${limRow("parallel")}</div>`;
+      <div class="gl">${limRow("cmdTime")}${limRow("cmdOut")}${limRow("saDepth")}${limRow("saActive")}${limRow("parallel")}</div>
+      <div class="glabel">Веб-поиск</div>
+      <div class="gl">${tog("i-globe", "c7", "Новый Web Search API", "searchApi", ST.searchApi ? "Поиск и чтение страниц — через Search и Fetch API DeepSeek" : "Выключено: поиск через DeepSeek Messages, страницы читает телефон")}${ST.searchApi ? limRow("webCount") + tog("i-eye", "c5", "Передавать ваш вопрос", "sendQuestion", ST.sendQuestion ? "Поисковик видит первые 128 символов вопроса — результаты точнее" : "Поисковик видит только запросы агента") : limRow("webUses")}${row("i-key", "c1", "Ключ", "DeepSeek ••••9a65", "models")}</div>
+      <p class="sub" style="margin:8px 6px 0">Поиск оплачивается с того же ключа DeepSeek, что и чат.</p>`;
     if (page === "host") v.innerHTML = `<div class="st-hostcard"><div class="h"><span class="si c3" style="width:44px;height:44px;border-radius:14px"><svg class="i"><use href="#i-server"/></svg></span><span class="tx"><b>Локальный Host</b><small class="${ST.hostOn ? "" : "off"}"><i class="live-dot"></i>${ST.hostOn ? "Работает · 2 ч 14 мин" : "Остановлен"}</small></span></div>
         ${ST.hostOn ? `<div class="st-meters"><div class="st-m"><div class="lb"><span>Память</span><b>412 МБ</b></div><div class="bar"><i style="width:34%"></i></div></div><div class="st-m"><div class="lb"><span>Процессор</span><b>6%</b></div><div class="bar"><i style="width:6%"></i></div></div></div>` : ""}
         <div class="btns"><button class="btn ghost" data-sthost="restart"${ST.hostOn ? "" : " disabled"}><svg class="i sm"><use href="#i-redo"/></svg>Перезапустить</button><button class="btn ghost" data-sthost="toggle">${ST.hostOn ? '<svg class="i sm"><use href="#i-stop"/></svg>Остановить' : '<svg class="i sm"><use href="#i-play"/></svg>Запустить'}</button></div></div>
@@ -3326,7 +3329,9 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   });
   stBody.addEventListener("click", (e) => {
     const g = e.target.closest("[data-stgo]"); if (g) { stPush(g.dataset.stgo); return; }
-    const t = e.target.closest("[data-sttog]"); if (t) { const k = t.dataset.sttog; ST[k] = !ST[k]; t.setAttribute("aria-checked", String(ST[k])); if (k === "clipboard") toast(ST[k] ? "Агент сможет читать буфер обмена" : "Буфер обмена закрыт для агента"); return; }
+    const t = e.target.closest("[data-sttog]"); if (t) { const k = t.dataset.sttog; ST[k] = !ST[k]; t.setAttribute("aria-checked", String(ST[k])); if (k === "clipboard") toast(ST[k] ? "Агент сможет читать буфер обмена" : "Буфер обмена закрыт для агента");
+      if (k === "searchApi" || k === "sendQuestion") { stRefresh(); toast(k === "searchApi" ? (ST[k] ? "Поиск через Search API" : "Поиск через DeepSeek Messages") : (ST[k] ? "Вопрос уходит поисковику" : "Поисковик видит только запросы агента")); }
+      return; }
     const th = e.target.closest("[data-sttheme]"); if (th) { $(`#themes [data-theme-set="${th.dataset.sttheme}"]`).click(); $$("[data-sttheme]", stCur).forEach((b) => b.setAttribute("aria-checked", String(b === th))); return; }
     const lg = e.target.closest("[data-stlang]"); if (lg) { ST.lang = lg.dataset.stlang; $$("[data-stlang]", stCur).forEach((b) => b.setAttribute("aria-checked", String(b === lg))); if (ST.lang !== "Русский") toast("Язык применится сразу, без перезапуска"); return; }
     const ap = e.target.closest("[data-stappr]"); if (ap) { ST.approvals = ap.dataset.stappr; $$("[data-stappr]", stCur).forEach((b) => b.setAttribute("aria-checked", String(b === ap))); $("#chips .chip:not(.accent):not(.mode)").lastChild.textContent = ST.approvals === "ask" ? "Спрашивать" : "Сам в папке"; return; }
@@ -3592,6 +3597,8 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     cmdOut: { t: "Вывод команды в памяти", h: "Сколько вывода агент видит сразу. Остальное сохраняется во временный файл.", u: "на поток", v: [16, 32, 64, 128, 256, 512, 1000], d: 64, f: (x) => x < 1000 ? x + " КБ" : "1 МБ", ic: "i-box", c: "c2" },
     saDepth: { t: "Глубина субагентов", h: "Сколько уровней субагентов может создать агент. 0 — без субагентов.", u: "наибольшая", v: [0, 1, 2, 3, 4, 5], d: 1, f: (x) => String(x), ic: "i-flow", c: "c1" },
     saActive: { t: "Субагентов одновременно", h: "Сколько субагентов работает в одно время. Больше — быстрее, но нагрузка на телефон выше.", u: "одновременно", v: [1, 2, 4, 6, 8, 12, 16], d: 8, f: (x) => String(x), ic: "i-spark", c: "c8" },
+    webCount: { t: "Результатов за поиск", h: "Сколько ссылок поисковик возвращает на один запрос агента. Больше — полнее ответ, но дороже по токенам.", u: "на запрос", v: [3, 5, 10, 20, 30, 50], d: 10, f: (x) => String(x), ic: "i-search", c: "c2" },
+    webUses: { t: "Поисков за запрос", h: "Сколько раз вспомогательная модель ищет в интернете, отвечая на один запрос агента.", u: "за запрос", v: [1, 2, 3, 5, 8, 10], d: 5, f: (x) => String(x), ic: "i-search", c: "c2" },
     parallel: { t: "Параллельные вызовы", h: "Сколько безопасных инструментов (чтение, поиск) агент запускает за шаг одновременно.", u: "за шаг", v: [1, 2, 4, 6, 8, 10, 16, 32], d: 10, f: (x) => String(x), ic: "i-bolt", c: "c3" },
   };
   const LIMV = {};

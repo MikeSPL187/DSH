@@ -75,15 +75,26 @@ class HostSettingsRepository internal constructor(
 
     // ── Пределы агента ───────────────────────────────────────────────────────
 
-    /** Пределы агента (shell, субагенты, цикл агента); пусто — Host не ответил или их в нём нет. */
-    suspend fun agentLimits(hostId: String): List<AgentLimitValue> = parseAgentLimits(calls.value(hostId, "settings/describe"))
-
     /**
      * Записать предел: [newValue] — новое значение, null — вернуть стандартное (`unset`).
      * Пишется по ревизии [current]: если настройки успели измениться, Host откажет — false.
      */
     suspend fun setAgentLimit(hostId: String, current: AgentLimitValue, newValue: Long?): Boolean =
         calls.ok(hostId, "settings/mutate", agentLimitMutation(current, newValue))
+
+    /** Пределы агента и веб-поиск одним чтением `settings/describe`. */
+    suspend fun agentSettings(hostId: String): Pair<List<AgentLimitValue>, WebSearchState> {
+        val describe = calls.value(hostId, "settings/describe")
+        return parseAgentLimits(describe) to parseWebSearch(describe)
+    }
+
+    /** Включить или выключить Search API (поиск и чтение страниц вместе); false — Host не принял. */
+    suspend fun setWebSearchApi(hostId: String, state: WebSearchState, useApi: Boolean): Boolean =
+        webApiMutation(state, useApi)?.let { calls.ok(hostId, "settings/mutate", it) } ?: false
+
+    /** Передавать ли поисковику начало вопроса пользователя; false — Host не принял. */
+    suspend fun setWebSendQuestion(hostId: String, state: WebSearchState, send: Boolean): Boolean =
+        sendQuestionMutation(state, send)?.let { calls.ok(hostId, "settings/mutate", it) } ?: false
 
     // ── Провайдеры моделей ───────────────────────────────────────────────────
 

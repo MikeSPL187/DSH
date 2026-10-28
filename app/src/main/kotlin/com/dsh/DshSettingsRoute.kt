@@ -122,10 +122,13 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
 
     // Пределы агента: перечитываются при смене Host, его запуске и после каждой записи.
     var limits by remember { mutableStateOf<List<com.dsh.core.data.AgentLimitValue>>(emptyList()) }
+    var webSearch by remember { mutableStateOf<com.dsh.core.data.WebSearchState?>(null) }
     var limitsTick by remember { mutableIntStateOf(0) }
     val hostUp = status?.phase == RuntimePhase.RUNNING
     LaunchedEffect(hostId, hostUp, limitsTick) {
-        limits = if (hostUp) runCatching { d.repository.hostSettings.agentLimits(hostId) }.getOrDefault(emptyList()) else emptyList()
+        val read = if (hostUp) runCatching { d.repository.hostSettings.agentSettings(hostId) }.getOrNull() else null
+        limits = read?.first.orEmpty()
+        webSearch = read?.second
     }
 
     // Host: время работы, память и процессор.
@@ -272,6 +275,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         networkAllowed = networkAllowed,
         workspaceShared = sharedWs,
         limits = limits,
+        webSearch = webSearch,
         theme = HostTheme.preference,
         language = language.takeIf { it in setOf("ru", "en") } ?: Locale.getDefault().language,
         codeSize = DshUserPrefs.codeSize,
@@ -366,6 +370,20 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
 
         override suspend fun setAgentLimit(current: com.dsh.core.data.AgentLimitValue, value: Long?): Boolean {
             val ok = runCatching { d.repository.hostSettings.setAgentLimit(hostId, current, value) }.getOrDefault(false)
+            limitsTick++
+            return ok
+        }
+
+        override suspend fun setWebSearchApi(on: Boolean): Boolean {
+            val state = webSearch ?: return false
+            val ok = runCatching { d.repository.hostSettings.setWebSearchApi(hostId, state, on) }.getOrDefault(false)
+            limitsTick++
+            return ok
+        }
+
+        override suspend fun setWebSendQuestion(on: Boolean): Boolean {
+            val state = webSearch ?: return false
+            val ok = runCatching { d.repository.hostSettings.setWebSendQuestion(hostId, state, on) }.getOrDefault(false)
             limitsTick++
             return ok
         }

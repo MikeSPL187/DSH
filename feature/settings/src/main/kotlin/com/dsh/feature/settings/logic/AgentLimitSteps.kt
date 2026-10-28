@@ -11,6 +11,8 @@ object AgentLimitSteps {
         AgentLimit.SUBAGENT_DEPTH to listOf(0L, 1, 2, 3, 4, 5),
         AgentLimit.SUBAGENT_ACTIVE to listOf(1L, 2, 4, 6, 8, 12, 16),
         AgentLimit.PARALLEL_CALLS to listOf(1L, 2, 4, 6, 8, 10, 16, 32),
+        AgentLimit.WEB_RESULTS to listOf(3L, 5, 10, 20, 30, 50),
+        AgentLimit.WEB_SEARCHES to listOf(1L, 2, 3, 5, 8, 10),
     )
 
     /**

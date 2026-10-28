@@ -145,6 +145,8 @@ data class SettingsUi(
     val workspaceShared: Boolean = false,
     /** «Пределы агента» из настроек Host; пусто — Host не работает или не отдал их. */
     val limits: List<com.dsh.core.data.AgentLimitValue> = emptyList(),
+    /** Веб-поиск Host; null — Host не работает. */
+    val webSearch: com.dsh.core.data.WebSearchState? = null,
     // Оформление
     val theme: String = "system",
     val language: String = "ru",
@@ -206,6 +208,10 @@ interface SettingsActions {
     fun setWorkspaceShared(shared: Boolean) {}
     /** Записать предел агента: число или null — вернуть стандартное; false — Host не принял. */
     suspend fun setAgentLimit(current: com.dsh.core.data.AgentLimitValue, value: Long?): Boolean = false
+    /** Включить Search API (поиск и чтение страниц разом); false — Host не принял. */
+    suspend fun setWebSearchApi(on: Boolean): Boolean = false
+    /** Передавать ли поисковику начало вопроса; false — Host не принял. */
+    suspend fun setWebSendQuestion(on: Boolean): Boolean = false
     suspend fun restartHost(): Boolean = true
     suspend fun setHostRunning(run: Boolean): Boolean = true
     fun setSleep(minutes: Int) {}
@@ -781,7 +787,30 @@ private fun AgentPage(ui: SettingsUi, a: SettingsActions, toast: ToastState, go:
             row { StRow(stringResource(R.string.st_workspace), icon = DshGlyphs.Folder, tile = Si.c2, value = stringResource(if (ui.workspaceShared) R.string.st_ws_shared else R.string.st_ws_private), chevron = true, onClick = { go(StPage.Storage) }) }
         }
         AgentLimitsGroup(ui.limits, onLimit)
+        WebSearchPart(ui, a, toast, onLimit) { go(StPage.Models) }
     }
+}
+
+/** «Веб-поиск» с откликом без ожидания Host: переключатель сразу встаёт в новое положение, при отказе — обратно. */
+@Composable
+private fun WebSearchPart(ui: SettingsUi, a: SettingsActions, toast: ToastState, onLimit: (com.dsh.core.data.AgentLimit) -> Unit, onKey: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val state = ui.webSearch
+    var api by remember(state) { mutableStateOf<Boolean?>(null) }
+    var send by remember(state) { mutableStateOf<Boolean?>(null) }
+    val apiOn = stringResource(R.string.st_web_api_toast_on)
+    val apiOff = stringResource(R.string.st_web_api_toast_off)
+    val sendOn = stringResource(R.string.st_web_send_toast_on)
+    val sendOff = stringResource(R.string.st_web_send_off)
+    val failed = stringResource(R.string.st_web_failed)
+    WebSearchGroup(
+        state?.copy(useApi = api ?: state.useApi, sendQuestion = send ?: state.sendQuestion),
+        ui.limits, ui.keyLast4,
+        onApi = { on -> api = on; scope.launch { val ok = a.setWebSearchApi(on); if (!ok) api = null; toast.show(if (!ok) failed else if (on) apiOn else apiOff) } },
+        onSend = { on -> send = on; scope.launch { val ok = a.setWebSendQuestion(on); if (!ok) send = null; toast.show(if (!ok) failed else if (on) sendOn else sendOff) } },
+        onOpen = onLimit,
+        onKey = onKey,
+    )
 }
 
 /** Префикс листа предела: `limit:COMMAND_TIME`. */
