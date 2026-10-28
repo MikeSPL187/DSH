@@ -97,6 +97,14 @@ class ScreensGalleryTest {
     private val cleanGit = object : com.dsh.feature.files.FilesGit by fakeGit {
         override suspend fun status() = com.dsh.feature.files.GitInfo("main", emptyList())
         override suspend fun unpushed() = 1 to "Обновить Kotlin до 2.0.21, добавить ночной архив"
+        override suspend fun pushTarget() = "origin/main"
+    }
+
+    private val noGitHub = object : com.dsh.feature.files.FilesGitHub {
+        override fun signedIn() = false
+        override suspend fun begin() = Result.success(com.dsh.core.designsystem.kit.DeviceCodeView("WDJB-MJHT", "https://github.com/login/device", 899))
+        override suspend fun await(): Result<String> = kotlinx.coroutines.awaitCancellation()
+        override fun errorOf(t: Throwable) = com.dsh.core.designsystem.kit.DeviceSignInError.Other(t.message.orEmpty())
     }
 
     private fun renderFiles(
@@ -117,6 +125,7 @@ class ScreensGalleryTest {
                     initialTab = tab,
                     markdown = { com.dsh.feature.chat.MarkdownMessageText(it) },
                     onOpenInBrowser = {},
+                    gitHub = noGitHub,
                 )
             }
         }

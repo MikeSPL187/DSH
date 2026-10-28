@@ -79,6 +79,15 @@
    `WorkspaceGit.commit`: `add -A` и `commit --no-verify -m` с выключенными хуками и подписью; после коммита пустые
    «Изменения» показывают «N коммитов не отправлены» (`rev-list HEAD --not --remotes`). Отправка (push) и запрос на
    слияние — следующий шаг: нужен токен GitHub по правилам секретов.
+19. ~~Вход в GitHub и отправка~~ — готово. «Настройки → GitHub»: вход по одноразовому коду (OAuth device flow,
+   `GitHubAuth`, общий лист `DeviceSignInSheetBody`), токен — в Android Keystore (`GitHubAccount`, ссылка `github`),
+   не показывается никогда; «Выйти» удаляет его. «Изменения»: «Отправить в origin/<ветка>»; без входа — тот же лист,
+   после входа отправка идёт сама. Отправка — из процесса приложения (JGit 5.13, `GitHubPush`), а не git в Linux:
+   иначе токен виден процессам агента через `/proc`. Токен уходит только на `https://github.com/<o>/<r>`; конфиг
+   с `url`/`http`/`credential`/`include`/`hooksPath` — отказ; хуки не запускаются; пользовательский и системный
+   конфиги JGit пустые (`GitHubPush.isolate`). **Нужно владельцу:** OAuth App на github.com (Developer settings →
+   OAuth Apps, включить Device Flow), его client id — в переменную репозитория `DSH_GITHUB_CLIENT_ID` (или
+   `-PdshGithubClientId` локально). Запрос на слияние — следующий шаг.
 
 ## Архитектура
 Слои, модули, правила и план — в `docs/ARCHITECTURE.md`. Кратко: `MainAppHost` разобран на части

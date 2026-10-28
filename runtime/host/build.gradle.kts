@@ -39,6 +39,8 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp)
+    // Отправка коммитов на GitHub из процесса приложения: токен не попадает в Linux (см. GitHubPush).
+    implementation(libs.jgit)
     implementation("org.apache.commons:commons-compress:1.27.1")
     testImplementation(libs.junit)
 }

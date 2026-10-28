@@ -22,7 +22,7 @@
     <string-array name="st_index">
         <item>api key deepseek provider balance spending default model</item>
         <item>theme light dark language english russian code font size vibration haptics</item>
-        <item>approval edits permissions clipboard reasoning instructions agents.md claude.md project rules limits timeout subagents web search</item>
+        <item>github sign in push commit pull request approval edits permissions clipboard reasoning instructions agents.md claude.md project rules limits timeout subagents web search</item>
         <item>host linux debian sleep battery background remote pairing restart terminal</item>
         <item>space cache rootfs logs backup export clean workspace folder</item>
         <item>clipboard plugins trust certificate biometric fingerprint lock encryption keystore wipe data</item>
@@ -175,6 +175,22 @@
     <string name="st_u_b">%1$d B</string>
     <string name="st_u_kb">%1$d KB</string>
     <string name="st_u_mb">%1$s MB</string>
+    <string name="st_gh">GitHub</string>
+    <string name="st_gh_sub">Pushing commits and pull requests</string>
+    <string name="st_gh_off">not connected</string>
+    <string name="st_gh_on">connected</string>
+    <string name="st_gh_title">Sign in to GitHub</string>
+    <string name="st_gh_why">Needed to push commits and open pull requests right from Changes.</string>
+    <string name="st_gh_sign_in">Sign in with GitHub</string>
+    <string name="st_gh_how">You sign in on the GitHub website with a one-time code: DSH never sees your password. The token is kept in Android Keystore and never shown.</string>
+    <string name="st_gh_signed_unknown">Signed in</string>
+    <string name="st_gh_since">Signed in %1$s</string>
+    <string name="st_gh_access">Access</string>
+    <string name="st_gh_access_repo">repositories</string>
+    <string name="st_gh_revoke">Access was granted by GitHub; revoke it on github.com in Settings → Applications. The token is kept in Android Keystore and never shown.</string>
+    <string name="st_gh_sign_out">Sign out of GitHub</string>
+    <string name="st_gh_signed">Signed in as @%1$s</string>
+    <string name="st_gh_signed_out">You signed out of GitHub</string>
     <string name="st_u_kb_f">%1$s KB</string>
     <string name="st_inst">Agent instructions</string>
     <string name="st_inst_budget">%1$s of %2$s</string>

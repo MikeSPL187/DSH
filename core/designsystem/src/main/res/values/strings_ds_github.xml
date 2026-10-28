@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ds_gh_title">Sign in to GitHub</string>
+    <string name="ds_gh_hint">Enter this code at github.com/login/device and allow DSH access.</string>
+    <string name="ds_gh_code">Sign-in code</string>
+    <string name="ds_gh_copy">Copy</string>
+    <string name="ds_gh_open">Open GitHub</string>
+    <string name="ds_gh_copied">Code copied</string>
+    <string name="ds_gh_loading">Getting a code…</string>
+    <string name="ds_gh_wait">Waiting for approval · the code is valid for %1$d min</string>
+    <string name="ds_gh_wait_short">Waiting for approval · less than a minute</string>
+    <string name="ds_gh_denied">Access was not allowed on GitHub.</string>
+    <string name="ds_gh_expired">The code expired — get a new one.</string>
+    <string name="ds_gh_failed">Could not sign in: %1$s</string>
+    <string name="ds_gh_again">New code</string>
+    <string name="ds_gh_not_configured">GitHub sign-in is not set up in this build: an OAuth App client id is needed (build parameter dshGithubClientId).</string>
+</resources>

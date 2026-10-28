@@ -8,7 +8,7 @@ import com.dsh.feature.files.GitInfo
 import com.dsh.runtime.host.WorkspaceGit
 
 /** Git проекта [project] для экрана «Файлы» поверх [WorkspaceGit]. */
-internal class WorkspaceFilesGit(private val git: WorkspaceGit, private val project: String) : FilesGit {
+internal class WorkspaceFilesGit(private val git: WorkspaceGit, private val project: String, private val dir: java.io.File) : FilesGit {
 
     override suspend fun status(): GitInfo? = git.status(project)?.let { s ->
         GitInfo(s.branch, s.changes.map { GitChange(it.path, it.kind.toUi(), it.added, it.deleted) })
@@ -33,6 +33,29 @@ internal class WorkspaceFilesGit(private val git: WorkspaceGit, private val proj
     override suspend fun commit(message: String): Result<String> = git.commit(project, message)
 
     override suspend fun unpushed(): Pair<Int, String>? = git.unpushed(project)?.let { it.count to it.lastSubject }
+
+    override suspend fun pushTarget(): String? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        com.dsh.runtime.host.GitHubPush.target(dir).getOrNull()?.let { "origin/${it.branch}" }
+    }
+
+    override suspend fun push(): Result<String> = GitHubAccount.push(dir).fold(
+        onSuccess = { Result.success("origin/${it.branch}") },
+        onFailure = { e ->
+            val problem = when {
+                e is GitHubAccount.NeedLoginException -> com.dsh.feature.files.PushProblem.NEED_LOGIN
+                e is com.dsh.runtime.host.GitHubPush.PushException -> when (e.failure) {
+                    com.dsh.runtime.host.GitHubPush.Failure.NotGitHub -> com.dsh.feature.files.PushProblem.NOT_GITHUB
+                    com.dsh.runtime.host.GitHubPush.Failure.UnsafeConfig -> com.dsh.feature.files.PushProblem.UNSAFE_CONFIG
+                    com.dsh.runtime.host.GitHubPush.Failure.Detached -> com.dsh.feature.files.PushProblem.DETACHED
+                    com.dsh.runtime.host.GitHubPush.Failure.Rejected -> com.dsh.feature.files.PushProblem.REJECTED
+                    com.dsh.runtime.host.GitHubPush.Failure.Auth -> com.dsh.feature.files.PushProblem.AUTH
+                    is com.dsh.runtime.host.GitHubPush.Failure.Other -> com.dsh.feature.files.PushProblem.OTHER
+                }
+                else -> com.dsh.feature.files.PushProblem.OTHER
+            }
+            Result.failure(com.dsh.feature.files.PushException(problem, e.message))
+        },
+    )
 
     private fun WorkspaceGit.Kind.toUi() = when (this) {
         WorkspaceGit.Kind.MODIFIED -> ChangeKind.MODIFIED

@@ -449,7 +449,7 @@ svg { display: block; }
 .sess small { color: var(--t3); font-size: 12.5px; }
 .sess .st { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .dfoot { margin-top: auto; display: flex; align-items: center; gap: 4px; border-top: 1px solid var(--line); padding-top: 12px; }
-.avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #f0b37e, #e2767a); color: #fff; display: grid; place-items: center; font-weight: 600; font-size: 14px; flex: none; }
+.avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #b05a1a, #b4384c); color: #fff; display: grid; place-items: center; font-weight: 600; font-size: 14px; flex: none; }
 .dfoot .who { flex: 1; min-width: 0; font-size: 14px; }
 .dfoot .who small { display: block; color: var(--t3); font-size: 12px; }
 .main.pushed { border-radius: 30px; box-shadow: -10px 0 40px rgba(0,0,0,.18); }
@@ -1013,7 +1013,11 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .cm-author button { margin-left: auto; height: 40px; padding: 0 10px; border-radius: 10px; font-size: 14px; font-weight: 500; color: color-mix(in srgb, var(--accent) 82%, var(--t1)); }
 .cm-btns { display: grid; grid-template-columns: 1fr 1.35fr; gap: 8px; margin-top: 16px; }
 .cm-btns .btn { height: 52px; border-radius: 16px; font-size: 16px; }
-.ch-push { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 14px 14px 14px 16px; border-radius: 20px; background: var(--s1); border: 1px solid var(--line); text-align: left; }
+.ch-push { margin-top: 12px; padding: 14px 14px 14px 16px; border-radius: 20px; background: var(--s1); border: 1px solid var(--line); text-align: left; }
+.ch-push .row { display: flex; align-items: center; gap: 12px; }
+.ch-push .btn { display: flex; width: 100%; height: 48px; margin-top: 12px; border-radius: 15px; gap: 8px; }
+.ch-push .btn .spin-w { width: 14px; height: 14px; }
+.ch-push .hint { display: block; margin-top: 8px; font-size: 12.5px; color: var(--t3); text-align: center; }
 .ch-push .tx { flex: 1; min-width: 0; } .ch-push .tx b { display: block; font-weight: 500; font-size: 15px; } .ch-push .tx small { display: block; margin-top: 2px; font-size: 13px; line-height: 1.4; color: var(--t3); overflow-wrap: anywhere; }
 .fa-head { display: flex; align-items: center; gap: 12px; margin: 0 4px 14px; }
 .fa-head b { display: block; font-family: var(--font-mono); font-size: 15px; font-weight: 500; }
@@ -1248,6 +1252,15 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .st-ver { text-align: center; margin: 22px 0 6px; font-size: 12.5px; color: var(--t3); line-height: 1.6; }
 .st-ver b { display: block; font-family: var(--font-display); font-size: 15px; color: var(--t2); }
 .st-danger { color: var(--danger) !important; }
+/* GitHub: вход по одноразовому коду (device flow) */
+.gh-hero { text-align: center; padding: 22px 16px 18px; border-radius: 22px; background: var(--s1); border: 1px solid var(--line); }
+.gh-hero .si { width: 56px; height: 56px; border-radius: 18px; margin: 0 auto 14px; } .gh-hero .si .i { width: 26px; height: 26px; }
+.gh-hero b { display: block; font-family: var(--font-display); font-size: 19px; font-weight: 600; margin-bottom: 6px; }
+.gh-hero p { margin: 0 auto 16px; max-width: 300px; font-size: 14.5px; line-height: 1.5; color: var(--t2); }
+.gh-hero .btn { width: 100%; height: 50px; border-radius: 16px; font-size: 16px; }
+.gh-code { margin: 4px 0 16px; padding: 18px 10px; border-radius: 20px; background: var(--s2); text-align: center; font-family: var(--font-mono); font-size: 30px; font-weight: 600; letter-spacing: .12em; color: var(--t1); user-select: all; }
+.gh-wait { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; margin-top: 12px; font-size: 13.5px; color: var(--t2); }
+.gh-wait .spin-w { width: 14px; height: 14px; color: var(--accent); }
 .st-chips { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; padding: 3px; border-radius: 14px; background: var(--s2); }
 .st-chips button { height: 40px; border-radius: 11px; font-size: 14px; color: var(--t2); transition: background-color .25s, color .25s, box-shadow .25s; }
 .st-chips button[aria-checked="true"] { background: var(--s1); color: var(--t1); font-weight: 500; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
@@ -1616,6 +1629,16 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <button class="sa-row" data-sa="Проверка тестов"><span class="sa-st"><i class="run"></i></span><span class="tx"><b>Проверка тестов</b><small>работает · 2 мин</small></span><span class="mode cont">продолжаемый</span><svg class="i sm go"><use href="#i-right"/></svg></button>
         <button class="sa-row" data-sa="Поиск устаревших API"><span class="sa-st"><i class="ok"></i></span><span class="tx"><b>Поиск устаревших API</b><small>готово · 5 мин назад</small></span><span class="mode">разовый</span><svg class="i sm go"><use href="#i-right"/></svg></button>
         <button class="sa-row" data-sa="Codex: ревью diff"><span class="sa-st"><i></i></span><span class="tx"><b>Codex: ревью diff</b><small>внешний · вчера</small></span><span class="mode">внешний</span></button>
+      </section>
+
+      <!-- Лист: вход в GitHub по коду -->
+      <section class="sheet" id="sheet-gh" aria-label="Вход в GitHub">
+        <div class="grab"></div>
+        <h3>Вход в GitHub</h3>
+        <p class="lim-hint">Введите этот код на github.com/login/device и разрешите доступ DSH.</p>
+        <div class="gh-code" id="ghCode" aria-label="Код для входа">WDJB-MJHT</div>
+        <div class="lim-btns"><button class="btn ghost" id="ghCopy">Скопировать</button><button class="btn primary" id="ghOpen">Открыть GitHub</button></div>
+        <div class="gh-wait" role="status"><span class="spin-w"></span><span id="ghWait">Жду подтверждения · код действует 15 мин</span></div>
       </section>
 
       <!-- Лист: коммит -->
@@ -2853,7 +2876,9 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     const files = Object.keys(CHANGED);
     if (!files.length) {
       v.innerHTML = `<div class="fs-empty"><svg class="i" style="width:32px;height:32px;margin:0 auto 10px;color:var(--ok)"><use href="#i-check"/></svg>Изменений нет — всё сохранено в git</div>
-        ${GIT.ahead ? `<div class="ch-push"><span class="si c1"><svg class="i"><use href="#i-git"/></svg></span><span class="tx"><b>${GIT.ahead} ${GIT.ahead === 1 ? "коммит не отправлен" : "коммита не отправлены"}</b><small>${esc2(GIT.last)}</small></span></div>` : ""}`;
+        ${GIT.ahead ? `<div class="ch-push"><div class="row"><span class="si c1"><svg class="i"><use href="#i-git"/></svg></span><span class="tx"><b>${GIT.ahead} ${GIT.ahead === 1 ? "коммит не отправлен" : "коммита не отправлены"}</b><small>${esc2(GIT.last)}</small></span></div>
+          <button class="btn primary" id="chPush"${GIT.pushing ? " disabled" : ""}>${GIT.pushing ? `<span class="spin-w"></span>Отправляю…` : `<svg class="i sm"><use href="#i-up"/></svg>Отправить в origin/main`}</button>
+          ${GH.login ? "" : `<small class="hint">Нужен вход в GitHub — DSH попросит его один раз.</small>`}</div>` : ""}`;
       return v;
     }
     const P = files.reduce((a, f) => a + CHANGED[f].p, 0), M = files.reduce((a, f) => a + CHANGED[f].m, 0);
@@ -3340,16 +3365,26 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     notif: ["Уведомления", ""],
     about: ["О приложении", ""],
     inst: ["AGENTS.md", ""],
+    github: ["GitHub", "Отправка коммитов и запросы на слияние"],
   };
   const INDEX = [
     ["models", "API-ключ DeepSeek провайдер баланс расход модель по умолчанию"], ["look", "тема светлая тёмная язык русский english шрифт кода размер"],
-    ["agent", "одобрение правки разрешения буфер обмена clipboard глубина рассуждения инструкции agents.md claude.md правила проекта пределы таймаут субагенты веб-поиск"], ["host", "host linux debian сон засыпать батарея фон удалённый сопряжение перезапуск"],
+    ["github", "github гитхаб вход push отправить коммит запрос на слияние pull request токен"], ["agent", "одобрение правки разрешения буфер обмена clipboard глубина рассуждения инструкции agents.md claude.md правила проекта пределы таймаут субагенты веб-поиск"], ["host", "host linux debian сон засыпать батарея фон удалённый сопряжение перезапуск"],
     ["storage", "место кэш rootfs логи резервная копия экспорт очистить рабочая папка"], ["security", "буфер обмена плагины доверие сертификат биометрия блокировка шифрование keystore"],
     ["notif", "уведомления задачи автоматизация вибрация"], ["about", "версия лицензии журнал отчёт об ошибке"],
   ];
   function viewSt(page) {
     const v = document.createElement("div"); v.className = "fs-view";
     if (page === "inst") { v.innerHTML = instView(); return v; }
+    if (page === "github") {
+      v.innerHTML = GH.login
+        ? `<div class="gl"><div class="st-row"><span class="avatar">${GH.login[0].toUpperCase()}</span><span class="tx">@${GH.login}<small>Вошли ${GH.at}</small></span></div>${row("i-lock", "c3", "Доступ", "репозитории")}</div>
+          <p class="sub" style="margin:8px 6px 0">Права выдал GitHub; отозвать их можно на github.com в Settings → Applications. Токен хранится в Android Keystore и не показывается.</p>
+          <div class="gl" style="margin-top:16px"><button class="st-row st-danger" id="ghOut"><span class="si c5"><svg class="i"><use href="#i-x"/></svg></span><span class="tx">Выйти из GitHub</span></button></div>`
+        : `<div class="gh-hero"><span class="si c6"><svg class="i"><use href="#i-git"/></svg></span><b>Вход в GitHub</b><p>Нужен, чтобы отправлять коммиты и открывать запросы на слияние прямо из «Изменений».</p><button class="btn primary" id="ghIn">Войти через GitHub</button></div>
+          <p class="sub" style="margin:10px 6px 0">Вход — на сайте GitHub по одноразовому коду: пароль DSH не видит. Токен хранится в Android Keystore и не показывается.</p>`;
+      return v;
+    }
     if (page === "root") {
       const hits = stQuery ? INDEX.filter(([k, w]) => (PAGES[k][0] + " " + w).toLowerCase().includes(stQuery.toLowerCase())) : null;
       v.innerHTML = `<label class="fs-search on st-search"><svg class="i sm"><use href="#i-search"/></svg><input id="stQ" placeholder="Поиск в настройках" value="${esc2(stQuery)}" autocomplete="off"></label>
@@ -3357,7 +3392,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       <button class="st-prof" data-stgo="models"><span class="avatar">М</span><span class="tx"><b>Михаил</b><small>Свой ключ DeepSeek · по API</small></span><svg class="i sm" style="color:var(--t3)"><use href="#i-right"/></svg></button>
       <div class="st-bal"><div><b>12,40 $</b><small>баланс</small></div><div><b>0,38 $</b><small>сегодня</small></div><div><b>2,1 млн</b><small>токенов за месяц</small></div></div>
       <div class="glabel">Работа</div>
-      <div class="gl">${row(...ICON.models, "Модели и ключи", "DeepSeek V4", "models")}${row(...ICON.agent, "Агент", ST.approvals === "ask" ? "Спрашивать" : "Сам в папке", "agent")}${row("i-puzzle", "c8", "Плагины", "3 включено", "", ' data-act="plugins"')}${row("i-clock", "c7", "Автоматизация", "3 активны", "", ' data-act="automation"')}</div>
+      <div class="gl">${row(...ICON.models, "Модели и ключи", "DeepSeek V4", "models")}${row(...ICON.agent, "Агент", ST.approvals === "ask" ? "Спрашивать" : "Сам в папке", "agent")}${row(...ICON.github, "GitHub", GH.login ? "@" + GH.login : "не подключён", "github")}${row("i-puzzle", "c8", "Плагины", "3 включено", "", ' data-act="plugins"')}${row("i-clock", "c7", "Автоматизация", "3 активны", "", ' data-act="automation"')}</div>
       <div class="glabel">Устройство</div>
       <div class="gl">${row(...ICON.host, "Host", ST.hostOn ? "работает" : "остановлен", "host")}${row(...ICON.storage, "Хранилище", "3,1 ГБ", "storage")}${row(...ICON.notif, "Уведомления", "", "notif")}</div>
       <div class="glabel">Приложение</div>
@@ -3437,7 +3472,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       <p class="sub" style="margin:12px 6px 0">Основано на deepseek-harness-mobile 1.0.6. Работает с DeepSeek Harness.</p>`;
     return v;
   }
-  const ICON = { models: ["i-key", "c1"], look: ["i-sun", "c8"], agent: ["i-spark", "c2"], host: ["i-server", "c3"], storage: ["i-hdd2", "c6"], security: ["i-shield", "c5"], notif: ["i-bell", "c4"], about: ["i-info", "c6"] };
+  const ICON = { github: ["i-git", "c6"], models: ["i-key", "c1"], look: ["i-sun", "c8"], agent: ["i-spark", "c2"], host: ["i-server", "c3"], storage: ["i-hdd2", "c6"], security: ["i-shield", "c5"], notif: ["i-bell", "c4"], about: ["i-info", "c6"] };
   function stTitles() { const k = stStack[stStack.length - 1]; $("#stTitle").textContent = PAGES[k][0]; $("#stSub").textContent = k === "root" ? "DSH 1.1.0" : PAGES[k][1]; }
   function stPush(k) { const old = stCur, v = viewSt(k); stStack.push(k); stBody.appendChild(v); stCur = v; stTitles();
     if (old) { anim(v, [{ transform: "translateX(100%)" }, { transform: "translateX(0)" }], SMOOTH); anim(old, [{ transform: "translateX(0)", opacity: 1 }, { transform: "translateX(-28%)", opacity: .6 }], SMOOTH).onfinish = () => old.remove(); } }
@@ -3737,8 +3772,34 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   $("#limPlus").addEventListener("click", () => { const L = LIM[limKey]; limDraft = L.v[Math.min(L.v.length - 1, L.v.indexOf(limDraft) + 1)]; limShow(); });
   $("#limReset").addEventListener("click", () => { delete LIMV[limKey]; sheetClose(); stRefresh(); toast("Вернули стандартное значение"); });
   $("#limSave").addEventListener("click", () => { if (limDraft === LIM[limKey].d) delete LIMV[limKey]; else LIMV[limKey] = limDraft; sheetClose(); stRefresh(); toast("Сохранено · действует со следующего шага агента"); });
+  // ── GitHub: вход по коду (device flow), выход ──
+  const GH = { login: "", at: "" };
+  let ghTimer = null;
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("#ghIn")) { $("#ghWait").textContent = "Жду подтверждения · код действует 15 мин"; sheetOpen("gh"); return; }
+    if (e.target.closest("#ghOut")) { GH.login = ""; stRefresh(); toast("Вы вышли из GitHub"); return; }
+  });
+  $("#ghCopy").addEventListener("click", () => toast("Код скопирован"));
+  $("#ghOpen").addEventListener("click", () => {
+    toast("Код скопирован · открываю github.com/login/device");
+    clearTimeout(ghTimer); ghTimer = setTimeout(() => {
+      GH.login = "mikespl187"; GH.at = "28 окт"; sheetClose(); if (stCur) stRefresh(); toast("Вошли как @mikespl187");
+      if (GIT.pushAfterLogin) { GIT.pushAfterLogin = false; setTimeout(gitPush, 500); }
+    }, 2600);
+  });
+  function fsRebuild() { const v = fsBuild(fsStack[fsStack.length - 1]); fsBody.replaceChild(v, fsCur); fsCur = v; fsTitles(); }
+  function gitPush() {
+    GIT.pushing = true; fsRebuild();
+    setTimeout(() => { GIT.pushing = false; const n = GIT.ahead; GIT.ahead = 0; fsRebuild(); toast(`Отправлено в origin/main · ${n} ${n === 1 ? "коммит" : "коммита"}`); }, 1400);
+  }
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#chPush")) return;
+    if (!GH.login) { GIT.pushAfterLogin = true; $("#ghWait").textContent = "Жду подтверждения · код действует 15 мин"; sheetOpen("gh"); return; }
+    gitPush();
+  });
+
   // ── Коммит из «Изменений»: git add -A и commit; автор спрашивается один раз (git config --global) ──
-  const GIT = { name: "", email: "", ahead: 0, last: "" };
+  const GIT = { name: "", email: "", ahead: 0, last: "", pushing: false, pushAfterLogin: false };
   function cmWho(edit) {
     $("#cmWho").innerHTML = GIT.name && !edit
       ? `<div class="cm-author"><span>От имени <b>${esc2(GIT.name)}</b> · ${esc2(GIT.email)}</span><button id="cmWhoEdit">Изменить</button></div>`
@@ -3764,7 +3825,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     if ($("#cmName")) { GIT.name = $("#cmName").value.trim(); GIT.email = $("#cmMail").value.trim(); }
     GIT.last = $("#cmMsg").value.trim(); GIT.ahead += 1;
     for (const f of Object.keys(CHANGED)) delete CHANGED[f];
-    sheetClose(); setTimeout(() => { const v = fsBuild(fsStack[fsStack.length - 1]); fsBody.replaceChild(v, fsCur); fsCur = v; fsTitles(); toast("Закоммичено в main"); }, 300);
+    sheetClose(); setTimeout(() => { fsRebuild(); toast("Закоммичено в main"); }, 300);
   });
 
   // ── Инструкции для агента: ~/.dsh/AGENTS.md, AGENTS.md проекта, AGENTS.local.md (как dsh-agent-instructions) ──

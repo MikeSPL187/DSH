@@ -37,6 +37,25 @@ interface FilesGit {
 
     /** Неотправленные коммиты (число, тема последнего); null — не узнать. */
     suspend fun unpushed(): Pair<Int, String>? = null
+
+    /** Куда уйдёт отправка («origin/main»); null — отправить некуда (не GitHub по https, нет ветки). */
+    suspend fun pushTarget(): String? = null
+
+    /** Отправить текущую ветку; успех — куда ушло, ошибка — [PushException]. */
+    suspend fun push(): Result<String> = Result.failure(PushException(PushProblem.OTHER))
+}
+
+/** Почему отправка не удалась — у каждой причины своё объяснение пользователю. */
+enum class PushProblem { NEED_LOGIN, NOT_GITHUB, UNSAFE_CONFIG, DETACHED, REJECTED, AUTH, OTHER }
+
+class PushException(val problem: PushProblem, detail: String? = null) : Exception(detail ?: problem.name)
+
+/** Вход в GitHub для отправки из «Изменений»: тот же лист, что в «Настройках». */
+interface FilesGitHub {
+    fun signedIn(): Boolean
+    suspend fun begin(): Result<com.dsh.core.designsystem.kit.DeviceCodeView>
+    suspend fun await(): Result<String>
+    fun errorOf(t: Throwable): com.dsh.core.designsystem.kit.DeviceSignInError
 }
 
 /** Путь [file] от корня [root] через `/`; пустая строка — сам корень. */

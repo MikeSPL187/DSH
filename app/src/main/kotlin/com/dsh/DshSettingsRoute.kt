@@ -126,6 +126,9 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
 
     // Инструкции агента: ~/.dsh/AGENTS.md в Linux и файлы рабочей папки; перечитываются после каждой записи.
     var instTick by remember { mutableIntStateOf(0) }
+    // Аккаунт GitHub: перечитывается после входа и выхода.
+    var ghTick by remember { mutableIntStateOf(0) }
+    val ghLogin = remember(ghTick) { GitHubAccount.login(context) }
     var instFiles by remember { mutableStateOf<List<com.dsh.feature.settings.logic.InstructionFile>>(emptyList()) }
     LaunchedEffect(instTick, d.workspace) {
         instFiles = withContext(Dispatchers.IO) { com.dsh.feature.settings.logic.AgentInstructions.files(d.layout.dshHomeDir, d.workspace) }
@@ -284,6 +287,10 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         workspaceShared = sharedWs,
         limits = limits,
         webSearch = webSearch,
+        github = com.dsh.feature.settings.ui.GitHubUi(
+            login = ghLogin,
+            signedAt = GitHubAccount.signedAt(context)?.let { java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())) },
+        ),
         instructions = instFiles.map { f ->
             com.dsh.feature.settings.ui.InstructionRow(
                 f.scope, f.file.name,
@@ -392,6 +399,11 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
             limitsTick++
             return ok
         }
+
+        override suspend fun gitHubBegin() = GitHubAccount.begin()
+        override suspend fun gitHubAwait() = GitHubAccount.await(context).also { ghTick++ }
+        override fun gitHubErrorOf(t: Throwable) = GitHubAccount.errorOf(t)
+        override fun gitHubSignOut() { GitHubAccount.signOut(context); ghTick++ }
 
         override suspend fun readInstruction(scope: com.dsh.feature.settings.logic.InstructionScope): Result<String?> {
             val file = instFile(scope) ?: return Result.success(null)

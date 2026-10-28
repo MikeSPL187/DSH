@@ -71,6 +71,10 @@ jobs:
         run: ./gradlew test --no-daemon --stacktrace
 
       - name: Build APK
+        # Client id OAuth App для входа в GitHub (device flow): не секрет — переменная репозитория.
+        # Пусто — приложение собирается, а «Вход через GitHub» честно говорит, что не настроен.
+        env:
+          DSH_GITHUB_CLIENT_ID: ${{ vars.DSH_GITHUB_CLIENT_ID }}
         run: |
           if [ "${{ env.SIGNED_BUILD }}" = "true" ]; then
             ./gradlew :app:assembleRelease --no-daemon --stacktrace

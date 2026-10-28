@@ -26,6 +26,11 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Client id OAuth App владельца для входа в GitHub (device flow): не секрет, но свой у каждой сборки.
+        // -PdshGithubClientId=… или DSH_GITHUB_CLIENT_ID в CI; пусто — «Вход через GitHub не настроен в этой сборке».
+        val githubClientId = (findProperty("dshGithubClientId") as String?) ?: System.getenv("DSH_GITHUB_CLIENT_ID") ?: ""
+        require(githubClientId.matches(Regex("[A-Za-z0-9._-]*"))) { "dshGithubClientId: unexpected characters" }
+        buildConfigField("String", "GITHUB_CLIENT_ID", "\"$githubClientId\"")
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
         }

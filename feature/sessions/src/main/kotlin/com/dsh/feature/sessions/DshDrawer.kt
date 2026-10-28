@@ -353,7 +353,7 @@ fun DshDrawerContent(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Box(
-                Modifier.size(34.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFFF0B37E), Color(0xFFE2767A)), start = Offset.Zero, end = Offset(100f, 100f))),
+                Modifier.size(34.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFFB05A1A), Color(0xFFB4384C)), start = Offset.Zero, end = Offset(100f, 100f))),
                 contentAlignment = Alignment.Center,
             ) { Text(userName.take(1).uppercase(), style = body(14.sp, weight = FontWeight.SemiBold), color = Color.White) }
             Column(Modifier.weight(1f)) {

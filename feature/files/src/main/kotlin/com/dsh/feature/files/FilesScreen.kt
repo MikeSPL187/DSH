@@ -100,6 +100,7 @@ import com.dsh.core.designsystem.DshSheetItem
 import com.dsh.core.designsystem.DshSheetList
 import com.dsh.core.designsystem.DshSheetScaffold
 import com.dsh.core.designsystem.DshSheetTitle
+import com.dsh.core.designsystem.kit.DeviceSignInSheetBody
 import com.dsh.core.designsystem.DshSourceTiles
 import com.dsh.core.designsystem.pressScale
 import kotlinx.coroutines.Dispatchers
@@ -125,6 +126,8 @@ private sealed interface Sheet {
     data class NewItem(val folder: Boolean) : Sheet
     data object Clone : Sheet
     data class Commit(val info: GitInfo) : Sheet
+    /** Вход в GitHub; после входа — сразу отправка, ради которой он понадобился. */
+    data object GitHubLogin : Sheet
 }
 
 /**
@@ -167,6 +170,8 @@ fun FilesScreen(
     markdown: (@Composable (String) -> Unit)? = null,
     /** Открыть HTML-файл живой страницей во встроенном браузере; null — кнопки нет. */
     onOpenInBrowser: ((File) -> Unit)? = null,
+    /** Вход в GitHub для «Отправить»; null — отправки нет. */
+    gitHub: FilesGitHub? = null,
 ) {
     val c = Dsh.colors
     val scope = rememberCoroutineScope()
@@ -193,6 +198,23 @@ fun FilesScreen(
     }
     fun file(path: String) = if (path.isEmpty()) root else File(root, path)
     fun refresh() { tick++ }
+    var pushing by remember { mutableStateOf(false) }
+    val pushMsgs = PushMessages.load()
+    fun doPush() {
+        val g = git ?: return
+        if (pushing) return
+        pushing = true
+        scope.launch {
+            g.push()
+                .onSuccess { onToast(pushMsgs.done.format(it)); refresh() }
+                .onFailure { e ->
+                    val problem = (e as? PushException)?.problem ?: PushProblem.OTHER
+                    if (problem == PushProblem.NEED_LOGIN && gitHub != null) sheet = Sheet.GitHubLogin
+                    else onToast(pushMsgs.of(problem, e.message.orEmpty()))
+                }
+            pushing = false
+        }
+    }
 
     val revertedText = stringResource(R.string.fs_reverted)
     val top = stack.last()
@@ -200,7 +222,7 @@ fun FilesScreen(
     BackHandler(enabled = sheet == null && stack.size > 1) { pop() }
 
     DshSheetScaffold(
-        sheet = sheet?.let { s -> { SheetBody(s, root, changedPaths, ::file, onDone = { sheet = null }, onSheet = { sheet = it }, git, onAsk, onAttach, onShare, onImport, onToast, ::refresh, currentDir = (stack.lastOrNull { it is Entry.Dir } as? Entry.Dir)?.path ?: "", commitMessage = commitMessage) } },
+        sheet = sheet?.let { s -> { SheetBody(s, root, changedPaths, ::file, onDone = { sheet = null }, onSheet = { sheet = it }, git, onAsk, onAttach, onShare, onImport, onToast, ::refresh, currentDir = (stack.lastOrNull { it is Entry.Dir } as? Entry.Dir)?.path ?: "", commitMessage = commitMessage, gitHub = gitHub, afterLogin = ::doPush) } },
         onDismiss = { sheet = null },
         modifier = modifier,
     ) {
@@ -257,7 +279,10 @@ fun FilesScreen(
                             if (ok) { onToast(revertedText); refresh(); pop() }
                         }
                     })
-                    Entry.Changes -> ChangesView(gitInfo, git, version, onReview = onReview, onCommit = { sheet = Sheet.Commit(it) }, onOpen = { push(Entry.Diff(it)) })
+                    Entry.Changes -> ChangesView(
+                        gitInfo, git, version, onReview = onReview, onCommit = { sheet = Sheet.Commit(it) }, onOpen = { push(Entry.Diff(it)) },
+                        pushing = pushing, signedIn = gitHub?.signedIn() == true, canPush = gitHub != null, onPush = ::doPush,
+                    )
                     Entry.Search -> SearchView(root, query, version, changedPaths, onOpen = { f -> push(if (f.isDirectory) Entry.Dir(relPath(root, f)) else Entry.Doc(relPath(root, f))) }, onMore = { sheet = Sheet.Actions(it) })
                 }
             }
@@ -963,19 +988,24 @@ private fun ChangesView(
     onReview: (String) -> Unit,
     onCommit: (GitInfo) -> Unit,
     onOpen: (String) -> Unit,
+    pushing: Boolean = false,
+    signedIn: Boolean = false,
+    canPush: Boolean = false,
+    onPush: () -> Unit = {},
 ) {
     val c = Dsh.colors
     val gitReady = git != null
     val files = info?.changes.orEmpty()
     // Неотправленные коммиты — после каждого обновления статуса (коммит, правки агента).
     var unpushed by remember { mutableStateOf<Pair<Int, String>?>(null) }
-    LaunchedEffect(git, version, info) { unpushed = git?.unpushed() }
+    var target by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(git, version, info) { unpushed = git?.unpushed(); target = if (canPush) git?.pushTarget() else null }
     Column(Modifier.fillMaxSize().background(c.bg).verticalScroll(rememberScrollState()).padding(ViewPadding)) {
         when {
             info == null -> Empty(stringResource(if (gitReady) R.string.fs_no_changes else R.string.fs_no_git), icon = if (gitReady) DshGlyphs.Check else null)
             files.isEmpty() -> {
                 Empty(stringResource(R.string.fs_no_changes), icon = DshGlyphs.Check)
-                unpushed?.takeIf { it.first > 0 }?.let { (n, subject) -> UnpushedCard(n, subject) }
+                unpushed?.takeIf { it.first > 0 }?.let { (n, subject) -> UnpushedCard(n, subject, target, pushing, signedIn, onPush) }
             }
             else -> {
                 val plus = files.sumOf { it.added.coerceAtLeast(0) }
@@ -1094,10 +1124,20 @@ private fun ColumnScope.SheetBody(
     refresh: () -> Unit,
     currentDir: String,
     commitMessage: (suspend (GitInfo) -> Result<String>)?,
+    gitHub: FilesGitHub?,
+    afterLogin: () -> Unit,
 ) {
     val c = Dsh.colors
     val scope = rememberCoroutineScope()
     when (sheet) {
+        Sheet.GitHubLogin -> if (gitHub != null) {
+            val signed = stringResource(R.string.fs_gh_signed, "%s")
+            DeviceSignInSheetBody(
+                begin = gitHub::begin, await = gitHub::await, errorOf = gitHub::errorOf,
+                onSignedIn = { login -> onToast(signed.format(login)); onDone(); afterLogin() },
+                onToast = onToast,
+            )
+        }
         is Sheet.Commit -> {
             val done = stringResource(R.string.fs_cm_done, sheet.info.branch.ifEmpty { "git" }, "%s")
             if (git != null) CommitSheetBody(

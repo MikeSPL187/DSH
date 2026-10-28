@@ -91,6 +91,17 @@
     <string name="fs_cm_committing">Коммичу…</string>
     <string name="fs_cm_done">Закоммичено в %1$s · %2$s</string>
     <string name="fs_cm_who_failed">Не удалось сохранить автора в git. Попробуйте ещё раз</string>
+    <string name="fs_push">Отправить в %1$s</string>
+    <string name="fs_pushing">Отправляю…</string>
+    <string name="fs_pushed">Отправлено в %1$s</string>
+    <string name="fs_push_hint">Нужен вход в GitHub — DSH попросит его один раз.</string>
+    <string name="fs_push_not_github">Отправка — только в репозиторий GitHub по https: у origin другой адрес.</string>
+    <string name="fs_push_unsafe">В .git/config есть секции, которые меняют адрес или защиту соединения (url, http, credential, include, hooksPath). Отправка не начата, чтобы токен не ушёл на чужой сервер.</string>
+    <string name="fs_push_detached">Сейчас не выбрана ветка (detached HEAD). Переключитесь на ветку и отправьте снова.</string>
+    <string name="fs_push_rejected">GitHub отклонил отправку: в origin есть коммиты, которых нет здесь. Сначала заберите их (git pull) — например, попросите агента.</string>
+    <string name="fs_push_auth">Нет прав на этот репозиторий. Проверьте доступ DSH на github.com или войдите заново в «Настройках → GitHub».</string>
+    <string name="fs_push_failed">Не отправлено: %1$s</string>
+    <string name="fs_gh_signed">Вошли как @%1$s</string>
     <plurals name="fs_unpushed"><item quantity="one">%d коммит не отправлен</item><item quantity="few">%d коммита не отправлены</item><item quantity="many">%d коммитов не отправлены</item><item quantity="other">%d коммита не отправлены</item></plurals>
     <string name="fs_now">только что</string>
     <string name="fs_today">сегодня, %1$s</string>

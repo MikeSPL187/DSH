@@ -22,7 +22,7 @@
     <string-array name="st_index">
         <item>API-ключ DeepSeek провайдер баланс расход модель по умолчанию</item>
         <item>тема светлая тёмная язык русский english шрифт кода размер вибрация</item>
-        <item>одобрение правки разрешения буфер обмена clipboard глубина рассуждения инструкции agents.md claude.md правила проекта пределы таймаут субагенты веб-поиск</item>
+        <item>github гитхаб вход отправить push коммит запрос на слияние pull request одобрение правки разрешения буфер обмена clipboard глубина рассуждения инструкции agents.md claude.md правила проекта пределы таймаут субагенты веб-поиск</item>
         <item>host linux debian сон засыпать батарея фон удалённый сопряжение перезапуск терминал</item>
         <item>место кэш rootfs логи журналы резервная копия экспорт очистить рабочая папка</item>
         <item>буфер обмена плагины доверие сертификат биометрия отпечаток блокировка шифрование keystore удалить данные</item>
@@ -181,6 +181,22 @@
     <string name="st_u_b">%1$d Б</string>
     <string name="st_u_kb">%1$d КБ</string>
     <string name="st_u_mb">%1$s МБ</string>
+    <string name="st_gh">GitHub</string>
+    <string name="st_gh_sub">Отправка коммитов и запросы на слияние</string>
+    <string name="st_gh_off">не подключён</string>
+    <string name="st_gh_on">подключён</string>
+    <string name="st_gh_title">Вход в GitHub</string>
+    <string name="st_gh_why">Нужен, чтобы отправлять коммиты и открывать запросы на слияние прямо из «Изменений».</string>
+    <string name="st_gh_sign_in">Войти через GitHub</string>
+    <string name="st_gh_how">Вход — на сайте GitHub по одноразовому коду: пароль DSH не видит. Токен хранится в Android Keystore и не показывается.</string>
+    <string name="st_gh_signed_unknown">Вход выполнен</string>
+    <string name="st_gh_since">Вошли %1$s</string>
+    <string name="st_gh_access">Доступ</string>
+    <string name="st_gh_access_repo">репозитории</string>
+    <string name="st_gh_revoke">Права выдал GitHub; отозвать их можно на github.com в Settings → Applications. Токен хранится в Android Keystore и не показывается.</string>
+    <string name="st_gh_sign_out">Выйти из GitHub</string>
+    <string name="st_gh_signed">Вошли как @%1$s</string>
+    <string name="st_gh_signed_out">Вы вышли из GitHub</string>
     <string name="st_u_kb_f">%1$s КБ</string>
     <string name="st_inst">Инструкции для агента</string>
     <string name="st_inst_budget">%1$s из %2$s</string>

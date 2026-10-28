@@ -742,8 +742,16 @@ fun MainAppHost(
 
     // Содержимое страницы «Файлы».
     val projectDir = java.io.File(activeWorkspaceFolderPath)
-    val filesGit = remember(activeWorkspace, runtimeUi.activeWorkspaceName) {
-        WorkspaceFilesGit(com.dsh.runtime.host.WorkspaceGit(layout, activeWorkspace), runtimeUi.activeWorkspaceName)
+    val filesGit = remember(activeWorkspace, runtimeUi.activeWorkspaceName, activeWorkspaceFolderPath) {
+        WorkspaceFilesGit(com.dsh.runtime.host.WorkspaceGit(layout, activeWorkspace), runtimeUi.activeWorkspaceName, java.io.File(activeWorkspaceFolderPath))
+    }
+    val filesGitHub = remember {
+        object : com.dsh.feature.files.FilesGitHub {
+            override fun signedIn() = GitHubAccount.login(context) != null
+            override suspend fun begin() = GitHubAccount.begin()
+            override suspend fun await() = GitHubAccount.await(context)
+            override fun errorOf(t: Throwable) = GitHubAccount.errorOf(t)
+        }
     }
     // Прикрепить файл проекта к следующему сообщению: путь от корня рабочих папок (@путь).
     fun attachToChat(file: java.io.File) {
@@ -775,6 +783,7 @@ fun MainAppHost(
                 ui.activePage = ActivePage.CHAT
             },
             commitMessage = { info -> com.dsh.ai.CommitMessageWriter.write(context, filesGit, info) },
+            gitHub = filesGitHub,
             onShare = { f ->
                 if (!shareWorkspaceFile(context, f)) android.widget.Toast.makeText(context, context.getString(R.string.share_failed), android.widget.Toast.LENGTH_LONG).show()
             },

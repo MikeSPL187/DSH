@@ -226,22 +226,54 @@ private fun CmField(
     }
 }
 
-/** Карточка `.ch-push`: столько-то коммитов не отправлено и тема последнего. */
+/** Карточка `.ch-push`: столько-то коммитов не отправлено, тема последнего и «Отправить в origin/<ветка>». */
 @Composable
-internal fun UnpushedCard(count: Int, subject: String) {
+internal fun UnpushedCard(count: Int, subject: String, target: String?, pushing: Boolean, signedIn: Boolean, onPush: () -> Unit) {
     val c = Dsh.colors
-    Row(
+    Column(
         Modifier.padding(top = 12.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(c.s1).border(1.dp, c.line, RoundedCornerShape(20.dp))
             .padding(start = 16.dp, end = 14.dp, top = 14.dp, bottom = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(com.dsh.core.designsystem.kit.Si.c1), contentAlignment = Alignment.Center) {
-            Icon(DshGlyphs.xs("git"), null, tint = Color.White, modifier = Modifier.size(18.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(com.dsh.core.designsystem.kit.Si.c1), contentAlignment = Alignment.Center) {
+                Icon(DshGlyphs.xs("git"), null, tint = Color.White, modifier = Modifier.size(18.dp))
+            }
+            Column(Modifier.weight(1f)) {
+                Text(pluralStringResource(R.plurals.fs_unpushed, count, count), style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Medium, fontSize = 15.sp, lineHeight = 20.sp), color = c.t1)
+                if (subject.isNotEmpty()) Text(subject, style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.sp, lineHeight = 18.2.sp), color = c.t3, modifier = Modifier.padding(top = 2.dp))
+            }
         }
-        Column(Modifier.weight(1f)) {
-            Text(pluralStringResource(R.plurals.fs_unpushed, count, count), style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Medium, fontSize = 15.sp, lineHeight = 20.sp), color = c.t1)
-            if (subject.isNotEmpty()) Text(subject, style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.sp, lineHeight = 18.2.sp), color = c.t3, modifier = Modifier.padding(top = 2.dp))
+        if (target != null) {
+            KBtn(
+                if (pushing) stringResource(R.string.fs_pushing) else stringResource(R.string.fs_push, target), onPush,
+                Modifier.padding(top = 12.dp).fillMaxWidth(), kind = BtnKind.Primary, icon = if (pushing) null else DshGlyphs.Up,
+                height = 48.dp, radius = 15.dp, enabled = !pushing, busy = pushing,
+            )
+            if (!signedIn) Text(
+                stringResource(R.string.fs_push_hint), style = TextStyle(fontFamily = DshFonts.body, fontSize = 12.5.sp, lineHeight = 17.sp), color = c.t3,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            )
         }
+    }
+}
+
+/** Тексты итогов отправки: успех и объяснение каждой причины отказа. */
+internal class PushMessages(val done: String, private val texts: Map<PushProblem, String>, private val other: String) {
+    fun of(problem: PushProblem, detail: String): String = texts[problem] ?: other.format(detail)
+
+    companion object {
+        @Composable
+        fun load() = PushMessages(
+            done = stringResource(R.string.fs_pushed, "%s"),
+            texts = mapOf(
+                PushProblem.NOT_GITHUB to stringResource(R.string.fs_push_not_github),
+                PushProblem.UNSAFE_CONFIG to stringResource(R.string.fs_push_unsafe),
+                PushProblem.DETACHED to stringResource(R.string.fs_push_detached),
+                PushProblem.REJECTED to stringResource(R.string.fs_push_rejected),
+                PushProblem.AUTH to stringResource(R.string.fs_push_auth),
+                PushProblem.NEED_LOGIN to stringResource(R.string.fs_push_hint),
+            ),
+            other = stringResource(R.string.fs_push_failed, "%s"),
+        )
     }
 }

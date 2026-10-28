@@ -71,9 +71,10 @@ import com.dsh.core.designsystem.Dsh
 import com.dsh.core.designsystem.DshGlyphs
 import com.dsh.feature.settings.R
 import kotlinx.coroutines.launch
+import com.dsh.core.designsystem.kit.DeviceSignInSheetBody
 
 /** Страницы «Настроек» (как `PAGES` в прототипе). */
-enum class StPage { Root, Models, Look, Agent, Host, Storage, Security, Notif, About, Instructions }
+enum class StPage { Root, Models, Look, Agent, Host, Storage, Security, Notif, About, Instructions, GitHub }
 
 /** Состояние ключа провайдера. */
 enum class KeyState { Ok, Bad, Offline, Unknown, None }
@@ -149,6 +150,8 @@ data class SettingsUi(
     val webSearch: com.dsh.core.data.WebSearchState? = null,
     /** Файлы инструкций агента: общий, проекта, личный; пусто — рабочей папки нет. */
     val instructions: List<InstructionRow> = emptyList(),
+    /** Аккаунт GitHub: отправка коммитов и запросы на слияние. */
+    val github: GitHubUi = GitHubUi(),
     // Оформление
     val theme: String = "system",
     val language: String = "ru",
@@ -218,6 +221,11 @@ interface SettingsActions {
     suspend fun readInstruction(scope: com.dsh.feature.settings.logic.InstructionScope): Result<String?> = Result.success(null)
     suspend fun saveInstruction(scope: com.dsh.feature.settings.logic.InstructionScope, text: String): Boolean = false
     suspend fun deleteInstruction(scope: com.dsh.feature.settings.logic.InstructionScope): Boolean = false
+    /** Вход в GitHub по коду: получить код, дождаться подтверждения (успех — логин), вид ошибки; выход. */
+    suspend fun gitHubBegin(): Result<com.dsh.core.designsystem.kit.DeviceCodeView> = Result.failure(UnsupportedOperationException())
+    suspend fun gitHubAwait(): Result<String> = Result.failure(UnsupportedOperationException())
+    fun gitHubErrorOf(t: Throwable): com.dsh.core.designsystem.kit.DeviceSignInError = com.dsh.core.designsystem.kit.DeviceSignInError.NotConfigured
+    fun gitHubSignOut() {}
     suspend fun restartHost(): Boolean = true
     suspend fun setHostRunning(run: Boolean): Boolean = true
     fun setSleep(minutes: Int) {}
@@ -262,6 +270,7 @@ private fun pageTitle(p: StPage): String = stringResource(
         StPage.Notif -> R.string.st_notif
         StPage.About -> R.string.st_about
         StPage.Instructions -> R.string.st_inst
+        StPage.GitHub -> R.string.st_gh
     },
 )
 
@@ -274,6 +283,7 @@ private fun pageSub(p: StPage, ui: SettingsUi): String? = when (p) {
     StPage.Host -> stringResource(R.string.st_host_sub)
     StPage.Storage -> stringResource(R.string.st_storage_sub)
     StPage.Security -> stringResource(R.string.st_security_sub)
+    StPage.GitHub -> stringResource(R.string.st_gh_sub)
     else -> null
 }
 
@@ -297,6 +307,7 @@ fun SettingsHomeScreen(
     val scope = rememberCoroutineScope()
     val savedMsg = stringResource(R.string.st_inst_saved)
     val failedMsg = stringResource(R.string.st_inst_failed)
+    val signedOutMsg = stringResource(R.string.st_gh_signed_out)
     var sheet by rememberSaveable { mutableStateOf(initialSheet) }
     var rise by remember { mutableStateOf(true) }
     LaunchedEffect(Unit) { kotlinx.coroutines.delay(900); rise = false }
@@ -328,6 +339,14 @@ fun SettingsHomeScreen(
             KSheet(limitName != null, onDismiss = { sheet = null }) {
                 lastLimit?.let { v -> AgentLimitSheet(v, actions::setAgentLimit, toast) { sheet = null } }
             }
+            KSheet(sheet == "github", onDismiss = { sheet = null }) {
+                val signed = stringResource(R.string.st_gh_signed, "%s")
+                DeviceSignInSheetBody(
+                    begin = actions::gitHubBegin, await = actions::gitHubAwait, errorOf = actions::gitHubErrorOf,
+                    onSignedIn = { login -> sheet = null; toast.show(signed.format(login)) },
+                    onToast = { toast.show(it) },
+                )
+            }
             KSheet(sheet == "discard", onDismiss = { sheet = null }) {
                 DiscardSheet(
                     onDrop = { sheet = null; editor.draft = editor.saved; stack.pop() },
@@ -353,6 +372,7 @@ fun SettingsHomeScreen(
                 StPage.Security -> SecurityPage(ui, actions, toast, stack::push)
                 StPage.Notif -> NotifPage(ui, actions)
                 StPage.About -> AboutPage(ui, actions, toast)
+                StPage.GitHub -> GitHubPage(ui.github, onSignIn = { sheet = "github" }) { actions.gitHubSignOut(); toast.show(signedOutMsg) }
                 StPage.Instructions -> {
                     androidx.activity.compose.BackHandler(enabled = editor.dirty && sheet == null) { sheet = "discard" }
                     InstructionsPage(ui.instructions, editor, actions, toast, markdown, onDeleted = { stack.pop() })
@@ -392,6 +412,7 @@ private fun RootPage(ui: SettingsUi, a: SettingsActions, go: (StPage) -> Unit) {
         Gl(Modifier.rise(4)) {
             row { PageRow(StPage.Models, pageTitle(StPage.Models), ui.defaultModel.ifBlank { null }) { go(StPage.Models) } }
             row { PageRow(StPage.Agent, pageTitle(StPage.Agent), approveLabel(ui.autoApprove)) { go(StPage.Agent) } }
+            row { StRow(pageTitle(StPage.GitHub), icon = DshGlyphs.get("git"), tile = Si.c6, value = ui.github.login?.let { if (it.isEmpty()) stringResource(R.string.st_gh_on) else "@$it" } ?: stringResource(R.string.st_gh_off), chevron = true, onClick = { go(StPage.GitHub) }) }
             row { StRow(stringResource(R.string.st_plugins), icon = DshGlyphs.Puzzle, tile = Si.c8, value = pluralStringResource(R.plurals.st_plugins_on, ui.pluginsOn, ui.pluginsOn), onClick = a::openPlugins) }
             row { StRow(stringResource(R.string.st_automation), icon = DshGlyphs.Clock, tile = Si.c7, value = pluralStringResource(R.plurals.st_auto_on, ui.automationsOn, ui.automationsOn), onClick = a::openAutomation) }
         }
@@ -444,7 +465,7 @@ private fun Profile(ui: SettingsUi, modifier: Modifier, onClick: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Box(
-            Modifier.size(52.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFFF0B37E), Color(0xFFE2767A)))),
+            Modifier.size(52.dp).clip(CircleShape).background(Brush.linearGradient(listOf(Color(0xFFB05A1A), Color(0xFFB4384C)))),
             contentAlignment = Alignment.Center,
         ) { Text(name.take(1).uppercase(), style = body(20.sp, 24.sp, FontWeight.SemiBold), color = Color.White) }
         Column(Modifier.weight(1f)) {

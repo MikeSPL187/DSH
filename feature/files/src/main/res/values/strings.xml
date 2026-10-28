@@ -92,6 +92,17 @@
     <string name="fs_cm_committing">Committing…</string>
     <string name="fs_cm_done">Committed to %1$s · %2$s</string>
     <string name="fs_cm_who_failed">Could not save the author in git. Try again</string>
+    <string name="fs_push">Push to %1$s</string>
+    <string name="fs_pushing">Pushing…</string>
+    <string name="fs_pushed">Pushed to %1$s</string>
+    <string name="fs_push_hint">GitHub sign-in is needed — DSH asks for it once.</string>
+    <string name="fs_push_not_github">Pushing works only to a GitHub repository over https: origin has another address.</string>
+    <string name="fs_push_unsafe">.git/config has sections that change the address or connection security (url, http, credential, include, hooksPath). The push did not start so the token cannot reach another server.</string>
+    <string name="fs_push_detached">No branch is checked out (detached HEAD). Switch to a branch and push again.</string>
+    <string name="fs_push_rejected">GitHub rejected the push: origin has commits that are not here. Pull them first (git pull) — for example, ask the agent.</string>
+    <string name="fs_push_auth">No access to this repository. Check DSH access on github.com or sign in again in Settings → GitHub.</string>
+    <string name="fs_push_failed">Not pushed: %1$s</string>
+    <string name="fs_gh_signed">Signed in as @%1$s</string>
     <plurals name="fs_unpushed"><item quantity="one">%d commit not pushed</item><item quantity="other">%d commits not pushed</item></plurals>
     <string name="fs_now">just now</string>
     <string name="fs_today">today, %1$s</string>

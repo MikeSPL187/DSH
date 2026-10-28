@@ -11,6 +11,8 @@ navigationCompose = "2.8.8"
 room = "2.7.0-alpha13"
 datastore = "1.1.2"
 okhttp = "4.12.0"
+# Ветка 5.13 — последняя на Java 8 API: JGit 6+ требует Java 11/17, которых нет в Android 8 (minSdk 26).
+jgit = "5.13.5.202508271544-r"
 ktor = "3.1.1"
 work = "2.10.0"
 junit = "4.13.2"
@@ -38,6 +40,7 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+jgit = { group = "org.eclipse.jgit", name = "org.eclipse.jgit", version.ref = "jgit" }
 okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
 okhttp-mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "okhttp" }
 

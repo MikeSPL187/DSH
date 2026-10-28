@@ -161,6 +161,16 @@ class DshScreensSweepTest {
                 "st-agent-web-api" to @Composable {
                     SettingsHomeScreen(st.copy(webSearch = st.webSearch!!.copy(useApi = true, sendQuestion = false)), onClose = {}, initialPage = StPage.Agent)
                 },
+                "st-github-in" to @Composable { SettingsHomeScreen(st.copy(github = com.dsh.feature.settings.ui.GitHubUi("mikespl187", "28 окт")), onClose = {}, initialPage = StPage.GitHub) },
+                "st-gh-sheet" to @Composable {
+                    SettingsHomeScreen(
+                        st, onClose = {}, initialPage = StPage.GitHub, initialSheet = "github",
+                        actions = object : com.dsh.feature.settings.ui.SettingsActions {
+                            override suspend fun gitHubBegin() = Result.success(com.dsh.core.designsystem.kit.DeviceCodeView("WDJB-MJHT", "https://github.com/login/device", 899))
+                            override suspend fun gitHubAwait(): Result<String> = kotlinx.coroutines.awaitCancellation()
+                        },
+                    )
+                },
                 "st-inst-edit" to @Composable {
                     SettingsHomeScreen(
                         st, onClose = {}, initialPage = StPage.Instructions,

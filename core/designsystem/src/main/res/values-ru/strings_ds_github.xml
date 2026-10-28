@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ds_gh_title">Вход в GitHub</string>
+    <string name="ds_gh_hint">Введите этот код на github.com/login/device и разрешите доступ DSH.</string>
+    <string name="ds_gh_code">Код для входа</string>
+    <string name="ds_gh_copy">Скопировать</string>
+    <string name="ds_gh_open">Открыть GitHub</string>
+    <string name="ds_gh_copied">Код скопирован</string>
+    <string name="ds_gh_loading">Получаю код…</string>
+    <string name="ds_gh_wait">Жду подтверждения · код действует %1$d мин</string>
+    <string name="ds_gh_wait_short">Жду подтверждения · меньше минуты</string>
+    <string name="ds_gh_denied">Доступ не разрешён на GitHub.</string>
+    <string name="ds_gh_expired">Код истёк — получите новый.</string>
+    <string name="ds_gh_failed">Не удалось войти: %1$s</string>
+    <string name="ds_gh_again">Новый код</string>
+    <string name="ds_gh_not_configured">Вход через GitHub не настроен в этой сборке: нужен client id OAuth App (параметр сборки dshGithubClientId).</string>
+</resources>
