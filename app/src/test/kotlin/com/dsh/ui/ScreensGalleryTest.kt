@@ -255,6 +255,24 @@ class ScreensGalleryTest {
         onAllNodes(androidx.compose.ui.test.hasSetTextAction())[0].performTextInput("zzz")
         mainClock.autoAdvance = true; waitForIdle(); mainClock.autoAdvance = false
     }
+    // Поиск по тексту: раздел «В тексте» (чтение файлов — на IO, ждём его вне часов Compose).
+    private fun androidx.compose.ui.test.junit4.AndroidComposeTestRule<*, *>.searchText(q: String) {
+        onAllNodes(androidx.compose.ui.test.hasContentDescription("Поиск"))[0].performClick()
+        mainClock.advanceTimeBy(800)
+        onAllNodes(androidx.compose.ui.test.hasSetTextAction())[0].performTextInput(q)
+        mainClock.autoAdvance = true; waitForIdle(); Thread.sleep(600); waitForIdle(); mainClock.autoAdvance = false
+    }
+    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    @Test fun filesSearchText() = renderFiles("35c_files_search_text_360") { searchText("kotlin") }
+    @Config(qualifiers = "ru-w412dp-h915dp-xxhdpi")
+    @Test fun filesSearchTextDark() = renderFiles("35d_files_search_text_412_dark", dark = true) { searchText("kotlin") }
+    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    @Test fun filesSearchTextOpen() = renderFiles("35e_files_search_text_open_360") {
+        searchText("room")
+        onAllNodes(androidx.compose.ui.test.hasContentDescription("Строка", substring = true))[0].performClick()
+        mainClock.autoAdvance = true; waitForIdle(); Thread.sleep(400); waitForIdle(); mainClock.autoAdvance = false
+        mainClock.advanceTimeBy(1_000)
+    }
     @Test fun filesMore() = renderFiles("36_files_more") {
         onAllNodes(androidx.compose.ui.test.hasContentDescription("Действия"))[3].performClick()
         mainClock.advanceTimeBy(1_200)

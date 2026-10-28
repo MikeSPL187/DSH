@@ -124,3 +124,55 @@ class RevertHunkTest {
         assertEquals(null, revertHunk("x\nCHANGED\n", del))
     }
 }
+
+class GrepTextTest {
+    @get:Rule val tmp = TemporaryFolder()
+
+    @Test
+    fun `one hit per line, line numbers, offsets and snippet`() {
+        val text = "[versions]\n    kotlin = \"2.0\"\nroom = 1 kotlin kotlin\nend"
+        val (hits, total) = grepText(text, "KOTLIN")
+        assertEquals(2, total)
+        assertEquals(listOf(2, 3), hits.map { it.line })
+        assertEquals(text.indexOf("kotlin"), hits[0].offset)
+        // Отступ убран, найденное — по start..end.
+        assertEquals("kotlin = \"2.0\"", hits[0].snippet)
+        assertEquals("kotlin", hits[0].snippet.substring(hits[0].start, hits[0].end))
+        assertEquals(text.indexOf("kotlin", text.indexOf("room")), hits[1].offset)
+    }
+
+    @Test
+    fun `far match is cut with ellipsis, keep and limit are honoured`() {
+        val long = "x".repeat(60) + "needle" + "y".repeat(400)
+        val (hits, _) = grepText(long, "needle")
+        val h = hits.single()
+        assertTrue(h.snippet.startsWith("…") && h.snippet.endsWith("…"))
+        assertEquals("needle", h.snippet.substring(h.start, h.end))
+        assertEquals(GREP_LEAD, h.start - 1)
+        val many = (1..20).joinToString("\n") { "a$it" }
+        val (kept, total) = grepText(many, "a", keep = 3)
+        assertEquals(3, kept.size)
+        assertEquals(20, total)
+        assertEquals(7, grepText(many, "a", limit = 7).second)
+        assertEquals(listOf(1, 2, 3), kept.map { it.line })
+        assertTrue(grepText("abc", "").first.isEmpty())
+    }
+
+    @Test
+    fun `project search skips binaries, normalises crlf and caps lines`() {
+        val root = tmp.root
+        File(root, "a.kt").writeText("val room = 1\r\nval x = Room()\r\n")
+        File(root, "b.bin").writeBytes(byteArrayOf(0x72, 0x6F, 0x6F, 0x6D, 0))
+        File(root, "sub").mkdirs(); File(root, "sub/c.md").writeText("no match here\n")
+        val r = searchText(root, walkFiles(root), "room")
+        assertEquals(listOf("a.kt"), r.files.map { it.path })
+        assertEquals(2, r.lines)
+        val a = r.files.single()
+        assertEquals(listOf(1, 2), a.hits.map { it.line })
+        // Смещение — в тексте правки (\n вместо \r\n).
+        assertEquals("val room = 1\nval x = Room()\n".indexOf("Room"), a.hits[1].offset)
+        val capped = searchText(root, walkFiles(root), "room", maxLines = 1)
+        assertTrue(capped.capped)
+        assertEquals(1, capped.lines)
+    }
+}

@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -104,6 +105,7 @@ import com.dsh.core.designsystem.kit.DeviceSignInSheetBody
 import com.dsh.core.designsystem.DshSourceTiles
 import com.dsh.core.designsystem.pressScale
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -375,7 +377,12 @@ fun FilesScreen(
                         onCreatePull = { st -> if (gitHub?.signedIn() == true) sheet = Sheet.Pull(st) else needLogin { openPull() } },
                         onOpenPull = { url -> runCatching { uri.openUri(url) } },
                     )
-                    Entry.Search -> SearchView(root, query, version, changedPaths, onOpen = { f -> push(if (f.isDirectory) Entry.Dir(relPath(root, f)) else Entry.Doc(relPath(root, f))) }, onMore = { sheet = Sheet.Actions(it) })
+                    Entry.Search -> SearchView(
+                        root, query, version, changedPaths,
+                        onOpen = { f -> push(if (f.isDirectory) Entry.Dir(relPath(root, f)) else Entry.Doc(relPath(root, f))) },
+                        onMore = { sheet = Sheet.Actions(it) },
+                        onHit = { path, offset -> editor.reset(path); editor.findAt(query.trim(), offset); push(Entry.Edit(path)) },
+                    )
                 }
             }
         }
@@ -1228,28 +1235,121 @@ private fun ChangesView(
     }
 }
 
-/** Поиск по имени и пути во всём проекте. */
+/**
+ * Поиск во всём проекте: «Файлы» — по имени и пути, «В тексте» — строки с запросом (от двух знаков, с паузой
+ * [GREP_DELAY_MS] после ввода). Строка открывает правку файла с открытым «Найти» на этом совпадении.
+ */
 @Composable
-private fun SearchView(root: File, query: String, version: Int, changed: Map<String, GitChange>, onOpen: (File) -> Unit, onMore: (String) -> Unit) {
+private fun SearchView(
+    root: File,
+    query: String,
+    version: Int,
+    changed: Map<String, GitChange>,
+    onOpen: (File) -> Unit,
+    onMore: (String) -> Unit,
+    onHit: (path: String, offset: Int) -> Unit,
+) {
     val c = Dsh.colors
     val q = query.trim()
     val all by produceState(emptyList<File>(), root, version) { value = withContext(Dispatchers.IO) { walkFiles(root) } }
     val hits = remember(all, q) { if (q.isEmpty()) emptyList() else all.filter { relPath(root, it).contains(q, ignoreCase = true) }.take(200) }
+    // null — ещё ищем (или запрос короче двух знаков).
+    val text by produceState<TextSearch?>(null, all, q) {
+        value = null
+        if (q.length < 2 || all.isEmpty()) return@produceState
+        kotlinx.coroutines.delay(GREP_DELAY_MS)
+        value = withContext(Dispatchers.IO) { searchText(root, all, q, active = { isActive }) }
+    }
+    val searching = q.length >= 2 && text == null
     Column(Modifier.fillMaxSize().background(c.bg).verticalScroll(rememberScrollState()).padding(ViewPadding)) {
+        val found = text?.files.orEmpty()
         when {
             q.isEmpty() -> Empty(stringResource(R.string.fs_search_start))
-            hits.isEmpty() -> Empty(stringResource(R.string.fs_nothing, q), stringResource(R.string.fs_nothing_hint))
+            hits.isEmpty() && found.isEmpty() && !searching -> Empty(stringResource(R.string.fs_nothing, q), stringResource(R.string.fs_nothing_hint))
             else -> {
-                Section(stringResource(R.string.fs_found), "${hits.size}")
-                Group {
-                    hits.forEachIndexed { i, f ->
-                        val rel = relPath(root, f)
-                        FileRow(f.name, rel, false, i == 0, changed[rel], onClick = { onOpen(f) }, onMore = { onMore(rel) })
+                if (hits.isNotEmpty()) {
+                    Section(stringResource(R.string.fs_found), "${hits.size}")
+                    Group {
+                        hits.forEachIndexed { i, f ->
+                            val rel = relPath(root, f)
+                            FileRow(f.name, rel, false, i == 0, changed[rel], onClick = { onOpen(f) }, onMore = { onMore(rel) })
+                        }
                     }
+                }
+                val t = text
+                if (searching) {
+                    Text(
+                        stringResource(R.string.fs_text_searching), style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.sp), color = c.t3,
+                        modifier = Modifier.fillMaxWidth().padding(top = 18.dp), textAlign = TextAlign.Center,
+                    )
+                } else if (t != null && t.files.isNotEmpty()) {
+                    Section(
+                        stringResource(R.string.fs_in_text),
+                        stringResource(R.string.fs_in_text_count, pluralStringResource(R.plurals.fs_lines_n, t.lines, t.lines), pluralStringResource(R.plurals.fs_files_n, t.files.size, t.files.size)),
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        t.files.forEach { fh -> TextHitsGroup(fh, onHit) }
+                    }
+                    if (t.capped) Text(
+                        stringResource(R.string.fs_text_capped, GREP_MAX_LINES), style = TextStyle(fontFamily = DshFonts.body, fontSize = 12.5.sp, lineHeight = 17.sp), color = c.t3,
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp), textAlign = TextAlign.Center,
+                    )
                 }
             }
         }
         Spacer(Modifier.navigationBarsPadding())
+    }
+}
+
+/** Пауза после ввода перед поиском по тексту: не читать проект на каждую букву. */
+private const val GREP_DELAY_MS = 250L
+
+/** `.fg`: файл (иконка, имя, путь, сколько строк) и строки с совпадением; найденное подсвечено, как в правке. */
+@Composable
+private fun TextHitsGroup(fh: FileHits, onHit: (String, Int) -> Unit) {
+    val c = Dsh.colors
+    val name = fh.path.substringAfterLast('/')
+    Group {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(role = Role.Button) { onHit(fh.path, fh.hits.first().offset) }
+                .padding(start = 12.dp, end = 14.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            FileTile(name, false)
+            Column(Modifier.weight(1f)) {
+                Text(name, style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Medium, fontSize = 14.5.sp, lineHeight = 19.sp), color = c.t1, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(fh.path, style = TextStyle(fontFamily = DshFonts.body, fontSize = 12.sp, lineHeight = 15.5.sp), color = c.t3, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Text("${fh.total}", style = TextStyle(fontFamily = DshFonts.body, fontSize = 12.5.sp), color = c.t3)
+        }
+        val code = TextStyle(fontFamily = DshFonts.mono, fontSize = 12.5.sp, lineHeight = 18.sp)
+        fh.hits.take(GREP_SHOW).forEach { h ->
+            Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
+            val label = stringResource(R.string.fs_text_line, h.line)
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 40.dp).clickable(role = Role.Button) { onHit(fh.path, h.offset) }
+                    .semantics { contentDescription = label }.padding(end = 14.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("${h.line}", style = code.copy(textAlign = TextAlign.End), color = c.t3, maxLines = 1, modifier = Modifier.width(52.dp).padding(end = 12.dp))
+                val shown = remember(h, c) {
+                    androidx.compose.ui.text.buildAnnotatedString {
+                        append(h.snippet)
+                        addStyle(androidx.compose.ui.text.SpanStyle(background = c.accentSoft, color = c.t1), h.start, h.end)
+                    }
+                }
+                Text(shown, style = code, color = c.t2, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            }
+        }
+        if (fh.total > GREP_SHOW && fh.hits.size > GREP_SHOW) {
+            Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
+            Text(
+                stringResource(R.string.fs_text_more, fh.total - GREP_SHOW), style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.sp), color = c.accent,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp).clickable(role = Role.Button) { onHit(fh.path, fh.hits[GREP_SHOW].offset) }
+                    .padding(start = 52.dp, end = 14.dp).wrapContentHeight(Alignment.CenterVertically),
+            )
+        }
     }
 }
 

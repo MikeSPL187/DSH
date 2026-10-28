@@ -16,12 +16,19 @@
     <string name="fs_badge_mod">mod.</string>
     <string name="fs_search_title">Search</string>
     <string name="fs_search_sub">whole project</string>
-    <string name="fs_search_ph">Find a file in the project</string>
+    <string name="fs_search_ph">Search the project</string>
     <string name="fs_search_close">Close search</string>
-    <string name="fs_search_start">Start typing a file name</string>
-    <string name="fs_found">Found</string>
+    <string name="fs_search_start">A file name or text inside files</string>
+    <string name="fs_found">Files</string>
     <string name="fs_nothing">Nothing found for “%1$s”</string>
     <string name="fs_nothing_hint">Ask the agent: “find where Room is configured”</string>
+    <string name="fs_in_text">In text</string>
+    <string name="fs_in_text_count">%1$s · %2$s</string>
+    <plurals name="fs_lines_n"><item quantity="one">%d line</item><item quantity="other">%d lines</item></plurals>
+    <string name="fs_text_more">%1$d more in this file</string>
+    <string name="fs_text_searching">Searching inside files…</string>
+    <string name="fs_text_capped">Showing the first %1$d lines — refine the query</string>
+    <string name="fs_text_line">Line %1$d</string>
     <string name="fs_empty_dir">This folder is empty</string>
     <string name="fs_empty_dir_hint">Add a file with “+” or ask the agent</string>
     <string name="fs_changes_title">Changes</string>

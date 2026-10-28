@@ -72,13 +72,25 @@ internal class FileEditor {
     val canUndo: Boolean get() = undoStack.isNotEmpty()
     val canRedo: Boolean get() = redoStack.isNotEmpty()
 
-    fun reset(p: String) { path = p; doc = null; value = TextFieldValue(""); problem = null; saving = false; clearHistory() }
+    fun reset(p: String) { path = p; doc = null; value = TextFieldValue(""); problem = null; saving = false; findOpen = false; pendingFind = null; clearHistory() }
+
+    /** Открыть из поиска по проекту: после загрузки — «Найти» с [query] и выделенным совпадением у [offset]. */
+    fun findAt(query: String, offset: Int) { pendingFind = query to offset }
+    private var pendingFind: Pair<String, Int>? = null
 
     private fun clearHistory() { undoStack.clear(); redoStack.clear(); lastEdit = 0L }
 
     fun load(file: File) {
         openForEdit(file)
-            .onSuccess { doc = it; value = TextFieldValue(it.text); problem = null; clearHistory() }
+            .onSuccess {
+                doc = it; value = TextFieldValue(it.text); problem = null; clearHistory()
+                pendingFind?.let { (q, at) ->
+                    pendingFind = null
+                    query = q; findOpen = true
+                    value = value.copy(selection = TextRange(at.coerceIn(0, it.text.length)))
+                    seek(0)
+                }
+            }
             .onFailure { problem = (it as? EditException)?.problem ?: EditProblem.UNREADABLE }
     }
 

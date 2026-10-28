@@ -15,12 +15,19 @@
     <string name="fs_badge_mod">изм.</string>
     <string name="fs_search_title">Поиск</string>
     <string name="fs_search_sub">по всему проекту</string>
-    <string name="fs_search_ph">Найти файл в проекте</string>
+    <string name="fs_search_ph">Найти в проекте</string>
     <string name="fs_search_close">Закрыть поиск</string>
-    <string name="fs_search_start">Начните вводить имя файла</string>
-    <string name="fs_found">Найдено</string>
+    <string name="fs_search_start">Имя файла или текст внутри файлов</string>
+    <string name="fs_found">Файлы</string>
     <string name="fs_nothing">Ничего не нашлось по «%1$s»</string>
     <string name="fs_nothing_hint">Попросите агента: «найди, где настраивается Room»</string>
+    <string name="fs_in_text">В тексте</string>
+    <string name="fs_in_text_count">%1$s · %2$s</string>
+    <plurals name="fs_lines_n"><item quantity="one">%d строка</item><item quantity="few">%d строки</item><item quantity="many">%d строк</item><item quantity="other">%d строки</item></plurals>
+    <string name="fs_text_more">Ещё %1$d в этом файле</string>
+    <string name="fs_text_searching">Ищу в тексте файлов…</string>
+    <string name="fs_text_capped">Показаны первые %1$d строк — уточните запрос</string>
+    <string name="fs_text_line">Строка %1$d</string>
     <string name="fs_empty_dir">Папка пуста</string>
     <string name="fs_empty_dir_hint">Добавьте файл через «+» или попросите агента</string>
     <string name="fs_changes_title">Изменения</string>

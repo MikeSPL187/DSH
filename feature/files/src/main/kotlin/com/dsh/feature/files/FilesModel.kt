@@ -254,13 +254,18 @@ internal fun openForEdit(file: File): Result<EditDoc> = runCatching {
     if (file.length() > MAX_EDIT_BYTES) throw EditException(EditProblem.TOO_BIG)
     val stamp = stampOf(file)
     val bytes = runCatching { file.readBytes() }.getOrElse { throw EditException(EditProblem.UNREADABLE) }
-    if (bytes.any { it == 0.toByte() }) throw EditException(EditProblem.NOT_TEXT)
+    val raw = strictText(bytes) ?: throw EditException(EditProblem.NOT_TEXT)
+    val crlf = raw.contains("\r\n")
+    EditDoc(if (crlf) raw.replace("\r\n", "\n") else raw, crlf, stamp)
+}
+
+/** Текст в строгом UTF-8 без нулевых байтов, иначе null (двоичный файл или другая кодировка). */
+internal fun strictText(bytes: ByteArray): String? {
+    if (bytes.any { it == 0.toByte() }) return null
     val decoder = Charsets.UTF_8.newDecoder()
         .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
         .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
-    val raw = runCatching { decoder.decode(java.nio.ByteBuffer.wrap(bytes)).toString() }.getOrElse { throw EditException(EditProblem.NOT_TEXT) }
-    val crlf = raw.contains("\r\n")
-    EditDoc(if (crlf) raw.replace("\r\n", "\n") else raw, crlf, stamp)
+    return runCatching { decoder.decode(java.nio.ByteBuffer.wrap(bytes)).toString() }.getOrNull()
 }
 
 /** Итог сохранения: записано (новый отпечаток) или файл изменили извне после открытия. */
@@ -338,4 +343,82 @@ internal fun revertHunk(text: String, hunk: List<DiffRow>): String? {
     repeat(count) { all.removeAt(from) }
     all.addAll(from, oldSide)
     return all.joinToString("\n")
+}
+
+// ── Поиск по тексту во всём проекте ──
+
+/**
+ * Строка с найденным текстом: номер (с 1), где совпадение в тексте файла — как в правке (переводы строк `\n`) —
+ * и отрезок строки для показа: без отступа, а если совпадение далеко — с «…» за [GREP_LEAD] знаков до него.
+ * [start]..[end] — найденное внутри [snippet].
+ */
+data class TextHit(val line: Int, val offset: Int, val snippet: String, val start: Int, val end: Int)
+
+/** Найденное в одном файле: путь от корня, первые строки (не больше [GREP_KEEP]) и сколько всего. */
+data class FileHits(val path: String, val hits: List<TextHit>, val total: Int)
+
+/** Итог поиска: файлы с совпадениями, всего строк и упёрся ли поиск в предел [GREP_MAX_LINES]. */
+data class TextSearch(val files: List<FileHits>, val lines: Int, val capped: Boolean)
+
+/** Сколько знаков строки оставить перед совпадением. */
+const val GREP_LEAD = 18
+/** Сколько строк файла показать до «Ещё N в этом файле» (+1 — чтобы знать, куда ведёт «Ещё»). */
+const val GREP_SHOW = 5
+const val GREP_KEEP = GREP_SHOW + 1
+/** Больше строк не ищем — просим уточнить запрос. */
+const val GREP_MAX_LINES = 1000
+/** Длиннее строки (сжатый код) обрезаются после совпадения. */
+private const val GREP_TAIL = 160
+
+/** Строки [text] с [query] без учёта регистра: первые [keep] и сколько всего (не больше [limit]). */
+internal fun grepText(text: String, query: String, keep: Int = GREP_KEEP, limit: Int = Int.MAX_VALUE): Pair<List<TextHit>, Int> {
+    if (query.isEmpty()) return emptyList<TextHit>() to 0
+    val out = ArrayList<TextHit>()
+    var total = 0
+    var pos = 0
+    var no = 1
+    var counted = 0
+    while (total < limit && pos <= text.length) {
+        val k = text.indexOf(query, pos, ignoreCase = true)
+        if (k < 0) break
+        for (x in counted until k) if (text[x] == '\n') no++
+        counted = k
+        val ls = text.lastIndexOf('\n', k - 1) + 1
+        val le = text.indexOf('\n', k).let { if (it < 0) text.length else it }
+        total++
+        if (out.size < keep) {
+            val line = text.substring(ls, le)
+            val col = k - ls
+            val lead = line.length - line.trimStart().length
+            val from = maxOf(minOf(lead, col), col - GREP_LEAD)
+            val cut = if (from > lead) "…" else ""
+            val tailEnd = minOf(line.length, col + query.length + GREP_TAIL)
+            val snippet = cut + line.substring(from, tailEnd) + if (tailEnd < line.length) "…" else ""
+            val s = cut.length + col - from
+            out += TextHit(no, k, snippet, s, s + query.length)
+        }
+        // Одна строка — одна находка: дальше ищем со следующей.
+        pos = le + 1
+    }
+    return out to total
+}
+
+/**
+ * Найти [query] в тексте файлов [files] проекта [root]: только то, что откроется в правке (строгий UTF-8 до
+ * [MAX_EDIT_BYTES]), не больше [maxLines] строк. [active] = false — поиск устарел (запрос сменился), бросаем.
+ */
+internal fun searchText(root: File, files: List<File>, query: String, maxLines: Int = GREP_MAX_LINES, active: () -> Boolean = { true }): TextSearch {
+    val out = ArrayList<FileHits>()
+    var lines = 0
+    for (f in files) {
+        if (!active() || lines >= maxLines) break
+        if (f.length() > MAX_EDIT_BYTES || f.length() < query.length) continue
+        val raw = runCatching { f.readBytes() }.getOrNull()?.let(::strictText) ?: continue
+        val text = if ('\r' in raw) raw.replace("\r\n", "\n") else raw
+        val (hits, total) = grepText(text, query, limit = maxLines - lines)
+        if (total == 0) continue
+        lines += total
+        out += FileHits(relPath(root, f), hits, total)
+    }
+    return TextSearch(out.sortedBy { it.path.lowercase() }, lines, lines >= maxLines)
 }

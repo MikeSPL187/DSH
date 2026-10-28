@@ -969,6 +969,18 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .fs-sec { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--t3); margin: 16px 6px 8px; display: flex; justify-content: space-between; }
 .fs-sec span:nth-child(2) { text-transform: none; letter-spacing: 0; }
 .fs-empty { text-align: center; padding: 40px 20px; color: var(--t3); font-size: 14.5px; }
+/* Поиск по тексту (fg — find/grep; gh- занят GitHub): файл и строки с совпадением, найденное подсвечено, как в правке */
+.fg + .fg { margin-top: 10px; }
+.fg-file { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 6px 14px 6px 12px; text-align: left; }
+.fg-file .tx { flex: 1; min-width: 0; line-height: 1.3; }
+.fg-file .tx b { display: block; font-weight: 500; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fg-file .tx small { display: block; font-size: 12px; color: var(--t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fg-file .n { flex: none; font-size: 12.5px; color: var(--t3); }
+.fg-ln { display: flex; align-items: center; width: 100%; min-height: 40px; padding: 4px 14px 4px 0; border-top: 1px solid var(--line); text-align: left; font: 12.5px/1.45 var(--font-mono); }
+.fg-ln .no { flex: none; width: 52px; padding-right: 12px; text-align: right; color: var(--t3); }
+.fg-ln .txt { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--t2); }
+.fg-ln mark { background: var(--accent-soft); color: var(--t1); border-radius: 4px; padding: 1px 0; }
+.fg-more { display: block; width: 100%; min-height: 40px; padding: 0 14px 0 52px; border-top: 1px solid var(--line); text-align: left; font-size: 13px; color: var(--accent); }
 /* просмотр файла */
 .fv-head { display: flex; align-items: center; gap: 12px; padding: 4px 0 12px; }
 .fv-head .tx { flex: 1; min-width: 0; }
@@ -1981,7 +1993,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
             <button role="tab" aria-checked="true">Файлы</button>
             <button role="tab" aria-checked="false">Изменения<span class="cnt" id="fsChCnt">2</span></button>
           </div>
-          <label class="fs-search" id="fsSearch"><svg class="i sm"><use href="#i-search"/></svg><input id="fsQ" placeholder="Найти файл в проекте" autocomplete="off" spellcheck="false"><button class="iconbtn" id="fsQx" aria-label="Закрыть поиск"><svg class="i sm"><use href="#i-x"/></svg></button></label>
+          <label class="fs-search" id="fsSearch"><svg class="i sm"><use href="#i-search"/></svg><input id="fsQ" placeholder="Найти в проекте" autocomplete="off" spellcheck="false"><button class="iconbtn" id="fsQx" aria-label="Закрыть поиск"><svg class="i sm"><use href="#i-x"/></svg></button></label>
         </div>
         <div class="fs-body" id="fsBody"></div>
       </section>
@@ -3171,6 +3183,8 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     $("#fsEdit").style.display = editable ? "" : "none"; $("#feSave").style.display = top.t === "edit" ? "" : "none"; $("#feSave").disabled = !FE.dirty;
     $("#fsAdd").style.display = top.t === "edit" || editable ? "none" : ""; $("#fsFind").style.display = top.t === "edit" ? "none" : "";
     $("#fsTitle").textContent = t; $("#fsSub").textContent = sub;
+    // Из поиска открыли файл — поле поиска прячется (как в приложении), «Назад» возвращает к результатам.
+    const sOn = $("#fsSearch").classList.contains("on"); $("#fsSearch").style.display = sOn && top.t !== "search" ? "none" : ""; $(".fs-head").classList.toggle("searching", sOn && top.t === "search");
     // «+» нужен только в папке, поиск — в папках и списке изменений
     $("#fsAdd").style.visibility = top.t === "dir" ? "" : "hidden";
     $("#fsFind").style.visibility = top.t === "dir" || top.t === "changes" ? "" : "hidden";
@@ -3212,8 +3226,37 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     const v = document.createElement("div"); v.className = "fs-view";
     const all = []; const walk = (d) => kids(d).forEach((n) => { const p = d + n; if (n.endsWith("/")) walk(p); else all.push(p); }); walk("");
     const hits = q ? all.filter((p) => p.toLowerCase().includes(q.toLowerCase())) : [];
-    v.innerHTML = !q ? `<div class="fs-empty">Начните вводить имя файла</div>` : hits.length ? `<div class="fs-sec"><span>Найдено</span><span>${hits.length}</span></div><div class="gl">${hits.map((h) => rowHtml(h, true)).join("")}</div>` : `<div class="fs-empty">Ничего не нашлось по «${esc2(q)}»<br><small>Попросите агента: «найди, где настраивается Room»</small></div>`;
+    const text = q.length >= 2 ? grepAll(all, q) : [], lines = text.reduce((n, f) => n + f.lines.length, 0);
+    let h = "";
+    if (hits.length) h += `<div class="fs-sec"><span>Файлы</span><span>${hits.length}</span></div><div class="gl">${hits.map((x) => rowHtml(x, true)).join("")}</div>`;
+    if (text.length) h += `<div class="fs-sec"><span>В тексте</span><span>${lines} ${plural(lines, "строка", "строки", "строк")} · ${text.length} ${plural(text.length, "файл", "файла", "файлов")}</span></div>` + text.map((f) => `<div class="gl fg"><button class="fg-file" data-fg="${f.p}" data-at="${f.lines[0].at}">${ftHtml(f.p)}<span class="tx"><b>${f.p.split("/").pop()}</b><small>${f.p}</small></span><span class="n">${f.lines.length}</span></button>${f.lines.slice(0, GH_SHOW).map((l) => `<button class="fg-ln" data-fg="${f.p}" data-at="${l.at}" aria-label="Строка ${l.no}"><span class="no">${l.no}</span><span class="txt">${l.html}</span></button>`).join("")}${f.lines.length > GH_SHOW ? `<button class="fg-more" data-fg="${f.p}" data-at="${f.lines[GH_SHOW].at}">Ещё ${f.lines.length - GH_SHOW} в этом файле</button>` : ""}</div>`).join("");
+    v.innerHTML = !q ? `<div class="fs-empty">Имя файла или текст внутри файлов</div>` : h || `<div class="fs-empty">Ничего не нашлось по «${esc2(q)}»<br><small>Попросите агента: «найди, где настраивается Room»</small></div>`;
     return v;
+  }
+  // Поиск по тексту: без учёта регистра, только текстовые файлы, которые можно открыть в правке; строка обрезается
+  // так, чтобы найденное было видно у левого края.
+  const GH_SHOW = 5;
+  function grepAll(files, q) {
+    const ql = q.toLowerCase(), out = [];
+    for (const p of files) {
+      const src = SRC[p]; if (src == null) continue;
+      const lines = []; let at = 0;
+      src.split("\n").forEach((line, i) => {
+        const k = line.toLowerCase().indexOf(ql);
+        if (k >= 0) {
+          const lead = line.length - line.trimStart().length, from = Math.max(lead, k - 18), cut = from > lead ? "…" : "";
+          lines.push({ no: i + 1, at: at + k, html: cut + esc2(line.slice(from, k)) + "<mark>" + esc2(line.slice(k, k + q.length)) + "</mark>" + esc2(line.slice(k + q.length)) });
+        }
+        at += line.length + 1;
+      });
+      if (lines.length) out.push({ p, lines });
+    }
+    return out;
+  }
+  // Строка из поиска → правка файла с открытым «Найти» и выделенным совпадением.
+  function openHit(p, at, q) {
+    FE.dirty = false; fsPush({ t: "edit", p });
+    setTimeout(() => { const a = $("#feArea"), f = $("#feFind"); if (!a) return; f.hidden = false; $("#feQ").value = q; a.setSelectionRange(at, at); ffShow(0); const lh = parseFloat(getComputedStyle(a).lineHeight) || 20; a.scrollTop = Math.max(0, (a.value.slice(0, at).split("\n").length - 3) * lh); fePos(); }, 60);
   }
   function openSearch() { $(".fs-head").classList.add("searching"); $("#fsSearch").classList.add("on"); $("#fsQ").value = ""; fsReplace({ t: "search", p: "" }); $("#fsQ").focus(); }
   function closeSearch(silent) { if (!$("#fsSearch").classList.contains("on")) return; $("#fsSearch").classList.remove("on"); $(".fs-head").classList.remove("searching"); if (!silent) fsReplace(fsTab === 0 ? { t: "dir", p: "" } : { t: "changes" }); }
@@ -3234,6 +3277,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     const more = e.target.closest("[data-more]");
     if (more) { e.stopPropagation(); faPath = more.dataset.more; $("#faIc").outerHTML = ftHtml(faPath).replace('class="ft', 'id="faIc" class="ft'); $("#faName").textContent = faPath.split("/").pop(); $("#faMeta").textContent = META[faPath] || faPath; sheetOpen("file"); return; }
     const fa2 = e.target.closest("[data-fa2]"); if (fa2) { fileAction(fa2.dataset.fa2, fa2.dataset.path); return; }
+    const gh = e.target.closest("[data-fg]"); if (gh) { openHit(gh.dataset.fg, +gh.dataset.at, $("#fsQ").value.trim()); return; }
     const df = e.target.closest("[data-diff]"); if (df) { if (DIFF[df.dataset.diff]) fsPush({ t: "diff", p: df.dataset.diff }); else fsPush({ t: "file", p: df.dataset.diff }); return; }
     const rv = e.target.closest("[data-revert]"); if (rv) { delete CHANGED[rv.dataset.revert]; toast("Изменение отменено · kotlin = \"2.0.0\""); fsPop(); return; }
     if (e.target.closest("#chReview")) { reviewChanges(); return; }
