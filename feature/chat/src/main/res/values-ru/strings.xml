@@ -302,4 +302,28 @@
     <string name="sh_loading">Загружаю переписку…</string>
     <string name="sh_empty">Переписка ещё не загружена на этот телефон — откройте сессию и повторите.</string>
     <string name="dw_share_sub_chat">Текстом Markdown, секреты скрыты</string>
+    <!-- Варианты ответа -->
+    <string name="vr_title">Другой вариант</string>
+    <string name="vr_hint">Агент решит задачу заново с того же места. Этот результат сохранится — потом можно сравнить варианты и оставить лучший.</string>
+    <string name="vr_saved_as">Сохранится как вариант %1$d</string>
+    <string name="vr_no_files">файлы не менялись</string>
+    <plurals name="vr_files">
+        <item quantity="one">%d файл</item>
+        <item quantity="few">%d файла</item>
+        <item quantity="many">%d файлов</item>
+        <item quantity="other">%d файла</item>
+    </plurals>
+    <string name="vr_no_point">Для этого сообщения нет точки возврата файлов: задача запустится ещё раз поверх текущих файлов, без сравнения вариантов.</string>
+    <string name="vr_cancel">Отмена</string>
+    <string name="vr_go">Запустить заново</string>
+    <string name="vr_go_plain">Повторить</string>
+    <string name="vr_bar">Вариант %1$d из %2$d</string>
+    <string name="vr_compare">Сравнить</string>
+    <string name="vr_list_title">Варианты</string>
+    <string name="vr_list_hint">Касание оставляет вариант: файлы станут как в нём, откроется его разговор.</string>
+    <string name="vr_n">Вариант %1$d</string>
+    <string name="vr_now">сейчас</string>
+    <string name="vr_started">Вариант %1$d запущен · файлы возвращены</string>
+    <string name="vr_kept">Оставлен вариант %1$d · файлы и разговор</string>
+    <string name="vr_failed">Не удалось переключить вариант</string>
 </resources>

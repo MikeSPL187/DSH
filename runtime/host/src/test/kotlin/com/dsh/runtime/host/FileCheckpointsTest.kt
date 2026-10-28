@@ -119,3 +119,34 @@ class FileCheckpointsMatchTest {
         assertNotNull(cp.snapshot("s1", "x", now = 300_000))
     }
 }
+
+class FileCheckpointsVariantsTest {
+    @get:Rule val tmp = TemporaryFolder()
+
+    @Test
+    fun `variants keep their results, compare against the origin and survive pruning`() {
+        val p = tmp.newFolder("p").apply { File(this, "a.txt").writeText("start") }
+        val cp = FileCheckpoints(p, tmp.newFolder("s"))
+        val origin = cp.snapshot("s1", "Сделай")!!
+        File(p, "a.txt").writeText("variant 1"); File(p, "b.txt").writeText("new")
+        val r1 = cp.snapshot("s1", FileCheckpoints.VARIANT_TEXT)!!
+        cp.putGroup(FileCheckpoints.Group(origin.id, "Сделай".hashCode(), listOf(FileCheckpoints.Variant("s1", r1.id), FileCheckpoints.Variant("s2"))))
+        cp.restore(origin, "s1").getOrThrow()
+        assertEquals("start", File(p, "a.txt").readText())
+        File(p, "a.txt").writeText("variant 2")
+
+        val ch = cp.changes(origin, r1)!!
+        assertEquals(listOf("a.txt"), ch.modified)
+        assertEquals(listOf("b.txt"), ch.restored) // есть в результате, нет в точке
+        assertEquals("s1", cp.groupOf("s2")!!.variants.first().session)
+
+        // Оставить вариант 1 — его файлы возвращаются.
+        cp.restore(cp.pointById(r1.id)!!, "s2").getOrThrow()
+        assertEquals("variant 1", File(p, "a.txt").readText())
+        assertTrue(File(p, "b.txt").exists())
+
+        repeat(FileCheckpoints.KEEP + 5) { cp.snapshot("s3", "m$it") }
+        assertNotNull(cp.pointById(origin.id))
+        assertNotNull(cp.pointById(r1.id))
+    }
+}

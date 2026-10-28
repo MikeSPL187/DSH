@@ -319,6 +319,8 @@ fun ModernChatScreen(
     var contextOpen by remember { mutableStateOf(initialSheet == "context") }
     var trajectoryOpen by remember { mutableStateOf(false) }
     var actionMessage by remember { mutableStateOf(if (initialSheet == "msg") messages.firstOrNull { it.role == MessageRole.USER } else null) }
+    var variantFor by remember { mutableStateOf(if (initialSheet == "variant") messages.firstOrNull { it.role == MessageRole.USER } else null) }
+    var variantsOpen by remember { mutableStateOf(initialSheet == "variants") }
     var shareOpen by remember { mutableStateOf(initialSheet == "share") }
     var rewindMessage by remember { mutableStateOf(if (initialSheet == "rewind") messages.firstOrNull { it.role == MessageRole.USER } else null) }
     val localContext = LocalContext.current
@@ -567,7 +569,7 @@ fun ModernChatScreen(
             lastScroll = y
         }
     }
-    val closeSheets = { actionMessage = null; rewindMessage = null; shareOpen = false; trajectoryOpen = false; pendingConfirm = null; modelMenuOpen = false; permissionMenuOpen = false; agentPresetMenuOpen = false; toolDetail = null; changeDiffIndex = null; commandSheetOpen = false; subagentsOpen = false; contextOpen = false }
+    val closeSheets = { actionMessage = null; rewindMessage = null; shareOpen = false; variantFor = null; variantsOpen = false; trajectoryOpen = false; pendingConfirm = null; modelMenuOpen = false; permissionMenuOpen = false; agentPresetMenuOpen = false; toolDetail = null; changeDiffIndex = null; commandSheetOpen = false; subagentsOpen = false; contextOpen = false }
     val effortOptions = reasoningOptions
     val sheet: (@Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit)? = when {
         modelMenuOpen -> {
@@ -672,6 +674,27 @@ fun ModernChatScreen(
                     onPermissionSelected(preset)
                     pendingConfirm = null
                 }
+            }
+            body
+        }
+        variantFor != null -> {
+            val m = variantFor!!
+            val body: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
+                val ctx = LocalContext.current
+                VariantSheetBody(m, services, onCancel = { variantFor = null }) { withPoint ->
+                    variantFor = null
+                    if (withPoint) {
+                        services.startVariant(m)
+                        val n = (services.variantsInfo()?.count ?: 1) + 1
+                        android.widget.Toast.makeText(ctx, ctx.getString(R.string.vr_started, n), android.widget.Toast.LENGTH_SHORT).show()
+                    } else onSendMessage(m.content)
+                }
+            }
+            body
+        }
+        variantsOpen -> {
+            val body: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
+                VariantsSheetBody(services) { i -> variantsOpen = false; services.keepVariant(i) }
             }
             body
         }
@@ -880,8 +903,9 @@ fun ModernChatScreen(
                                                     cm.setPrimaryClip(android.content.ClipData.newPlainText("message", answer))
                                                     android.widget.Toast.makeText(localContext, copied, android.widget.Toast.LENGTH_SHORT).show()
                                                 },
+                                                // «Повторить» — «Другой вариант»: результат сохраняется, задача решается заново с той же точки.
                                                 onRetry = {
-                                                    messages.lastOrNull { it.role == MessageRole.USER && it.createdAt <= m.createdAt }?.let { onSendMessage(it.content) }
+                                                    messages.lastOrNull { it.role == MessageRole.USER && it.createdAt <= m.createdAt }?.let { variantFor = it }
                                                 },
                                                 onShare = {
                                                     val send = android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT, answer)
@@ -899,6 +923,10 @@ fun ModernChatScreen(
                                                         services.rate(m.messageId, feedback[m.messageId]?.rating ?: "positive", note)
                                                     },
                                                 )
+                                            }
+                                            // Варианты ответа — под последним ответом сессии-варианта.
+                                            if (m.messageId == messages.lastOrNull { it.role == MessageRole.ASSISTANT }?.messageId) {
+                                                services.variantsInfo()?.let { info -> VariantsBar(info, { variantsOpen = true }) }
                                             }
                                         }
                                     }

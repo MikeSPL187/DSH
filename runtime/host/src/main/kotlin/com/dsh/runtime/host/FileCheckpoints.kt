@@ -42,6 +42,7 @@ class FileCheckpoints(private val project: File, storeRoot: File) {
     private val dir = File(storeRoot, sha1(project.canonicalPath).take(16))
     private val gitDir = File(dir, "store.git")
     private val indexFile = File(dir, "points.json")
+    private val groupsFile = File(dir, "variants.json")
     private val json = Json { ignoreUnknownKeys = true }
 
     @Synchronized
@@ -91,6 +92,39 @@ class FileCheckpoints(private val project: File, storeRoot: File) {
         val hash = text.trim().hashCode()
         return points().filter { it.session == session && it.textHash == hash && kotlin.math.abs(it.at - sentAt) < MATCH_WINDOW_MS }
             .minByOrNull { kotlin.math.abs(it.at - sentAt) }
+    }
+
+    fun pointById(id: String): Point? = points().firstOrNull { it.id == id }
+
+    /** Чем снимок [to] отличается от снимка [from] (что сделал вариант относительно точки, с которой начат). */
+    @Synchronized
+    fun changes(from: Point, to: Point): Preview? = runCatching {
+        repo().use { r -> diff(r, r.parseCommit(ObjectId.fromString(from.id)).tree, r.parseCommit(ObjectId.fromString(to.id)).tree) }
+    }.getOrNull()
+
+    /**
+     * Варианты ответа: одна задача, решённая несколько раз с одной точки [origin] (её текст — [textHash]).
+     * У каждого варианта — своя сессия (развилка разговора) и снимок результата, снятый, когда вариант покинули.
+     */
+    @Serializable
+    data class Variant(val session: String, val result: String? = null)
+
+    @Serializable
+    data class Group(val origin: String, val textHash: Int, val variants: List<Variant>)
+
+    fun groups(): List<Group> = runCatching { json.decodeFromString<List<Group>>(groupsFile.readText()) }.getOrDefault(emptyList())
+
+    /** Группа, в которой есть сессия [session]; null — сессия не вариант. */
+    fun groupOf(session: String): Group? = groups().lastOrNull { g -> g.variants.any { it.session == session } }
+
+    /** Заменить группу с тем же [Group.origin] (или добавить); хранятся последние [KEEP_GROUPS] групп. */
+    @Synchronized
+    fun putGroup(group: Group) {
+        val all = groups().filter { it.origin != group.origin } + group
+        dir.mkdirs()
+        val tmp = File(dir, ".variants.json.tmp")
+        tmp.writeText(json.encodeToString(all.takeLast(KEEP_GROUPS)))
+        if (!tmp.renameTo(groupsFile)) error("cannot save variants")
     }
 
     /** Обновить кэш снимков без точки: следующий снимок перед сообщением будет быстрым. */
@@ -209,9 +243,12 @@ class FileCheckpoints(private val project: File, storeRoot: File) {
         }
     }
 
-    /** Оставить последние [KEEP] точек; ссылки на остальные удаляются, мусор собирается раз в [GC_EVERY] точек. */
+    /** Оставить последние [KEEP] точек и точки вариантов; ссылки на остальные удаляются, мусор собирается раз в [GC_EVERY] точек. */
     private fun prune(r: FileRepository, all: List<Point>): List<Point> {
-        val keep = all.takeLast(KEEP)
+        // Точки, на которые ссылаются варианты, живут, пока жива их группа.
+        val pinned = groups().flatMap { g -> listOf(g.origin) + g.variants.mapNotNull { it.result } }.toSet()
+        val recent = all.takeLast(KEEP).toSet()
+        val keep = all.filter { it in recent || it.id in pinned }
         (all - keep.toSet()).forEach { p -> r.updateRef("refs/dsh/cp/${p.id}").apply { isForceUpdate = true }.delete() }
         if (all.size % GC_EVERY == 0) runCatching {
             // Час на «висящие» объекты: снимок, который сейчас пишется, ещё ни на что не ссылается.
@@ -235,6 +272,9 @@ class FileCheckpoints(private val project: File, storeRoot: File) {
         private const val MATCH_WINDOW_MS = 10 * 60_000L
         /** Текст «сообщения» служебной точки «как было перед возвратом». */
         const val UNDO_TEXT = "\u0000dsh-undo"
+        /** Текст служебной точки «результат варианта». */
+        const val VARIANT_TEXT = "\u0000dsh-variant"
+        private const val KEEP_GROUPS = 50
         /** Пересобираемые и служебные папки: снимать их долго, а возвращать бессмысленно. */
         val SKIP_DIRS = setOf(".git", "node_modules", "build", ".gradle", "dist", "target", ".venv", "venv", "__pycache__", ".next", ".cache", ".dsh-attachments")
 

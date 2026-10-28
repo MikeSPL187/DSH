@@ -62,8 +62,39 @@ interface ChatServices {
     /** Отменить последний возврат файлов; успех — сколько файлов изменилось. */
     suspend fun undoRewind(): Result<Int> = Result.failure(UnsupportedOperationException())
 
+    /**
+     * Что даст «Другой вариант» для [message] (сообщение пользователя, на которое ответ); null — варианты
+     * недоступны, «Повторить» просто отправляет текст ещё раз.
+     */
+    suspend fun variantPlan(message: com.dsh.core.model.ChatMessage): VariantPlan? = null
+
+    /** Сохранить результат, вернуть файлы к точке перед [message] и решить задачу заново в развилке. */
+    fun startVariant(message: com.dsh.core.model.ChatMessage) {}
+
+    /** Открытая сессия — один из вариантов: какой по счёту и сколько их (состояние Compose); null — нет. */
+    fun variantsInfo(): VariantsInfo? = null
+
+    /** Варианты группы открытой сессии: что изменил каждый. */
+    suspend fun variantRows(): List<VariantRow> = emptyList()
+
+    /** Оставить вариант [index]: его файлы и разговор. */
+    fun keepVariant(index: Int) {}
+
     object None : ChatServices
 }
+
+/**
+ * План «Другого варианта».
+ *
+ * @param number под каким номером сохранится текущий результат.
+ * @param files что этот результат изменил относительно точки; null — точки нет (вариант начнётся поверх файлов).
+ */
+data class VariantPlan(val number: Int, val files: List<String>?)
+
+data class VariantsInfo(val current: Int, val count: Int)
+
+/** Строка листа «Варианты»: номер (с 1), изменённые файлы, открыт ли сейчас. */
+data class VariantRow(val number: Int, val files: List<String>, val current: Boolean)
 
 /** Что станет с файлом при возврате: изменится, удалится (создан после сообщения), вернётся (удалён после). */
 enum class RewindChange { MODIFIED, REMOVED, RESTORED }

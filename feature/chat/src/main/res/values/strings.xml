@@ -290,4 +290,26 @@
     <string name="sh_loading">Loading the conversation…</string>
     <string name="sh_empty">The conversation isn’t loaded on this phone yet — open the session and try again.</string>
     <string name="dw_share_sub_chat">As Markdown text, secrets hidden</string>
+    <!-- Answer variants -->
+    <string name="vr_title">Another variant</string>
+    <string name="vr_hint">The agent solves the task again from the same point. This result is kept — compare the variants later and keep the best.</string>
+    <string name="vr_saved_as">Kept as variant %1$d</string>
+    <string name="vr_no_files">no file changes</string>
+    <plurals name="vr_files">
+        <item quantity="one">%d file</item>
+        <item quantity="other">%d files</item>
+    </plurals>
+    <string name="vr_no_point">There’s no file checkpoint for this message: the task runs again on top of the current files, without comparing variants.</string>
+    <string name="vr_cancel">Cancel</string>
+    <string name="vr_go">Run again</string>
+    <string name="vr_go_plain">Retry</string>
+    <string name="vr_bar">Variant %1$d of %2$d</string>
+    <string name="vr_compare">Compare</string>
+    <string name="vr_list_title">Variants</string>
+    <string name="vr_list_hint">Tap to keep a variant: files become as in it and its conversation opens.</string>
+    <string name="vr_n">Variant %1$d</string>
+    <string name="vr_now">now</string>
+    <string name="vr_started">Variant %1$d started · files restored</string>
+    <string name="vr_kept">Kept variant %1$d · files and conversation</string>
+    <string name="vr_failed">Couldn’t switch the variant</string>
 </resources>

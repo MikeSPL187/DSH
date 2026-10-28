@@ -456,6 +456,21 @@ class DshScreensSweepTest {
     )
 
     @Composable
+    private fun withVariants(point: Boolean, content: @Composable () -> Unit) {
+        val services = object : com.dsh.feature.chat.ChatServices {
+            override suspend fun variantPlan(message: com.dsh.core.model.ChatMessage) =
+                com.dsh.feature.chat.VariantPlan(2, if (point) listOf("gradle/libs.versions.toml", "scripts/backup.sh") else null)
+            override fun variantsInfo() = com.dsh.feature.chat.VariantsInfo(1, 3)
+            override suspend fun variantRows() = listOf(
+                com.dsh.feature.chat.VariantRow(1, listOf("gradle/libs.versions.toml", "scripts/backup.sh"), false),
+                com.dsh.feature.chat.VariantRow(2, listOf("gradle/libs.versions.toml"), true),
+                com.dsh.feature.chat.VariantRow(3, listOf("gradle/libs.versions.toml", "app/build.gradle.kts", "scripts/backup.sh", "README.md"), false),
+            )
+        }
+        androidx.compose.runtime.CompositionLocalProvider(com.dsh.feature.chat.LocalChatServices provides services, content = content)
+    }
+
+    @Composable
     private fun withRewind(plan: com.dsh.feature.chat.RewindPlan, content: @Composable () -> Unit) {
         val services = object : com.dsh.feature.chat.ChatServices {
             override suspend fun rewindPlan(message: com.dsh.core.model.ChatMessage) = plan
@@ -524,6 +539,10 @@ class DshScreensSweepTest {
                 "chat-rewind-sheet" to @Composable { withRewind(rewindDemo) { chatAgent(done = true, sheet = "rewind") } },
                 "chat-rewind-many-sheet" to @Composable { withRewind(rewindMany) { chatAgent(done = true, sheet = "rewind") } },
                 "chat-share-sheet" to @Composable { chatAgent(done = true, sheet = "share") },
+                "chat-variant-sheet" to @Composable { withVariants(point = true) { chatAgent(done = true, sheet = "variant") } },
+                "chat-variant-nopoint-sheet" to @Composable { withVariants(point = false) { chatAgent(done = true, sheet = "variant") } },
+                "chat-variants-bar" to @Composable { withVariants(point = true) { chatAgent(done = true) } },
+                "chat-variants-sheet" to @Composable { withVariants(point = true) { chatAgent(done = true, sheet = "variants") } },
                 "chat-rewind-none-sheet" to @Composable { withRewind(com.dsh.feature.chat.RewindPlan(false, emptyList())) { chatAgent(done = true, sheet = "rewind") } },
             ),
         ),

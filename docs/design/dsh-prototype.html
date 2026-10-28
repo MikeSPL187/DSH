@@ -1329,6 +1329,15 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
 .rw-files .rf b { flex: none; font-weight: 500; font-size: 12.5px; }
 .rw-files .rf b.mod { color: var(--t2); } .rw-files .rf b.add { color: var(--danger); } .rw-files .rf b.del { color: var(--ok); }
 .rw-files .more { min-height: 36px; display: flex; align-items: center; font-size: 13px; color: var(--t3); border-top: 1px solid var(--line); }
+.vr-bar { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; margin: -6px 0 14px; padding: 0 12px 0 14px; border-radius: 14px; background: var(--s2); text-align: left; font-size: 14px; color: var(--t1); }
+.vr-bar .i { flex: none; color: var(--t3); }
+.vr-bar b { font-weight: 500; }
+.vr-bar span { flex: 1; min-width: 0; }
+.vr-bar em { font-style: normal; font-weight: 500; color: color-mix(in srgb, var(--accent) 82%, var(--t1)); }
+.vr-card { margin-bottom: 4px; padding: 12px 14px; border-radius: 18px; background: var(--s2); font-size: 14px; line-height: 1.45; color: var(--t2); }
+.vr-card b { display: block; font-weight: 500; font-size: 15px; color: var(--t1); margin-bottom: 2px; }
+.vr-card code { font-family: var(--font-mono); font-size: 12.5px; color: var(--t1); }
+.li .now { flex: none; font-size: 12.5px; font-weight: 500; color: var(--ok); }
 .sh-pre { position: relative; margin-bottom: 4px; padding: 12px 14px; border-radius: 18px; background: var(--s2); }
 .sh-pre b { display: block; font-size: 15px; font-weight: 500; line-height: 1.3; color: var(--t1); }
 .sh-pre small { display: block; margin-top: 2px; font-size: 12.5px; color: var(--t3); }
@@ -1733,6 +1742,23 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <div class="list" style="margin-top:10px">
           <button class="li" data-ss="archive"><span class="lic"><svg class="i sm"><use href="#i-box"/></svg></span><span class="tx">В архив</span></button>
         </div>
+      </section>
+
+      <!-- Лист: другой вариант ответа -->
+      <section class="sheet" id="sheet-variant" aria-label="Другой вариант">
+        <div class="grab"></div>
+        <h3>Другой вариант</h3>
+        <p class="lim-hint">Агент решит задачу заново с того же места. Этот результат сохранится — потом можно сравнить варианты и оставить лучший.</p>
+        <div class="vr-card" id="vrCard"></div>
+        <div class="cm-btns"><button class="btn ghost" data-act="close">Отмена</button><button class="btn primary" id="vrGo">Запустить заново</button></div>
+      </section>
+
+      <!-- Лист: варианты ответа -->
+      <section class="sheet" id="sheet-variants" aria-label="Варианты">
+        <div class="grab"></div>
+        <h3>Варианты</h3>
+        <p class="lim-hint">Касание оставляет вариант: файлы станут как в нём, откроется его разговор.</p>
+        <div class="list" id="vrList"></div>
       </section>
 
       <!-- Лист: поделиться разговором -->
@@ -4010,6 +4036,38 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       sheetClose(); toast(id === "rwBoth" ? `Файлы возвращены · ${n} ${n === 1 ? "файл" : "файла"} · новая ветка разговора` : "Новая ветка разговора");
       const f = $("#field"); f.textContent = text; f.dispatchEvent(new Event("input", { bubbles: true }));
     }
+  });
+
+  // ── Другой вариант: результат сохраняется, файлы — к точке перед сообщением, задача — заново в развилке ──
+  const VR = { list: [], cur: 0 };
+  const VR_DEMO = [["gradle/libs.versions.toml", "scripts/backup.sh"], ["gradle/libs.versions.toml"], ["gradle/libs.versions.toml", "app/build.gradle.kts", "scripts/backup.sh"]];
+  function vrFiles(i) { const f = VR_DEMO[i % 3], n = f.length; return `${n} ${n === 1 ? "файл" : n < 5 ? "файла" : "файлов"}: ${f.map((x) => x.split("/").pop()).join(", ")}`; }
+  function vrBar(after) {
+    $$(".vr-bar", thread).forEach((b) => b.remove());
+    if (VR.list.length < 2) return;
+    const b = document.createElement("button"); b.className = "vr-bar"; b.id = "vrBar";
+    b.innerHTML = `<svg class="i sm"><use href="#i-flow"/></svg><span><b>Вариант ${VR.cur + 1} из ${VR.list.length}</b></span><em>Сравнить</em><svg class="i sm"><use href="#i-right"/></svg>`;
+    after.after(b);
+  }
+  document.addEventListener("click", (e) => {
+    const r = e.target.closest('.actions [aria-label="Повторить"]');
+    if (r) {
+      VR.actions = r.closest(".actions");
+      const n = VR.list.length || 1;
+      $("#vrCard").innerHTML = `<b>Сохранится как вариант ${n}</b>${vrFiles(n - 1)}`;
+      sheetOpen("variant"); return;
+    }
+    if (e.target.closest("#vrBar")) {
+      $("#vrList").innerHTML = VR.list.map((_, i) => `<button class="li" data-vr="${i}"><span class="lic"><svg class="i sm"><use href="#i-flow"/></svg></span><span class="tx">Вариант ${i + 1}<small>${vrFiles(i)}</small></span>${i === VR.cur ? `<span class="now">сейчас</span>` : ""}</button>`).join("");
+      sheetOpen("variants"); return;
+    }
+    const v = e.target.closest("[data-vr]");
+    if (v) { const i = +v.dataset.vr; sheetClose(); if (i !== VR.cur) { VR.cur = i; vrBar(VR.actions); toast(`Оставлен вариант ${i + 1} · файлы и разговор`); } }
+  });
+  $("#vrGo").addEventListener("click", () => {
+    if (!VR.list.length) VR.list.push(1);
+    VR.list.push(VR.list.length + 1); VR.cur = VR.list.length - 1;
+    sheetClose(); vrBar(VR.actions); toast(`Вариант ${VR.cur + 1} запущен · файлы возвращены`);
   });
 
   // ── Сессия: долгое нажатие в меню → действия; «Поделиться разговором» — Markdown без секретов ──
