@@ -161,4 +161,25 @@
     <string name="fs_pr_draft_unsupported">Черновики в этом репозитории недоступны — выключите «Черновик»</string>
     <string name="fs_pr_not_github">Проект не на GitHub</string>
     <string name="fs_pr_failed">Не удалось создать запрос: %1$s</string>
+    <!-- Правка файла -->
+    <string name="fe_edit">Править</string>
+    <string name="fe_sub">Правка</string>
+    <string name="fe_sub_dirty">Правка · не сохранено</string>
+    <string name="fe_save">Сохранить</string>
+    <string name="fe_saved">Сохранено</string>
+    <string name="fe_save_failed">Не удалось сохранить: %1$s</string>
+    <string name="fe_area">Текст файла</string>
+    <string name="fe_pos">строка %1$d, столбец %2$d</string>
+    <string name="fe_tab">Табуляция</string>
+    <string name="fe_too_big">Файл больше 1 МБ — править его здесь неудобно. Попросите агента или откройте в терминале.</string>
+    <string name="fe_not_text">Это не текстовый файл (или не в UTF-8) — сохранение могло бы его испортить, поэтому правка недоступна.</string>
+    <string name="fe_unreadable">Файл не прочитать — возможно, его удалили или нет доступа.</string>
+    <string name="fe_discard_title">Выйти без сохранения?</string>
+    <string name="fe_discard_hint">Правки в этом файле пропадут.</string>
+    <string name="fe_drop">Не сохранять</string>
+    <string name="fe_conflict_title">Файл изменился</string>
+    <string name="fe_conflict_hint">Пока вы правили, файл изменил агент или другая программа. Перезаписать — ваша версия заменит новую.</string>
+    <string name="fe_reload">Открыть новый</string>
+    <string name="fe_overwrite">Перезаписать</string>
+    <string name="fe_reloaded">Открыта новая версия файла</string>
 </resources>

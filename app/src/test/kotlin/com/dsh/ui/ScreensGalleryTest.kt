@@ -191,6 +191,24 @@ class ScreensGalleryTest {
     @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
     @Test fun filesPullOpen() = renderFiles("26g_files_pull_open_360_dark", dark = true, tab = 1, git = pullGit, gitHub = yesGitHub)
 
+    // ── Правка файла ──
+    private fun androidx.compose.ui.test.junit4.AndroidComposeTestRule<*, *>.editFile(vararg path: String) {
+        path.forEach { open(it) }
+        onAllNodes(androidx.compose.ui.test.hasContentDescription("Править"))[0].performClick()
+        mainClock.autoAdvance = true; waitForIdle(); mainClock.autoAdvance = false
+        mainClock.advanceTimeBy(1_200)
+    }
+    @Config(qualifiers = "ru-w390dp-h844dp-xxhdpi")
+    @Test fun filesEdit() = renderFiles("39_files_edit") { editFile("gradle", "libs.versions.toml") }
+    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    @Test fun filesEditDirtyDark() = renderFiles("39b_files_edit_dirty_360_dark", dark = true) {
+        editFile("gradle", "libs.versions.toml")
+        onAllNodes(androidx.compose.ui.test.hasText("{"))[0].performClick()
+        mainClock.advanceTimeBy(600)
+    }
+    @Config(qualifiers = "ru-w412dp-h915dp-xxhdpi")
+    @Test fun filesEditBinary() = renderFiles("39c_files_edit_binary_412", prepare = { java.io.File(it, "data.bin").writeBytes(byteArrayOf(1, 0, 2, 3)) }) { editFile("data.bin") }
+
     @Test fun files() = renderFiles("30_files")
     @Test fun filesDark() = renderFiles("30b_files_dark", dark = true)
     @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")

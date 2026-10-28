@@ -974,6 +974,14 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .fv-head .tx { flex: 1; min-width: 0; }
 .fv-head b { display: block; font-family: var(--font-mono); font-size: 15px; font-weight: 500; }
 .fv-head small { font-size: 12.5px; color: var(--t3); }
+.fe-save { height: 40px; padding: 0 14px; margin-right: 4px; border-radius: 12px; background: var(--accent); color: var(--on-accent); font-size: 14.5px; font-weight: 600; flex: none; }
+.fe-save[disabled] { background: var(--s2); color: var(--t3); }
+.fe-view { display: flex; flex-direction: column; padding-bottom: 0; }
+.fe-area { flex: 1; width: 100%; min-height: 0; padding: 12px 14px; border-radius: 16px; border: 1.5px solid var(--line); background: var(--s1); font-family: var(--font-mono); font-size: 13.5px; line-height: 1.55; color: var(--t1); resize: none; outline: none; white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; tab-size: 4; }
+.fe-area:focus { border-color: var(--accent); }
+.fe-keys { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 10px 0 14px; flex: none; }
+.fe-keys button { height: 40px; min-width: 40px; padding: 0 10px; border-radius: 11px; background: var(--s2); font-family: var(--font-mono); font-size: 14px; color: var(--t1); flex: none; }
+.fe-pos { font-family: var(--font-mono); font-size: 12px; color: var(--t3); padding: 6px 4px 0; flex: none; }
 .fv-acts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
 .fv-acts button { height: 44px; border-radius: 13px; background: var(--s1); border: 1px solid var(--line); font-size: 13.5px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .fv-acts button.pri { background: var(--accent); color: var(--on-accent); border-color: transparent; }
@@ -1802,11 +1810,19 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <div class="cm-btns"><button class="btn ghost" data-act="close">Отмена</button><button class="btn primary" id="prGo" disabled>Создать</button></div>
       </section>
 
+      <!-- Лист: файл изменился, пока его правили -->
+      <section class="sheet" id="sheet-feconflict" aria-label="Файл изменился">
+        <div class="grab"></div>
+        <h3>Файл изменился</h3>
+        <p class="lim-hint">Пока вы правили, файл изменил агент или другая программа. Перезаписать — ваша версия заменит новую.</p>
+        <div class="lim-btns"><button class="btn ghost" id="feReload">Открыть новый</button><button class="btn primary" id="feOverwrite">Перезаписать</button></div>
+      </section>
+
       <!-- Лист: несохранённые инструкции -->
       <section class="sheet" id="sheet-discard" aria-label="Несохранённые изменения">
         <div class="grab"></div>
         <h3>Выйти без сохранения?</h3>
-        <p class="lim-hint">Правки в этом файле пропадут. Агент продолжит работать по сохранённой версии.</p>
+        <p class="lim-hint" id="discardHint">Правки в этом файле пропадут. Агент продолжит работать по сохранённой версии.</p>
         <div class="lim-btns"><button class="btn ghost" id="inDrop">Не сохранять</button><button class="btn primary" id="inKeep">Сохранить</button></div>
       </section>
 
@@ -1940,6 +1956,8 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
           <div class="title"><b id="fsTitle">Файлы</b><span id="fsSub">DSH-Workspace</span></div>
           <button class="iconbtn" id="fsFind" aria-label="Поиск"><svg class="i"><use href="#i-search"/></svg></button>
           <button class="iconbtn" id="fsAdd" aria-label="Добавить"><svg class="i"><use href="#i-plus"/></svg></button>
+          <button class="iconbtn" id="fsEdit" aria-label="Править" style="display:none"><svg class="i"><use href="#i-pencil"/></svg></button>
+          <button class="fe-save" id="feSave" style="display:none" disabled>Сохранить</button>
         </header>
         <div class="fs-head">
           <div class="segm fs-tabs" role="tablist" id="fsTabs"><span class="thumb" id="fsThumb"></span>
@@ -1959,6 +1977,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
           <button class="li" data-fa="ask"><span class="lic"><svg class="i sm"><use href="#i-spark"/></svg></span><span class="tx">Спросить DSH о файле</span></button>
           <button class="li" data-fa="attach"><span class="lic"><svg class="i sm"><use href="#i-at"/></svg></span><span class="tx">Прикрепить к сообщению</span></button>
           <button class="li" data-fa="share"><span class="lic"><svg class="i sm"><use href="#i-share"/></svg></span><span class="tx">Поделиться</span></button>
+          <button class="li" data-fa="edit"><span class="lic"><svg class="i sm"><use href="#i-code"/></svg></span><span class="tx">Править</span></button>
           <button class="li" data-fa="rename"><span class="lic"><svg class="i sm"><use href="#i-pencil"/></svg></span><span class="tx">Переименовать</span></button>
         </div>
         <div class="list" style="margin-top:10px">
@@ -3012,6 +3031,30 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       ${kind === "pdf" ? "" : `<div class="code" ${kind ? 'data-fvpane="code" hidden' : ""}>${src.split("\n").map((l, i) => `<div class="ln"><span class="n">${i + 1}</span><span class="c">${hl(l, e) || " "}</span></div>`).join("")}</div>`}`;
     return v;
   }
+  // ── Правка файла: моноширинное поле, клавиши для кода, сохранение; файл изменился извне — спросить ──
+  const FE = { dirty: false, discard: false, path: "", stamp: 0 };
+  function viewEdit(path) {
+    const v = document.createElement("div"); v.className = "fs-view fe-view";
+    const src = SRC[path] || `// ${path.split("/").pop()}\n`;
+    v.innerHTML = `<textarea class="fe-area" id="feArea" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Текст файла"></textarea>
+      <div class="fe-pos" id="fePos">строка 1, столбец 1</div>
+      <div class="fe-keys" role="toolbar" aria-label="Символы">${["Tab", "{", "}", "(", ")", "[", "]", "<", ">", "=", ";", ":", "\"", "'", "/", "|", "&", "-", "_"].map((k) => `<button data-fek="${k === "\"" ? "&quot;" : k}" aria-label="${k === "Tab" ? "Табуляция" : k === "\"" ? "Кавычка" : k}">${k === "Tab" ? "⇥" : esc2(k)}</button>`).join("")}</div>`;
+    $("textarea", v).value = src; FE.path = path; FE.stamp = 0;
+    return v;
+  }
+  function fePos() { const a = $("#feArea"); if (!a) return; const before = a.value.slice(0, a.selectionStart).split("\n"); $("#fePos").textContent = `строка ${before.length}, столбец ${before[before.length - 1].length + 1}`; }
+  function feDirty(on) { FE.dirty = on; fsTitles(); }
+  document.addEventListener("input", (e) => { if (e.target.id === "feArea") { feDirty(true); fePos(); } });
+  document.addEventListener("selectionchange", fePos);
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("#fsEdit")) { const top = fsStack[fsStack.length - 1]; FE.dirty = false; fsPush({ t: "edit", p: top.p }); setTimeout(() => $("#feArea")?.focus(), 400); return; }
+    const k = e.target.closest("[data-fek]");
+    if (k) { const a = $("#feArea"), ins = k.dataset.fek === "Tab" ? "    " : k.dataset.fek, st = a.selectionStart; a.setRangeText(ins, st, a.selectionEnd, "end"); a.focus(); feDirty(true); fePos(); return; }
+    if (e.target.closest("#feSave")) { if (FE.stamp) { sheetOpen("feconflict"); return; } feSaved(); }
+  });
+  function feSaved() { SRC[FE.path] = $("#feArea").value; feDirty(false); toast("Сохранено"); }
+  $("#feOverwrite").addEventListener("click", () => { FE.stamp = 0; sheetClose(); feSaved(); });
+  $("#feReload").addEventListener("click", () => { FE.stamp = 0; sheetClose(); $("#feArea").value = SRC[FE.path] || ""; feDirty(false); toast("Открыта новая версия файла"); });
   function viewDiff(path) {
     const v = document.createElement("div"); v.className = "fs-view";
     const c = CHANGED[path], d = DIFF[path];
@@ -3058,6 +3101,11 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     if (top.t === "changes") { t = "Изменения"; sub = "DSH-Workspace · ветка " + GIT.branch; }
     if (top.t === "diff") { t = "Изменения в файле"; sub = top.p; }
     if (top.t === "search") { t = "Поиск"; sub = "по всему проекту"; }
+    if (top.t === "edit") { t = top.p.split("/").pop(); sub = FE.dirty ? "Правка · не сохранено" : "Правка"; }
+    const editable = top.t === "file" && !/\.(pdf|png|jpe?g|webp|gif)$/i.test(top.p);
+    // Кнопки шапки: в папке — «+», у текстового файла — «Править», в правке — только «Сохранить».
+    $("#fsEdit").style.display = editable ? "" : "none"; $("#feSave").style.display = top.t === "edit" ? "" : "none"; $("#feSave").disabled = !FE.dirty;
+    $("#fsAdd").style.display = top.t === "edit" || editable ? "none" : ""; $("#fsFind").style.display = top.t === "edit" ? "none" : "";
     $("#fsTitle").textContent = t; $("#fsSub").textContent = sub;
     // «+» нужен только в папке, поиск — в папках и списке изменений
     $("#fsAdd").style.visibility = top.t === "dir" ? "" : "hidden";
@@ -3065,7 +3113,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     const n = Object.keys(CHANGED).length; $("#fsChCnt").textContent = n; $("#fsChCnt").style.display = n ? "" : "none";
     const fb = $("#filesBadge"); fb.textContent = n; fb.style.display = n ? "" : "none";
   }
-  function fsBuild(e) { return e.t === "dir" ? viewDir(e.p) : e.t === "file" ? viewFile(e.p) : e.t === "diff" ? viewDiff(e.p) : e.t === "changes" ? viewChanges() : viewSearch(e.p); }
+  function fsBuild(e) { return e.t === "edit" ? viewEdit(e.p) : e.t === "dir" ? viewDir(e.p) : e.t === "file" ? viewFile(e.p) : e.t === "diff" ? viewDiff(e.p) : e.t === "changes" ? viewChanges() : viewSearch(e.p); }
   function fsPush(e, dir = 1) {
     const old = fsCur, v = fsBuild(e);
     fsStack.push(e); fsBody.appendChild(v); fsCur = v; fsTitles();
@@ -3075,7 +3123,9 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     }
   }
   function fsReplace(e) { fsBody.innerHTML = ""; fsStack = []; fsCur = null; fsPush(e); }
-  function fsPop() {
+  function fsPop(force) {
+    if (!force && fsStack[fsStack.length - 1]?.t === "edit" && FE.dirty) { $("#discardHint").textContent = "Правки в этом файле пропадут."; FE.discard = true; sheetOpen("discard"); return; }
+    if (fsStack[fsStack.length - 1]?.t === "edit") FE.dirty = false;
     if (fsStack.length <= 1) { screenClose(); return; }
     const old = fsCur; fsStack.pop();
     const v = fsBuild(fsStack[fsStack.length - 1]); fsBody.insertBefore(v, old); fsCur = v; fsTitles();
@@ -3128,6 +3178,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     if (a === "attach") { toChat(); addAtt(`${ftHtml(path).replace('class="ft', 'class="ic ft')}<span><b>${name}</b>${path}</span>`); setTimeout(() => { setComposerOpen(true); syncSend(); }, 300); }
     else if (a === "ask") { toChat(); field.textContent = `Объясни, что делает ${name}`; addAtt(`${ftHtml(path).replace('class="ft', 'class="ic ft')}<span><b>${name}</b>${path}</span>`); setTimeout(() => { setComposerOpen(true); syncSend(); field.focus(); }, 300); }
     else if (a === "share") toast("Откроется системное меню «Поделиться»");
+    else if (a === "edit") { FE.dirty = false; fsPush({ t: "edit", p: path }); }
     else if (a === "rename") toast("Переименование — в версии приложения");
     else if (a === "delete") toast(`${name} — удаление спросит подтверждение`);
   }
@@ -3648,7 +3699,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   function stRefresh() { const cur = stCur, sc = cur.scrollTop; const v = viewSt(stStack[stStack.length - 1]); stBody.replaceChild(v, cur); stCur = v; v.scrollTop = sc; stTitles(); return v; }
   function settingsShown() { stQuery = ""; stBody.innerHTML = ""; stStack = []; stCur = null; stPush("root");
     $$(":scope > *", stCur).forEach((el, k) => anim(el, [{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }], SMOOTH, { delay: reduce ? 0 : 30 + k * 35 })); }
-  $("#stBack").addEventListener("click", () => { if (stStack[stStack.length - 1] === "inst" && instDirty()) { sheetOpen("discard"); return; } if (stStack[stStack.length - 1] === "inst") instKey = null; stPop(); });
+  $("#stBack").addEventListener("click", () => { if (stStack[stStack.length - 1] === "inst" && instDirty()) { $("#discardHint").textContent = "Правки в этом файле пропадут. Агент продолжит работать по сохранённой версии."; sheetOpen("discard"); return; } if (stStack[stStack.length - 1] === "inst") instKey = null; stPop(); });
   stBody.addEventListener("input", (e) => {
     if (e.target.id === "stQ") { stQuery = e.target.value.trim(); const pos = e.target.selectionStart; const v = stRefresh(); const q = $("#stQ", v); q.focus(); q.setSelectionRange(pos, pos); }
     if (e.target.id === "stSize") { ST.codeSize = +e.target.value; $("#stSample", stCur).style.fontSize = ST.codeSize + "px"; tout.style.setProperty("--tfs", (ST.codeSize - .5) + "px"); }
@@ -4223,8 +4274,8 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     sz.className = over ? "over" : ""; sz.textContent = over ? "Вместе больше 64 КБ — общие инструкции не войдут" : kb(n) + (instDirty() ? " · не сохранено" : " · сохранено");
     $("#inSave", stCur).disabled = !instDirty();
   });
-  $("#inDrop").addEventListener("click", () => { instDraft = null; instKey = null; sheetClose(); stPop(); });
-  $("#inKeep").addEventListener("click", () => { INST[instKey].text = instDraft; instKey = null; sheetClose(); stPop(); toast("Сохранено · агент увидит со следующего шага"); });
+  $("#inDrop").addEventListener("click", () => { if (FE.discard) { FE.discard = false; sheetClose(); fsPop(true); return; } instDraft = null; instKey = null; sheetClose(); stPop(); });
+  $("#inKeep").addEventListener("click", () => { if (FE.discard) { FE.discard = false; sheetClose(); feSaved(); fsPop(true); return; } INST[instKey].text = instDraft; instKey = null; sheetClose(); stPop(); toast("Сохранено · агент увидит со следующего шага"); });
 
   // ── Контекст и расход: числа как у проекций contextPressure / contextBreakdown / tokenUsage ──
   const CTX = { on: false, used: 412000, win: 1000000, k: [11800, 23400, 376800], inNew: 182000, inCache: 640000, out: 46000 };

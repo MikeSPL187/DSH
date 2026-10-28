@@ -113,6 +113,8 @@ private sealed interface Entry {
     data class Dir(val path: String) : Entry
     data class Doc(val path: String) : Entry
     data class Diff(val path: String) : Entry
+    /** Правка файла. */
+    data class Edit(val path: String) : Entry
     data object Changes : Entry
     data object Search : Entry
 }
@@ -132,7 +134,16 @@ private sealed interface Sheet {
     data class Branch(val suggested: String, val base: String) : Sheet
     /** Запрос на слияние из текущей ветки. */
     data class Pull(val state: BranchState) : Sheet
+    /** Выйти из правки без сохранения? */
+    data object EditDiscard : Sheet
+    /** Файл изменился извне, пока его правили. */
+    data object EditConflict : Sheet
 }
+
+/** Картинки и PDF не правятся текстом; остальное решает [openForEdit] (не текст — честное объяснение). */
+private val NOT_EDITABLE = setOf("png", "jpg", "jpeg", "webp", "gif", "bmp", "ico", "pdf", "zip", "gz", "tgz", "jar", "apk", "aar", "so", "class", "jks", "keystore")
+
+private fun editable(path: String) = path.substringAfterLast('.', "").lowercase() !in NOT_EDITABLE
 
 /**
  * Экран «Файлы» — точная копия `#screen-files` прототипа.
@@ -194,9 +205,13 @@ fun FilesScreen(
     val changedPaths = remember(changes) { changes.associateBy { it.path } }
 
     fun push(e: Entry) { forward = true; stack = stack + e }
-    fun pop() {
+    val editor = remember { FileEditor() }
+    fun pop(force: Boolean = false) {
+        // Несохранённая правка — сначала спросить.
+        if (!force && stack.lastOrNull() is Entry.Edit && editor.dirty) { sheet = Sheet.EditDiscard; return }
         if (stack.size <= 1) onClose() else { forward = false; stack = stack.dropLast(1) }
     }
+    fun edit(path: String) { editor.reset(path); push(Entry.Edit(path)) }
     fun setTab(i: Int) {
         tab = i
         forward = true
@@ -204,6 +219,27 @@ fun FilesScreen(
     }
     fun file(path: String) = if (path.isEmpty()) root else File(root, path)
     fun refresh() { tick++ }
+    val savedText = stringResource(R.string.fe_saved)
+    val saveFailed = stringResource(R.string.fe_save_failed, "%s")
+    val reloadedText = stringResource(R.string.fe_reloaded)
+    /** Сохранить правку; [force] — поверх изменений извне. [then] — после успешной записи (например, выйти). */
+    fun saveEditor(force: Boolean = false, then: () -> Unit = {}) {
+        val path = editor.path ?: return
+        val doc = editor.doc ?: return
+        if (editor.saving) return
+        editor.saving = true
+        val text = editor.value.text
+        scope.launch {
+            val r = withContext(Dispatchers.IO) { saveEdit(file(path), text, doc.crlf, doc.stamp, force) }
+            editor.saving = false
+            r.onSuccess { res ->
+                when (res) {
+                    is SaveResult.Saved -> { editor.doc = doc.copy(text = text, stamp = res.stamp); onToast(savedText); refresh(); then() }
+                    SaveResult.Conflict -> sheet = Sheet.EditConflict
+                }
+            }.onFailure { onToast(saveFailed.format(it.message.orEmpty())) }
+        }
+    }
     var pushing by remember { mutableStateOf(false) }
     val pushMsgs = PushMessages.load()
     // Ветка, база и запрос на слияние — только когда есть вход в GitHub для отправки.
@@ -251,13 +287,18 @@ fun FilesScreen(
             onPullCreated = { p -> sheet = null; refresh(); onToast(res.getString(R.string.fs_pr_done, p.number)) },
             onPullLogin = { auth -> if (auth) onToast(pullAuth); val s = (sheet as? Sheet.Pull)?.state; needLogin { s?.let { sheet = Sheet.Pull(it) } } },
             onPullExists = { sheet = null; refresh(); onToast(pullExists) },
+            onEditDrop = { sheet = null; pop(force = true) },
+            onEditKeep = { sheet = null; saveEditor { pop(force = true) } },
+            onEditReload = { sheet = null; editor.path?.let { p -> editor.reset(p); scope.launch { withContext(Dispatchers.IO) { editor.load(file(p)) }; onToast(reloadedText) } } },
+            onEditOverwrite = { sheet = null; saveEditor(force = true) },
+            onEdit = { p -> sheet = null; edit(p) },
         ) } },
         onDismiss = { sheet = null },
         modifier = modifier,
     ) {
         Column(Modifier.fillMaxSize().background(c.bg).statusBarsPadding()) {
             // `.sbar`: «Назад», заголовок с подписью, поиск и «+».
-            val (title, sub) = titles(top, root, rootLabel, gitInfo)
+            val (title, sub) = titles(top, root, rootLabel, gitInfo, editor.dirty)
             Row(
                 Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -270,9 +311,21 @@ fun FilesScreen(
                     Text(title, style = TextStyle(fontFamily = DshFonts.display, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 19.sp), color = c.t1, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     if (sub.isNotEmpty()) Text(sub, style = TextStyle(fontFamily = DshFonts.body, fontSize = 12.sp, lineHeight = 15.sp), color = c.t3, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                val canFind = top is Entry.Dir || top == Entry.Changes
-                IconBtn(DshGlyphs.Search, stringResource(R.string.fs_find), visible = canFind) { query = ""; push(Entry.Search) }
-                IconBtn(DshGlyphs.Plus, stringResource(R.string.fs_add), visible = top is Entry.Dir) { sheet = Sheet.Add }
+                if (top is Entry.Edit) {
+                    // Правка: в шапке только «Сохранить» (активна, когда есть несохранённое); файл не правится — без неё.
+                    if (editor.problem == null) {
+                        com.dsh.core.designsystem.kit.KBtn(
+                            stringResource(R.string.fe_save), { saveEditor() }, Modifier.padding(end = 4.dp),
+                            kind = com.dsh.core.designsystem.kit.BtnKind.Primary, height = 40.dp, radius = 12.dp, fontSize = 14.5.sp, horizontal = 14.dp,
+                            enabled = editor.dirty && !editor.saving, busy = editor.saving,
+                        )
+                    }
+                } else {
+                    val canFind = top is Entry.Dir || top == Entry.Changes
+                    IconBtn(DshGlyphs.Search, stringResource(R.string.fs_find), visible = canFind) { query = ""; push(Entry.Search) }
+                    if (top is Entry.Doc && editable(top.path)) IconBtn(DshGlyphs.Pencil, stringResource(R.string.fe_edit)) { edit(top.path) }
+                    else IconBtn(DshGlyphs.Plus, stringResource(R.string.fs_add), visible = top is Entry.Dir) { sheet = Sheet.Add }
+                }
             }
             // `.fs-head`: вкладки или поле поиска.
             Box(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
@@ -302,6 +355,7 @@ fun FilesScreen(
                 when (val e = s.last()) {
                     is Entry.Dir -> DirView(root, rootLabel, e.path, version, changedPaths, onOpen = { f -> push(if (f.isDirectory) Entry.Dir(relPath(root, f)) else Entry.Doc(relPath(root, f))) }, onCrumb = { p -> forward = false; stack = stack.takeWhile { it !is Entry.Dir || (it as Entry.Dir).path != p } + Entry.Dir(p) }, onMore = { sheet = Sheet.Actions(it) })
                     is Entry.Doc -> DocView(file(e.path), e.path, changedPaths[e.path], onDiff = { push(Entry.Diff(e.path)) }, onAsk = { onAsk(file(e.path)) }, onAttach = { onAttach(file(e.path)) }, onMore = { sheet = Sheet.Actions(e.path) }, markdown = markdown, onOpenInBrowser = onOpenInBrowser)
+                    is Entry.Edit -> EditView(file(e.path), editor)
                     is Entry.Diff -> DiffView(e.path, changedPaths[e.path], git, version, onRevert = { ch ->
                         scope.launch {
                             val ok = runCatching { git?.revert(ch) ?: false }.getOrDefault(false)
@@ -324,7 +378,7 @@ fun FilesScreen(
 }
 
 @Composable
-private fun titles(top: Entry, root: File, rootName: String, git: GitInfo?): Pair<String, String> {
+private fun titles(top: Entry, root: File, rootName: String, git: GitInfo?, dirty: Boolean = false): Pair<String, String> {
     return when (top) {
         is Entry.Dir -> if (top.path.isEmpty()) {
             stringResource(R.string.fs_title) to "$rootName · ${objects(listDir(root).size)}"
@@ -337,6 +391,7 @@ private fun titles(top: Entry, root: File, rootName: String, git: GitInfo?): Pai
             File(top.path).name to "$dir · ${fileMeta(f)}"
         }
         is Entry.Diff -> stringResource(R.string.fs_diff_title) to top.path
+        is Entry.Edit -> File(top.path).name to stringResource(if (dirty) R.string.fe_sub_dirty else R.string.fe_sub)
         Entry.Changes -> stringResource(R.string.fs_changes_title) to (git?.branch?.takeIf { it.isNotEmpty() }?.let { stringResource(R.string.fs_changes_sub, rootName, it) } ?: rootName)
         Entry.Search -> stringResource(R.string.fs_search_title) to stringResource(R.string.fs_search_sub)
     }
@@ -1171,10 +1226,17 @@ private fun ColumnScope.SheetBody(
     onPullCreated: (PullInfo) -> Unit,
     onPullLogin: (auth: Boolean) -> Unit,
     onPullExists: () -> Unit,
+    onEditDrop: () -> Unit,
+    onEditKeep: () -> Unit,
+    onEditReload: () -> Unit,
+    onEditOverwrite: () -> Unit,
+    onEdit: (String) -> Unit,
 ) {
     val c = Dsh.colors
     val scope = rememberCoroutineScope()
     when (sheet) {
+        Sheet.EditDiscard -> EditDiscardSheet(onEditDrop, onEditKeep)
+        Sheet.EditConflict -> EditConflictSheet(onEditReload, onEditOverwrite)
         is Sheet.Branch -> if (git != null) BranchSheetBody(sheet.suggested, sheet.base, git, onCancel = onDone, onMoved = { onDone(); onMoved() })
         is Sheet.Pull -> if (git != null) PullSheetBody(
             sheet.state, git, pullText, onCancel = onDone, onCreated = onPullCreated, onNeedLogin = onPullLogin, onExists = onPullExists, onToast = onToast,
@@ -1209,6 +1271,7 @@ private fun ColumnScope.SheetBody(
                 DshSheetItem(DshGlyphs.Spark, stringResource(R.string.fs_fa_ask), { onDone(); onAsk(f) }, first = true)
                 DshSheetItem(DshGlyphs.At, stringResource(R.string.fs_fa_attach), { onDone(); onAttach(f) })
                 if (!f.isDirectory) DshSheetItem(DshGlyphs.Share, stringResource(R.string.fs_fa_share), { onDone(); onShare(f) })
+                if (!f.isDirectory && editable(sheet.path)) DshSheetItem(DshGlyphs.Code, stringResource(R.string.fe_edit), { onEdit(sheet.path) })
                 DshSheetItem(DshGlyphs.Pencil, stringResource(R.string.fs_fa_rename), { onSheet(Sheet.Rename(sheet.path)) })
             }
             DshSheetList(Modifier.padding(top = 10.dp)) {

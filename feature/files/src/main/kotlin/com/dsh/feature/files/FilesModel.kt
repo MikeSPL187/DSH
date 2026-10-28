@@ -231,3 +231,59 @@ internal fun previewSampleSize(width: Int, height: Int, maxSide: Int): Int {
     while (longest / sample > maxSide) sample *= 2
     return sample
 }
+
+/** Больше — не правится в приложении (поле ввода на телефоне с таким не справится). */
+const val MAX_EDIT_BYTES = 1L shl 20
+
+/**
+ * Файл, открытый для правки: текст (переводы строк — `\n`), были ли они `\r\n` и отпечаток (размер и время
+ * изменения), по которому видно, что файл изменили извне.
+ */
+data class EditDoc(val text: String, val crlf: Boolean, val stamp: Pair<Long, Long>)
+
+/** Почему файл нельзя править. */
+enum class EditProblem { TOO_BIG, NOT_TEXT, UNREADABLE }
+
+class EditException(val problem: EditProblem) : Exception(problem.name)
+
+internal fun stampOf(file: File): Pair<Long, Long> = file.length() to file.lastModified()
+
+/** Открыть для правки: только текст в строгом UTF-8 до [MAX_EDIT_BYTES] — иначе сохранение испортило бы файл. */
+internal fun openForEdit(file: File): Result<EditDoc> = runCatching {
+    if (!file.isFile) throw EditException(EditProblem.UNREADABLE)
+    if (file.length() > MAX_EDIT_BYTES) throw EditException(EditProblem.TOO_BIG)
+    val stamp = stampOf(file)
+    val bytes = runCatching { file.readBytes() }.getOrElse { throw EditException(EditProblem.UNREADABLE) }
+    if (bytes.any { it == 0.toByte() }) throw EditException(EditProblem.NOT_TEXT)
+    val decoder = Charsets.UTF_8.newDecoder()
+        .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+        .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+    val raw = runCatching { decoder.decode(java.nio.ByteBuffer.wrap(bytes)).toString() }.getOrElse { throw EditException(EditProblem.NOT_TEXT) }
+    val crlf = raw.contains("\r\n")
+    EditDoc(if (crlf) raw.replace("\r\n", "\n") else raw, crlf, stamp)
+}
+
+/** Итог сохранения: записано (новый отпечаток) или файл изменили извне после открытия. */
+sealed interface SaveResult {
+    data class Saved(val stamp: Pair<Long, Long>) : SaveResult
+    data object Conflict : SaveResult
+}
+
+/**
+ * Записать [text] атомарно (временный файл рядом и переименование), с прежними переводами строк и правом на
+ * запуск. [expected] — отпечаток при открытии: не совпал и не [force] — [SaveResult.Conflict], файл не тронут.
+ */
+internal fun saveEdit(file: File, text: String, crlf: Boolean, expected: Pair<Long, Long>?, force: Boolean = false): Result<SaveResult> = runCatching {
+    if (!force && expected != null && file.exists() && stampOf(file) != expected) return@runCatching SaveResult.Conflict
+    val out = if (crlf) text.replace("\r\n", "\n").replace("\n", "\r\n") else text
+    val exec = file.canExecute()
+    val tmp = File(file.parentFile, ".${file.name}.dsh-edit-${System.nanoTime()}")
+    try {
+        java.io.FileOutputStream(tmp).use { it.write(out.toByteArray(Charsets.UTF_8)); it.fd.sync() }
+        if (exec) tmp.setExecutable(true)
+        if (!tmp.renameTo(file)) error("cannot replace ${file.name}")
+    } finally {
+        tmp.delete()
+    }
+    SaveResult.Saved(stampOf(file))
+}

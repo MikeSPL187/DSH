@@ -160,4 +160,25 @@
     <string name="fs_pr_draft_unsupported">Drafts aren’t available in this repository — turn off “Draft”</string>
     <string name="fs_pr_not_github">The project isn’t on GitHub</string>
     <string name="fs_pr_failed">Couldn’t create the pull request: %1$s</string>
+    <!-- File editing -->
+    <string name="fe_edit">Edit</string>
+    <string name="fe_sub">Editing</string>
+    <string name="fe_sub_dirty">Editing · not saved</string>
+    <string name="fe_save">Save</string>
+    <string name="fe_saved">Saved</string>
+    <string name="fe_save_failed">Couldn’t save: %1$s</string>
+    <string name="fe_area">File text</string>
+    <string name="fe_pos">line %1$d, column %2$d</string>
+    <string name="fe_tab">Tab</string>
+    <string name="fe_too_big">The file is over 1 MB — editing it here is impractical. Ask the agent or use the terminal.</string>
+    <string name="fe_not_text">This isn’t a text file (or not UTF-8) — saving could damage it, so editing is off.</string>
+    <string name="fe_unreadable">Can’t read the file — it may have been deleted or access is denied.</string>
+    <string name="fe_discard_title">Leave without saving?</string>
+    <string name="fe_discard_hint">Edits to this file will be lost.</string>
+    <string name="fe_drop">Don’t save</string>
+    <string name="fe_conflict_title">The file changed</string>
+    <string name="fe_conflict_hint">While you were editing, the agent or another program changed the file. Overwrite — your version replaces the new one.</string>
+    <string name="fe_reload">Open new version</string>
+    <string name="fe_overwrite">Overwrite</string>
+    <string name="fe_reloaded">Opened the new version of the file</string>
 </resources>
