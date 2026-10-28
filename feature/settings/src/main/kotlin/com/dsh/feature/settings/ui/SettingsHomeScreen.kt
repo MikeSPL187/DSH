@@ -73,7 +73,7 @@ import com.dsh.feature.settings.R
 import kotlinx.coroutines.launch
 
 /** Страницы «Настроек» (как `PAGES` в прототипе). */
-enum class StPage { Root, Models, Look, Agent, Host, Storage, Security, Notif, About }
+enum class StPage { Root, Models, Look, Agent, Host, Storage, Security, Notif, About, Instructions }
 
 /** Состояние ключа провайдера. */
 enum class KeyState { Ok, Bad, Offline, Unknown, None }
@@ -147,6 +147,8 @@ data class SettingsUi(
     val limits: List<com.dsh.core.data.AgentLimitValue> = emptyList(),
     /** Веб-поиск Host; null — Host не работает. */
     val webSearch: com.dsh.core.data.WebSearchState? = null,
+    /** Файлы инструкций агента: общий, проекта, личный; пусто — рабочей папки нет. */
+    val instructions: List<InstructionRow> = emptyList(),
     // Оформление
     val theme: String = "system",
     val language: String = "ru",
@@ -212,6 +214,10 @@ interface SettingsActions {
     suspend fun setWebSearchApi(on: Boolean): Boolean = false
     /** Передавать ли поисковику начало вопроса; false — Host не принял. */
     suspend fun setWebSendQuestion(on: Boolean): Boolean = false
+    /** Текст файла инструкций; null — файла нет; ошибка — не прочитать (например, больше 1 МБ). */
+    suspend fun readInstruction(scope: com.dsh.feature.settings.logic.InstructionScope): Result<String?> = Result.success(null)
+    suspend fun saveInstruction(scope: com.dsh.feature.settings.logic.InstructionScope, text: String): Boolean = false
+    suspend fun deleteInstruction(scope: com.dsh.feature.settings.logic.InstructionScope): Boolean = false
     suspend fun restartHost(): Boolean = true
     suspend fun setHostRunning(run: Boolean): Boolean = true
     fun setSleep(minutes: Int) {}
@@ -255,6 +261,7 @@ private fun pageTitle(p: StPage): String = stringResource(
         StPage.Security -> R.string.st_security
         StPage.Notif -> R.string.st_notif
         StPage.About -> R.string.st_about
+        StPage.Instructions -> R.string.st_inst
     },
 )
 
@@ -282,8 +289,14 @@ fun SettingsHomeScreen(
     initialPage: StPage = StPage.Root,
     toast: ToastState = rememberToast(),
     initialSheet: String? = null,
+    /** Рендерер Markdown для «Вида» инструкций; null — простой текст. */
+    markdown: (@Composable (String) -> Unit)? = null,
 ) {
     val stack = remember { PageStack(StPage.Root).also { if (initialPage != StPage.Root) it.push(initialPage) } }
+    val editor = remember { InstructionEditor() }
+    val scope = rememberCoroutineScope()
+    val savedMsg = stringResource(R.string.st_inst_saved)
+    val failedMsg = stringResource(R.string.st_inst_failed)
     var sheet by rememberSaveable { mutableStateOf(initialSheet) }
     var rise by remember { mutableStateOf(true) }
     LaunchedEffect(Unit) { kotlinx.coroutines.delay(900); rise = false }
@@ -291,7 +304,13 @@ fun SettingsHomeScreen(
         stack = stack,
         onClose = onClose,
         sheetOpen = sheet != null,
-        bar = { p, back -> SBar(pageTitle(p), pageSub(p, ui), back, backDescription = stringResource(R.string.st_back)) },
+        bar = { p, back ->
+            if (p == StPage.Instructions) {
+                val r = ui.instructions.firstOrNull { it.scope == editor.scope }
+                // Несохранённые правки: «Назад» сначала спрашивает (системное «Назад» перехватывает сама страница).
+                SBar(r?.name ?: pageTitle(p), r?.let { stringResource(instructionScopeTitle(it.scope)) }, { if (editor.dirty) sheet = "discard" else back() }, backDescription = stringResource(R.string.st_back))
+            } else SBar(pageTitle(p), pageSub(p, ui), back, backDescription = stringResource(R.string.st_back))
+        },
         overlay = {
             ToastHost(toast)
             KSheet(sheet == "key", onDismiss = { sheet = null }) { KeySheet(custom = false, actions, toast) { sheet = null } }
@@ -309,6 +328,18 @@ fun SettingsHomeScreen(
             KSheet(limitName != null, onDismiss = { sheet = null }) {
                 lastLimit?.let { v -> AgentLimitSheet(v, actions::setAgentLimit, toast) { sheet = null } }
             }
+            KSheet(sheet == "discard", onDismiss = { sheet = null }) {
+                DiscardSheet(
+                    onDrop = { sheet = null; editor.draft = editor.saved; stack.pop() },
+                    onKeep = {
+                        val text = editor.draft.orEmpty()
+                        sheet = null
+                        scope.launch {
+                            if (actions.saveInstruction(editor.scope, text)) { editor.saved = text; toast.show(savedMsg); stack.pop() } else toast.show(failedMsg)
+                        }
+                    },
+                )
+            }
         },
     ) { p ->
         CompositionLocalProvider(LocalRise provides (rise && p == StPage.Root)) {
@@ -316,12 +347,16 @@ fun SettingsHomeScreen(
                 StPage.Root -> RootPage(ui, actions, stack::push)
                 StPage.Models -> ModelsPage(ui, actions, toast, onSheet = { sheet = it }, onDeleted = { stack.pop() })
                 StPage.Look -> LookPage(ui, actions, toast)
-                StPage.Agent -> AgentPage(ui, actions, toast, stack::push) { sheet = LIMIT_SHEET + it.name }
+                StPage.Agent -> AgentPage(ui, actions, toast, stack::push, onInstruction = { editor.open(it); stack.push(StPage.Instructions) }) { sheet = LIMIT_SHEET + it.name }
                 StPage.Host -> HostPage(ui, actions, toast)
                 StPage.Storage -> StoragePage(ui, actions, toast)
                 StPage.Security -> SecurityPage(ui, actions, toast, stack::push)
                 StPage.Notif -> NotifPage(ui, actions)
                 StPage.About -> AboutPage(ui, actions, toast)
+                StPage.Instructions -> {
+                    androidx.activity.compose.BackHandler(enabled = editor.dirty && sheet == null) { sheet = "discard" }
+                    InstructionsPage(ui.instructions, editor, actions, toast, markdown, onDeleted = { stack.pop() })
+                }
             }
         }
     }
@@ -735,7 +770,11 @@ internal fun shortHost(host: String, max: Int = 16): String {
 }
 
 @Composable
-private fun AgentPage(ui: SettingsUi, a: SettingsActions, toast: ToastState, go: (StPage) -> Unit, onLimit: (com.dsh.core.data.AgentLimit) -> Unit) {
+private fun AgentPage(
+    ui: SettingsUi, a: SettingsActions, toast: ToastState, go: (StPage) -> Unit,
+    onInstruction: (com.dsh.feature.settings.logic.InstructionScope) -> Unit,
+    onLimit: (com.dsh.core.data.AgentLimit) -> Unit,
+) {
     val opened = stringResource(R.string.st_clip_on)
     val closed = stringResource(R.string.st_clip_off)
     FsView {
@@ -786,6 +825,7 @@ private fun AgentPage(ui: SettingsUi, a: SettingsActions, toast: ToastState, go:
             row { StRow(stringResource(R.string.st_compress), icon = DshGlyphs.Flow, tile = Si.c1, value = stringResource(R.string.st_compress_auto)) }
             row { StRow(stringResource(R.string.st_workspace), icon = DshGlyphs.Folder, tile = Si.c2, value = stringResource(if (ui.workspaceShared) R.string.st_ws_shared else R.string.st_ws_private), chevron = true, onClick = { go(StPage.Storage) }) }
         }
+        InstructionsGroup(ui.instructions, onInstruction)
         AgentLimitsGroup(ui.limits, onLimit)
         WebSearchPart(ui, a, toast, onLimit) { go(StPage.Models) }
     }

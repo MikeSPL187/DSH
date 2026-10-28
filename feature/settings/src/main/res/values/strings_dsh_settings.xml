@@ -22,7 +22,7 @@
     <string-array name="st_index">
         <item>api key deepseek provider balance spending default model</item>
         <item>theme light dark language english russian code font size vibration haptics</item>
-        <item>approval edits permissions clipboard reasoning</item>
+        <item>approval edits permissions clipboard reasoning instructions agents.md claude.md project rules limits timeout subagents web search</item>
         <item>host linux debian sleep battery background remote pairing restart terminal</item>
         <item>space cache rootfs logs backup export clean workspace folder</item>
         <item>clipboard plugins trust certificate biometric fingerprint lock encryption keystore wipe data</item>
@@ -175,6 +175,35 @@
     <string name="st_u_b">%1$d B</string>
     <string name="st_u_kb">%1$d KB</string>
     <string name="st_u_mb">%1$s MB</string>
+    <string name="st_u_kb_f">%1$s KB</string>
+    <string name="st_inst">Agent instructions</string>
+    <string name="st_inst_budget">%1$s of %2$s</string>
+    <string name="st_inst_global">All projects</string>
+    <string name="st_inst_project">This project</string>
+    <string name="st_inst_local">Only for you</string>
+    <string name="st_inst_local_path">%1$s · outside git</string>
+    <string name="st_inst_none">None</string>
+    <string name="st_inst_note">The agent reads them at the start of every session: global first, then the project. If together they exceed 64 KB, global ones are dropped first.</string>
+    <string name="st_inst_edit">Edit</string>
+    <string name="st_inst_view">View</string>
+    <string name="st_inst_save">Save</string>
+    <string name="st_inst_saved_state">%1$s · saved</string>
+    <string name="st_inst_unsaved">%1$s · not saved</string>
+    <string name="st_inst_over">Over 64 KB together — global instructions will not fit</string>
+    <string name="st_inst_saved">Saved · the agent sees it from the next step</string>
+    <string name="st_inst_deleted">File deleted</string>
+    <string name="st_inst_failed">Could not write the file. Check access to the workspace</string>
+    <string name="st_inst_too_big">The file is over 1 MB, so the Host does not read it. Shorten it in the terminal or in Files.</string>
+    <string name="st_inst_delete">Delete file</string>
+    <string name="st_inst_delete_confirm">Tap again to delete</string>
+    <string name="st_inst_empty">No file yet</string>
+    <string name="st_inst_empty_hint">Describe how to build and test the project, the code rules, and what the agent must not do.</string>
+    <string name="st_inst_template_btn">Start from a template</string>
+    <string name="st_inst_blank">Empty file</string>
+    <string name="st_inst_discard_title">Leave without saving?</string>
+    <string name="st_inst_discard_hint">Your edits to this file will be lost. The agent keeps working from the saved version.</string>
+    <string name="st_inst_discard">Don\'t save</string>
+    <string name="st_inst_template"># Project\n\nIn short: what it is and who it is for.\n\n## Build and test\n- Build: `./gradlew assembleDebug`\n- Tests: `./gradlew test`\n\n## Code rules\n- Match the surrounding code: same names and style.\n- New behavior comes with tests.\n\n## Don\'t\n- Don\'t change public APIs without asking.\n- Don\'t commit keys or passwords.\n</string>
     <string name="st_web">Web search</string>
     <string name="st_web_api">New Web Search API</string>
     <string name="st_web_api_on">Search and page reading go through DeepSeek Search and Fetch APIs</string>

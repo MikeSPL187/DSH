@@ -123,6 +123,14 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
     // Пределы агента: перечитываются при смене Host, его запуске и после каждой записи.
     var limits by remember { mutableStateOf<List<com.dsh.core.data.AgentLimitValue>>(emptyList()) }
     var webSearch by remember { mutableStateOf<com.dsh.core.data.WebSearchState?>(null) }
+
+    // Инструкции агента: ~/.dsh/AGENTS.md в Linux и файлы рабочей папки; перечитываются после каждой записи.
+    var instTick by remember { mutableIntStateOf(0) }
+    var instFiles by remember { mutableStateOf<List<com.dsh.feature.settings.logic.InstructionFile>>(emptyList()) }
+    LaunchedEffect(instTick, d.workspace) {
+        instFiles = withContext(Dispatchers.IO) { com.dsh.feature.settings.logic.AgentInstructions.files(d.layout.dshHomeDir, d.workspace) }
+    }
+    val instFile = { scope: com.dsh.feature.settings.logic.InstructionScope -> instFiles.firstOrNull { it.scope == scope }?.file }
     var limitsTick by remember { mutableIntStateOf(0) }
     val hostUp = status?.phase == RuntimePhase.RUNNING
     LaunchedEffect(hostId, hostUp, limitsTick) {
@@ -276,6 +284,17 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         workspaceShared = sharedWs,
         limits = limits,
         webSearch = webSearch,
+        instructions = instFiles.map { f ->
+            com.dsh.feature.settings.ui.InstructionRow(
+                f.scope, f.file.name,
+                when (f.scope) {
+                    com.dsh.feature.settings.logic.InstructionScope.GLOBAL -> "~/.dsh/${f.file.name}"
+                    com.dsh.feature.settings.logic.InstructionScope.PROJECT -> "${d.workspace.name}/${f.file.name}"
+                    com.dsh.feature.settings.logic.InstructionScope.LOCAL -> context.getString(com.dsh.feature.settings.R.string.st_inst_local_path, f.file.name)
+                },
+                f.bytes,
+            )
+        },
         theme = HostTheme.preference,
         language = language.takeIf { it in setOf("ru", "en") } ?: Locale.getDefault().language,
         codeSize = DshUserPrefs.codeSize,
@@ -371,6 +390,25 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         override suspend fun setAgentLimit(current: com.dsh.core.data.AgentLimitValue, value: Long?): Boolean {
             val ok = runCatching { d.repository.hostSettings.setAgentLimit(hostId, current, value) }.getOrDefault(false)
             limitsTick++
+            return ok
+        }
+
+        override suspend fun readInstruction(scope: com.dsh.feature.settings.logic.InstructionScope): Result<String?> {
+            val file = instFile(scope) ?: return Result.success(null)
+            return withContext(Dispatchers.IO) { com.dsh.feature.settings.logic.AgentInstructions.read(file) }
+        }
+
+        override suspend fun saveInstruction(scope: com.dsh.feature.settings.logic.InstructionScope, text: String): Boolean {
+            val file = instFile(scope) ?: return false
+            val ok = withContext(Dispatchers.IO) { com.dsh.feature.settings.logic.AgentInstructions.write(file, text) }
+            instTick++
+            return ok
+        }
+
+        override suspend fun deleteInstruction(scope: com.dsh.feature.settings.logic.InstructionScope): Boolean {
+            val file = instFile(scope) ?: return false
+            val ok = withContext(Dispatchers.IO) { com.dsh.feature.settings.logic.AgentInstructions.delete(file) }
+            instTick++
             return ok
         }
 
@@ -482,7 +520,10 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         override fun licenses() { openWebLink(context, com.dsh.feature.settings.DSH_LICENSES_PAGE) }
     }
 
-    SettingsHomeScreen(ui, onClose = d.onClose, actions = actions, initialPage = initialPage ?: StPage.Root, toast = toast)
+    SettingsHomeScreen(
+        ui, onClose = d.onClose, actions = actions, initialPage = initialPage ?: StPage.Root, toast = toast,
+        markdown = { text -> com.dsh.feature.chat.MarkdownMessageText(text) },
+    )
 }
 
 

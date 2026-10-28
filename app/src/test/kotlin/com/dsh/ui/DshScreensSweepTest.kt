@@ -128,6 +128,11 @@ class DshScreensSweepTest {
             com.dsh.core.data.AgentLimitValue(com.dsh.core.data.AgentLimit.WEB_SEARCHES, "web-search-deepseek", 2, 5, 5, user = false),
         ),
         webSearch = com.dsh.core.data.WebSearchState(apiAvailable = true, useApi = false, sendQuestion = true, web = null, api = null),
+        instructions = listOf(
+            com.dsh.feature.settings.ui.InstructionRow(com.dsh.feature.settings.logic.InstructionScope.GLOBAL, "AGENTS.md", "~/.dsh/AGENTS.md", null),
+            com.dsh.feature.settings.ui.InstructionRow(com.dsh.feature.settings.logic.InstructionScope.PROJECT, "AGENTS.md", "DSH-Workspace/AGENTS.md", 2150),
+            com.dsh.feature.settings.ui.InstructionRow(com.dsh.feature.settings.logic.InstructionScope.LOCAL, "AGENTS.local.md", "AGENTS.local.md · вне git", null),
+        ),
         trusted = listOf(
             TrustedPluginRow("bridge", "Мост устройства", "М", 160f, "A1:7C:0E…54:9B", blocked = false),
             TrustedPluginRow("md", "Markdown Preview", "M", 280f, "9D:22:B4…01:7F", blocked = true),
@@ -155,6 +160,15 @@ class DshScreensSweepTest {
                 },
                 "st-agent-web-api" to @Composable {
                     SettingsHomeScreen(st.copy(webSearch = st.webSearch!!.copy(useApi = true, sendQuestion = false)), onClose = {}, initialPage = StPage.Agent)
+                },
+                "st-inst-edit" to @Composable {
+                    SettingsHomeScreen(
+                        st, onClose = {}, initialPage = StPage.Instructions,
+                        actions = object : com.dsh.feature.settings.ui.SettingsActions {
+                            override suspend fun readInstruction(scope: com.dsh.feature.settings.logic.InstructionScope) =
+                                Result.success<String?>("# DSH-Workspace\n\nРабочая папка агента на телефоне.\n\n## Как собрать и проверить\n- Сборка: `./gradlew :app:assembleDebug`\n- Тесты: `./gradlew test` — перед каждым коммитом.\n")
+                        },
+                    )
                 },
                 "st-agent-limits-off" to @Composable { SettingsHomeScreen(st.copy(limits = emptyList(), webSearch = null), onClose = {}, initialPage = StPage.Agent) },
                 "st-limit-sheet" to @Composable { SettingsHomeScreen(st, onClose = {}, initialPage = StPage.Agent, initialSheet = "limit:COMMAND_TIME") },

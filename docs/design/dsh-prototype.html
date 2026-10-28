@@ -699,6 +699,20 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .lim-btns .btn { height: 52px; border-radius: 16px; font-size: 16px; }
 
 /* Превью документов: «Вид | Код», Markdown, HTML, PDF; браузер для localhost */
+/* Инструкции для агента: редактор AGENTS.md */
+.in-ed { display: block; width: 100%; min-height: 50vh; resize: none; padding: 14px; border-radius: 20px; background: var(--s1); border: 1px solid var(--line); font-family: var(--font-mono); font-size: 13.5px; line-height: 1.55; color: var(--t1); }
+.in-ed:focus { outline: none; border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); }
+.in-foot { position: sticky; bottom: 0; display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 10px 0 4px; background: var(--bg); }
+.in-foot > span { flex: 1; min-width: 0; font-size: 13px; color: var(--t3); }
+.in-foot > span.over { color: var(--warn); }
+.in-foot .btn { height: 48px; padding: 0 22px; border-radius: 14px; font-size: 15px; }
+.in-del { display: block; margin: 14px auto 0; height: 44px; padding: 0 16px; border-radius: 12px; font-size: 14.5px; font-weight: 500; color: var(--danger); }
+.in-empty { text-align: center; padding: 28px 16px 8px; }
+.in-empty .si { width: 56px; height: 56px; border-radius: 18px; margin: 0 auto 14px; }
+.in-empty .si .i { width: 26px; height: 26px; }
+.in-empty b { display: block; font-family: var(--font-display); font-size: 19px; font-weight: 600; margin-bottom: 6px; }
+.in-empty p { margin: 0 auto 18px; max-width: 300px; font-size: 14.5px; line-height: 1.5; color: var(--t2); }
+.in-empty .btn { display: flex; width: 100%; height: 50px; border-radius: 16px; font-size: 16px; margin-top: 8px; }
 .fv-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 3px; margin: 0 0 10px; border-radius: 12px; background: var(--s2); }
 .fv-seg button { height: 40px; border-radius: 10px; font-size: 13.5px; font-weight: 500; color: var(--t2); }
 .fv-seg button[aria-pressed="true"] { background: var(--s1); color: var(--t1); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
@@ -1585,6 +1599,14 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <button class="sa-row" data-sa="Проверка тестов"><span class="sa-st"><i class="run"></i></span><span class="tx"><b>Проверка тестов</b><small>работает · 2 мин</small></span><span class="mode cont">продолжаемый</span><svg class="i sm go"><use href="#i-right"/></svg></button>
         <button class="sa-row" data-sa="Поиск устаревших API"><span class="sa-st"><i class="ok"></i></span><span class="tx"><b>Поиск устаревших API</b><small>готово · 5 мин назад</small></span><span class="mode">разовый</span><svg class="i sm go"><use href="#i-right"/></svg></button>
         <button class="sa-row" data-sa="Codex: ревью diff"><span class="sa-st"><i></i></span><span class="tx"><b>Codex: ревью diff</b><small>внешний · вчера</small></span><span class="mode">внешний</span></button>
+      </section>
+
+      <!-- Лист: несохранённые инструкции -->
+      <section class="sheet" id="sheet-discard" aria-label="Несохранённые изменения">
+        <div class="grab"></div>
+        <h3>Выйти без сохранения?</h3>
+        <p class="lim-hint">Правки в этом файле пропадут. Агент продолжит работать по сохранённой версии.</p>
+        <div class="lim-btns"><button class="btn ghost" id="inDrop">Не сохранять</button><button class="btn primary" id="inKeep">Сохранить</button></div>
       </section>
 
       <!-- Лист: контекст и расход сессии -->
@@ -3284,15 +3306,17 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     security: ["Безопасность", "Данные и доверие"],
     notif: ["Уведомления", ""],
     about: ["О приложении", ""],
+    inst: ["AGENTS.md", ""],
   };
   const INDEX = [
     ["models", "API-ключ DeepSeek провайдер баланс расход модель по умолчанию"], ["look", "тема светлая тёмная язык русский english шрифт кода размер"],
-    ["agent", "одобрение правки разрешения буфер обмена clipboard глубина рассуждения"], ["host", "host linux debian сон засыпать батарея фон удалённый сопряжение перезапуск"],
+    ["agent", "одобрение правки разрешения буфер обмена clipboard глубина рассуждения инструкции agents.md claude.md правила проекта пределы таймаут субагенты веб-поиск"], ["host", "host linux debian сон засыпать батарея фон удалённый сопряжение перезапуск"],
     ["storage", "место кэш rootfs логи резервная копия экспорт очистить рабочая папка"], ["security", "буфер обмена плагины доверие сертификат биометрия блокировка шифрование keystore"],
     ["notif", "уведомления задачи автоматизация вибрация"], ["about", "версия лицензии журнал отчёт об ошибке"],
   ];
   function viewSt(page) {
     const v = document.createElement("div"); v.className = "fs-view";
+    if (page === "inst") { v.innerHTML = instView(); return v; }
     if (page === "root") {
       const hits = stQuery ? INDEX.filter(([k, w]) => (PAGES[k][0] + " " + w).toLowerCase().includes(stQuery.toLowerCase())) : null;
       v.innerHTML = `<label class="fs-search on st-search"><svg class="i sm"><use href="#i-search"/></svg><input id="stQ" placeholder="Поиск в настройках" value="${esc2(stQuery)}" autocomplete="off"></label>
@@ -3333,6 +3357,9 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       <div class="gl">${tog("i-copy", "c4", "Читать буфер обмена", "clipboard", "Выключено: агент не видит, что вы копировали")}</div>
       <div class="glabel">Сессии</div>
       <div class="gl">${row("i-flow", "c1", "Сжимать длинный контекст", "автоматически")}${row("i-folder", "c2", "Рабочая папка", ST.ws === "private" ? "Внутри DSH" : "В памяти телефона", "storage")}</div>
+      <div class="glabel gsplit"><span>Инструкции для агента</span><span>${kb(instTotal())} из 64 КБ</span></div>
+      <div class="gl">${instRow("global")}${instRow("project")}${instRow("local")}</div>
+      <p class="sub" style="margin:8px 6px 0">Агент читает их в начале каждой сессии: сначала общие, потом проекта. Если вместе больше 64 КБ, общие отбрасываются первыми.</p>
       <div class="glabel">Пределы агента</div>
       <div class="gl">${limRow("cmdTime")}${limRow("cmdOut")}${limRow("saDepth")}${limRow("saActive")}${limRow("parallel")}</div>
       <div class="glabel">Веб-поиск</div>
@@ -3388,7 +3415,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   function stRefresh() { const cur = stCur, sc = cur.scrollTop; const v = viewSt(stStack[stStack.length - 1]); stBody.replaceChild(v, cur); stCur = v; v.scrollTop = sc; stTitles(); return v; }
   function settingsShown() { stQuery = ""; stBody.innerHTML = ""; stStack = []; stCur = null; stPush("root");
     $$(":scope > *", stCur).forEach((el, k) => anim(el, [{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }], SMOOTH, { delay: reduce ? 0 : 30 + k * 35 })); }
-  $("#stBack").addEventListener("click", stPop);
+  $("#stBack").addEventListener("click", () => { if (stStack[stStack.length - 1] === "inst" && instDirty()) { sheetOpen("discard"); return; } if (stStack[stStack.length - 1] === "inst") instKey = null; stPop(); });
   stBody.addEventListener("input", (e) => {
     if (e.target.id === "stQ") { stQuery = e.target.value.trim(); const pos = e.target.selectionStart; const v = stRefresh(); const q = $("#stQ", v); q.focus(); q.setSelectionRange(pos, pos); }
     if (e.target.id === "stSize") { ST.codeSize = +e.target.value; $("#stSample", stCur).style.fontSize = ST.codeSize + "px"; tout.style.setProperty("--tfs", (ST.codeSize - .5) + "px"); }
@@ -3677,6 +3704,48 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   $("#limPlus").addEventListener("click", () => { const L = LIM[limKey]; limDraft = L.v[Math.min(L.v.length - 1, L.v.indexOf(limDraft) + 1)]; limShow(); });
   $("#limReset").addEventListener("click", () => { delete LIMV[limKey]; sheetClose(); stRefresh(); toast("Вернули стандартное значение"); });
   $("#limSave").addEventListener("click", () => { if (limDraft === LIM[limKey].d) delete LIMV[limKey]; else LIMV[limKey] = limDraft; sheetClose(); stRefresh(); toast("Сохранено · действует со следующего шага агента"); });
+  // ── Инструкции для агента: ~/.dsh/AGENTS.md, AGENTS.md проекта, AGENTS.local.md (как dsh-agent-instructions) ──
+  const INST_TPL = "# Проект\n\nКоротко: что это и для кого.\n\n## Как собрать и проверить\n- Сборка: `./gradlew assembleDebug`\n- Тесты: `./gradlew test`\n\n## Правила кода\n- Пиши как в соседнем коде: те же имена и стиль.\n- Новое поведение — с тестами.\n\n## Чего не делать\n- Не меняй публичные API без вопроса.\n- Не добавляй в репозиторий ключи и пароли.\n";
+  const INST = {
+    global: { t: "Для всех проектов", path: "~/.dsh/AGENTS.md", name: "AGENTS.md", ic: "i-globe", c: "c2", text: null },
+    project: { t: "Этот проект", path: "DSH-Workspace/AGENTS.md", name: "AGENTS.md", ic: "i-folder", c: "c1", text: "# DSH-Workspace\n\nРабочая папка агента на телефоне.\n\n## Как собрать и проверить\n- Сборка: `./gradlew :app:assembleDebug`\n- Тесты: `./gradlew test` — запускать перед каждым коммитом.\n\n## Правила кода\n- Kotlin, Compose; стиль как в соседних файлах.\n- Ночной архив — `scripts/backup.sh`, не менять без вопроса.\n" },
+    local: { t: "Только для вас", path: "AGENTS.local.md · вне git", name: "AGENTS.local.md", ic: "i-lock", c: "c6", text: null },
+  };
+  const bytes = (t) => new TextEncoder().encode(t || "").length;
+  const kb = (n) => n < 1024 ? n + " Б" : (n / 1024).toFixed(1).replace(".", ",").replace(",0", "") + " КБ";
+  const instTotal = () => Object.values(INST).reduce((a, f) => a + bytes(f.text), 0);
+  function instRow(k) { const f = INST[k]; return `<button class="st-row" data-stinst="${k}"><span class="si ${f.c}"><svg class="i"><use href="#${f.ic}"/></svg></span><span class="tx">${f.t}<small>${f.path}</small></span><span class="val">${f.text == null ? "Нет" : kb(bytes(f.text))}</span><svg class="i sm chev-r"><use href="#i-right"/></svg></button>`; }
+  let instKey = null, instDraft = null, instMode = "edit", instDelArm = false;
+  const instDirty = () => instKey && instDraft != null && instDraft !== (INST[instKey].text ?? "");
+  function instView() {
+    const f = INST[instKey];
+    if (instDraft == null) return `<div class="in-empty"><span class="si c1"><svg class="i"><use href="#i-text"/></svg></span><b>Файла пока нет</b><p>Опишите, как собрать и проверить проект, правила кода и чего агенту не делать.</p><button class="btn primary" id="inTpl">Начать с шаблона</button><button class="btn ghost" id="inBlank">Пустой файл</button></div>`;
+    const n = bytes(instDraft), over = instTotal() - bytes(f.text) + n > 65536;
+    return `<div class="fv-seg" role="group" aria-label="Режим"><button data-inmode="edit" aria-pressed="${instMode === "edit"}">Правка</button><button data-inmode="view" aria-pressed="${instMode === "view"}">Вид</button></div>
+      ${instMode === "edit" ? `<textarea class="in-ed" id="inEd" spellcheck="false" aria-label="${f.name}">${esc2(instDraft)}</textarea>` : `<div class="fv-md">${mdLite(instDraft)}</div>`}
+      <div class="in-foot"><span id="inSize" class="${over ? "over" : ""}">${over ? "Вместе больше 64 КБ — общие инструкции не войдут" : kb(n) + (instDirty() ? " · не сохранено" : " · сохранено")}</span><button class="btn primary" id="inSave" ${instDirty() ? "" : "disabled"}>Сохранить</button></div>
+      ${f.text != null ? `<button class="in-del" id="inDel">${instDelArm ? "Нажмите ещё раз, чтобы удалить" : "Удалить файл"}</button>` : ""}`;
+  }
+  function instOpen(k) { instKey = k; instDraft = INST[k].text; instMode = "edit"; instDelArm = false; PAGES.inst = [INST[k].name, INST[k].t]; stPush("inst"); }
+  function instSave() { INST[instKey].text = instDraft; stRefresh(); toast("Сохранено · агент увидит со следующего шага"); }
+  document.addEventListener("click", (e) => {
+    const r = e.target.closest("[data-stinst]"); if (r) { instOpen(r.dataset.stinst); return; }
+    if (!instKey || !stCur || stStack[stStack.length - 1] !== "inst") return;
+    if (e.target.closest("#inTpl")) { instDraft = INST_TPL; stRefresh(); return; }
+    if (e.target.closest("#inBlank")) { instDraft = ""; stRefresh(); $("#inEd", stCur)?.focus(); return; }
+    const m = e.target.closest("[data-inmode]"); if (m) { instMode = m.dataset.inmode; stRefresh(); return; }
+    if (e.target.closest("#inSave")) { instSave(); return; }
+    if (e.target.closest("#inDel")) { if (!instDelArm) { instDelArm = true; stRefresh(); return; } INST[instKey].text = null; instDraft = null; instKey = null; stPop(); toast("Файл удалён"); }
+  });
+  document.addEventListener("input", (e) => {
+    if (e.target.id !== "inEd") return; instDraft = e.target.value;
+    const f = INST[instKey], n = bytes(instDraft), over = instTotal() - bytes(f.text) + n > 65536, sz = $("#inSize", stCur);
+    sz.className = over ? "over" : ""; sz.textContent = over ? "Вместе больше 64 КБ — общие инструкции не войдут" : kb(n) + (instDirty() ? " · не сохранено" : " · сохранено");
+    $("#inSave", stCur).disabled = !instDirty();
+  });
+  $("#inDrop").addEventListener("click", () => { instDraft = null; instKey = null; sheetClose(); stPop(); });
+  $("#inKeep").addEventListener("click", () => { INST[instKey].text = instDraft; instKey = null; sheetClose(); stPop(); toast("Сохранено · агент увидит со следующего шага"); });
+
   // ── Контекст и расход: числа как у проекций contextPressure / contextBreakdown / tokenUsage ──
   const CTX = { on: false, used: 412000, win: 1000000, k: [11800, 23400, 376800], inNew: 182000, inCache: 640000, out: 46000 };
   const tk = (n) => n >= 1e6 ? String(+(n / 1e6).toFixed(1)).replace(".", ",") + " млн" : n >= 1000 ? Math.round(n / 1000) + " тыс." : String(n);

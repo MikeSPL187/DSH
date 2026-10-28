@@ -22,7 +22,7 @@
     <string-array name="st_index">
         <item>API-ключ DeepSeek провайдер баланс расход модель по умолчанию</item>
         <item>тема светлая тёмная язык русский english шрифт кода размер вибрация</item>
-        <item>одобрение правки разрешения буфер обмена clipboard глубина рассуждения</item>
+        <item>одобрение правки разрешения буфер обмена clipboard глубина рассуждения инструкции agents.md claude.md правила проекта пределы таймаут субагенты веб-поиск</item>
         <item>host linux debian сон засыпать батарея фон удалённый сопряжение перезапуск терминал</item>
         <item>место кэш rootfs логи журналы резервная копия экспорт очистить рабочая папка</item>
         <item>буфер обмена плагины доверие сертификат биометрия отпечаток блокировка шифрование keystore удалить данные</item>
@@ -181,6 +181,35 @@
     <string name="st_u_b">%1$d Б</string>
     <string name="st_u_kb">%1$d КБ</string>
     <string name="st_u_mb">%1$s МБ</string>
+    <string name="st_u_kb_f">%1$s КБ</string>
+    <string name="st_inst">Инструкции для агента</string>
+    <string name="st_inst_budget">%1$s из %2$s</string>
+    <string name="st_inst_global">Для всех проектов</string>
+    <string name="st_inst_project">Этот проект</string>
+    <string name="st_inst_local">Только для вас</string>
+    <string name="st_inst_local_path">%1$s · вне git</string>
+    <string name="st_inst_none">Нет</string>
+    <string name="st_inst_note">Агент читает их в начале каждой сессии: сначала общие, потом проекта. Если вместе больше 64 КБ, общие отбрасываются первыми.</string>
+    <string name="st_inst_edit">Правка</string>
+    <string name="st_inst_view">Вид</string>
+    <string name="st_inst_save">Сохранить</string>
+    <string name="st_inst_saved_state">%1$s · сохранено</string>
+    <string name="st_inst_unsaved">%1$s · не сохранено</string>
+    <string name="st_inst_over">Вместе больше 64 КБ — общие инструкции не войдут</string>
+    <string name="st_inst_saved">Сохранено · агент увидит со следующего шага</string>
+    <string name="st_inst_deleted">Файл удалён</string>
+    <string name="st_inst_failed">Не удалось записать файл. Проверьте доступ к рабочей папке</string>
+    <string name="st_inst_too_big">Файл больше 1 МБ — Host его не читает. Сократите его в терминале или в «Файлах».</string>
+    <string name="st_inst_delete">Удалить файл</string>
+    <string name="st_inst_delete_confirm">Нажмите ещё раз, чтобы удалить</string>
+    <string name="st_inst_empty">Файла пока нет</string>
+    <string name="st_inst_empty_hint">Опишите, как собрать и проверить проект, правила кода и чего агенту не делать.</string>
+    <string name="st_inst_template_btn">Начать с шаблона</string>
+    <string name="st_inst_blank">Пустой файл</string>
+    <string name="st_inst_discard_title">Выйти без сохранения?</string>
+    <string name="st_inst_discard_hint">Правки в этом файле пропадут. Агент продолжит работать по сохранённой версии.</string>
+    <string name="st_inst_discard">Не сохранять</string>
+    <string name="st_inst_template"># Проект\n\nКоротко: что это и для кого.\n\n## Как собрать и проверить\n- Сборка: `./gradlew assembleDebug`\n- Тесты: `./gradlew test`\n\n## Правила кода\n- Пиши как в соседнем коде: те же имена и стиль.\n- Новое поведение — с тестами.\n\n## Чего не делать\n- Не меняй публичные API без вопроса.\n- Не добавляй в репозиторий ключи и пароли.\n</string>
     <string name="st_web">Веб-поиск</string>
     <string name="st_web_api">Новый Web Search API</string>
     <string name="st_web_api_on">Поиск и чтение страниц — через Search и Fetch API DeepSeek</string>
