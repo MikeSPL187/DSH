@@ -18,7 +18,11 @@ module.exports = async function audit(p, scopeSel) {
     const bgsOf = (el) => { for (let e = el; e; e = e.parentElement) {
         const cs = getComputedStyle(e);
         if ((parse(cs.backgroundColor)[3] ?? 1) >= .99) break;
-        if (cs.backgroundImage.includes("gradient(")) { const stops = cs.backgroundImage.match(/rgba?\([^)]+\)/g); if (stops?.length) return stops.map((c) => parse(c).slice(0, 3)); }
+        if (cs.backgroundImage.includes("gradient(")) {
+          // Полупрозрачные точки градиента (мягкий акцент в тёмной теме) ложатся на фон под элементом.
+          const stops = cs.backgroundImage.match(/(?:rgba?|color)\([^)]+\)/g); const base = bgOf(e.parentElement || e);
+          if (stops?.length) return stops.map((c) => { const v = parse(c), a = v[3] ?? 1; return v.slice(0, 3).map((x, k) => x * a + base[k] * (1 - a)); });
+        }
       } return [bgOf(el)]; };
     const label = (el) => (el.textContent || el.getAttribute("aria-label") || el.className || el.tagName).trim().replace(/\s+/g, " ").slice(0, 40);
     scope.querySelectorAll("*").forEach((el) => {

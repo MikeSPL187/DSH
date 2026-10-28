@@ -249,7 +249,7 @@ fun TerminalScreen(
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     sugg.forEach { s ->
                         Box(
-                            Modifier.height(36.dp).clip(RoundedCornerShape(10.dp)).background(c.s1).border(1.dp, c.line, RoundedCornerShape(10.dp))
+                            Modifier.height(40.dp).clip(RoundedCornerShape(10.dp)).background(c.s1).border(1.dp, c.line, RoundedCornerShape(10.dp))
                                 .clickable(enabled = canType) { setInput(s) }.padding(horizontal = 10.dp),
                             contentAlignment = Alignment.Center,
                         ) { Text(s, style = mono(12.sp, FontWeight.Normal), color = c.t2, maxLines = 1) }
@@ -573,7 +573,7 @@ private fun Mini(icon: ImageVector, text: String, ai: Boolean = false, onClick: 
     val ia = remember { MutableInteractionSource() }
     val fg = if (ai) c.accent else c.t1
     Row(
-        Modifier.height(36.dp).pressScale(ia, 0.96f).clip(RoundedCornerShape(10.dp)).background(if (ai) c.accentSoft else c.s2)
+        Modifier.height(40.dp).pressScale(ia, 0.96f).clip(RoundedCornerShape(10.dp)).background(if (ai) c.accentSoft else c.s2)
             .clickable(ia, ripple(), role = Role.Button, onClick = onClick).padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp),
