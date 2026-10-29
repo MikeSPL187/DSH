@@ -990,28 +990,9 @@ private fun CodeBlock(lines: List<String>, ext: String) {
     }
 }
 
-/** Подсветка как `hl()` в прототипе: комментарии, строки, ключевые слова, секции TOML, заголовки Markdown. */
-internal fun highlight(lines: List<String>, ext: String, c: com.dsh.core.designsystem.DshColors): AnnotatedString = buildAnnotatedString {
-    val token = Regex("(\"[^\"]*\"|'[^']*')|\\b(package|import|class|object|interface|override|fun|val|var|set|if|else|then|fi|for|while|return|echo|mkdir|tar|true|false|null|def|from|const|let|function|export)\\b|^(\\[[\\w.-]+\\])")
-    lines.forEachIndexed { i, line ->
-        if (i > 0) append("\n")
-        val comment = Regex("^\\s*(#|//)").containsMatchIn(line) && !(ext == "md" && line.startsWith("#"))
-        when {
-            comment -> withStyle(SpanStyle(color = c.t3, fontStyle = FontStyle.Italic)) { append(line) }
-            ext == "md" && line.startsWith("#") -> withStyle(SpanStyle(color = c.accent)) { append(line) }
-            else -> {
-                var last = 0
-                for (m in token.findAll(line)) {
-                    append(line.substring(last, m.range.first))
-                    val color = if (m.groups[1] != null) c.ok else c.accent
-                    withStyle(SpanStyle(color = color)) { append(m.value) }
-                    last = m.range.last + 1
-                }
-                append(line.substring(last))
-            }
-        }
-    }
-}
+/** Подсветка — общая с чатом ([com.dsh.core.designsystem.highlightCode]). */
+internal fun highlight(lines: List<String>, ext: String, c: com.dsh.core.designsystem.DshColors): AnnotatedString =
+    com.dsh.core.designsystem.highlightCode(lines, ext, c)
 
 @Composable
 private fun ImagePreview(f: File) {

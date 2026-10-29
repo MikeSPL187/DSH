@@ -318,7 +318,10 @@ fun ModernChatScreen(
     var subagentsOpen by remember { mutableStateOf(initialSheet == "subagents") }
     var contextOpen by remember { mutableStateOf(initialSheet == "context") }
     var trajectoryOpen by remember { mutableStateOf(false) }
-    var actionMessage by remember { mutableStateOf(if (initialSheet == "msg") messages.firstOrNull { it.role == MessageRole.USER } else null) }
+    var actionMessage by remember { mutableStateOf(if (initialSheet == "msg") messages.firstOrNull { it.role == MessageRole.USER } else if (initialSheet == "msg-ai") messages.firstOrNull { it.role == MessageRole.ASSISTANT } else null) }
+    // «Выделить текст»: лист с полным текстом сообщения.
+    var selectText by remember { mutableStateOf(if (initialSheet == "select") messages.firstOrNull { it.role == MessageRole.ASSISTANT }?.content else null) }
+    val reader = rememberSpeechReader()
     var variantFor by remember { mutableStateOf(if (initialSheet == "variant") messages.firstOrNull { it.role == MessageRole.USER } else null) }
     var variantsOpen by remember { mutableStateOf(initialSheet == "variants") }
     var shareOpen by remember { mutableStateOf(initialSheet == "share") }
@@ -569,7 +572,7 @@ fun ModernChatScreen(
             lastScroll = y
         }
     }
-    val closeSheets = { actionMessage = null; rewindMessage = null; shareOpen = false; variantFor = null; variantsOpen = false; trajectoryOpen = false; pendingConfirm = null; modelMenuOpen = false; permissionMenuOpen = false; agentPresetMenuOpen = false; toolDetail = null; changeDiffIndex = null; commandSheetOpen = false; subagentsOpen = false; contextOpen = false }
+    val closeSheets = { actionMessage = null; selectText = null; rewindMessage = null; shareOpen = false; variantFor = null; variantsOpen = false; trajectoryOpen = false; pendingConfirm = null; modelMenuOpen = false; permissionMenuOpen = false; agentPresetMenuOpen = false; toolDetail = null; changeDiffIndex = null; commandSheetOpen = false; subagentsOpen = false; contextOpen = false }
     val effortOptions = reasoningOptions
     val sheet: (@Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit)? = when {
         modelMenuOpen -> {
@@ -728,6 +731,11 @@ fun ModernChatScreen(
             }
             body
         }
+        selectText != null -> {
+            val t = selectText!!
+            val body: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = { SelectTextBody(t) }
+            body
+        }
         actionMessage != null -> {
             val m = actionMessage!!
             val body: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
@@ -745,6 +753,14 @@ fun ModernChatScreen(
                     onFork = services::forkAt,
                     onDismiss = { actionMessage = null },
                     onRewind = { actionMessage = null; rewindMessage = m },
+                    onEdit = if (m.seq > 0L) ({ actionMessage = null; services.rewindConversation(m) }) else null,
+                    onSelect = { actionMessage = null; selectText = m.content },
+                    onSpeak = {
+                        actionMessage = null
+                        if (reader.speaking) reader.stop()
+                        else reader.speak(m.content) { android.widget.Toast.makeText(ctx, ctx.getString(R.string.tts_unavailable), android.widget.Toast.LENGTH_LONG).show() }
+                    },
+                    speaking = reader.speaking,
                     onUndo = if (canUndo) ({
                         actionMessage = null
                         undoScope.launch {
@@ -1005,6 +1021,33 @@ fun ModernChatScreen(
                 .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars)),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            // `.jump` и `.tts`: над доком (и над панелью цели) — справа «К последнему», слева «Читаю вслух».
+            val showJump by remember {
+                derivedStateOf {
+                    val li = listState.layoutInfo
+                    val last = li.visibleItemsInfo.lastOrNull()
+                    when {
+                        li.totalItemsCount == 0 || last == null -> false
+                        last.index < li.totalItemsCount - 1 -> true
+                        else -> last.offset + last.size - li.viewportEndOffset > (li.viewportEndOffset - li.viewportStartOffset) / 2
+                    }
+                }
+            }
+            val jumpScope = rememberCoroutineScope()
+            Box(Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 10.dp)) {
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = reader.speaking, modifier = Modifier.align(Alignment.CenterStart),
+                    enter = fadeIn() + androidx.compose.animation.scaleIn(com.dsh.core.designsystem.DshMotion.snappy(), initialScale = 0.9f),
+                    exit = fadeOut() + androidx.compose.animation.scaleOut(com.dsh.core.designsystem.DshMotion.snappy(), targetScale = 0.9f),
+                ) { ReadingPill(onStop = { reader.stop() }) }
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = showJump && messages.isNotEmpty(), modifier = Modifier.align(Alignment.CenterEnd),
+                    enter = fadeIn() + androidx.compose.animation.scaleIn(com.dsh.core.designsystem.DshMotion.snappy(), initialScale = 0.9f) + slideInVertically { it / 4 },
+                    exit = fadeOut() + androidx.compose.animation.scaleOut(com.dsh.core.designsystem.DshMotion.snappy(), targetScale = 0.9f) + slideOutVertically { it / 4 },
+                ) {
+                    JumpButton({ jumpScope.launch { listState.animateScrollToItem(listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1, Int.MAX_VALUE / 2) } })
+                }
+            }
             if (queuedMessages.isNotEmpty()) {
                 QueuedMessagesDock(
                     messages = queuedMessages,

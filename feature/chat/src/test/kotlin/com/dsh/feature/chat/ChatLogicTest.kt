@@ -116,7 +116,7 @@ class ChatLogicTest {
         assertEquals(MarkdownBlock.ListItem("•", "nested", depth = 1), blocks[3])
         assertEquals(MarkdownBlock.ListItem("•", "done", checked = true), blocks[4])
         assertEquals(MarkdownBlock.ListItem("1.", "first"), blocks[5])
-        assertEquals(MarkdownBlock.Code("val a = 1"), blocks[6])
+        assertEquals(MarkdownBlock.Code("val a = 1", "kotlin"), blocks[6])
         assertEquals(MarkdownBlock.Table(listOf(listOf("A", "B"), listOf("1", "2"))), blocks[7])
         assertEquals(MarkdownBlock.Quote("quoted"), blocks[8])
     }

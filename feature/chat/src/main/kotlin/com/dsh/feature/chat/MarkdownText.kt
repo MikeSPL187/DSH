@@ -4,6 +4,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.TextStyle
@@ -79,7 +81,7 @@ fun MarkdownMessageText(text: String, color: Color = com.dsh.core.designsystem.D
                     }
                     Text(inlineMarkdown(block.text, color), style = bodyTextStyle(), color = if (block.checked == true) c.t3 else color, modifier = Modifier.weight(1f))
                 }
-                is MarkdownBlock.Code -> CodeBlock(block.code)
+                is MarkdownBlock.Code -> CodeBlock(block.code, block.lang)
                 is MarkdownBlock.Table -> Column(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.s1).border(1.dp, c.line, RoundedCornerShape(14.dp))
                         .horizontalScroll(rememberScrollState()),
@@ -114,7 +116,7 @@ fun MarkdownMessageText(text: String, color: Color = com.dsh.core.designsystem.D
  * строки «+»/«−» диффа подсвечены; копирование — кнопкой в углу.
  */
 @Composable
-private fun CodeBlock(code: String) {
+private fun CodeBlock(code: String, lang: String = "") {
     val c = com.dsh.core.designsystem.Dsh.colors
     val ctx = LocalContext.current
     val size = com.dsh.core.designsystem.LocalCodeFontSize.current - 0.5f
@@ -123,8 +125,34 @@ private fun CodeBlock(code: String) {
     val allLines = remember(code) { code.lines() }
     val lines = remember(allLines) { allLines.take(MAX_CODE_LINES).map { if (it.length > MAX_CODE_LINE) it.take(MAX_CODE_LINE) + "…" else it } }
     val diff = remember(code) { lines.count { it.startsWith("+") || it.startsWith("-") } >= lines.size / 2 && lines.any { it.startsWith("@@") || it.startsWith("+") } }
+    // Подсветка как в «Файлах» — у блоков с языком (не у диффа и не у огромных блоков).
+    val painted = remember(lines, lang, diff, c) {
+        if (lang.isEmpty() || diff || code.length > 50_000) null
+        else lines.map { com.dsh.core.designsystem.highlightCode(listOf(it), com.dsh.core.designsystem.codeLangExt(lang), c) }
+    }
     val shape = RoundedCornerShape(16.dp)
-    Box(Modifier.fillMaxWidth().clip(shape).background(c.termBg).border(1.dp, c.line, shape)) {
+    val runInTerminal = LocalRunInTerminal.current
+    val copied = stringResource(R.string.markdown_copied)
+    Column(Modifier.fillMaxWidth().clip(shape).background(c.termBg).border(1.dp, c.line, shape)) {
+        // `.mc-head`: язык, «В терминал» (только команды оболочки — подставить, не запускать), «Копировать».
+        Row(Modifier.fillMaxWidth().heightIn(min = 44.dp).padding(start = 14.dp, end = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(lang.ifEmpty { stringResource(R.string.markdown_code) }, style = ckMono(12.sp, 16.sp), color = c.t3, maxLines = 1, modifier = Modifier.weight(1f))
+            if (runInTerminal != null && lang in SHELL_LANGS) {
+                Row(
+                    Modifier.height(40.dp).clip(RoundedCornerShape(12.dp)).clickable(role = androidx.compose.ui.semantics.Role.Button) { runInTerminal(code) }.padding(horizontal = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    androidx.compose.material3.Icon(com.dsh.core.designsystem.DshGlyphs.Term, null, tint = c.t2, modifier = Modifier.size(18.dp))
+                    Text(stringResource(R.string.markdown_to_terminal), style = ckBody(13.sp, 16.sp, androidx.compose.ui.text.font.FontWeight.Medium), color = c.t2)
+                }
+            }
+            ChatIconBtn(com.dsh.core.designsystem.DshGlyphs.Copy, stringResource(R.string.markdown_copy), tint = c.t2, iconSize = 18.dp) {
+                (ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
+                    .setPrimaryClip(android.content.ClipData.newPlainText("code", code))
+                android.widget.Toast.makeText(ctx, copied, android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
         Column(Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
             lines.forEachIndexed { i, line ->
                 val (bg, fg) = when {
@@ -133,30 +161,29 @@ private fun CodeBlock(code: String) {
                     diff && line.startsWith("@@") -> Color.Transparent to c.t3
                     else -> Color.Transparent to c.termText
                 }
-                Row(Modifier.background(bg).padding(end = 44.dp)) {
+                Row(Modifier.background(bg).padding(end = 14.dp)) {
                     Text(
                         (i + 1).toString(), style = ckMono(size.sp, (size * 1.7f).sp), color = c.t3.copy(alpha = 0.8f),
                         textAlign = androidx.compose.ui.text.style.TextAlign.End, modifier = Modifier.width(38.dp).padding(end = 12.dp),
                     )
-                    Text(line, style = ckMono(size.sp, (size * 1.7f).sp), color = fg, softWrap = false)
+                    if (painted != null && fg == c.termText) Text(painted[i], style = ckMono(size.sp, (size * 1.7f).sp), color = fg, softWrap = false)
+                    else Text(line, style = ckMono(size.sp, (size * 1.7f).sp), color = fg, softWrap = false)
                 }
             }
             if (allLines.size > lines.size) Text(
                 stringResource(R.string.markdown_code_more, lines.size, allLines.size),
                 style = ckBody(12.5.sp, 16.sp), color = c.t3,
-                modifier = Modifier.padding(start = 50.dp, top = 6.dp, end = 44.dp),
+                modifier = Modifier.padding(start = 50.dp, top = 6.dp, end = 14.dp),
             )
-        }
-        val copied = stringResource(R.string.markdown_copied)
-        Box(Modifier.align(Alignment.TopEnd)) {
-            ChatIconBtn(com.dsh.core.designsystem.DshGlyphs.Copy, stringResource(R.string.markdown_copy), tint = c.t3, iconSize = 16.dp) {
-                (ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
-                    .setPrimaryClip(android.content.ClipData.newPlainText("code", code))
-                android.widget.Toast.makeText(ctx, copied, android.widget.Toast.LENGTH_SHORT).show()
-            }
         }
     }
 }
+
+/** Языки блоков кода, которые можно подставить в терминал. */
+private val SHELL_LANGS = setOf("bash", "sh", "shell", "zsh", "console")
+
+/** «В терминал» для блоков кода оболочки: открыть терминал с командой в поле ввода; null — терминала нет. */
+val LocalRunInTerminal = androidx.compose.runtime.staticCompositionLocalOf<((String) -> Unit)?> { null }
 
 private const val MAX_CODE_LINES = 400
 private const val MAX_CODE_LINE = 2000
@@ -172,7 +199,7 @@ internal sealed interface MarkdownBlock {
         /** Отметка пункта задачи; null — обычный пункт списка. */
         val checked: Boolean? = null,
     ) : MarkdownBlock
-    data class Code(val code: String) : MarkdownBlock
+    data class Code(val code: String, val lang: String = "") : MarkdownBlock
     data class Table(val rows: List<List<String>>) : MarkdownBlock
     data class Quote(val text: String) : MarkdownBlock
 }
@@ -220,7 +247,7 @@ internal fun parseMarkdownBlocks(text: String): List<MarkdownBlock> {
                     code.appendLine(lines[index])
                     index += 1
                 }
-                blocks += MarkdownBlock.Code(code.toString().trimEnd())
+                blocks += MarkdownBlock.Code(code.toString().trimEnd(), fence.groupValues[1].trim().substringBefore(' ').lowercase())
             }
             headingRegex.matches(trimmed) -> {
                 flushParagraph()

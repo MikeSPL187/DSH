@@ -405,7 +405,7 @@ class DshScreensSweepTest {
         if (done) {
             list += tool("c3", "edit", "ok", "ok", "{\"path\":\"gradle/libs.versions.toml\"}", t0 + 20_000)
             list += tool("c4", "bash", "ok", "> Task :app:compileDebugKotlin\n> Task :app:packageDebug\nBUILD SUCCESSFUL in 41s", "{\"command\":\"./gradlew :app:assembleDebug\"}", t0 + 62_000)
-            list += msg("a1", com.dsh.core.model.MessageRole.ASSISTANT, "Причина — несовместимые версии: компилятор Compose 1.7.3 требует Kotlin 2.0.21, а в проекте стоял 2.0.0. Я обновил версию в `gradle/libs.versions.toml` и пересобрал проект — сборка проходит.", t0 + 64_000)
+            list += msg("a1", com.dsh.core.model.MessageRole.ASSISTANT, "Причина — несовместимые версии: компилятор Compose 1.7.3 требует Kotlin 2.0.21, а в проекте стоял 2.0.0. Я обновил версию в `gradle/libs.versions.toml` и пересобрал проект — сборка проходит.\n\n```bash\n./gradlew :app:assembleDebug\n```", t0 + 64_000)
         }
         return list
     }
@@ -483,14 +483,14 @@ class DshScreensSweepTest {
     private fun chatAgent(
         done: Boolean, approval: com.dsh.feature.chat.ChatApproval? = null, online: Boolean = true,
         stats: com.dsh.core.model.ComposerStats = ctxStats(412_000), sheet: String? = null, spent: String? = "0.38 USD",
-    ) = com.dsh.feature.chat.ModernChatScreen(
+    ) = androidx.compose.runtime.CompositionLocalProvider(com.dsh.feature.chat.LocalRunInTerminal provides { _: String -> }) { com.dsh.feature.chat.ModernChatScreen(
         messages = agentMessages(done), onSendMessage = {}, isThinking = !done, isSending = !done, approval = approval, online = online,
         stats = stats, initialSheet = sheet, spentToday = spent,
         sessionTitle = "Скрипт резервного копирования",
         topBar = { sc, ctx -> com.dsh.ModernTopAppBar(title = "Сборка падает после обновления Compose", workspace = "DSH-Workspace", scrolled = sc, context = ctx, onMenuClick = {}) },
         filesBadge = 2, onOpenTerminal = {}, voiceEnabled = true,
         selectedModel = "DeepSeek V4", availableModels = listOf("DeepSeek V4"),
-    )
+    ) }
 
     private val models = listOf(
         com.dsh.core.model.ModelProviderGroup(
@@ -536,6 +536,8 @@ class DshScreensSweepTest {
                 "chat-ctx-danger" to @Composable { chatAgent(done = true, stats = ctxStats(968_000)) },
                 "chat-ctx-danger-sheet" to @Composable { chatAgent(done = true, stats = ctxStats(968_000), sheet = "context") },
                 "chat-msg-sheet" to @Composable { withRewind(rewindDemo) { chatAgent(done = true, sheet = "msg") } },
+                "chat-msg-ai-sheet" to @Composable { chatAgent(done = true, sheet = "msg-ai") },
+                "chat-select-sheet" to @Composable { chatAgent(done = true, sheet = "select") },
                 "chat-rewind-sheet" to @Composable { withRewind(rewindDemo) { chatAgent(done = true, sheet = "rewind") } },
                 "chat-rewind-many-sheet" to @Composable { withRewind(rewindMany) { chatAgent(done = true, sheet = "rewind") } },
                 "chat-share-sheet" to @Composable { chatAgent(done = true, sheet = "share") },

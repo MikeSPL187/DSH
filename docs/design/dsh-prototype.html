@@ -1013,6 +1013,13 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .fv-banner { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 12px; margin-bottom: 10px; border-radius: 14px; background: var(--warn-soft); color: var(--warn); font-size: 13.5px; min-height: 44px; }
 .fv-banner span { flex: 1; }
 .fv-banner b { font-weight: 600; }
+/* Блок кода в ответе агента: язык, «В терминал» (только команды оболочки), «Копировать» */
+.mcode { margin: 12px 0 14px; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: var(--term-bg); }
+.mc-head { display: flex; align-items: center; gap: 2px; min-height: 44px; padding: 0 2px 0 14px; border-bottom: 1px solid var(--line); }
+.mc-head .lang { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: 12px; color: var(--t3); }
+.mc-act { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 10px; border-radius: 12px; font-size: 13px; font-weight: 500; color: var(--t2); }
+.mc-act:active { background: var(--s2); }
+.mcode .code { border: 0; border-radius: 0; }
 .code { background: var(--term-bg); border: 1px solid var(--line); border-radius: 16px; overflow-x: auto; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.7; padding: 8px 0; scrollbar-width: thin; }
 .code .ln { display: flex; min-width: max-content; padding-right: 14px; }
 .code .n { width: 38px; text-align: right; padding-right: 12px; color: var(--t3); user-select: none; flex: none; opacity: .8; }
@@ -1380,6 +1387,22 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
 .msg-user.pending { opacity: .6; }
 .msg-user { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .msg-user.held { transform: scale(.97); transition: transform .2s; }
+.msg-ai { -webkit-touch-callout: none; } .msg-ai.held { opacity: .7; transition: opacity .2s; }
+/* «К последнему сообщению» и «Читаю вслух» — над полем ввода, справа и слева от дока */
+.jump { position: absolute; right: 14px; bottom: 176px; z-index: 21; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: var(--t1);
+  background: var(--glass); backdrop-filter: blur(22px) saturate(1.7); -webkit-backdrop-filter: blur(22px) saturate(1.7); border: 1px solid var(--glass-line); box-shadow: var(--shadow-float);
+  opacity: 0; transform: translateY(10px) scale(.9); pointer-events: none; transition: opacity .25s, transform var(--t-snappy) var(--e-snappy); }
+.jump.on { opacity: 1; transform: none; pointer-events: auto; }
+.jump .i { transform: rotate(180deg); }
+.tts { position: absolute; left: 14px; bottom: 176px; z-index: 21; display: none; align-items: center; gap: 8px; height: 44px; padding: 0 2px 0 14px; border-radius: 999px; font-size: 13.5px; font-weight: 500; color: var(--t1);
+  background: var(--glass); backdrop-filter: blur(22px) saturate(1.7); -webkit-backdrop-filter: blur(22px) saturate(1.7); border: 1px solid var(--glass-line); box-shadow: var(--shadow-float); }
+.tts.on { display: flex; }
+.tts .i { color: var(--accent); }
+.tts button { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--s2); color: var(--t1); }
+/* Лист «Выделить текст»: обычное выделение пальцем */
+.sel-text { max-height: 58vh; overflow-y: auto; padding: 14px 16px; border-radius: 18px; background: var(--s1); border: 1px solid var(--line); font-size: 15.5px; line-height: 1.55; color: var(--t1);
+  -webkit-user-select: text; user-select: text; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sel-hint { margin: 10px 6px 0; font-size: 12.5px; color: var(--t3); text-align: center; }
 /* Возврат к сообщению: цитата, что изменится, варианты */
 .rw-quote { margin: -6px 4px 14px; padding-left: 10px; border-left: 3px solid var(--line); font-size: 14px; line-height: 1.45; color: var(--t2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .rw-files { margin-bottom: 12px; border-radius: 18px; background: var(--s2); padding: 4px 14px; }
@@ -1462,6 +1485,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
     <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M16 7l3 3M14 9l2 2"/></symbol>
     <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15Z"/><path d="M10 20a2 2 0 0 0 4 0"/></symbol>
+    <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.8 7.8 0 0 1 0 11"/></symbol>
     <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v12M6 11l6 6 6-6M5 20h14"/></symbol>
     <symbol id="i-box" viewBox="0 0 24 24"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5Z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></symbol>
     <symbol id="i-git" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="9" r="2.5"/><path d="M6 8.5v7M18 11.5c0 3-3 3.5-6 4l-3.5 1"/></symbol>
@@ -1571,6 +1595,8 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
 
         <div class="fade"></div>
 
+        <button class="jump" id="jump" aria-label="К последнему сообщению"><svg class="i"><use href="#i-up"/></svg></button>
+        <div class="tts" id="tts" role="status"><svg class="i sm"><use href="#i-speaker"/></svg><span>Читаю вслух</span><button id="ttsStop" aria-label="Остановить чтение"><svg class="i sm"><use href="#i-stop"/></svg></button></div>
         <div class="dock" id="dock" role="toolbar" aria-label="Инструменты">
           <button data-act="files"><svg class="i sm"><use href="#i-folder"/></svg><span class="lbl">Файлы</span><span class="badge" id="filesBadge">2</span></button>
           <button data-act="terminal"><svg class="i sm"><use href="#i-term"/></svg><span class="lbl">Терминал</span></button>
@@ -1787,6 +1813,14 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <div class="grab"></div>
         <h3>Сообщение</h3>
         <div class="list" id="msgList"></div>
+      </section>
+
+      <!-- Лист: выделить текст сообщения -->
+      <section class="sheet" id="sheet-sel" aria-label="Выделить текст">
+        <div class="grab"></div>
+        <h3>Выделить текст</h3>
+        <div class="sel-text" id="selText"></div>
+        <p class="sel-hint">Нажмите и ведите пальцем, чтобы выделить часть</p>
       </section>
 
       <!-- Лист: действия с сессией (долгое нажатие в меню) -->
@@ -2550,10 +2584,26 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     const msg = appendTo(thread, `<div class="msg-ai"><p></p></div>`);
     const ok = await streamText($("p", msg), "Причина — несовместимые версии: компилятор Compose 1.7.3 требует Kotlin 2.0.21, а в проекте стоял 2.0.0. Я обновил версию в `gradle/libs.versions.toml` и пересобрал проект — сборка проходит.", myRun);
     if (!ok) return;
+    appendTo(msg, mcodeHtml("bash", "./gradlew :app:assembleDebug"));
     const v = appendTo(thread, `<div class="verify"><div><span class="k">Проверено</span><span>Сборка :app:assembleDebug</span></div><div><span class="k">Не проверено</span><span>Запуск на устройстве</span></div></div>`);
     appendTo(thread, `<div class="actions"><button class="iconbtn" aria-label="Копировать"><svg class="i sm"><use href="#i-copy"/></svg></button><button class="iconbtn" aria-label="Повторить"><svg class="i sm"><use href="#i-redo"/></svg></button><button class="iconbtn" aria-label="Поделиться"><svg class="i sm"><use href="#i-share"/></svg></button></div>`);
     busy = false; syncSend();
   }
+
+  // Блок кода в ответе: команды оболочки — «В терминал» (подставить, не запускать), любой — «Копировать».
+  const SHELL = ["bash", "sh", "shell", "zsh", "console"];
+  function mcodeHtml(lang, code) {
+    return `<div class="mcode"><div class="mc-head"><span class="lang">${esc2(lang || "код")}</span>${SHELL.includes(lang) ? `<button class="mc-act" data-mc="term"><svg class="i sm"><use href="#i-term"/></svg>В терминал</button>` : ""}<button class="mc-act" data-mc="copy" aria-label="Копировать код"><svg class="i sm"><use href="#i-copy"/></svg></button></div>
+      <div class="code" data-src="${esc2(code).replace(/"/g, "&quot;")}">${code.split("\n").map((l, i) => `<div class="ln"><span class="n">${i + 1}</span><span class="c">${hl(l, LANG_EXT[lang] || lang) || " "}</span></div>`).join("")}</div></div>`;
+  }
+  // Язык блока → расширение для подсветки (та же, что в «Файлах»).
+  const LANG_EXT = { bash: "sh", shell: "sh", zsh: "sh", console: "sh", kotlin: "kt", markdown: "md" };
+  thread.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-mc]"); if (!b) return;
+    const code = b.closest(".mcode").querySelector(".code").dataset.src;
+    if (b.dataset.mc === "copy") { toast("Код скопирован"); return; }
+    screenOpen("terminal"); setTimeout(() => { const t = $("#tinput"); t.value = code; t.focus(); toast("Команда в терминале — проверьте и нажмите Enter"); }, 420);
+  });
 
   // ---------- Действия ----------
   app.addEventListener("click", (e) => {
@@ -4094,6 +4144,9 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     const top = parseFloat(getComputedStyle(composer).bottom) + composer.offsetHeight;
     goalbar.style.bottom = (top + (dock.classList.contains("away") ? 10 : 72)) + "px";
     thread.style.paddingBottom = (top + 84 + (goalbar.classList.contains("on") ? goalbar.offsetHeight + 8 : 0)) + "px";
+    // «Вниз» и «Читаю вслух» — над доком, а при панели цели — над ней.
+    const above = goalbar.classList.contains("on") ? parseFloat(goalbar.style.bottom) + goalbar.offsetHeight + 8 : 176;
+    $("#jump").style.bottom = $("#tts").style.bottom = above + "px";
   };
   new ResizeObserver(placeGoal).observe(goalbar);
   new ResizeObserver(placeGoal).observe(composer); new MutationObserver(placeGoal).observe(dock, { attributes: true, attributeFilter: ["class"] });
@@ -4246,8 +4299,14 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   function liHtml(id, icon, title, sub, danger) { return `<button class="li${danger ? " fa-del" : ""}" id="${id}"><span class="lic"><svg class="i sm"><use href="#${icon}"/></svg></span><span class="tx">${title}${sub ? `<small>${sub}</small>` : ""}</span></button>`; }
   function msgSheet(el) {
     RW.msg = el;
-    $("#msgList").innerHTML = liHtml("maCopy", "i-copy", "Копировать текст") + liHtml("maFork", "i-flow", "Ответвить отсюда", "Новая сессия с этого места")
-      + liHtml("maRewind", "i-undo", "Вернуться сюда", "Файлы и разговор — на выбор") + (RW.undo ? liHtml("maUndo", "i-redo", "Отменить возврат файлов", "Файлы станут как до возврата") : "");
+    const ai = el.classList.contains("msg-ai");
+    // Ответ агента: копировать, выделить, прочитать вслух, ответвить. Своё сообщение: ещё изменить и вернуться сюда.
+    $("#msgList").innerHTML = liHtml("maCopy", "i-copy", "Копировать текст")
+      + (ai ? "" : liHtml("maEdit", "i-pencil", "Изменить и отправить заново", "Новая ветка до этого сообщения, текст — в поле ввода"))
+      + liHtml("maSelect", "i-text", "Выделить текст")
+      + (ai ? liHtml("maSpeak", TTS.on ? "i-stop" : "i-speaker", TTS.on ? "Остановить чтение" : "Прочитать вслух") : "")
+      + liHtml("maFork", "i-flow", "Ответвить отсюда", "Новая сессия с этого места")
+      + (ai ? "" : liHtml("maRewind", "i-undo", "Вернуться сюда", "Файлы и разговор — на выбор") + (RW.undo ? liHtml("maUndo", "i-redo", "Отменить возврат файлов", "Файлы станут как до возврата") : ""));
     sheetOpen("msg");
   }
   function rwSheet() {
@@ -4260,12 +4319,30 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     sheetOpen("rewind");
   }
   let holdT = null;
-  thread.addEventListener("contextmenu", (e) => { const m = e.target.closest(".msg-user"); if (!m) return; e.preventDefault(); msgSheet(m); });
-  thread.addEventListener("pointerdown", (e) => { const m = e.target.closest(".msg-user"); if (!m) return; m.classList.add("held"); holdT = setTimeout(() => { m.classList.remove("held"); msgSheet(m); }, 500); });
-  ["pointerup", "pointercancel", "pointerleave"].forEach((ev) => thread.addEventListener(ev, () => { clearTimeout(holdT); $$(".msg-user.held", thread).forEach((m) => m.classList.remove("held")); }));
+  // Долгое нажатие — на своём сообщении и на ответе агента (не на ссылках и кнопках внутри ответа).
+  const holdable = (e) => { const m = e.target.closest(".msg-user, .msg-ai"); return m && !e.target.closest("a, button, .code, pre") ? m : null; };
+  thread.addEventListener("contextmenu", (e) => { const m = holdable(e); if (!m) return; e.preventDefault(); msgSheet(m); });
+  thread.addEventListener("pointerdown", (e) => { const m = holdable(e); if (!m) return; m.classList.add("held"); holdT = setTimeout(() => { m.classList.remove("held"); msgSheet(m); }, 500); });
+  ["pointerup", "pointercancel", "pointerleave"].forEach((ev) => thread.addEventListener(ev, () => { clearTimeout(holdT); $$(".held", thread).forEach((m) => m.classList.remove("held")); }));
+  // ── Прочитать вслух (Android TextToSpeech в приложении; здесь — синтез речи браузера) ──
+  const TTS = { on: false, t: 0 };
+  function ttsStart(text) {
+    ttsStop(); TTS.on = true; $("#tts").classList.add("on");
+    try { const u = new SpeechSynthesisUtterance(text); u.lang = "ru-RU"; u.onend = ttsStop; speechSynthesis.speak(u); } catch (_) {}
+    TTS.t = setTimeout(ttsStop, Math.min(60000, 1500 + text.length * 60));
+  }
+  function ttsStop() { TTS.on = false; clearTimeout(TTS.t); $("#tts").classList.remove("on"); try { speechSynthesis.cancel(); } catch (_) {} }
+  $("#ttsStop").addEventListener("click", ttsStop);
+  // ── «К последнему сообщению»: появляется, когда до конца переписки больше половины экрана ──
+  const jump = $("#jump");
+  thread.addEventListener("scroll", () => jump.classList.toggle("on", thread.scrollHeight - thread.scrollTop - thread.clientHeight > thread.clientHeight / 2));
+  jump.addEventListener("click", () => thread.scrollTo({ top: thread.scrollHeight, behavior: "smooth" }));
   document.addEventListener("click", (e) => {
     const id = e.target.closest("#msgList .li, #rwList .li")?.id; if (!id) return;
     if (id === "maCopy") { sheetClose(); toast("Текст скопирован"); }
+    if (id === "maSelect") { $("#selText").textContent = RW.msg.innerText.trim(); sheetClose(); setTimeout(() => sheetOpen("sel"), 320); }
+    if (id === "maSpeak") { sheetClose(); if (TTS.on) ttsStop(); else ttsStart(RW.msg.innerText.trim()); }
+    if (id === "maEdit") { const text = RW.msg.textContent; sheetClose(); toast("Новая ветка разговора · измените и отправьте"); const f = $("#field"); f.textContent = text; f.dispatchEvent(new Event("input", { bubbles: true })); setTimeout(() => { f.focus(); const r = document.createRange(); r.selectNodeContents(f); r.collapse(false); const sl = getSelection(); sl.removeAllRanges(); sl.addRange(r); }, 340); }
     if (id === "maFork") { sheetClose(); toast("Новая сессия с этого места"); }
     if (id === "maRewind") { sheetClose(); setTimeout(rwSheet, 320); }
     if (id === "maUndo") { RW.undo = false; RW.files = [["gradle/libs.versions.toml", "mod"], ["scripts/backup.sh", "add"]]; sheetClose(); toast("Возврат файлов отменён · 2 файла"); }

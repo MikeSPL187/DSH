@@ -148,6 +148,9 @@ fun TerminalScreen(
     onRetryStatus: () -> Unit,
     onResize: (cols: Int, rows: Int) -> Unit,
     modifier: Modifier = Modifier,
+    /** Команда из блока кода чата: подставить в поле ввода (не запускать). */
+    prefill: String? = null,
+    onPrefilled: () -> Unit = {},
 ) {
     val c = Dsh.colors
     var input by remember { mutableStateOf(TextFieldValue("")) }
@@ -161,6 +164,10 @@ fun TerminalScreen(
     val canType = writable && status == TermStatus.Ready
 
     fun setInput(t: String) { input = TextFieldValue(t, TextRange(t.length)) }
+    val prefillHint = androidx.compose.ui.res.stringResource(R.string.tm_prefilled)
+    androidx.compose.runtime.LaunchedEffect(prefill) {
+        if (prefill != null) { setInput(prefill.trimEnd('\n')); toast.show(prefillHint); onPrefilled() }
+    }
     fun recallBy(d: Int) {
         if (history.isEmpty()) return
         recall = (recall + d).coerceIn(-1, history.lastIndex)

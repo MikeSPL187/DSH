@@ -4,6 +4,7 @@
     <string name="tm_title">Terminal</string>
     <string name="tm_font">Font size</string>
     <string name="tm_font_toast">Font %1$s pt</string>
+    <string name="tm_prefilled">Command is in the input — check it and press Enter</string>
     <string name="tm_clear">Clear</string>
     <string name="tm_add">New tab</string>
     <string name="tm_add_toast">New %1$s tab</string>

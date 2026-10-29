@@ -88,6 +88,8 @@ fun DshTerminalRoute(
     sessionId: String?,
     distro: String?,
     onBack: (() -> Unit)?,
+    prefill: String? = null,
+    onPrefilled: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -255,6 +257,8 @@ fun DshTerminalRoute(
                 else -> reopen[a.id] = (reopen[a.id] ?: 0) + 1
             }
         },
+        prefill = prefill,
+        onPrefilled = onPrefilled,
         onResize = { cols, rows ->
             size = cols to rows
             conns.values.forEach { it.resize(cols, rows) }

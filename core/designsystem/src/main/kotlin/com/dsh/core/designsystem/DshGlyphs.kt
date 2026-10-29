@@ -87,6 +87,7 @@ object DshGlyphs {
     val Lock: ImageVector get() = get("lock")
     val Key: ImageVector get() = get("key")
     val Bell: ImageVector get() = get("bell")
+    val Speaker: ImageVector get() = get("speaker")
     val Down: ImageVector get() = get("down")
     val Box: ImageVector get() = get("box")
     val Git: ImageVector get() = get("git")
@@ -152,6 +153,7 @@ object DshGlyphs {
         "lock" to listOf(P("M7.5,11h9a2.5,2.5 0 0 1 2.5,2.5v5a2.5,2.5 0 0 1 -2.5,2.5h-9a2.5,2.5 0 0 1 -2.5,-2.5v-5a2.5,2.5 0 0 1 2.5,-2.5Z", false, true, null), P("M8 11V8a4 4 0 0 1 8 0v3", false, true, null)),
         "key" to listOf(P("M4,15a4,4 0 1,0 8,0a4,4 0 1,0 -8,0Z", false, true, null), P("m11 12 9-9M16 7l3 3M14 9l2 2", false, true, null)),
         "bell" to listOf(P("M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15Z", false, true, null), P("M10 20a2 2 0 0 0 4 0", false, true, null)),
+        "speaker" to listOf(P("M4 9.5h3.5L12 5.5v13l-4.5-4H4z", false, true, null), P("M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.8 7.8 0 0 1 0 11", false, true, null)),
         "down" to listOf(P("M12 4v12M6 11l6 6 6-6M5 20h14", false, true, null)),
         "box" to listOf(P("M3 7.5 12 3l9 4.5v9L12 21l-9-4.5Z", false, true, null), P("M3 7.5 12 12l9-4.5M12 12v9", false, true, null)),
         "git" to listOf(P("M3.5,6a2.5,2.5 0 1,0 5,0a2.5,2.5 0 1,0 -5,0Z", false, true, null), P("M3.5,18a2.5,2.5 0 1,0 5,0a2.5,2.5 0 1,0 -5,0Z", false, true, null), P("M15.5,9a2.5,2.5 0 1,0 5,0a2.5,2.5 0 1,0 -5,0Z", false, true, null), P("M6 8.5v7M18 11.5c0 3-3 3.5-6 4l-3.5 1", false, true, null)),

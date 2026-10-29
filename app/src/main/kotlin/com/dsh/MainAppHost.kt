@@ -821,6 +821,8 @@ fun MainAppHost(
                 ?.substringAfter('=')?.trim('"')?.substringBefore(" GNU/Linux")?.substringBefore(" (")
         }.getOrNull()
     }
+    // Команда из блока кода чата для поля ввода терминала (одноразово).
+    var terminalPrefill by remember { mutableStateOf<String?>(null) }
     val terminalRoute: @Composable (Boolean) -> Unit = { page ->
         // Адрес из вывода (dev-сервер в Linux DSH) открывается во встроенном браузере.
         // Лямбда стабильна: она ключ remember вывода блоков, новая на каждый кадр пересчитывала бы вывод.
@@ -832,6 +834,8 @@ fun MainAppHost(
             sessionId = ui.selectedSessionId ?: sessions.firstOrNull()?.sessionId,
             distro = terminalDistro,
             onBack = if (page) ({ ui.activePage = ActivePage.CHAT }) else null,
+            prefill = terminalPrefill,
+            onPrefilled = { terminalPrefill = null },
         )
         }
     }
@@ -881,7 +885,12 @@ fun MainAppHost(
             onDraft = { text -> runtimeUi.voiceTranscript = text },
         )
     }
-    androidx.compose.runtime.CompositionLocalProvider(com.dsh.feature.chat.LocalChatServices provides chatServices) {
+    // «В терминал» у блока кода оболочки в ответе: терминал с командой в поле ввода (запускает сам человек).
+    val runInTerminal: ((String) -> Unit)? = if (terminalSupported) ({ code -> terminalPrefill = code; ui.activePage = ActivePage.TERMINAL }) else null
+    androidx.compose.runtime.CompositionLocalProvider(
+        com.dsh.feature.chat.LocalChatServices provides chatServices,
+        com.dsh.feature.chat.LocalRunInTerminal provides runInTerminal,
+    ) {
     Box(modifier = Modifier.fillMaxSize()) {
         com.dsh.core.designsystem.DshSheetScaffold(
             sheet = drawerUi.sheet,
