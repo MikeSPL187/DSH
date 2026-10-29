@@ -117,6 +117,12 @@ class DshScreensSweepTest {
 
     // ---------- Настройки ----------
 
+    private val provDemo = listOf(
+        com.dsh.feature.settings.ui.ProviderRow("anthropic", "Claude", "•••• 7Qx2", true, last4 = "7Qx2", models = 9, catalog = true),
+        com.dsh.feature.settings.ui.ProviderRow("openrouter", "OpenRouter", "•••• k4Lm", true, last4 = "k4Lm", catalog = true),
+        com.dsh.feature.settings.ui.ProviderRow("ollama-home", "Ollama дома", "192.168.1.20:11434/v1", null),
+    )
+
     private val st = SettingsUi(
         appVersion = "1.1.0", appBuild = 110, hostVersion = "0.2.1", sdkVersion = "0.2.1-rc.3", distro = "Debian 12", androidVersion = "Android 14",
         accountName = "Михаил", keyState = KeyState.Ok, keyLast4 = "9a65", keyAdded = "12 окт",
@@ -158,6 +164,15 @@ class DshScreensSweepTest {
                 }
             } + listOf(
                 "st-nokey" to @Composable { SettingsHomeScreen(SettingsUi(appVersion = "1.1.0", androidVersion = "Android 14"), onClose = {}) },
+                "st-provadd" to @Composable { SettingsHomeScreen(st.copy(customProviders = provDemo), onClose = {}, initialPage = StPage.ProvAdd) },
+                "st-provkey-oauth" to @Composable {
+                    SettingsHomeScreen(st, onClose = {}, initialPage = StPage.ProvKey, initialProvider = "anthropic", initialProviderKey = "sk-ant-oat01-demo-subscription-token")
+                },
+                "st-provkey-format" to @Composable {
+                    SettingsHomeScreen(st, onClose = {}, initialPage = StPage.ProvKey, initialProvider = "google", initialProviderKey = "sk-proj-wrong-provider-key")
+                },
+                "st-models-prov" to @Composable { SettingsHomeScreen(st.copy(customProviders = provDemo), onClose = {}, initialPage = StPage.Models) },
+                "st-prov-sheet" to @Composable { SettingsHomeScreen(st.copy(customProviders = provDemo), onClose = {}, initialPage = StPage.Models, initialSheet = "prov:anthropic") },
                 "st-host-off" to @Composable { SettingsHomeScreen(st.copy(hostRunning = false), onClose = {}, initialPage = StPage.Host) },
                 "st-agent-net" to @Composable {
                     SettingsHomeScreen(

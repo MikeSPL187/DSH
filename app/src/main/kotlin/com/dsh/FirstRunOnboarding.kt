@@ -239,7 +239,7 @@ private fun rememberLinuxInstall(runtimeUi: AppRuntimeUiState): LinuxInstall {
     )
 }
 
-private val keyClient: OkHttpClient by lazy {
+internal val keyClient: OkHttpClient by lazy {
     OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)

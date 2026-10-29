@@ -393,4 +393,42 @@
     <string name="st_mcp_add_go">Добавить</string>
     <string name="st_mcp_added">Добавлено · нужен перезапуск Host</string>
     <string name="st_mcp_add_failed">Не удалось добавить: для токена Host должен работать</string>
+    <string name="st_pv_add">Добавить провайдера</string>
+    <string name="st_pv_add_sub">Claude, OpenAI, Gemini, OpenRouter или свой</string>
+    <string name="st_pv_add_page_sub">Только API-ключи</string>
+    <string name="st_pv_custom_sub">Любой OpenAI-совместимый адрес</string>
+    <string name="st_pv_connected">подключён</string>
+    <string name="st_pv_desc_anthropic">Sonnet, Opus и Haiku</string>
+    <string name="st_pv_desc_openai">GPT и модели рассуждения</string>
+    <string name="st_pv_desc_google">Gemini Pro и Flash</string>
+    <string name="st_pv_desc_openrouter">Сотни моделей по одному ключу</string>
+    <string name="st_pv_lead_anthropic">API-ключ из консоли Anthropic. Оплата по токенам на сайте Anthropic — отдельно от подписки Claude Pro и Max.</string>
+    <string name="st_pv_lead_openai">API-ключ с platform.openai.com. Оплата по токенам — отдельно от подписки ChatGPT Plus и Pro.</string>
+    <string name="st_pv_lead_google">API-ключ из Google AI Studio. Есть бесплатный уровень с ограничениями. Вход через Gemini CLI или Antigravity в сторонних приложениях запрещён.</string>
+    <string name="st_pv_lead_openrouter">Один ключ — модели Anthropic, OpenAI, Google, Meta и других. Оплата на openrouter.ai, у ключа можно задать лимит.</string>
+    <string name="st_pv_sub_anthropic">Это токен подписки Claude, а не API-ключ. В сторонних приложениях его использовать запрещено — аккаунт могут заблокировать. Нужен ключ из console.anthropic.com.</string>
+    <string name="st_pv_sub_openai">Это токен входа ChatGPT, а не API-ключ. Нужен ключ с platform.openai.com.</string>
+    <string name="st_pv_sub_google">Это токен входа Google, а не API-ключ. Нужен ключ из aistudio.google.com.</string>
+    <string name="st_pv_sub_other">Это токен входа по подписке, а не API-ключ. В сторонних приложениях его использовать запрещено — аккаунт могут заблокировать.</string>
+    <string name="st_pv_format">Ключ %1$s начинается с %2$s…</string>
+    <string name="st_pv_checking">Проверяю у %1$s…</string>
+    <plurals name="st_pv_works"><item quantity="one">Ключ работает · %d модель</item><item quantity="few">Ключ работает · %d модели</item><item quantity="many">Ключ работает · %d моделей</item><item quantity="other">Ключ работает · %d модели</item></plurals>
+    <string name="st_pv_safe_store">Ключ хранится в Android Keystore и не показывается целиком</string>
+    <string name="st_pv_where">Где взять ключ</string>
+    <string name="st_pv_connect">Подключить</string>
+    <string name="st_pv_added">%1$s подключён · модели — в выборе модели</string>
+    <string name="st_pv_add_failed">Не удалось подключить: Host не принял ключ. Проверьте, что Linux запущен</string>
+    <string name="st_pv_safe_title">Только API-ключи</string>
+    <string name="st_pv_safe_body">Вход по подписке — Claude Pro/Max, ChatGPT Plus, Gemini CLI — в сторонних приложениях запрещён правилами провайдеров: за него блокируют аккаунт. Поэтому DSH его не предлагает. API-ключ — разрешённый путь, оплата по токенам.</string>
+    <string name="st_pv_key_sub">%1$s · API-ключ</string>
+    <string name="st_pv_key">Ключ</string>
+    <string name="st_pv_models">Модели</string>
+    <string name="st_pv_billing">Оплата</string>
+    <string name="st_pv_delete">Удалить ключ</string>
+    <string name="st_pv_delete_confirm">Точно удалить?</string>
+    <string name="st_pv_replace">Заменить ключ</string>
+    <string name="st_pv_removed">Ключ %1$s удалён с устройства</string>
+    <string name="st_pv_remove_failed">Не удалось удалить: Host не ответил</string>
+    <string name="st_pv_key_dots">Ключ ••••%1$s</string>
+    <plurals name="st_pv_models_n"><item quantity="one">%d модель</item><item quantity="few">%d модели</item><item quantity="many">%d моделей</item><item quantity="other">%d модели</item></plurals>
 </resources>

@@ -37,6 +37,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -232,11 +233,11 @@ internal fun ColumnScope.McpSheet(row: McpRow, a: SettingsActions, toast: ToastS
 }
 
 @Composable
-private fun Line() = Box(Modifier.fillMaxWidth().height(1.dp).background(Dsh.colors.line))
+internal fun Line() = Box(Modifier.fillMaxWidth().height(1.dp).background(Dsh.colors.line))
 
 /** Строка `.mcp-kv div`: подпись t2 слева, значение 500 справа (ошибка — красным, обычным начертанием). */
 @Composable
-private fun KvRow(label: String, value: String, error: Boolean = false) {
+internal fun KvRow(label: String, value: String, error: Boolean = false) {
     val c = Dsh.colors
     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(label, style = body(14.sp, 19.6.sp), color = c.t2)
@@ -328,7 +329,7 @@ private fun Modifier.layoutUp(dp: Int): Modifier = this.then(
  * [secret] прячет текст точками; [trailing] — кнопка «Показать».
  */
 @Composable
-private fun ObField(
+internal fun ObField(
     label: String,
     value: String,
     onChange: (String) -> Unit,
@@ -337,11 +338,14 @@ private fun ObField(
     icon: ImageVector? = null,
     secret: Boolean = false,
     keyboard: KeyboardType = KeyboardType.Text,
+    /** Итог проверки (`.ob-field.ok` / `.bad`): рамка зелёная или красная, пока поле не в фокусе; null — обычная. */
+    verdict: Boolean? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     val c = Dsh.colors
     var focused by remember { mutableStateOf(false) }
-    val edge by animateColorAsState(if (focused) c.accent else c.line, tween(250), label = "mcp-edge")
+    val rest = when (verdict) { true -> lerp(c.line, c.ok, 0.6f); false -> lerp(c.line, c.danger, 0.6f); null -> c.line }
+    val edge by animateColorAsState(if (focused) c.accent else rest, tween(250), label = "mcp-edge")
     val ring by animateColorAsState(if (focused) c.accentSoft else Color.Transparent, tween(250), label = "mcp-ring")
     val shape = RoundedCornerShape(16.dp)
     Column {

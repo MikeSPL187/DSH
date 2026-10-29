@@ -27,6 +27,7 @@ import com.dsh.feature.settings.logic.BalanceLedger
 import com.dsh.feature.settings.logic.DshUserPrefs
 import com.dsh.feature.settings.logic.HostStats
 import com.dsh.feature.settings.logic.StorageScanner
+import com.dsh.feature.settings.logic.ProviderCatalog
 import com.dsh.feature.settings.ui.KeyState
 import com.dsh.feature.settings.ui.ProviderRow
 import com.dsh.feature.settings.ui.RemoteHostRow
@@ -276,7 +277,11 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         monthSpentFraction = ledger?.let { l -> balance?.first?.let { b -> (l.month / (l.month + b)).toFloat() } } ?: 0f,
         balanceDays = ledger?.daysLeft,
         customProviders = custom.map { p ->
-            ProviderRow(p.id, p.name, ApiKeyVault.last4(p.keyRef)?.let { context.getString(R.string.settings_key_dots, it) } ?: p.baseUrl.removePrefix("https://"), if (p.keyConfigured) true else null)
+            val last4 = ApiKeyVault.last4(p.keyRef)
+            ProviderRow(
+                p.id, p.name, last4?.let { context.getString(R.string.settings_key_dots, it) } ?: p.baseUrl.removePrefix("https://"), if (p.keyConfigured) true else null,
+                last4 = last4, models = p.models.size.takeIf { it > 0 }, catalog = ProviderCatalog.spec(p.id) != null,
+            )
         },
         defaultModel = settings.defaultModel.ifBlank { d.availableModels.firstOrNull().orEmpty() },
         reasoning = reasoningLabels.getOrElse(reasoningIndex) { "" },
@@ -382,6 +387,33 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
             )
             return d.modelProviders.save(hostId, provider, key, baseUrl, models)
         }
+
+        override suspend fun checkProviderKey(id: String, key: String): Pair<KeyState, Int?> {
+            if (ProviderCatalog.issue(id, key) != null) return KeyState.Bad to null
+            return when (val r = checkCatalogKey(id, key)) {
+                is KeyCheck.Ok -> KeyState.Ok to r.models.size.takeIf { it > 0 }
+                KeyCheck.Bad -> KeyState.Bad to null
+                KeyCheck.Offline -> KeyState.Offline to null
+            }
+        }
+
+        override suspend fun addCatalogProvider(id: String, key: String): Boolean {
+            if (ProviderCatalog.blocked(id) || ProviderCatalog.spec(id) == null || ProviderCatalog.issue(id, key) != null) return false
+            fun find() = d.modelProviders.list(d.officialNamespaces).firstOrNull { it.id == id }
+            val provider = find() ?: run { d.modelProviders.refresh(hostId); find() } ?: return false
+            if (!d.modelProviders.save(hostId, provider, key.trim())) return false
+            tick++
+            return true
+        }
+
+        override suspend fun removeProvider(id: String): Boolean {
+            val provider = d.modelProviders.list(d.officialNamespaces).firstOrNull { it.id == id } ?: return false
+            val ok = d.modelProviders.remove(hostId, provider)
+            if (ok) tick++
+            return ok
+        }
+
+        override fun openProviderSite(id: String) { ProviderCatalog.spec(id)?.let { openWebLink(context, it.siteUrl) } }
 
         override fun manageKeysOnSite() { openWebLink(context, "https://platform.deepseek.com/api_keys") }
 

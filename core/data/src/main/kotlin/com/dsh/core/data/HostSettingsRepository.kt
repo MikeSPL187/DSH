@@ -73,6 +73,23 @@ class HostSettingsRepository internal constructor(
         return calls.ok(hostId, "settings/mutate", args)
     }
 
+    /** Убрать значения по путям [paths] пространства [ns] (`unset`); false — Host не принял. */
+    suspend fun unsetSettings(hostId: String, ns: String, paths: List<List<String>>): Boolean {
+        val args = buildJsonObject {
+            put("ns", ns)
+            put("ops", buildJsonArray {
+                paths.forEach { path ->
+                    add(buildJsonObject {
+                        put("op", "unset")
+                        put("path", buildJsonArray { path.forEach { add(JsonPrimitive(it)) } })
+                    })
+                }
+            })
+            put("expectedRevision", JsonNull)
+        }
+        return calls.ok(hostId, "settings/mutate", args)
+    }
+
     // ── Пределы агента ───────────────────────────────────────────────────────
 
     /**

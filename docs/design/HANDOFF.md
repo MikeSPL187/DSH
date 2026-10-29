@@ -296,5 +296,10 @@ ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.grad
   `process.env.DSH_ANDROID === '1'` (переменную ставит `DefaultHostRuntimeManager`), без ветки upstream остаётся как было.
   Патчей-диффов к собранному JS больше нет и не добавлять. Значения от модели передавать отдельными
   элементами argv, без оболочки (G-52).
+- Провайдеры моделей (`ProviderCatalog`): только API-ключи. Вход по подписке (Claude Pro/Max, ChatGPT, Gemini CLI /
+  Antigravity, Copilot) в сторонних приложениях запрещён правилами провайдеров — за него блокируют аккаунт. Маршруты
+  `BLOCKED_ROUTES` не показываются, токены подписки (`sk-ant-oat…`, `eyJ…`, `ya29.…`) не сохраняются ни в один провайдер
+  (`ModelProviders.save`). Авторизацию Host (OAuth из `login.ts` агента) приложение не вызывает и не открывать её.
+  Ключ проверяется у провайдера только чтением списка моделей (`ProviderKeyCheck.kt`), ключ Google — в заголовке, не в адресе.
 - Коммиты завершать строками:
   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` и `Claude-Session: <ссылка на сессию>`.

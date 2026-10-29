@@ -94,6 +94,9 @@ fun parseModelProviders(
             profile = profile?.get(segment) as? JsonObject ?: null
         }
         if (provider == "deepseek-account") return@mapNotNull null
+        // Маршруты только со входом по подписке (ChatGPT/Codex, Copilot, Gemini CLI…) — запрещены правилами
+        // провайдеров в сторонних приложениях: в DSH их нет вовсе.
+        if (com.dsh.feature.settings.logic.ProviderCatalog.blocked(provider)) return@mapNotNull null
         // Белый список: на странице моделей только провайдеры официальных пространств.
         // `llm/listConfigurableProviders` возвращает провайдеров всех пространств,
         // включая наш плагин подписок (llm-subscription-oauth: Kimi/Grok/GLM/Ark/MiMo/

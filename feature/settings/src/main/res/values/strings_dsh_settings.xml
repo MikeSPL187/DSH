@@ -385,4 +385,42 @@
     <string name="st_mcp_add_go">Add</string>
     <string name="st_mcp_added">Added · Host restart needed</string>
     <string name="st_mcp_add_failed">Couldn’t add: Host must be running to store the token</string>
+    <string name="st_pv_add">Add a provider</string>
+    <string name="st_pv_add_sub">Claude, OpenAI, Gemini, OpenRouter or your own</string>
+    <string name="st_pv_add_page_sub">API keys only</string>
+    <string name="st_pv_custom_sub">Any OpenAI-compatible address</string>
+    <string name="st_pv_connected">connected</string>
+    <string name="st_pv_desc_anthropic">Sonnet, Opus and Haiku</string>
+    <string name="st_pv_desc_openai">GPT and reasoning models</string>
+    <string name="st_pv_desc_google">Gemini Pro and Flash</string>
+    <string name="st_pv_desc_openrouter">Hundreds of models with one key</string>
+    <string name="st_pv_lead_anthropic">An API key from the Anthropic Console. Billed per token on Anthropic’s site — separately from a Claude Pro or Max subscription.</string>
+    <string name="st_pv_lead_openai">An API key from platform.openai.com. Billed per token — separately from ChatGPT Plus and Pro.</string>
+    <string name="st_pv_lead_google">An API key from Google AI Studio. There is a limited free tier. Signing in through Gemini CLI or Antigravity in third-party apps is not allowed.</string>
+    <string name="st_pv_lead_openrouter">One key for models from Anthropic, OpenAI, Google, Meta and more. Billed on openrouter.ai; you can set a key limit.</string>
+    <string name="st_pv_sub_anthropic">This is a Claude subscription token, not an API key. Using it in third-party apps is not allowed — the account may be banned. Use a key from console.anthropic.com.</string>
+    <string name="st_pv_sub_openai">This is a ChatGPT sign-in token, not an API key. Use a key from platform.openai.com.</string>
+    <string name="st_pv_sub_google">This is a Google sign-in token, not an API key. Use a key from aistudio.google.com.</string>
+    <string name="st_pv_sub_other">This is a subscription sign-in token, not an API key. Using it in third-party apps is not allowed — the account may be banned.</string>
+    <string name="st_pv_format">A %1$s key starts with %2$s…</string>
+    <string name="st_pv_checking">Checking with %1$s…</string>
+    <plurals name="st_pv_works"><item quantity="one">Key works · %d model</item><item quantity="other">Key works · %d models</item></plurals>
+    <string name="st_pv_safe_store">The key is kept in Android Keystore and never shown in full</string>
+    <string name="st_pv_where">Where to get a key</string>
+    <string name="st_pv_connect">Connect</string>
+    <string name="st_pv_added">%1$s connected · models are in the model picker</string>
+    <string name="st_pv_add_failed">Could not connect: Host did not accept the key. Check that Linux is running</string>
+    <string name="st_pv_safe_title">API keys only</string>
+    <string name="st_pv_safe_body">Subscription sign-in — Claude Pro/Max, ChatGPT Plus, Gemini CLI — is not allowed in third-party apps by the providers’ rules: accounts get banned for it. So DSH does not offer it. An API key is the allowed way, billed per token.</string>
+    <string name="st_pv_key_sub">%1$s · API key</string>
+    <string name="st_pv_key">Key</string>
+    <string name="st_pv_models">Models</string>
+    <string name="st_pv_billing">Billing</string>
+    <string name="st_pv_delete">Delete key</string>
+    <string name="st_pv_delete_confirm">Really delete?</string>
+    <string name="st_pv_replace">Replace key</string>
+    <string name="st_pv_removed">%1$s key removed from the device</string>
+    <string name="st_pv_remove_failed">Could not delete: Host did not answer</string>
+    <string name="st_pv_key_dots">Key ••••%1$s</string>
+    <plurals name="st_pv_models_n"><item quantity="one">%d model</item><item quantity="other">%d models</item></plurals>
 </resources>

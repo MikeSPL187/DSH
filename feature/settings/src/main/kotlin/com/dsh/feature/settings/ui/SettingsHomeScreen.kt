@@ -74,13 +74,24 @@ import kotlinx.coroutines.launch
 import com.dsh.core.designsystem.kit.DeviceSignInSheetBody
 
 /** Страницы «Настроек» (как `PAGES` в прототипе). */
-enum class StPage { Root, Models, Look, Agent, Host, Storage, Security, Notif, About, Instructions, GitHub, Mcp, McpAdd }
+enum class StPage { Root, Models, Look, Agent, Host, Storage, Security, Notif, About, Instructions, GitHub, Mcp, McpAdd, ProvAdd, ProvKey }
 
 /** Состояние ключа провайдера. */
 enum class KeyState { Ok, Bad, Offline, Unknown, None }
 
 @Immutable
-data class ProviderRow(val id: String, val name: String, val sub: String, val ok: Boolean?)
+data class ProviderRow(
+    val id: String,
+    val name: String,
+    val sub: String,
+    val ok: Boolean?,
+    /** Последние 4 символа ключа; null — ключа нет. */
+    val last4: String? = null,
+    /** Сколько моделей у провайдера; null — не известно. */
+    val models: Int? = null,
+    /** Провайдер из [com.dsh.feature.settings.logic.ProviderCatalog] (Claude, OpenAI…), а не свой адрес. */
+    val catalog: Boolean = false,
+)
 
 @Immutable
 data class RemoteHostRow(val id: String, val name: String, val fingerprint: String, val online: Boolean)
@@ -202,6 +213,14 @@ interface SettingsActions {
     /** Сохранить ключ DeepSeek; true — получилось. */
     suspend fun saveKey(key: String): Boolean = false
     suspend fun addProvider(name: String, baseUrl: String, key: String): Boolean = false
+    /** Проверить API-ключ провайдера каталога у самого провайдера: состояние и число моделей (null — не известно). */
+    suspend fun checkProviderKey(id: String, key: String): Pair<KeyState, Int?> = KeyState.Unknown to null
+    /** Подключить провайдера каталога по API-ключу (токен подписки не принимается); false — не получилось. */
+    suspend fun addCatalogProvider(id: String, key: String): Boolean = false
+    /** Удалить провайдера: ключ из Host и Keystore и его настройки; false — Host не принял. */
+    suspend fun removeProvider(id: String): Boolean = false
+    /** Открыть страницу ключей провайдера (console.anthropic.com и т. п.). */
+    fun openProviderSite(id: String) {}
     fun manageKeysOnSite() {}
     suspend fun deleteKey(): Boolean = false
     fun setTheme(value: String) {}
@@ -280,6 +299,8 @@ private fun pageTitle(p: StPage): String = stringResource(
         StPage.GitHub -> R.string.st_gh
         StPage.Mcp -> R.string.st_mcp
         StPage.McpAdd -> R.string.st_mcp_new
+        StPage.ProvAdd -> R.string.st_pv_add
+        StPage.ProvKey -> R.string.st_models
     },
 )
 
@@ -294,6 +315,7 @@ private fun pageSub(p: StPage, ui: SettingsUi): String? = when (p) {
     StPage.Security -> stringResource(R.string.st_security_sub)
     StPage.GitHub -> stringResource(R.string.st_gh_sub)
     StPage.Mcp -> stringResource(R.string.st_mcp_sub)
+    StPage.ProvAdd -> stringResource(R.string.st_pv_add_page_sub)
     else -> null
 }
 
@@ -309,6 +331,10 @@ fun SettingsHomeScreen(
     initialPage: StPage = StPage.Root,
     toast: ToastState = rememberToast(),
     initialSheet: String? = null,
+    /** Провайдер для `initialPage = ProvKey` (снимки экранов). */
+    initialProvider: String = "anthropic",
+    /** Ключ в поле `ProvKey` (снимки состояний проверки). */
+    initialProviderKey: String = "",
     /** Рендерер Markdown для «Вида» инструкций; null — простой текст. */
     markdown: (@Composable (String) -> Unit)? = null,
 ) {
@@ -319,6 +345,8 @@ fun SettingsHomeScreen(
     val failedMsg = stringResource(R.string.st_inst_failed)
     val signedOutMsg = stringResource(R.string.st_gh_signed_out)
     var sheet by rememberSaveable { mutableStateOf(initialSheet) }
+    // Провайдер страницы «Ключ провайдера» (Claude, OpenAI…).
+    var provSel by rememberSaveable { mutableStateOf(initialProvider) }
     var rise by remember { mutableStateOf(true) }
     LaunchedEffect(Unit) { kotlinx.coroutines.delay(900); rise = false }
     DshStackScreen(
@@ -330,6 +358,9 @@ fun SettingsHomeScreen(
                 val r = ui.instructions.firstOrNull { it.scope == editor.scope }
                 // Несохранённые правки: «Назад» сначала спрашивает (системное «Назад» перехватывает сама страница).
                 SBar(r?.name ?: pageTitle(p), r?.let { stringResource(instructionScopeTitle(it.scope)) }, { if (editor.dirty) sheet = "discard" else back() }, backDescription = stringResource(R.string.st_back))
+            } else if (p == StPage.ProvKey) {
+                val spec = com.dsh.feature.settings.logic.ProviderCatalog.spec(provSel)
+                SBar(spec?.name.orEmpty(), spec?.let { stringResource(R.string.st_pv_key_sub, it.by) }, back, backDescription = stringResource(R.string.st_back))
             } else SBar(pageTitle(p), pageSub(p, ui), back, backDescription = stringResource(R.string.st_back))
         },
         overlay = {
@@ -364,6 +395,15 @@ fun SettingsHomeScreen(
             KSheet(mcpName != null, onDismiss = { sheet = null }) {
                 lastMcp?.let { r -> McpSheet(r, actions, toast) { sheet = null } }
             }
+            // Лист подключённого провайдера держит последнюю строку, чтобы не пропасть посреди анимации закрытия.
+            val provId = sheet?.removePrefix(PROV_SHEET)?.takeIf { sheet?.startsWith(PROV_SHEET) == true }
+            var lastProv by remember { mutableStateOf<ProviderRow?>(null) }
+            ui.customProviders.firstOrNull { it.id == provId }?.let { lastProv = it }
+            KSheet(provId != null, onDismiss = { sheet = null }) {
+                lastProv?.let { r ->
+                    ProviderSheet(r, actions, toast, onReplace = if (r.catalog) ({ sheet = null; provSel = r.id; stack.push(StPage.ProvKey) }) else null) { sheet = null }
+                }
+            }
             KSheet(sheet == "discard", onDismiss = { sheet = null }) {
                 DiscardSheet(
                     onDrop = { sheet = null; editor.draft = editor.saved; stack.pop() },
@@ -381,7 +421,9 @@ fun SettingsHomeScreen(
         CompositionLocalProvider(LocalRise provides (rise && p == StPage.Root)) {
             when (p) {
                 StPage.Root -> RootPage(ui, actions, stack::push)
-                StPage.Models -> ModelsPage(ui, actions, toast, onSheet = { sheet = it }, onDeleted = { stack.pop() })
+                StPage.Models -> ModelsPage(ui, actions, toast, onSheet = { sheet = it }, onDeleted = { stack.pop() }, onAddProvider = { stack.push(StPage.ProvAdd) })
+                StPage.ProvAdd -> ProviderAddPage(ui, onPick = { provSel = it; stack.push(StPage.ProvKey) }, onCustom = { sheet = "provider" })
+                StPage.ProvKey -> ProviderKeyPage(provSel, actions, toast, initialProviderKey) { while (stack.top != StPage.Models && stack.top != StPage.Root) stack.pop() }
                 StPage.Look -> LookPage(ui, actions, toast)
                 StPage.Agent -> AgentPage(ui, actions, toast, stack::push, onInstruction = { editor.open(it); stack.push(StPage.Instructions) }) { sheet = LIMIT_SHEET + it.name }
                 StPage.Host -> HostPage(ui, actions, toast)
@@ -509,7 +551,7 @@ private fun VersionFooter(ui: SettingsUi, modifier: Modifier = Modifier, build: 
 // ---------- Модели и ключи ----------
 
 @Composable
-private fun ModelsPage(ui: SettingsUi, a: SettingsActions, toast: ToastState, onSheet: (String) -> Unit, onDeleted: () -> Unit) {
+private fun ModelsPage(ui: SettingsUi, a: SettingsActions, toast: ToastState, onSheet: (String) -> Unit, onDeleted: () -> Unit, onAddProvider: () -> Unit = {}) {
     val scope = rememberCoroutineScope()
     val arm = rememberArm()
     FsView {
@@ -540,16 +582,8 @@ private fun ModelsPage(ui: SettingsUi, a: SettingsActions, toast: ToastState, on
                 }
                 StRow(ui.provider, icon = DshGlyphs.Key, tile = Si.c1, sub = sub, value = v, valueColor = vc, onClick = if (ui.keyState == KeyState.None) ({ onSheet("key") }) else null)
             }
-            ui.customProviders.forEach { p ->
-                row {
-                    StRow(
-                        p.name, icon = DshGlyphs.Server, tile = Si.c2, sub = p.sub,
-                        value = when (p.ok) { true -> stringResource(R.string.st_key_ok); false -> stringResource(R.string.st_key_bad); null -> null },
-                        valueColor = if (p.ok == false) Dsh.colors.danger else Dsh.colors.ok,
-                    )
-                }
-            }
-            row { StRow(stringResource(R.string.st_custom), icon = DshGlyphs.Plus, tile = Si.c6, sub = stringResource(R.string.st_custom_sub), chevron = true, onClick = { onSheet("provider") }) }
+            ui.customProviders.forEach { p -> row { ProviderListRow(p) { onSheet(PROV_SHEET + p.id) } } }
+            row { StRow(stringResource(R.string.st_pv_add), icon = DshGlyphs.Plus, tile = Si.c6, sub = stringResource(R.string.st_pv_add_sub), chevron = true, onClick = onAddProvider) }
         }
         GLabel(stringResource(R.string.st_defaults))
         Gl {
@@ -900,6 +934,9 @@ private const val LIMIT_SHEET = "limit:"
 
 /** Префикс листа MCP-сервера: `mcp:github`. */
 private const val MCP_SHEET = "mcp:"
+
+/** Лист подключённого провайдера: «prov:<id>». */
+private const val PROV_SHEET = "prov:"
 
 // ---------- Host ----------
 

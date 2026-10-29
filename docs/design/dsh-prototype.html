@@ -885,10 +885,19 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .ob-show[aria-pressed="true"] { color: var(--accent); }
 .ob-in input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-family: var(--font-mono); font-size: 15px; color: var(--t1); }
 .ob-in input::placeholder { color: var(--t3); }
+/* Провайдеры моделей: буква бренда в плитке, лид страницы ключа, плашка «только API-ключи» */
+.si.pv-l { font-family: var(--font-display); font-weight: 700; font-size: 19px; color: #fff; } /* крупный жирный — контраст 3:1 на цветной плитке */
+.pv-lead { margin: 2px 4px 16px; font-size: 14.5px; line-height: 1.5; color: var(--t2); }
+.pv-safe { display: flex; gap: 12px; margin-top: 14px; padding: 14px; border-radius: 18px; background: var(--s1); border: 1px solid var(--line); font-size: 13px; line-height: 1.5; color: var(--t2); }
+.pv-safe .i { flex: none; color: var(--ok); margin-top: 1px; }
+.pv-safe b { display: block; margin-bottom: 2px; font-size: 14px; color: var(--t1); }
+.ob-field.bad .ob-in { border-color: color-mix(in srgb, var(--danger) 60%, var(--line)); }
 .ob-paste { height: 40px; padding: 0 14px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); font-size: 14px; font-weight: 500; flex: none; }
 .ob-state { display: flex; align-items: center; gap: 7px; margin: 10px 2px 0; font-size: 13px; color: var(--t3); min-height: 20px; }
 .ob-state.ok { color: var(--ok); } .ob-state.busy { color: var(--t2); }
 .ob-state .spin-w { width: 13px; height: 13px; border-width: 1.75px; }
+.ob-state .i { flex: none; } #pvState { align-items: flex-start; line-height: 1.45; } #pvState .i, #pvState .spin-w { margin-top: 2px; }
+#pvSave { margin-top: 16px; }
 .ob-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 12px; min-height: 40px; font-size: 14.5px; font-weight: 500; color: var(--accent); padding: 0 2px; }
 .ob-opts { display: grid; gap: 10px; }
 .ob-opt { display: flex; gap: 14px; align-items: flex-start; width: 100%; text-align: left; padding: 16px; border-radius: 20px; background: var(--s1); border: 1.5px solid var(--line); transition: border-color .25s, box-shadow .25s, transform var(--t-lively) var(--e-lively); }
@@ -1796,6 +1805,14 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <h3 id="mcpTitle">github</h3>
         <div class="mcp-kv" id="mcpKv"></div>
         <div class="lim-btns"><button class="btn ghost st-danger" id="mcpDel">Удалить</button><button class="btn primary" data-act="close">Готово</button></div>
+      </section>
+
+      <!-- Лист: подключённый провайдер моделей -->
+      <section class="sheet" id="sheet-prov" aria-label="Провайдер">
+        <div class="grab"></div>
+        <h3 id="pvTitle">Claude</h3>
+        <div class="mcp-kv" id="pvKv"></div>
+        <div class="lim-btns"><button class="btn ghost st-danger" id="pvDel">Удалить ключ</button><button class="btn primary" id="pvRe">Заменить ключ</button></div>
       </section>
 
       <!-- Лист: вход в GitHub по коду -->
@@ -3834,6 +3851,8 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     github: ["GitHub", "Отправка коммитов и запросы на слияние"],
     mcp: ["MCP-серверы", "Инструменты из внешних сервисов"],
     mcpadd: ["Новый MCP-сервер", ""],
+    provadd: ["Добавить провайдера", "Только API-ключи"],
+    provkey: ["", ""],
   };
   const INDEX = [
     ["models", "API-ключ DeepSeek провайдер баланс расход модель по умолчанию"], ["look", "тема светлая тёмная язык русский english шрифт кода размер"],
@@ -3846,6 +3865,8 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     if (page === "inst") { v.innerHTML = instView(); return v; }
     if (page === "mcp") { v.innerHTML = mcpView(); return v; }
     if (page === "mcpadd") { v.innerHTML = mcpAddView(); return v; }
+    if (page === "provadd") { v.innerHTML = provAddView(); return v; }
+    if (page === "provkey") { v.innerHTML = provKeyView(); return v; }
     if (page === "github") {
       v.innerHTML = GH.login
         ? `<div class="gl"><div class="st-row"><span class="avatar">${GH.login[0].toUpperCase()}</span><span class="tx">@${GH.login}<small>Вошли ${GH.at}</small></span></div>${row("i-lock", "c3", "Доступ", "репозитории")}</div>
@@ -3873,7 +3894,8 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <div class="st-meters"><div class="st-m"><div class="lb"><span>Потрачено в октябре</span><b>7,60 $</b></div><div class="bar"><i style="width:38%"></i></div></div></div></div>
       <div class="glabel">Провайдеры</div>
       <div class="gl"><div class="st-row"><span class="si c1"><svg class="i"><use href="#i-key"/></svg></span><span class="tx">DeepSeek<small>Ключ ••••9a65 · добавлен 12 окт</small></span><span class="val okc">работает</span></div>
-        <button class="st-row" data-sttoast="Добавить OpenAI-совместимый API"><span class="si c6"><svg class="i"><use href="#i-plus"/></svg></span><span class="tx">Свой провайдер<small>Любой OpenAI-совместимый API</small></span><svg class="i sm chev-r"><use href="#i-right"/></svg></button></div>
+        ${PROV.list.map((p) => { const c = PCAT.find((x) => x.id === p.id); return `<button class="st-row" data-prov="${p.id}"><span class="si ${c.si} pv-l">${c.name[0]}</span><span class="tx">${c.name}<small>Ключ ••••${p.last4} · ${c.models} ${typeof c.models === "number" ? plural(c.models, "модель", "модели", "моделей") : "моделей"}</small></span><span class="val okc">работает</span><svg class="i sm chev-r"><use href="#i-right"/></svg></button>`; }).join("")}
+        <button class="st-row" data-stgo="provadd"><span class="si c6"><svg class="i"><use href="#i-plus"/></svg></span><span class="tx">Добавить провайдера<small>Claude, OpenAI, Gemini, OpenRouter или свой</small></span><svg class="i sm chev-r"><use href="#i-right"/></svg></button></div>
       <div class="glabel">По умолчанию</div>
       <div class="gl">${row("i-cpu", "c1", "Модель", "DeepSeek V4", "", ' data-act="model"')}${row("i-sliders", "c2", "Рассуждение", "Высокий", "", ' data-act="model"')}${row("i-clock", "c7", "Для автоматизаций", "V4 · Низкий")}</div>
       <div class="glabel">Ключ</div>
@@ -3944,7 +3966,55 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     return v;
   }
   const ICON = { mcp: ["i-puzzle", "c7"], github: ["i-git", "c6"], models: ["i-key", "c1"], look: ["i-sun", "c8"], agent: ["i-spark", "c2"], host: ["i-server", "c3"], storage: ["i-hdd2", "c6"], security: ["i-shield", "c5"], notif: ["i-bell", "c4"], about: ["i-info", "c6"] };
-  function stTitles() { const k = stStack[stStack.length - 1]; $("#stTitle").textContent = PAGES[k][0]; $("#stSub").textContent = k === "root" ? "DSH 1.1.0" : PAGES[k][1]; }
+  function stTitles() { const k = stStack[stStack.length - 1]; const c = k === "provkey" ? PCAT.find((x) => x.id === PROV.sel) : null;
+    $("#stTitle").textContent = c ? c.name : PAGES[k][0]; $("#stSub").textContent = k === "root" ? "DSH 1.1.0" : c ? `${c.by} · API-ключ` : PAGES[k][1]; }
+  // ── Провайдеры моделей: только API-ключи из консолей провайдеров. Вход по подписке (Claude Pro/Max, ChatGPT,
+  //    Gemini CLI/Antigravity) в сторонних приложениях запрещён правилами — за него блокируют аккаунт, его здесь нет. ──
+  const PCAT = [
+    { id: "anthropic", name: "Claude", by: "Anthropic", d: "Sonnet, Opus и Haiku", ph: "sk-ant-api03-…", site: "console.anthropic.com", si: "c2", models: 3,
+      lead: "API-ключ из консоли Anthropic. Оплата по токенам на сайте Anthropic — отдельно от подписки Claude Pro и Max.",
+      bad: (k) => /^sk-ant-(oat|ort|sid)/.test(k) ? "Это токен подписки Claude, а не API-ключ. В сторонних приложениях его использовать запрещено — аккаунт могут заблокировать. Нужен ключ из console.anthropic.com." : /^sk-ant-api/.test(k) ? "" : "Ключ Anthropic начинается с sk-ant-api…" },
+    { id: "openai", name: "OpenAI", by: "OpenAI", d: "GPT и модели рассуждения", ph: "sk-proj-…", site: "platform.openai.com", si: "c4", models: 5,
+      lead: "API-ключ с platform.openai.com. Оплата по токенам — отдельно от подписки ChatGPT Plus и Pro.",
+      bad: (k) => /^eyJ/.test(k) ? "Это токен входа ChatGPT, а не API-ключ. Нужен ключ с platform.openai.com." : /^sk-/.test(k) ? "" : "Ключ OpenAI начинается с sk-…" },
+    { id: "google", name: "Gemini", by: "Google", d: "Gemini Pro и Flash", ph: "AIza…", site: "aistudio.google.com", si: "c3", models: 4,
+      lead: "API-ключ из Google AI Studio. Есть бесплатный уровень с ограничениями. Вход через Gemini CLI или Antigravity в сторонних приложениях запрещён.",
+      bad: (k) => /^ya29\./.test(k) ? "Это токен входа Google, а не API-ключ. Нужен ключ из aistudio.google.com." : /^AIza/.test(k) ? "" : "Ключ Gemini начинается с AIza…" },
+    { id: "openrouter", name: "OpenRouter", by: "OpenRouter", d: "Сотни моделей по одному ключу", ph: "sk-or-v1-…", site: "openrouter.ai/keys", si: "c7", models: "300+",
+      lead: "Один ключ — модели Anthropic, OpenAI, Google, Meta и других. Оплата на openrouter.ai, у ключа можно задать лимит.",
+      bad: (k) => /^sk-or-/.test(k) ? "" : "Ключ OpenRouter начинается с sk-or-…" },
+  ];
+  const PROV = { list: [], sel: null, ok: false, armDel: false };
+  function provAddView() {
+    return `<div class="gl">${PCAT.map((c) => `<button class="st-row" data-provnew="${c.id}"><span class="si ${c.si} pv-l">${c.name[0]}</span><span class="tx">${c.name}<small>${c.d}</small></span>${PROV.list.some((p) => p.id === c.id) ? `<span class="val">подключён</span>` : ""}<svg class="i sm chev-r"><use href="#i-right"/></svg></button>`).join("")}
+        <button class="st-row" data-sttoast="Название, адрес https://… и ключ — для любого OpenAI-совместимого API"><span class="si c6"><svg class="i"><use href="#i-server"/></svg></span><span class="tx">Свой провайдер<small>Любой OpenAI-совместимый адрес</small></span><svg class="i sm chev-r"><use href="#i-right"/></svg></button></div>
+      <div class="pv-safe"><svg class="i sm"><use href="#i-shield"/></svg><span><b>Только API-ключи</b>Вход по подписке — Claude Pro/Max, ChatGPT Plus, Gemini CLI — в сторонних приложениях запрещён правилами провайдеров: за него блокируют аккаунт. Поэтому DSH его не предлагает. API-ключ — разрешённый путь, оплата по токенам.</span></div>`;
+  }
+  function provKeyView() {
+    const c = PCAT.find((x) => x.id === PROV.sel); PROV.ok = false;
+    return `<p class="pv-lead">${c.lead}</p>
+      <label class="ob-field" id="pvField"><span class="ob-fl">API-ключ</span><span class="ob-in"><svg class="i sm"><use href="#i-key"/></svg><input id="pvKey" type="password" placeholder="${c.ph}" autocomplete="off" spellcheck="false"><button class="ob-show" id="pvEye" type="button" aria-label="Показать ключ" aria-pressed="false"><svg class="i sm"><use href="#i-eye"/></svg></button><button class="ob-paste" id="pvPaste" type="button">Вставить</button></span></label>
+      <div class="ob-state" id="pvState"><svg class="i xs"><use href="#i-lock"/></svg>Ключ хранится в Android Keystore и не показывается целиком</div>
+      <div class="gl" style="margin-top:16px"><button class="st-row" data-sttoast="Откроется ${c.site}"><span class="si c6"><svg class="i"><use href="#i-link"/></svg></span><span class="tx">Где взять ключ<small>${c.site}</small></span><svg class="i sm chev-r"><use href="#i-right"/></svg></button></div>
+      <button class="btn primary mcp-go" id="pvSave" disabled>Подключить</button>`;
+  }
+  async function provCheck() {
+    const c = PCAT.find((x) => x.id === PROV.sel), k = $("#pvKey", stCur).value.trim(), st = $("#pvState", stCur);
+    PROV.ok = false; $("#pvSave", stCur).disabled = true; $("#pvField", stCur).classList.remove("ok", "bad"); st.style.color = "";
+    if (!k) { st.innerHTML = `<svg class="i xs"><use href="#i-lock"/></svg>Ключ хранится в Android Keystore и не показывается целиком`; return; }
+    const why = c.bad(k);
+    if (why) { st.innerHTML = `<svg class="i xs"><use href="#i-alert"/></svg>${why}`; st.style.color = "var(--danger)"; $("#pvField", stCur).classList.add("bad"); return; }
+    st.innerHTML = `<span class="spin-w"></span>Проверяю у ${c.by}…`; await wait(900);
+    if ($("#pvKey", stCur)?.value.trim() !== k) return;
+    PROV.ok = true; $("#pvField", stCur).classList.add("ok"); $("#pvSave", stCur).disabled = false;
+    st.innerHTML = `<svg class="i xs"><use href="#i-check"/></svg>Ключ работает · ${c.models} ${typeof c.models === "number" ? plural(c.models, "модель", "модели", "моделей") : "моделей"}`; st.style.color = "var(--ok)";
+  }
+  function provSheet(id) {
+    const c = PCAT.find((x) => x.id === id), p = PROV.list.find((x) => x.id === id); PROV.sel = id; PROV.armDel = false;
+    $("#pvTitle").textContent = c.name;
+    $("#pvKv").innerHTML = `<div><span>Ключ</span><b class="mono">••••${p.last4}</b></div><div><span>Модели</span><b>${c.models}</b></div><div><span>Оплата</span><b>${c.site}</b></div>`;
+    $("#pvDel").textContent = "Удалить ключ"; sheetOpen("prov");
+  }
   function stPush(k) { const old = stCur, v = viewSt(k); stStack.push(k); stBody.appendChild(v); stCur = v; stTitles();
     if (old) { anim(v, [{ transform: "translateX(100%)" }, { transform: "translateX(0)" }], SMOOTH); anim(old, [{ transform: "translateX(0)", opacity: 1 }, { transform: "translateX(-28%)", opacity: .6 }], SMOOTH).onfinish = () => old.remove(); } }
   function stPop() { if (stStack.length <= 1) { screenClose(); return; }
@@ -3955,12 +4025,21 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   function settingsShown() { stQuery = ""; stBody.innerHTML = ""; stStack = []; stCur = null; stPush("root");
     $$(":scope > *", stCur).forEach((el, k) => anim(el, [{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }], SMOOTH, { delay: reduce ? 0 : 30 + k * 35 })); }
   $("#stBack").addEventListener("click", () => { if (stStack[stStack.length - 1] === "inst" && instDirty()) { $("#discardHint").textContent = "Правки в этом файле пропадут. Агент продолжит работать по сохранённой версии."; sheetOpen("discard"); return; } if (stStack[stStack.length - 1] === "inst") instKey = null; stPop(); });
+  let pvT = 0;
+  stBody.addEventListener("input", (e) => { if (e.target.id === "pvKey") { clearTimeout(pvT); pvT = setTimeout(provCheck, 400); } });
   stBody.addEventListener("input", (e) => {
     if (e.target.id === "stQ") { stQuery = e.target.value.trim(); const pos = e.target.selectionStart; const v = stRefresh(); const q = $("#stQ", v); q.focus(); q.setSelectionRange(pos, pos); }
     if (e.target.id === "stSize") { ST.codeSize = +e.target.value; $("#stSample", stCur).style.fontSize = ST.codeSize + "px"; tout.style.setProperty("--tfs", (ST.codeSize - .5) + "px"); }
   });
   stBody.addEventListener("click", (e) => {
     const g = e.target.closest("[data-stgo]"); if (g) { stPush(g.dataset.stgo); return; }
+    const pn = e.target.closest("[data-provnew]"); if (pn) { PROV.sel = pn.dataset.provnew; stPush("provkey"); return; }
+    const pr = e.target.closest("[data-prov]"); if (pr) { provSheet(pr.dataset.prov); return; }
+    if (e.target.closest("#pvEye")) { const b = $("#pvEye", stCur), on = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", String(on)); b.setAttribute("aria-label", on ? "Скрыть ключ" : "Показать ключ"); $("#pvKey", stCur).type = on ? "text" : "password"; return; }
+    if (e.target.closest("#pvPaste")) { $("#pvKey", stCur).value = PROV.sel === "anthropic" ? "sk-ant-api03-Xq7fR2c9LmPz4kQ1" : PROV.sel === "google" ? "AIzaSyB4c1d2e3f4g5h6" : PROV.sel === "openrouter" ? "sk-or-v1-7e3a91c0" : "sk-proj-9Kd2Lm4nP8"; provCheck(); return; }
+    if (e.target.closest("#pvSave")) { if (!PROV.ok) return; const c = PCAT.find((x) => x.id === PROV.sel), k = $("#pvKey", stCur).value.trim();
+      PROV.list = PROV.list.filter((x) => x.id !== c.id).concat({ id: c.id, last4: k.slice(-4) });
+      stStack = ["root", "models"]; const v = viewSt("models"); stBody.replaceChild(v, stCur); stCur = v; stTitles(); toast(`${c.name} подключён · модели — в выборе модели`); return; }
     const t = e.target.closest("[data-sttog]"); if (t) { const k = t.dataset.sttog; ST[k] = !ST[k]; t.setAttribute("aria-checked", String(ST[k])); if (k === "clipboard") toast(ST[k] ? "Агент сможет читать буфер обмена" : "Буфер обмена закрыт для агента");
       if (k === "searchApi" || k === "sendQuestion") { stRefresh(); toast(k === "searchApi" ? (ST[k] ? "Поиск через Search API" : "Поиск через DeepSeek Messages") : (ST[k] ? "Вопрос уходит поисковику" : "Поисковик видит только запросы агента")); }
       return; }
@@ -4288,6 +4367,11 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     else if (mcpKind === "http" && where && !/^(https:\/\/\S+|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/\S*)$/.test(where)) err = "Адрес: https://… (или http://localhost для сервера на телефоне)";
     $("#mcpErr", stCur).textContent = err; $("#mcpSave", stCur).disabled = !!err || !name || !where;
   }
+  $("#pvRe").addEventListener("click", () => { sheetClose(); setTimeout(() => stPush("provkey"), 260); });
+  $("#pvDel").addEventListener("click", (e) => {
+    if (!PROV.armDel) { PROV.armDel = true; e.currentTarget.textContent = "Точно удалить?"; return; }
+    const c = PCAT.find((x) => x.id === PROV.sel); PROV.list = PROV.list.filter((x) => x.id !== PROV.sel); sheetClose(); stRefresh(); toast(`Ключ ${c.name} удалён с устройства`);
+  });
   function mcpSheet(name) {
     const m = MCP.list.find((x) => x.name === name); if (!m) return; mcpSel = name; mcpDelArm = false;
     $("#mcpTitle").textContent = m.name;

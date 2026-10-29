@@ -56,6 +56,10 @@ internal class ModelProviders(private val repository: DshRepository) {
      * @return false — Host не принял ключ: в Keystore он не пишется, «Настройки» не покажут его сохранённым.
      */
     suspend fun save(hostId: String, provider: ModelProviderUi, key: String, baseUrl: String = "", models: List<String> = emptyList()): Boolean {
+        // Токен входа по подписке (Claude Pro/Max, ChatGPT, Google) в стороннем приложении запрещён правилами провайдеров —
+        // за него блокируют аккаунт. Не сохраняется ни в один провайдер, включая «свой», где бы его ни вставили.
+        if (com.dsh.feature.settings.logic.ProviderCatalog.isSubscriptionToken(key)) return false
+        if (com.dsh.feature.settings.logic.ProviderCatalog.blocked(provider.id)) return false
         if (key.isNotBlank()) {
             if (!repository.plugins.setCredential(hostId, provider.keyRef, key)) return false
             ApiKeyVault.save(if (isDeepSeek(provider)) DEEPSEEK_VAULT_REF else provider.keyRef, key)
@@ -80,6 +84,17 @@ internal class ModelProviders(private val repository: DshRepository) {
         refresh(hostId)
         repository.hostSettings.refreshModelCatalog(hostId)
         return true
+    }
+
+    /** Удалить провайдера целиком: ключ из Host и Keystore и его профиль настроек (он уйдёт из списка и выбора модели). */
+    suspend fun remove(hostId: String, provider: ModelProviderUi): Boolean {
+        repository.plugins.unsetCredential(hostId, provider.keyRef)
+        ApiKeyVault.delete(provider.keyRef)
+        val ok = provider.settingsNs.isBlank() || provider.settingsPath.isEmpty() ||
+            repository.hostSettings.unsetSettings(hostId, provider.settingsNs, listOf(provider.settingsPath))
+        refresh(hostId)
+        repository.hostSettings.refreshModelCatalog(hostId)
+        return ok
     }
 
     /** Удалить ключ провайдера из Host и Keystore. */
