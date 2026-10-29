@@ -46,6 +46,12 @@
     <string name="ob_env_done">All set</string>
     <string name="ob_env_failed">Linux did not install</string>
     <string name="ob_env_lead">Debian with git, Python and Node. This happens once — you can minimize the app, the install keeps going.</string>
+    <string name="ob_env_lead_failed">Check the internet connection and tap Retry. Without Linux the agent can’t run commands.</string>
+    <string name="ob_err_download">Download failed</string>
+    <string name="ob_err_unpack">Unpacking failed</string>
+    <string name="ob_err_check">Check failed</string>
+    <string name="ob_more">Details</string>
+    <string name="ob_less">Hide details</string>
     <string name="ob_eta_s">≈ %1$d s</string>
     <string name="ob_eta_min">≈ %1$d min</string>
     <string name="ob_ready">done</string>

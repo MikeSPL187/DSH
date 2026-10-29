@@ -45,6 +45,12 @@
     <string name="ob_env_done">Всё готово</string>
     <string name="ob_env_failed">Linux не установился</string>
     <string name="ob_env_lead">Debian с git, Python и Node. Это нужно один раз — можно свернуть приложение, установка не прервётся.</string>
+    <string name="ob_env_lead_failed">Проверьте подключение к интернету и нажмите «Повторить». Без Linux агент не сможет запускать команды.</string>
+    <string name="ob_err_download">Не удалось скачать</string>
+    <string name="ob_err_unpack">Не удалось распаковать</string>
+    <string name="ob_err_check">Проверка не прошла</string>
+    <string name="ob_more">Подробности</string>
+    <string name="ob_less">Скрыть подробности</string>
     <string name="ob_eta_s">≈ %1$d с</string>
     <string name="ob_eta_min">≈ %1$d мин</string>
     <string name="ob_ready">готово</string>

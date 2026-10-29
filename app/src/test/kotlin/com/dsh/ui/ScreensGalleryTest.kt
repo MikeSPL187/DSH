@@ -411,6 +411,11 @@ class ScreensGalleryTest {
     @Test fun ob3Done() = renderOb("55_ob_linux_done", install = installed) { keyOk(); tap("Продолжить"); tap("Продолжить") }
     @Test fun ob3Error() = renderOb("55b_ob_linux_error", install = installing.copy(error = "Не удалось установить защищённое соединение. Проверьте дату и время на телефоне или другую сеть.", errorDetail = "java.security.cert.CertPathValidatorException: Trust anchor for certification path not found.")) { keyOk(); tap("Продолжить"); tap("Продолжить") }
 
+    private val installFailed = installing.copy(error = "Не удалось установить защищённое соединение. Проверьте дату и время на телефоне или другую сеть.", errorDetail = "java.security.cert.CertPathValidatorException: Trust anchor for certification path not found.")
+    @Config(qualifiers = "ru-w360dp-h640dp-xxhdpi")
+    @Test fun ob3ErrorSmall() = renderOb("55c_ob_linux_error_360x640", install = installFailed) { keyOk(); tap("Продолжить"); tap("Продолжить") }
+    @Config(qualifiers = "ru-w412dp-h915dp-xxhdpi")
+    @Test fun ob3ErrorMoreDark() = renderOb("55d_ob_linux_error_more_412_dark", dark = true, install = installFailed) { keyOk(); tap("Продолжить"); tap("Продолжить"); tap("Подробности") }
     @Test fun linuxSetup() = render("58_linux_setup", dark = true) {
         com.dsh.feature.runtime.LinuxSetupScreen(install = installing, onRetry = {})
     }

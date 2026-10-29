@@ -42,6 +42,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -913,7 +915,7 @@ private fun LinuxStep(install: LinuxInstall, notify: Boolean, onNotifyChange: (B
         install.done -> R.string.ob_env_done
         else -> R.string.ob_env_title
     }
-    StepHead(3, stringResource(title), stringResource(R.string.ob_env_lead), dir)
+    StepHead(3, stringResource(title), stringResource(if (install.error != null) R.string.ob_env_lead_failed else R.string.ob_env_lead), dir)
     InstallCard(install, Modifier.enter(3, dir))
     NotifyRow(notify, onNotifyChange, Modifier.enter(4, dir))
 }
@@ -936,7 +938,7 @@ fun LinuxSetupScreen(install: LinuxInstall, onRetry: () -> Unit, modifier: Modif
             }
             Text(stringResource(title), style = H2, color = c.t1, modifier = Modifier.semantics { heading() })
             Spacer(Modifier.height(8.dp))
-            Text(stringResource(R.string.ob_env_lead), style = Lead, color = c.t2)
+            Text(stringResource(if (install.error != null) R.string.ob_env_lead_failed else R.string.ob_env_lead), style = Lead, color = c.t2)
             Spacer(Modifier.height(22.dp))
             InstallCard(install, Modifier)
         }
@@ -970,6 +972,11 @@ private fun InstallCard(install: LinuxInstall, modifier: Modifier) {
                 pop.animateTo(1f, DshMotion.lively())
             }
         }
+        // `.ob-err`: при ошибке вместо процента и полосы — что не получилось и что делать (карточка короче —
+        // помещается на маленьком экране); техническая причина — под «Подробности».
+        if (install.error != null) {
+            InstallError(install)
+        } else {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
             Text(
                 "$pct%",
@@ -996,6 +1003,7 @@ private fun InstallCard(install: LinuxInstall, modifier: Modifier) {
             }
             Box(Modifier.fillMaxWidth(width).height(8.dp).clip(RoundedCornerShape(4.dp)).background(fill))
         }
+        }
         Stage(
             label = stringResource(R.string.ob_stage_download),
             state = stageState(0, install),
@@ -1012,25 +1020,36 @@ private fun InstallCard(install: LinuxInstall, modifier: Modifier) {
             state = stageState(2, install),
             note = "SHA-256",
         )
-        if (install.error != null) {
+    }
+}
+
+/** `.ob-err`: значок, «Не удалось …» по этапу, причина простыми словами и «Подробности» с технической причиной. */
+@Composable
+private fun InstallError(install: LinuxInstall) {
+    val c = Dsh.colors
+    var more by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background(c.dangerSoft), contentAlignment = Alignment.Center) {
+            Icon(com.dsh.core.designsystem.DshGlyphs.Alert, null, tint = c.danger, modifier = Modifier.size(18.dp))
+        }
+        Column(Modifier.weight(1f)) {
             Text(
-                install.error,
-                style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.5.sp, lineHeight = 19.sp),
-                color = c.danger,
-                modifier = Modifier.padding(top = 2.dp, bottom = if (install.errorDetail == null) 10.dp else 2.dp),
+                stringResource(when (install.stage) { 0 -> R.string.ob_err_download; 1 -> R.string.ob_err_unpack; else -> R.string.ob_err_check }),
+                style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.SemiBold, fontSize = 15.5.sp, lineHeight = 20.sp), color = c.t1,
             )
-            if (install.errorDetail != null) {
+            Text(install.error.orEmpty(), style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.5.sp, lineHeight = 19.5.sp), color = c.t2, modifier = Modifier.padding(top = 3.dp))
+            if (!install.errorDetail.isNullOrBlank()) {
                 Text(
-                    install.errorDetail,
-                    style = TextStyle(fontFamily = DshFonts.mono, fontSize = 11.sp, lineHeight = 15.sp),
-                    color = c.t3,
-                    maxLines = 2,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(bottom = 10.dp),
+                    stringResource(if (more) R.string.ob_less else R.string.ob_more),
+                    style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Medium, fontSize = 13.5.sp), color = c.accent,
+                    modifier = Modifier.offset(x = (-10).dp).heightIn(min = 40.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button) { more = !more }
+                        .padding(horizontal = 10.dp).wrapContentHeight(Alignment.CenterVertically),
                 )
+                if (more) Text(install.errorDetail, style = TextStyle(fontFamily = DshFonts.mono, fontSize = 11.5.sp, lineHeight = 17.sp), color = c.t3)
             }
         }
     }
+    Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
 }
 
 /** `.ob-notif`: строка группы с переключателем. */

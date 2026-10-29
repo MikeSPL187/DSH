@@ -902,6 +902,18 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .ob-note.on { visibility: visible; }
 .ob-inst { background: var(--s1); border: 1px solid var(--line); border-radius: 22px; padding: 18px 16px 8px; }
 .ob-pct { display: flex; align-items: baseline; justify-content: space-between; }
+/* Ошибка установки: вместо процента — что не получилось и что делать; техника — под «Подробности» */
+.ob-err { display: none; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.ob-inst.fail .ob-err { display: flex; } .ob-inst.fail .ob-pct, .ob-inst.fail .ob-bar { display: none; }
+.ob-err-ic { width: 34px; height: 34px; border-radius: 11px; flex: none; display: grid; place-items: center; background: var(--danger-soft); color: var(--danger); }
+.ob-err .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+.ob-err b { font-size: 15.5px; font-weight: 600; color: var(--t1); }
+.ob-err .tx > span { margin-top: 3px; font-size: 13.5px; line-height: 1.45; color: var(--t2); }
+.ob-more { margin: 2px 0 0 -10px; height: 40px; padding: 0 10px; border-radius: 12px; font-size: 13.5px; font-weight: 500; color: var(--accent); }
+.ob-err code { display: none; font-family: var(--font-mono); font-size: 11.5px; line-height: 1.5; color: var(--t3); overflow-wrap: anywhere; }
+.ob-err code.on { display: block; }
+.ob-st.fail { color: var(--danger); } .ob-st.fail .obd { border-color: var(--danger); background: var(--danger); }
+.ob-st.fail .obd::after { content: "×"; color: #fff; font-size: 14px; font-weight: 600; line-height: 1; margin-top: -1px; }
 .ob-pct b { font-family: var(--font-display); font-weight: 600; font-size: 40px; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 .ob-pct span { font-size: 13.5px; color: var(--t3); }
 .ob-bar { height: 8px; border-radius: 4px; background: var(--s3); overflow: hidden; margin: 10px 0 8px; }
@@ -1707,8 +1719,9 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
           <div class="ob-step" data-step="3">
             <span class="ob-eye">Шаг 3 из 3</span>
             <h2 id="obEnvTitle">Устанавливаю Linux</h2>
-            <p class="ob-lead">Debian с git, Python и Node. Это нужно один раз — можно продолжать, установка закончится в фоне.</p>
+            <p class="ob-lead" id="obEnvLead">Debian с git, Python и Node. Это нужно один раз — можно продолжать, установка закончится в фоне.</p>
             <div class="ob-inst">
+              <div class="ob-err" id="obErr"><span class="ob-err-ic"><svg class="i sm"><use href="#i-alert"/></svg></span><span class="tx"><b id="obErrT">Не удалось скачать</b><span id="obErrS">Нет защищённого соединения. Проверьте дату и время на телефоне или попробуйте другую сеть.</span><button class="ob-more" id="obMore" aria-expanded="false">Подробности</button><code id="obDet">CertPathValidatorException: Trust anchor for certification path not found.</code></span></div>
               <div class="ob-pct"><b id="obPct">0%</b><span id="obEta">≈ 2 мин</span></div>
               <div class="ob-bar"><i id="obBar"></i></div>
               <div class="ob-stages" id="obStages">
@@ -4047,7 +4060,12 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       }
     }, 160);
   }
+  // Ошибка установки (проверка: obFail()) — «Повторить» начинает заново.
+  let instFail = false;
+  window.obFail = () => { clearInterval(instT); instT = 0; instFail = true; $(".ob-inst", ob).classList.add("fail"); $("#obEnvTitle").textContent = "Linux не установился"; $("#obEnvLead").textContent = "Проверьте подключение к интернету и нажмите «Повторить». Без Linux агент не сможет запускать команды."; $$(".ob-st", ob).forEach((st, k) => st.className = "ob-st" + (k === 0 ? " fail" : "")); obNext.textContent = "Повторить"; obNext.disabled = false; };
+  $("#obMore").addEventListener("click", (e) => { const on = e.currentTarget.getAttribute("aria-expanded") !== "true"; e.currentTarget.setAttribute("aria-expanded", String(on)); e.currentTarget.textContent = on ? "Скрыть подробности" : "Подробности"; $("#obDet").classList.toggle("on", on); });
   obNext.addEventListener("click", () => {
+    if (instFail) { instFail = false; instP = 0; $(".ob-inst", ob).classList.remove("fail"); $("#obEnvTitle").textContent = "Устанавливаю Linux"; $("#obEnvLead").textContent = "Debian с git, Python и Node. Это нужно один раз — можно продолжать, установка закончится в фоне."; $$(".ob-st", ob).forEach((st) => st.className = "ob-st"); obEnvLabel(); startInstall(); return; }
     if (obi < 3) obSet(obi + 1, 1);
     else obClose();
   });
