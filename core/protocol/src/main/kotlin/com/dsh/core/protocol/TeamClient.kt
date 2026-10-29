@@ -14,6 +14,15 @@ import okhttp3.RequestBody.Companion.toRequestBody
 
 /** Команда агента и задачи: команда сессии, общие задачи, автоматизации Host. */
 internal class TeamClient(private val conn: HostConnection) : TeamApi {
+    /** `result.value` ответа, только если Host подтвердил `ok: true`; иначе null (отказ, пустой или битый ответ). */
+    private fun confirmedValue(body: String): kotlinx.serialization.json.JsonElement? {
+        val result = runCatching { (json.parseHostJson(body) as? kotlinx.serialization.json.JsonObject)?.get("result") }
+            .getOrNull() as? kotlinx.serialization.json.JsonObject ?: return null
+        val ok = result["ok"] as? kotlinx.serialization.json.JsonPrimitive
+        if (ok == null || ok.isString || ok.content != "true") return null
+        return result["value"] ?: kotlinx.serialization.json.JsonNull
+    }
+
     private val baseUrl get() = conn.baseUrl
     private val client get() = conn.client
     private val json get() = conn.json
@@ -50,17 +59,11 @@ internal class TeamClient(private val conn: HostConnection) : TeamApi {
                         "session projections failed: ${response.code}",
                     )
                 }
-                val bodyStr = response.body?.string() ?: "{}"
-                val jsonElem = json.parseHostJson(bodyStr)
-                val values = if (jsonElem is kotlinx.serialization.json.JsonObject) {
-                    jsonElem["result"]?.let { res ->
-                        if (res is kotlinx.serialization.json.JsonObject) {
-                            res["value"]?.let { v ->
-                                if (v is kotlinx.serialization.json.JsonObject) v["values"] else null
-                            }
-                        } else null
-                    } ?: jsonElem["values"]
-                } else null
+                val bodyStr = response.body?.string().orEmpty()
+                // Отказ Host — ошибка, а не «команды нет».
+                val values = (confirmedValue(bodyStr)
+                    ?: return@withContext RemoteResult.Failure("dsh/team/unavailable", conn.extractRpcError(bodyStr) ?: "session projections were rejected")
+                    ).let { (it as? kotlinx.serialization.json.JsonObject)?.get("values") }
                 val team = (values as? kotlinx.serialization.json.JsonObject)
                     ?.get("agentTeam") as? kotlinx.serialization.json.JsonObject
                     ?: return@withContext RemoteResult.Success(null)
@@ -134,16 +137,12 @@ internal class TeamClient(private val conn: HostConnection) : TeamApi {
             .post(payload.toRequestBody(mediaTypeJson))
             .build()
 
+        // Отказ Host или сети — ошибка: вызывающий оставляет прежний список, а не показывает «автоматизаций нет».
         try {
             client.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
-                    val bodyStr = response.body?.string() ?: "{}"
-                    val jsonElem = json.parseHostJson(bodyStr)
-                    val items = if (jsonElem is kotlinx.serialization.json.JsonObject) {
-                        jsonElem["result"]?.let { r ->
-                            if (r is kotlinx.serialization.json.JsonObject) r["value"] as? kotlinx.serialization.json.JsonArray else null
-                        } ?: jsonElem["items"] as? kotlinx.serialization.json.JsonArray
-                    } else if (jsonElem is kotlinx.serialization.json.JsonArray) jsonElem else null
+                    val bodyStr = response.body?.string().orEmpty()
+                    val items = confirmedValue(bodyStr) as? kotlinx.serialization.json.JsonArray
 
                     if (items != null) {
                         val list = items.mapNotNull { item ->
@@ -164,11 +163,13 @@ internal class TeamClient(private val conn: HostConnection) : TeamApi {
                         }
                         return@withContext RemoteResult.Success(list)
                     }
+                    return@withContext RemoteResult.Failure("dsh/schedule/rejected", conn.extractRpcError(bodyStr) ?: "schedule/catalog was rejected")
                 }
+                RemoteResult.Failure("dsh/schedule/unavailable", "schedule/catalog: HTTP ${response.code}")
             }
-        } catch (_: Exception) {}
-
-        RemoteResult.Success(emptyList())
+        } catch (e: Exception) {
+            RemoteResult.Failure("dsh/schedule/unavailable", e.message ?: "schedule/catalog failed")
+        }
     }
 
     override suspend fun getTeamTasks(
@@ -188,40 +189,31 @@ internal class TeamClient(private val conn: HostConnection) : TeamApi {
             .post(payload.toRequestBody(mediaTypeJson))
             .build()
 
+        // В Host 0.2.x маршрута team/listTasks нет (404): задачи команды приходят в проекции agentTeam.
+        // Отказ маршрута, `ok: false` и битый ответ — ошибка, а не «задач нет» (R2-04).
         try {
             client.newCall(request).execute().use { response ->
-                if (response.isSuccessful) {
-                    val bodyStr = response.body?.string() ?: "{}"
-                    val jsonElem = json.parseHostJson(bodyStr)
-                    val items = if (jsonElem is kotlinx.serialization.json.JsonObject) {
-                        jsonElem["result"]?.let { r ->
-                            if (r is kotlinx.serialization.json.JsonObject) r["value"] as? kotlinx.serialization.json.JsonArray else null
-                        } ?: jsonElem["tasks"] as? kotlinx.serialization.json.JsonArray
-                    } else null
-
-                    if (items != null) {
-                        val list = items.mapNotNull { item ->
-                            if (item is kotlinx.serialization.json.JsonObject) {
-                                val id = item["id"]?.toString()?.trim('"') ?: return@mapNotNull null
-                                val subject = item["subject"]?.toString()?.trim('"') ?: item["title"]?.toString()?.trim('"') ?: com.dsh.core.model.Tr.t("Task", "Задача")
-                                val description = item["description"]?.toString()?.trim('"') ?: ""
-                                val status = item["status"]?.toString()?.trim('"') ?: "pending"
-                                val owner = item["ownerName"]?.toString()?.trim('"')
-                                TeamTaskItem(
-                                    id = id,
-                                    subject = subject,
-                                    description = description,
-                                    status = status,
-                                    ownerName = owner
-                                )
-                            } else null
-                        }
-                        return@withContext RemoteResult.Success(list)
-                    }
+                if (!response.isSuccessful) {
+                    return@withContext RemoteResult.Failure("dsh/team/tasks-unavailable", "team/listTasks: HTTP ${response.code}")
                 }
+                val body = response.body?.string().orEmpty()
+                val items = confirmedValue(body) as? kotlinx.serialization.json.JsonArray
+                    ?: return@withContext RemoteResult.Failure("dsh/team/tasks-rejected", conn.extractRpcError(body) ?: "team/listTasks was rejected")
+                val list = items.mapNotNull { item ->
+                    val obj = item as? kotlinx.serialization.json.JsonObject ?: return@mapNotNull null
+                    fun text(key: String) = (obj[key] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+                    TeamTaskItem(
+                        id = text("id") ?: return@mapNotNull null,
+                        subject = text("subject") ?: text("title") ?: com.dsh.core.model.Tr.t("Task", "Задача"),
+                        description = text("description").orEmpty(),
+                        status = text("status") ?: "pending",
+                        ownerName = text("ownerName"),
+                    )
+                }
+                RemoteResult.Success(list)
             }
-        } catch (_: Exception) {}
-
-        RemoteResult.Success(emptyList())
+        } catch (e: Exception) {
+            RemoteResult.Failure("dsh/team/tasks-unavailable", e.message ?: "team/listTasks failed")
+        }
     }
 }

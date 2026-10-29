@@ -92,6 +92,8 @@ class DshRepository(
     private val _hostWorkspacesFlow = MutableStateFlow<List<HostWorkspaceInfo>>(emptyList())
     val hostWorkspacesFlow: StateFlow<List<HostWorkspaceInfo>> = _hostWorkspacesFlow.asStateFlow()
     private val workspaceTree = WorkspaceTree()
+    /** Host, чьи кадры workspace/follow собраны в [workspaceTree]: его наборы закреплений не применяются к другим Host. */
+    @Volatile private var workspaceTreeHost: String? = null
     private var workspaceRefreshJob: Job? = null
 
     fun getSessions(hostId: String): Flow<List<SessionInfo>> =
@@ -126,7 +128,19 @@ class DshRepository(
     private suspend fun upsertSessions(hostId: String, sessions: List<SessionInfo>) {
         if (sessions.isEmpty()) return
         val cached = dao.getSessionsForHost(hostId).first().associateBy { it.sessionId }
-        dao.insertSessions(sessions.map { session -> session.mergedInto(cached[session.sessionId]) })
+        // Наборы Host из workspace/follow могли прийти раньше, чем строка сессии появилась в кэше:
+        // тогда их UPDATE ничего не изменил, и при вставке отметки берутся из них (R2-03).
+        val tree = workspaceTree.takeIf { workspaceTreeHost == hostId }
+        val pinned = tree?.pinnedSessionIds
+        val archived = tree?.archivedSessionIds
+        dao.insertSessions(sessions.map { session ->
+            session.mergedInto(cached[session.sessionId]).let { row ->
+                row.copy(
+                    pinned = pinned?.let { if (row.sessionId in it) 1 else 0 } ?: row.pinned,
+                    archived = archived?.let { if (row.sessionId in it) 1 else 0 } ?: row.archived,
+                )
+            }
+        })
     }
 
     suspend fun createSession(
@@ -548,6 +562,7 @@ class DshRepository(
             keepSubscribed { client.workspaceFollow(hostId).collect { frame ->
                 val root = runCatching { hostJson.parseHostJson(frame) as? JsonObject }.getOrNull()
                     ?: return@collect
+                workspaceTreeHost = hostId
                 _hostWorkspacesFlow.value = workspaceTree.apply(root)
                 // Закрепление и архив ведёт Host: без этого значок «закреплено» не появлялся вовсе,
                 // а архив с другого устройства не скрывал сессию.

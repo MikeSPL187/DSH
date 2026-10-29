@@ -91,4 +91,59 @@ class BackupSecretsTest {
         assertEquals(""""openaiApiKey": """"", BackupSecrets.scrubLine(""""openaiApiKey": "xyz""""))
         assertEquals(""""password":""""", BackupSecrets.scrubLine(""""password":"hunter2""""))
     }
+
+    private fun copied(text: String, name: String = "config.json"): String {
+        val dir = Files.createTempDirectory("dsh-scrub").toFile()
+        return try {
+            val file = File(dir, name).apply { writeText(text) }
+            ByteArrayOutputStream().also { BackupSecrets.copyScrubbed(file, it) }.toString("UTF-8")
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    private fun parses(text: String) = runCatching { kotlinx.serialization.json.Json.parseToJsonElement(text) }.isSuccess
+
+    @Test
+    fun `secret assignment inside a JSON string keeps the JSON valid after export and restore`() = runBlocking {
+        // R2-01: правило переменной окружения съедало закрывающую кавычку JSON-строки.
+        val home = layout().also { it.dshHomeDir.mkdirs() }
+        File(home.dshHomeDir, "config.json").writeText("""{"note":"OPENAI_API_KEY=QA_SYNTHETIC_VALUE_123456789","sessionId":"session-qa"}""")
+        val zip = RuntimeBackupAndDiagnostics(home).createUserDataBackup().getOrThrow()
+        val restored = layout()
+        zip.inputStream().use { RuntimeBackupAndDiagnostics(restored).restoreUserDataBackup(it).getOrThrow() }
+        val config = File(restored.dshHomeDir, "config.json").readText()
+        assertTrue("restored config.json is not valid JSON: $config", parses(config))
+        assertFalse(config.contains("QA_SYNTHETIC_VALUE"))
+        assertTrue(config.contains(""""sessionId":"session-qa""""))
+    }
+
+    @Test
+    fun `secret assignment inside a JSONL line keeps the line valid`() {
+        val out = copied("""{"text":"export GITHUB_TOKEN=QA_SYNTHETIC_VALUE_123","id":"m1"}""" + "\n" + """{"text":"ok"}""" + "\n", "history.jsonl")
+        out.trimEnd().lines().forEach { assertTrue("broken JSONL line: $it", parses(it)) }
+        assertFalse(out.contains("QA_SYNTHETIC_VALUE"))
+    }
+
+    @Test
+    fun `multi-line JSON secret field is cleared`() {
+        // R2-02: имя поля и значение на разных строках.
+        val out = copied("{\"apiKey\":\n    \"QA_SYNTHETIC_VALUE_123456789\", \"sessionId\":\"session-qa\"}\n")
+        assertFalse(out.contains("QA_SYNTHETIC_VALUE"))
+        assertTrue(parses(out))
+        assertTrue(out.contains("session-qa"))
+        assertTrue(out.endsWith("\n"))
+    }
+
+    @Test
+    fun `quoted environment value is removed completely`() {
+        // R2-02: удалялось только первое слово значения в кавычках.
+        assertEquals("MY_PASSWORD=\nAPI_TOKEN=\n", copied("MY_PASSWORD=\"QA_START sensitive-tail-value\"\nAPI_TOKEN='a b c'\n", ".env.example"))
+    }
+
+    @Test
+    fun `ordinary JSON without secrets is byte identical`() {
+        val source = "{\r\n\"sessionId\":\"qa\",\"maxTokens\":123\r\n}\r\n"
+        assertEquals(source, copied(source))
+    }
 }

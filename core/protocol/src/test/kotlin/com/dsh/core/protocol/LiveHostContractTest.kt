@@ -73,6 +73,18 @@ class LiveHostContractTest {
         assertFalse(client.cancelSession("local-host", "session-does-not-exist"))
     }
 
+    @Test
+    fun `missing team tasks route is reported as a failure`() = runBlocking {
+        // R2-04: в Host 0.2.x нет team/listTasks — это ошибка, а не пустой список.
+        assertTrue(live().getTeamTasks("local-host") is RemoteResult.Failure)
+        assertTrue(live().getAutomationTasks("local-host") is RemoteResult.Success)
+    }
+
+    @Test
+    fun `account state of a fresh Host is signed out`() = runBlocking {
+        assertEquals("signed-out", (live().getAccountState("local-host") as RemoteResult.Success).data.status)
+    }
+
     /**
      * Сквозной чат через клиент приложения: свой провайдер на локальной OpenAI-совместимой заглушке
      * (настройки без expectedRevision — DSH-04), сессия, права, модель, сообщение и ответ модели.

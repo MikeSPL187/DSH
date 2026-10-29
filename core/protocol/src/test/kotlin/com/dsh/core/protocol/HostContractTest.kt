@@ -138,4 +138,34 @@ class HostContractTest {
             runCatching { server.close() }
         }
     }
+
+    @Test
+    fun `rejected account lookup is not reported as signed out`() = runBlocking {
+        // R2-05: конверт с ошибкой разбирался как AccountView без status и становился «signed-out».
+        val rejected = host("""{"result":{"ok":false,"error":{"code":"account/backend-unavailable","message":"down"}}}""").getAccountState("h")
+        assertTrue("$rejected", rejected is RemoteResult.Failure)
+        assertEquals("account/backend-unavailable", (rejected as RemoteResult.Failure).code)
+        assertTrue(host("{}").getAccountState("h") is RemoteResult.Failure)
+        assertTrue(host("""{"result":{"ok":true,"value":{}}}""").getAccountState("h") is RemoteResult.Failure)
+        val signedOut = host("""{"result":{"ok":true,"value":{"status":"signed-out","attempt":null}}}""").getAccountState("h")
+        assertEquals("signed-out", (signedOut as RemoteResult.Success).data.status)
+    }
+
+    @Test
+    fun `account profile and balance accept an empty Host value`() = runBlocking {
+        assertEquals(null, (host("""{"result":{"ok":true,"value":null}}""").getAccountProfile("h") as RemoteResult.Success).data)
+        assertTrue(host("""{"result":{"ok":false,"error":{"code":"x"}}}""").getAccountProfile("h") is RemoteResult.Failure)
+    }
+
+    @Test
+    fun `team tasks failure is not an empty list`() = runBlocking {
+        // R2-04: 404 и отказ Host раньше превращались в Success(emptyList()).
+        assertTrue(host("""{"result":{"ok":false,"error":{"code":"gateway/not-found"}}}""").getTeamTasks("h") is RemoteResult.Failure)
+        assertTrue(host("{}").getTeamTasks("h") is RemoteResult.Failure)
+        assertTrue(host("""{"result":{"ok":false}}""").getAutomationTasks("h") is RemoteResult.Failure)
+        assertTrue(host("""{"result":{"ok":false}}""").getAgentTeam("h", "s1") is RemoteResult.Failure)
+        val tasks = host("""{"result":{"ok":true,"value":[{"id":"t1","subject":"Ship"}]}}""").getTeamTasks("h")
+        assertEquals(listOf("t1"), (tasks as RemoteResult.Success).data.map { it.id })
+        assertEquals(emptyList<Any>(), (host("""{"result":{"ok":true,"value":[]}}""").getAutomationTasks("h") as RemoteResult.Success).data)
+    }
 }

@@ -56,28 +56,33 @@ internal class AccountClient(private val conn: HostConnection) : AccountApi {
                     )
                 }
                 val bodyStr = response.body?.string() ?: "{}"
-                val elem = json.parseHostJson(bodyStr)
-                val result = (elem as? kotlinx.serialization.json.JsonObject)?.get("result")
-                val value = when (result) {
-                    is kotlinx.serialization.json.JsonObject ->
-                        result["value"] as? kotlinx.serialization.json.JsonObject ?: result
-                    else -> elem as? kotlinx.serialization.json.JsonObject
+                val result = (json.parseHostJson(bodyStr) as? kotlinx.serialization.json.JsonObject)?.get("result")
+                    as? kotlinx.serialization.json.JsonObject
+                    ?: return@withContext RemoteResult.Failure("dsh/account/malformed", "Malformed account response")
+                // Отказ Host (`ok: false`, сбой сервиса аккаунта) — ошибка, а не данные: раньше конверт с ошибкой
+                // разбирался как AccountView без status и превращался в «signed-out» (R2-05).
+                val ok = result["ok"] as? kotlinx.serialization.json.JsonPrimitive
+                if (ok == null || ok.isString || ok.content != "true") {
+                    val error = result["error"] as? kotlinx.serialization.json.JsonObject
+                    fun text(key: String) = (error?.get(key) as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+                    return@withContext RemoteResult.Failure(
+                        text("code") ?: "dsh/account/rejected",
+                        text("message") ?: "Account request was rejected by the Host",
+                    )
                 }
-                if (value != null) {
-                    RemoteResult.Success(value)
-                } else {
-                    RemoteResult.Failure("dsh/account/malformed", "Malformed account response")
-                }
+                // `null` от Host (нет профиля или баланса) — пустой объект: вызывающий видит «нет данных».
+                RemoteResult.Success(result["value"] as? kotlinx.serialization.json.JsonObject ?: kotlinx.serialization.json.JsonObject(emptyMap()))
             }
         } catch (e: Exception) {
             RemoteResult.Failure("dsh/account/network", e.message ?: "Account request failed")
         }
     }
 
-    private fun kotlinx.serialization.json.JsonObject.parseAccountView(): AccountViewInfo {
+    /** AccountView Host; без `status` — null: «вышел из аккаунта» нельзя выводить из неполного ответа. */
+    private fun kotlinx.serialization.json.JsonObject.parseAccountView(): AccountViewInfo? {
         val attempt = this["attempt"] as? kotlinx.serialization.json.JsonObject
         return AccountViewInfo(
-            status = this["status"]?.toString()?.trim('"') ?: "signed-out",
+            status = (this["status"] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull ?: return null,
             attemptId = attempt?.get("id")?.toString()?.trim('"'),
             attemptPhase = attempt?.get("phase")?.toString()?.trim('"'),
             authorizeUrl = attempt?.get("authorizeUrl")?.toString()?.trim('"'),
@@ -86,7 +91,8 @@ internal class AccountClient(private val conn: HostConnection) : AccountApi {
 
     override suspend fun getAccountState(hostId: String): RemoteResult<AccountViewInfo> {
         return when (val res = accountRpc("account/getState", buildJsonObject { })) {
-            is RemoteResult.Success -> RemoteResult.Success(res.data.parseAccountView())
+            is RemoteResult.Success -> res.data.parseAccountView()?.let { RemoteResult.Success(it) }
+                ?: RemoteResult.Failure("dsh/account/malformed", "Account state has no status")
             is RemoteResult.Failure -> res
         }
     }
@@ -122,7 +128,7 @@ internal class AccountClient(private val conn: HostConnection) : AccountApi {
                         when (field("type")) {
                             "item" -> {
                                 val value = frame["value"] as? kotlinx.serialization.json.JsonObject
-                                if (value != null) trySend(value.parseAccountView())
+                                value?.parseAccountView()?.let { trySend(it) }
                             }
                             "error", "end" -> close()
                         }
@@ -160,7 +166,8 @@ internal class AccountClient(private val conn: HostConnection) : AccountApi {
             put("loginSource", "web")
         }
         return when (val res = accountRpc("account/startSignIn", args)) {
-            is RemoteResult.Success -> RemoteResult.Success(res.data.parseAccountView())
+            is RemoteResult.Success -> res.data.parseAccountView()?.let { RemoteResult.Success(it) }
+                ?: RemoteResult.Failure("dsh/account/malformed", "Sign-in state has no status")
             is RemoteResult.Failure -> res
         }
     }
