@@ -242,4 +242,9 @@
     <string name="onboarding_key_failed">Could not save the API key. Check it and try again.</string>
     <string name="host_loading_data">Loading account and plugins…</string>
     <string name="plugin_status_needs_approval">Needs approval</string>
+    <string name="shortcut_new_chat">New session</string>
+    <string name="shortcut_terminal">Terminal</string>
+    <string name="shortcut_files">Files</string>
+    <string name="share_label">Ask DSH</string>
+    <plurals name="share_skipped"><item quantity="one">%d file not added: over 100 MB or unreadable</item><item quantity="other">%d files not added: over 100 MB or unreadable</item></plurals>
 </resources>

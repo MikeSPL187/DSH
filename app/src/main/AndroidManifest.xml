@@ -75,6 +75,30 @@
             </intent-filter>
         </activity>
 
+        <!-- «Поделиться → DSH» из других приложений: текст, ссылки, картинки, файлы. Без интерфейса:
+             копирует присланное и открывает новую сессию с вложениями и текстом в поле ввода. -->
+        <activity
+            android:name=".ShareActivity"
+            android:exported="true"
+            android:label="@string/share_label"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="application/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="application/*" />
+            </intent-filter>
+        </activity>
+
         <!-- Запуск автоматизаций по расписанию (JobScheduler). -->
         <service
             android:name=".AutomationJobService"

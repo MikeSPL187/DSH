@@ -85,7 +85,12 @@ object AttachmentImporter {
     }
 
     /** Имя и размер файла из SAF; null при ошибке (тогда запасное имя). */
-    private fun queryMeta(context: Context, uri: Uri): Pair<String, Long>? = runCatching {
+    /** Имя и размер вложения; у `file://` (копии «Поделиться») — из самого файла. */
+    fun meta(context: Context, uri: Uri): Pair<String, Long>? = queryMeta(context, uri)
+
+    private fun queryMeta(context: Context, uri: Uri): Pair<String, Long>? = if (uri.scheme == "file") {
+        uri.path?.let { File(it) }?.takeIf { it.isFile }?.let { it.name to it.length() }
+    } else runCatching {
         context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
             if (!cursor.moveToFirst()) return@use null
             val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)

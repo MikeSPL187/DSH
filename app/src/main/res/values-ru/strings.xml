@@ -234,4 +234,9 @@
     <string name="onboarding_key_failed">Не удалось сохранить API-ключ. Проверьте его и попробуйте ещё раз.</string>
     <string name="host_loading_data">Загрузка аккаунта и плагинов…</string>
     <string name="plugin_status_needs_approval">Требует одобрения</string>
+    <string name="shortcut_new_chat">Новая сессия</string>
+    <string name="shortcut_terminal">Терминал</string>
+    <string name="shortcut_files">Файлы</string>
+    <string name="share_label">Спросить DSH</string>
+    <plurals name="share_skipped"><item quantity="one">%d файл не добавлен: больше 100 МБ или не читается</item><item quantity="few">%d файла не добавлены: больше 100 МБ или не читаются</item><item quantity="many">%d файлов не добавлены: больше 100 МБ или не читаются</item><item quantity="other">%d файла не добавлены: больше 100 МБ или не читаются</item></plurals>
 </resources>

@@ -54,6 +54,13 @@ class MainActivity : ComponentActivity() {
         nativePluginRescanFlow.value += 1
     }
 
+    /** Ярлык или «Поделиться», когда DSH уже открыт: экран тот же, намерение — сюда. */
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        IncomingShare.fromShortcut(intent)
+    }
+
     override fun attachBaseContext(newBase: android.content.Context) {
         super.attachBaseContext(AppLanguage.wrap(newBase))
     }
@@ -64,6 +71,9 @@ class MainActivity : ComponentActivity() {
         // не сжимает. Иначе некоторые прошивки (например, MIUI) и сжимают, и сообщают отступ IME —
         // поле ввода чата поднималось дважды. На старых системах enableEdgeToEdge совместим.
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+        // Ярлык на иконке («Новая сессия», «Терминал», «Файлы») и сами ярлыки.
+        if (savedInstanceState == null) IncomingShare.fromShortcut(intent)
+        IncomingShare.publishShortcuts(applicationContext)
 
         workspaceManager = WorkspaceManager(
             preferredPublicDir = visibleWorkspaceDir,

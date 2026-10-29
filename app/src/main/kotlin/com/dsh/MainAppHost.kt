@@ -573,6 +573,28 @@ fun MainAppHost(
         if (ok && uri != null) importAttachments(listOf(uri), cleanup) else scope.launch(kotlinx.coroutines.Dispatchers.IO) { cleanup() }
     }
     val hasCamera = remember { context.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_CAMERA_ANY) }
+    // «Поделиться → DSH» и ярлыки на иконке: новая сессия с вложениями и текстом в поле ввода, терминал, файлы.
+    val incoming by IncomingShare.pending.collectAsState()
+    LaunchedEffect(incoming) {
+        val inc = incoming ?: return@LaunchedEffect
+        IncomingShare.pending.value = null
+        when (inc.target) {
+            // Без терминала страница сама вернётся в чат (проверка terminalSupported ниже).
+            Incoming.Target.TERMINAL -> ui.activePage = ActivePage.TERMINAL
+            Incoming.Target.FILES -> ui.activePage = ActivePage.FILES
+            Incoming.Target.NEW_CHAT -> {
+                ui.selectedSessionId = null
+                ui.activePage = ActivePage.CHAT
+                if (inc.files.isNotEmpty()) {
+                    importAttachments(inc.files.map { android.net.Uri.fromFile(it) }) { inc.files.forEach { it.delete() } }
+                }
+                if (!inc.text.isNullOrBlank()) ui.pendingComposerText = inc.text
+                if (inc.skipped.isNotEmpty()) android.widget.Toast.makeText(
+                    context, context.resources.getQuantityString(R.plurals.share_skipped, inc.skipped.size, inc.skipped.size), android.widget.Toast.LENGTH_LONG,
+                ).show()
+            }
+        }
+    }
 
     HostRestartBridgeEffect(ui.activeHostId, dshRepository, runtimeManager, activeWorkspace)
     PluginPollingEffect(ui, dshRepository, runner, bundleSelection)
