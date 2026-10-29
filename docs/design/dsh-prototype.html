@@ -527,7 +527,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 @media (max-width: 760px) { .sbar { padding-top: calc(10px + env(safe-area-inset-top, 0px)); } }
 .sbar .title { text-align: left; padding-left: 2px; }
 .title span:empty { display: none; }
-.toast { position: absolute; left: 50%; bottom: 112px; z-index: 60; transform: translateX(-50%); background: var(--t1); color: var(--bg); padding: 11px 16px; border-radius: 999px; font-size: 14px; box-shadow: var(--shadow-float); white-space: nowrap; display: flex; align-items: center; gap: 8px; max-width: calc(100% - 32px); }
+.toast { position: absolute; left: 50%; bottom: 112px; z-index: 60; transform: translateX(-50%); background: var(--t1); color: var(--bg); padding: 11px 16px; border-radius: 22px; font-size: 14px; line-height: 18px; box-shadow: var(--shadow-float); width: max-content; text-align: center; display: flex; align-items: center; gap: 8px; max-width: calc(100% - 32px); }
 
 /* ---------- Терминал ---------- */
 :root { --term-bg: #fcfcfe; --term-t: #23242e; --term-dim: #646674; --term-pr: #5a4cf0; --term-ok: #0e7a50; --term-err: #c4323a; --term-warn: #8f5200; }
@@ -904,7 +904,8 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .mem-card .acts { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 .mem-card .acts .btn { height: 40px; padding: 0 16px; border-radius: 12px; font-size: 14.5px; }
 .mem-card .done { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 14px; color: var(--ok); }
-.mem-card .done button { margin-left: auto; height: 40px; padding: 0 6px; background: none; border: 0; font: inherit; font-size: 14px; color: var(--accent); }
+.mem-card .done button:first-of-type { margin-left: auto; }
+.mem-card .done button { height: 40px; padding: 0 6px; background: none; border: 0; font: inherit; font-size: 14px; color: var(--accent); }
 .pv-safe { display: flex; gap: 12px; margin-top: 14px; padding: 14px; border-radius: 18px; background: var(--s1); border: 1px solid var(--line); font-size: 13px; line-height: 1.5; color: var(--t2); }
 .pv-safe .i { flex: none; color: var(--ok); margin-top: 1px; }
 .pv-safe b { display: block; margin-bottom: 2px; font-size: 14px; color: var(--t1); }
@@ -1838,6 +1839,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       <section class="sheet" id="sheet-mem" aria-label="Факт в памяти">
         <div class="grab"></div>
         <h3 id="memTitle">Новый факт</h3>
+        <div class="fv-seg" role="group" aria-label="Где помнить" id="memScope"><button data-memscope="all" aria-pressed="true">Все проекты</button><button data-memscope="proj" aria-pressed="false">Этот проект</button></div>
         <textarea class="cm-msg" id="memText" maxlength="500" placeholder="Например: пишу на Kotlin, отвечай коротко и по-русски" aria-label="Что запомнить"></textarea>
         <div class="mem-meta"><span id="memErr" role="status"></span><span id="memCnt">0 / 500</span></div>
         <div class="lim-btns"><button class="btn ghost" id="memDel">Отмена</button><button class="btn primary" id="memSave" disabled>Запомнить</button></div>
@@ -3859,7 +3861,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   });
 
   // ---------- Настройки ----------
-  const ST = { memOn: true, approvals: "ask", clipboard: false, sleep: "15 мин", keepBg: true, ws: "private", lang: "Русский", codeSize: 13, notifDone: true, notifAsk: true, notifAuto: "err", haptics: true, biometric: false, analytics: false, hostOn: true, searchApi: false, sendQuestion: true };
+  const ST = { memOn: true, memAuto: false, approvals: "ask", clipboard: false, sleep: "15 мин", keepBg: true, ws: "private", lang: "Русский", codeSize: 13, notifDone: true, notifAsk: true, notifAuto: "err", haptics: true, biometric: false, analytics: false, hostOn: true, searchApi: false, sendQuestion: true };
   const stBody = $("#stBody");
   let stStack = [], stCur = null, stQuery = "";
   const curTheme = () => document.documentElement.getAttribute("data-theme") || "system";
@@ -4046,48 +4048,55 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     $("#pvDel").textContent = "Удалить ключ"; sheetOpen("prov");
   }
 
-  // ── Память агента: факты о пользователе в ~/.agents/AGENTS.md — его читает dsh-agent-instructions в начале сессии.
-  //    Агент сам не пишет в файл: он предлагает факт карточкой «Запомнить?», сохраняет только пользователь. ──
+  // ── Память агента. Общая — ~/.agents/AGENTS.md, проекта — блок в AGENTS.local.md его папки (вне git); оба файла
+  //    dsh-agent-instructions читает в начале сессии. Агент сам в файлы не пишет: предлагает факт тегом <dsh-memory>,
+  //    чат показывает «Запомнить?» (или сохраняет сам с «Отменить», если включено «Сохранять без вопроса»). ──
+  const PROJ = "DSH-Workspace";
   const MEM = { list: [
-    { id: 1, t: "Пишет на Kotlin и Compose; ответы — коротко и по-русски", at: "12 окт", src: "из чата" },
-    { id: 2, t: "Проект DSH собирается командой ./gradlew :app:assembleDebug, тесты — ./gradlew test перед каждым коммитом", at: "20 окт", src: "добавлено вручную" },
-    { id: 3, t: "Не трогать scripts/backup.sh без вопроса", at: "24 окт", src: "из чата" },
-  ], sel: null, armDel: false, armClear: false, seq: 10 };
+    { id: 1, t: "Пишет на Kotlin и Compose; ответы — коротко и по-русски", at: "12 окт", src: "из чата", p: null },
+    { id: 2, t: "Проект DSH собирается командой ./gradlew :app:assembleDebug, тесты — ./gradlew test перед каждым коммитом", at: "20 окт", src: "добавлено вручную", p: PROJ },
+    { id: 3, t: "Не трогать scripts/backup.sh без вопроса", at: "24 окт", src: "из чата", p: PROJ },
+  ], sel: null, scope: null, armDel: false, armClear: false, seq: 10, q: "" };
   const MEM_MAX = 500;
   // Ключи, токены и пароли в память не попадают: файл читает каждая сессия и любая модель.
-  const MEM_SECRET = /(sk-[A-Za-z0-9_-]{12,}|AIza[0-9A-Za-z_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_|xox[abposr]-|eyJ[A-Za-z0-9_-]{16,}\.|ya29\.|-----BEGIN|\b(парол\w*|password|passwd|token|токен\w*|secret|секрет\w*)\s*[:=—-]\s*\S{4,})/i;
+  const MEM_SECRET = /(sk-[A-Za-z0-9_-]{12,}|AIza[0-9A-Za-z_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_|xox[abposr]-|eyJ[A-Za-z0-9_-]{16,}\.|ya29\.|-----BEGIN|\b(парол\w*|password|passwd|token|токен\w*|secret|секрет\w*)[^\n:=—]{0,24}[:=—]\s*\S{4,})/i;
   const memBytes = () => bytes(MEM.list.map((m) => "- " + m.t).join("\n"));
+  const memRow = (m) => `<button class="st-row mem-row" data-mem="${m.id}"><span class="tx"><span class="mt">${esc2(m.t)}</span><small>${m.at} · ${m.src}</small></span><svg class="i sm chev-r"><use href="#i-right"/></svg></button>`;
   function memView() {
-    const n = MEM.list.length;
-    return `<div class="gl">${tog("i-mem", "c3", "Помнить между сессиями", "memOn", ST.memOn ? "Агент читает память в начале каждой сессии" : "Выключено: факты сохранены, но агент их не видит")}</div>
-      ${n ? `<div class="glabel gsplit"><span>Что агент знает о вас</span><span>${n} ${plural(n, "факт", "факта", "фактов")} · ${kb(memBytes())}</span></div>
-      <div class="gl">${MEM.list.map((m) => `<button class="st-row mem-row" data-mem="${m.id}"><span class="tx"><span class="mt">${esc2(m.t)}</span><small>${m.at} · ${m.src}</small></span><svg class="i sm chev-r"><use href="#i-right"/></svg></button>`).join("")}
-        <button class="st-row" data-memnew="1"><span class="si c6"><svg class="i"><use href="#i-plus"/></svg></span><span class="tx">Добавить факт</span><svg class="i sm chev-r"><use href="#i-right"/></svg></button></div>`
-      : `<div class="in-empty"><span class="si c3"><svg class="i"><use href="#i-mem"/></svg></span><b>Пока ничего не запомнено</b><p>Скажите в чате «запомни, что…» — агент предложит сохранить. Или добавьте сами.</p><button class="btn primary" data-memnew="1">Добавить факт</button></div>`}
-      <p class="sub" style="margin:8px 6px 0">Память — файл ~/.agents/AGENTS.md в Linux на телефоне. Новые факты агент увидит со следующей сессии. Ключи, токены и пароли в память не сохраняются.</p>
+    const n = MEM.list.length, q = MEM.q.trim().toLowerCase();
+    const hits = q ? MEM.list.filter((m) => m.t.toLowerCase().includes(q)) : MEM.list;
+    const glob = hits.filter((m) => !m.p), proj = hits.filter((m) => m.p === PROJ);
+    const grp = (title, rows, add) => rows.length || add ? `<div class="glabel gsplit"><span>${title}</span><span>${rows.length ? rows.length + " " + plural(rows.length, "факт", "факта", "фактов") : ""}</span></div><div class="gl">${rows.map(memRow).join("")}${add ? `<button class="st-row" data-memnew="${add}"><span class="si c6"><svg class="i"><use href="#i-plus"/></svg></span><span class="tx">Добавить факт</span><svg class="i sm chev-r"><use href="#i-right"/></svg></button>` : ""}</div>` : "";
+    return `<div class="gl">${tog("i-mem", "c3", "Помнить между сессиями", "memOn", ST.memOn ? "Агент читает память в начале каждой сессии" : "Выключено: факты сохранены, но агент их не видит")}${ST.memOn ? tog("i-bolt", "c4", "Сохранять без вопроса", "memAuto", ST.memAuto ? "Агент запоминает сам, в чате можно отменить" : "Агент предлагает, сохраняете вы") : ""}</div>
+      ${n ? `${n > 6 ? `<label class="fs-search on" style="margin-top:16px"><svg class="i sm"><use href="#i-search"/></svg><input id="memQ" placeholder="Поиск в памяти" value="${esc2(MEM.q)}" autocomplete="off"></label>` : ""}
+      ${q && !hits.length ? `<div class="fs-empty">Ничего не нашлось</div>` : grp("Для всех проектов", glob, q ? "" : "all") + grp("Проект " + PROJ, proj, q ? "" : "proj")}`
+      : `<div class="in-empty"><span class="si c3"><svg class="i"><use href="#i-mem"/></svg></span><b>Пока ничего не запомнено</b><p>Скажите в чате «запомни, что…» — агент предложит сохранить. Или добавьте сами.</p><button class="btn primary" data-memnew="all">Добавить факт</button></div>`}
+      <p class="sub" style="margin:8px 6px 0">Общая память — ~/.agents/AGENTS.md, память проекта — AGENTS.local.md в его папке, вне git. Агент читает их в начале сессии. Ключи, токены и пароли в память не сохраняются.</p>
       ${n ? `<div class="gl" style="margin-top:16px"><button class="st-row st-danger" id="memClear"><span class="si c5"><svg class="i"><use href="#i-trash"/></svg></span><span class="tx">${MEM.armClear ? `Нажмите ещё раз — удалить ${n} ${plural(n, "факт", "факта", "фактов")}` : "Очистить память"}</span></button></div>` : ""}`;
   }
-  function memSheet(id, text = "") {
-    const m = MEM.list.find((x) => x.id === id); MEM.sel = m ? id : null; MEM.armDel = false;
+  function memScopeRender() { $$("#memScope button").forEach((b) => b.setAttribute("aria-pressed", String((b.dataset.memscope === "proj") === !!MEM.scope))); }
+  function memSheet(id, text = "", proj = false) {
+    const m = MEM.list.find((x) => x.id === id); MEM.sel = m ? id : null; MEM.armDel = false; MEM.scope = m ? m.p : proj ? PROJ : null;
     $("#memTitle").textContent = m ? "Факт" : "Новый факт";
     $("#memText").value = m ? m.t : text.slice(0, MEM_MAX);
     $("#memDel").textContent = m ? "Удалить" : "Отмена"; $("#memDel").classList.toggle("st-danger", !!m);
     $("#memSave").textContent = m ? "Сохранить" : "Запомнить";
-    memCheck(); sheetOpen("mem");
+    memScopeRender(); memCheck(); sheetOpen("mem");
   }
   function memCheck() {
     const t = $("#memText").value.trim(), m = MEM.list.find((x) => x.id === MEM.sel);
-    const secret = MEM_SECRET.test(t), dup = MEM.list.some((x) => x.id !== MEM.sel && x.t.toLowerCase() === t.toLowerCase());
+    const secret = MEM_SECRET.test(t), dup = MEM.list.some((x) => x.id !== MEM.sel && x.p === MEM.scope && x.t.toLowerCase() === t.toLowerCase());
     $("#memErr").textContent = secret ? "Похоже на ключ или пароль — такое в память не сохраняется" : dup ? "Это уже есть в памяти" : "";
     $("#memText").classList.toggle("bad", secret);
     $("#memCnt").textContent = `${$("#memText").value.length} / ${MEM_MAX}`;
-    $("#memSave").disabled = !t || secret || dup || (m && m.t === t);
+    $("#memSave").disabled = !t || secret || dup || (m && m.t === t && m.p === MEM.scope);
   }
-  function memAdd(t, src) { MEM.list.push({ id: ++MEM.seq, t, at: "сегодня", src }); }
+  function memAdd(t, src, p = null) { const m = { id: ++MEM.seq, t, at: "сегодня", src, p }; MEM.list.push(m); return m; }
   $("#memText").addEventListener("input", memCheck);
+  $("#memScope").addEventListener("click", (e) => { const b = e.target.closest("[data-memscope]"); if (!b) return; MEM.scope = b.dataset.memscope === "proj" ? PROJ : null; memScopeRender(); memCheck(); });
   $("#memSave").addEventListener("click", () => {
     const t = $("#memText").value.trim().replace(/\s+/g, " "), m = MEM.list.find((x) => x.id === MEM.sel);
-    if (m) m.t = t; else memAdd(t, "добавлено вручную");
+    if (m) { m.t = t; m.p = MEM.scope; } else memAdd(t, "добавлено вручную", MEM.scope);
     sheetClose(); if (stCur && stStack[stStack.length - 1] === "mem") stRefresh();
     toast(m ? "Факт изменён" : "Запомнено · агент увидит со следующей сессии");
   });
@@ -4096,26 +4105,31 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     if (!MEM.armDel) { MEM.armDel = true; e.currentTarget.textContent = "Точно удалить?"; return; }
     MEM.list = MEM.list.filter((x) => x.id !== MEM.sel); sheetClose(); stRefresh(); toast("Факт удалён из памяти");
   });
+  document.addEventListener("input", (e) => { if (e.target.id !== "memQ") return; MEM.q = e.target.value; const pos = e.target.selectionStart; stRefresh(); const i = $("#memQ", stCur); i.focus(); i.setSelectionRange(pos, pos); });
+  // Карточка под ответом: «Запомнить?» или, при «Сохранять без вопроса», уже сохранённый факт с «Отменить».
+  const memDone = (auto) => `<div class="done"><svg class="i sm"><use href="#i-check"/></svg>${auto ? "Запомнено" : "В памяти"}<button data-memopen>Открыть</button>${auto ? `<button data-memundo>Отменить</button>` : ""}</div>`;
   document.addEventListener("click", (e) => {
     const r = e.target.closest("[data-mem]"); if (r) { memSheet(+r.dataset.mem); return; }
-    if (e.target.closest("[data-memnew]")) { memSheet(null); return; }
+    const nw = e.target.closest("[data-memnew]"); if (nw) { memSheet(null, "", nw.dataset.memnew === "proj"); return; }
     if (e.target.closest("#memClear")) { if (!MEM.armClear) { MEM.armClear = true; stRefresh(); return; } MEM.armClear = false; MEM.list = []; stRefresh(); toast("Память очищена"); return; }
-    // Карточка «Запомнить?» под ответом агента.
     const card = e.target.closest(".mem-card"); if (!card) return;
+    const p = card.dataset.scope === "project" ? PROJ : null;
     if (e.target.closest("[data-memyes]")) {
-      const t = card.dataset.fact; if (!MEM.list.some((x) => x.t === t)) memAdd(t, "из чата");
-      $(".acts", card).outerHTML = `<div class="done"><svg class="i sm"><use href="#i-check"/></svg>В памяти<button data-memopen>Открыть</button></div>`;
+      const t = card.dataset.fact; if (!MEM.list.some((x) => x.t === t && x.p === p)) memAdd(t, "из чата", p);
+      $(".acts", card).outerHTML = memDone(false);
       anim($(".done", card), [{ opacity: 0, transform: "translateY(4px)" }, { opacity: 1, transform: "none" }], SNAPPY); return;
     }
+    if (e.target.closest("[data-memundo]")) { MEM.list = MEM.list.filter((x) => !(x.t === card.dataset.fact && x.p === p)); anim(card, [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "scale(.96)" }], SNAPPY).onfinish = () => card.remove(); toast("Не запомнено"); return; }
     if (e.target.closest("[data-memno]")) { anim(card, [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "scale(.96)" }], SNAPPY).onfinish = () => card.remove(); return; }
     if (e.target.closest("[data-memopen]")) { screenOpen("settings"); setTimeout(() => $('[data-stgo="mem"]')?.click(), 450); }
   });
   function renderMemory() {
     if (openSheet) sheetClose(true);
-    const fact = "Деплой — только по пятницам после 18:00, предупреждать в #releases";
+    const fact = "Деплой — только по пятницам после 18:00, предупреждать в #releases", auto = ST.memAuto;
+    if (auto && !MEM.list.some((x) => x.t === fact)) memAdd(fact, "из чата", PROJ);
     thread.innerHTML = `<div class="msg-user">Запомни: деплоим только по пятницам после 18:00 и всегда пишем в #releases</div>
-      <div class="msg-ai"><p>Хорошо. Предлагаю сохранить это в память — тогда я буду учитывать правило в каждой новой сессии.</p></div>
-      <div class="mem-card" data-fact="${esc2(fact)}"><span class="si c3"><svg class="i"><use href="#i-mem"/></svg></span><span class="tx"><small>Запомнить?</small>${esc2(fact)}</span><div class="acts"><button class="btn ghost" data-memno>Не надо</button><button class="btn primary" data-memyes>Запомнить</button></div></div>`;
+      <div class="msg-ai"><p>Хорошо. ${auto ? "Запомнил это для проекта — буду учитывать правило в каждой новой сессии." : "Предлагаю сохранить это в память проекта — тогда я буду учитывать правило в каждой новой сессии."}</p></div>
+      <div class="mem-card" data-fact="${esc2(fact)}" data-scope="project"><span class="si c3"><svg class="i"><use href="#i-mem"/></svg></span><span class="tx"><small>${auto ? "Память проекта " + PROJ : "Запомнить для проекта " + PROJ + "?"}</small>${esc2(fact)}</span>${auto ? memDone(true) : `<div class="acts"><button class="btn ghost" data-memno>Не надо</button><button class="btn primary" data-memyes>Запомнить</button></div>`}</div>`;
     title.textContent = "Правило деплоя";
   }
   function stPush(k) { const old = stCur, v = viewSt(k); stStack.push(k); stBody.appendChild(v); stCur = v; stTitles();
@@ -4145,6 +4159,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       stStack = ["root", "models"]; const v = viewSt("models"); stBody.replaceChild(v, stCur); stCur = v; stTitles(); toast(`${c.name} подключён · модели — в выборе модели`); return; }
     const t = e.target.closest("[data-sttog]"); if (t) { const k = t.dataset.sttog; ST[k] = !ST[k]; t.setAttribute("aria-checked", String(ST[k])); if (k === "clipboard") toast(ST[k] ? "Агент сможет читать буфер обмена" : "Буфер обмена закрыт для агента");
       if (k === "memOn") { stRefresh(); toast(ST[k] ? "Память включена · агент увидит её в следующей сессии" : "Память выключена · факты сохранены, агент их не видит"); }
+      if (k === "memAuto") { stRefresh(); toast(ST[k] ? "Агент будет запоминать сам — в чате можно отменить" : "Агент будет спрашивать перед сохранением"); }
       if (k === "searchApi" || k === "sendQuestion") { stRefresh(); toast(k === "searchApi" ? (ST[k] ? "Поиск через Search API" : "Поиск через DeepSeek Messages") : (ST[k] ? "Вопрос уходит поисковику" : "Поисковик видит только запросы агента")); }
       return; }
     const th = e.target.closest("[data-sttheme]"); if (th) { $(`#themes [data-theme-set="${th.dataset.sttheme}"]`).click(); $$("[data-sttheme]", stCur).forEach((b) => b.setAttribute("aria-checked", String(b === th))); return; }

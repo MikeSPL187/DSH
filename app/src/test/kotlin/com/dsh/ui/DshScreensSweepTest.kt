@@ -528,6 +528,7 @@ class DshScreensSweepTest {
         androidx.compose.runtime.remember(saved) {
             com.dsh.core.data.AgentMemory.setOn(true); com.dsh.core.data.AgentMemory.clear()
             if (saved) com.dsh.core.data.AgentMemory.add(fact, fromChat = true)
+            saved
         }
         val t0 = 1_700_000_000_000L
         com.dsh.feature.chat.ModernChatScreen(
