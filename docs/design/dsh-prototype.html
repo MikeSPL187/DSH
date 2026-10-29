@@ -585,7 +585,9 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .ph-head { display: flex; align-items: center; justify-content: space-between; }
 .ph-head h3 { margin-bottom: 12px; }
 .link { color: var(--accent); font-size: 14.5px; font-weight: 500; padding: 6px 4px 12px; }
-.recent { display: flex; gap: 8px; overflow-x: auto; margin: 2px -16px 14px; padding: 0 16px; scrollbar-width: none; }
+.recent { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 2px 0 14px; }
+.pick2 { display: flex; align-items: center; justify-content: center; gap: 10px; height: 64px; border-radius: 16px; background: var(--s2); border: 1px solid var(--line); font-size: 14.5px; font-weight: 500; color: var(--t1); transition: transform var(--t-lively) var(--e-lively); }
+.pick2:active { transform: scale(.97); }
 .ph.all { background: var(--s2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 12.5px; color: var(--t2); }
 .srcs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .src { height: 64px; border-radius: 16px; background: var(--s2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; font-size: 12.5px; color: var(--t2); transition: transform var(--t-lively) var(--e-lively); }
@@ -1745,14 +1747,10 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       <!-- Лист: вложения и команды -->
       <section class="sheet" id="sheet-plus" aria-label="Вложения">
         <div class="grab"></div>
+        <!-- Камера и системный выбор фото: без доступа ко всей галерее (ленты последних фото нет — честно) -->
         <div class="recent" id="recent">
-          <button class="ph cam" aria-label="Камера"><svg class="i"><use href="#i-camera"/></svg></button>
-          <button class="ph" data-name="Скриншот ошибки" style="--pbg:#fff;--l1:#e14b4b;--l2:#c9cbd6"><span class="shot err"></span><span class="sel"></span></button>
-          <button class="ph" data-name="Код из редактора" style="--pbg:#16171d;--l1:#8b80ff;--l2:#4a4d5c"><span class="shot code"></span><span class="sel"></span></button>
-          <button class="ph" data-name="Схема на доске" style="--pbg:#f4f1ea;--l1:#3d5afe;--l2:#d4cfc4"><span class="shot board"></span><span class="sel"></span></button>
-          <button class="ph photo" data-name="Фото" style="--pbg:linear-gradient(160deg,#ffb36b,#e2667e 55%,#5b4ad8)"><span class="sel"></span></button>
-          <button class="ph" data-name="Логи сборки" style="--pbg:#0e1013;--l1:#41c48b;--l2:#3a3d48"><span class="shot code"></span><span class="sel"></span></button>
-          <button class="ph all" data-act="gallery"><svg class="i"><use href="#i-image"/></svg>Все</button>
+          <button class="pick2" id="pkCam"><svg class="i"><use href="#i-camera"/></svg>Камера</button>
+          <button class="pick2" id="pkPhotos"><svg class="i"><use href="#i-image"/></svg>Фото</button>
         </div>
         <div class="srcs">
           <button class="src"><svg class="i sm"><use href="#i-file"/></svg>Файл</button>
@@ -2682,6 +2680,10 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     const i = picked.indexOf(ph); if (i >= 0) picked.splice(i, 1); else picked.push(ph);
     updAttachBar(); anim($(".sel", ph), [{ transform: "scale(.6)" }, { transform: "scale(1)" }], LIVELY);
   }));
+  // «Фото» — системный выбор (здесь — сразу два снимка), «Камера» — снимок.
+  const PICKED = [["Скриншот ошибки", "--pbg:#fff;--l1:#e14b4b;--l2:#c9cbd6", "err"], ["Код из редактора", "--pbg:#16171d;--l1:#8b80ff;--l2:#4a4d5c", "code"]];
+  $("#pkPhotos").addEventListener("click", () => { PICKED.forEach(([n, st, k]) => addAtt(`<span class="th" style="${st}"><span class="shot ${k}"></span></span><span><b>${n}</b>изображение</span>`)); afterAttach(); });
+  $("#pkCam").addEventListener("click", () => toast("Откроется камера телефона"));
   function addAtt(html) {
     const el = document.createElement("div"); el.className = "att"; el.innerHTML = html + `<button class="x" aria-label="Убрать"><svg class="i"><use href="#i-x"/></svg></button>`;
     $(".x", el).addEventListener("click", () => { const a = anim(el, [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "scale(.8)" }], SNAPPY); a && (a.onfinish = () => { el.remove(); syncSend(); }); });

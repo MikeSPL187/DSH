@@ -237,10 +237,10 @@ fun ColumnScope.PlusSheetBody(
     commands: List<PlusCommand>,
 ) {
     val c = Dsh.colors
-    // `.recent`: камера и все фото (системный выбор — без доступа ко всей галерее).
+    // `.recent` / `.pick2`: камера и системный выбор фото — две широкие плитки на всю строку (без доступа к галерее).
     Row(Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (onCamera != null) PhotoTile(com.dsh.core.designsystem.DshGlyphs.Camera, stringResource(R.string.ck_camera), onCamera)
-        PhotoTile(com.dsh.core.designsystem.DshGlyphs.Image, stringResource(R.string.ck_photos), onPhotos)
+        if (onCamera != null) PhotoTile(com.dsh.core.designsystem.DshGlyphs.Camera, stringResource(R.string.ck_camera), onCamera, Modifier.weight(1f))
+        PhotoTile(com.dsh.core.designsystem.DshGlyphs.Image, stringResource(R.string.ck_photos), onPhotos, Modifier.weight(1f))
     }
     com.dsh.core.designsystem.DshSourceTiles(
         listOf(
@@ -303,18 +303,18 @@ fun ColumnScope.PlusSheetBody(
 
 /** Плитка `.ph` 76 × 96: камера или все фото. */
 @Composable
-private fun PhotoTile(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+private fun PhotoTile(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val c = Dsh.colors
     val ia = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
-    Column(
-        Modifier.size(width = 76.dp, height = 96.dp).pressScale(ia, 0.96f).clip(RoundedCornerShape(16.dp)).background(c.s2)
+    Row(
+        modifier.height(64.dp).pressScale(ia, 0.97f).clip(RoundedCornerShape(16.dp)).background(c.s2)
             .border(1.dp, c.line, RoundedCornerShape(16.dp))
             .clickable(ia, androidx.compose.material3.ripple(), role = Role.Button, onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
     ) {
         androidx.compose.material3.Icon(icon, null, tint = c.t1, modifier = Modifier.size(22.dp))
-        Text(label, style = ckBody(12.5.sp, 16.sp), color = c.t2)
+        Text(label, style = ckBody(14.5.sp, 18.sp, FontWeight.Medium), color = c.t1, maxLines = 1)
     }
 }
 

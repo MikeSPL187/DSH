@@ -466,21 +466,29 @@ fun Gr(
     center: (@Composable ColumnScope.() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier.fillMaxWidth()) {
+    // Со значением: заголовок — сколько ему нужно (не больше 60 % строки, не рвётся по буквам на 360),
+    // значение — всё остальное, у правого края, с многоточием.
+    val titleMax = maxWidth * 0.6f
     Row(
-        modifier.fillMaxWidth().heightIn(min = minHeight).rowClick(onClick = onClick).padding(padding),
+        Modifier.fillMaxWidth().heightIn(min = minHeight).rowClick(onClick = onClick).padding(padding),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         leading?.invoke()
-        Column(Modifier.weight(1f)) {
+        Column(if (value != null) Modifier.widthIn(max = titleMax) else Modifier.weight(1f)) {
             if (center != null) center() else {
                 if (title != null) Text(title, style = body(15.sp), color = Dsh.colors.t1)
                 if (!sub.isNullOrEmpty()) Text(sub, style = small(), color = subColor)
             }
         }
-        if (value != null) Text(value, style = body(14.5.sp, 19.sp), color = valueColor, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 200.dp))
+        if (value != null) Text(
+            value, style = body(14.5.sp, 19.sp).copy(textAlign = androidx.compose.ui.text.style.TextAlign.End), color = valueColor,
+            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+        )
         trailing?.invoke()
         if (chevron) Icon(DshGlyphs.Right, null, tint = Dsh.colors.t3, modifier = Modifier.size(18.dp))
+    }
     }
 }
 

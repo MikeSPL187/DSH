@@ -528,7 +528,7 @@ private fun ModelsPage(ui: SettingsUi, a: SettingsActions, toast: ToastState, on
             row {
                 val sub = when {
                     ui.keyLast4 == null -> stringResource(R.string.st_key_none)
-                    ui.keyAdded != null -> stringResource(R.string.st_key_dots_added, ui.keyLast4, ui.keyAdded)
+                    ui.keyAdded != null -> stringResource(R.string.st_key_dots_added, ui.keyLast4, ui.keyAdded.replace(' ', '\u00A0'))
                     else -> stringResource(R.string.st_key_dots, ui.keyLast4)
                 }
                 val (v, vc) = when (ui.keyState) {
@@ -706,7 +706,8 @@ private fun BigWithNote(big: String, note: String?) {
     Text(
         buildAnnotatedString {
             append(big)
-            if (note != null) withStyle(body(14.sp).copy(color = Dsh.colors.t3).toSpanStyle()) { append(" $note") }
+            // Пояснение переносится целиком (неразрывные пробелы), а не по последнему слову.
+            if (note != null) withStyle(body(14.sp).copy(color = Dsh.colors.t3).toSpanStyle()) { append(" " + note.replace(' ', '\u00A0')) }
         },
         style = display(26.sp, 25.sp), color = Dsh.colors.t1,
     )

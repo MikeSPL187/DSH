@@ -542,7 +542,7 @@ private fun PluginDetail(p: PluginUi, a: PluginsActions, toast: ToastState, onLo
             Column(Modifier.weight(1f)) {
                 Text(p.name, style = display(21.sp, 26.sp), color = c.t1, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 val kind = stringResource(if (p.native) R.string.pl_kind_native else R.string.pl_kind_host)
-                Text(listOfNotNull(p.by, kind, p.size).joinToString(" · "), style = small(13.sp, 17.sp), color = c.t3, modifier = Modifier.padding(top = 2.dp))
+                Text(listOfNotNull(p.by, kind, p.size?.replace(' ', '\u00A0')).joinToString(" · "), style = small(13.sp, 17.sp), color = c.t3, modifier = Modifier.padding(top = 2.dp))
             }
             if (!p.blocked) Tsw(p.on, { on -> a.toggle(p.id, on); toast.show(if (on) onMsg else offMsg) }, stringResource(R.string.pl_enable, p.name))
         }
