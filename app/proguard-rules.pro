@@ -52,3 +52,12 @@
 
 # HostProcessRunner читает pid процесса рефлексией.
 -keepclassmembers class java.lang.Process { *; }
+
+# JGit (git в «Файлах»): ссылки на JMX, GSS-API (Kerberos) и привязку slf4j есть только в JVM —
+# эти пути (мониторинг, вход Negotiate) на телефоне не вызываются.
+-dontwarn java.lang.management.**
+-dontwarn javax.management.**
+-dontwarn org.ietf.jgss.**
+-dontwarn org.slf4j.impl.StaticLoggerBinder
+# Тексты JGit (TranslationBundle) заполняются рефлексией по именам полей, сервисы — через ServiceLoader.
+-keep class org.eclipse.jgit.** { *; }
