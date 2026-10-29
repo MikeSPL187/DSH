@@ -527,6 +527,10 @@ fun MainAppHost(
     LaunchedEffect(activeWorkspaceFolderPath) {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { ProjectCheckpoints.of(java.io.File(activeWorkspaceFolderPath), layout).warm() }
     }
+    // Память проекта — в AGENTS.local.md текущей папки: «Этот проект» и предложения scope="project".
+    LaunchedEffect(activeWorkspaceFolderPath) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.dsh.core.data.AgentMemory.setProject(java.io.File(activeWorkspaceFolderPath)) }
+    }
 
     // Системный выбор файлов (SAF): несколько картинок или любых файлов копируются в
     // рабочую папку и показываются в поле ввода; при отправке — ссылкой @<путь> в начале сообщения.

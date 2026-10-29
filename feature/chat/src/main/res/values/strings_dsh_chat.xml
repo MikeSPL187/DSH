@@ -128,4 +128,9 @@
     <string name="message_action_remember">Remember</string>
     <string name="message_action_remember_sub">Add to the agent\'s memory</string>
     <string name="mem_saved">Remembered · the agent sees it from the next session</string>
+    <string name="mem_card_label_project">Remember for project %1$s?</string>
+    <string name="mem_card_label_saved">Memory</string>
+    <string name="mem_card_label_project_saved">Project memory %1$s</string>
+    <string name="mem_card_auto_done">Remembered</string>
+    <string name="mem_card_undo">Undo</string>
 </resources>

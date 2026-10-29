@@ -303,10 +303,23 @@ fun ModernChatScreen(
 ) {
     // Память агента: предложения `<dsh-memory>` из ответов — карточками «Запомнить?», в тексте их не видно.
     val memory by com.dsh.core.data.AgentMemory.state.collectAsState()
+    val memProject by com.dsh.core.data.AgentMemory.project.collectAsState()
     val memProposals = remember(messages) {
-        messages.filter { it.role == MessageRole.ASSISTANT && it.content.contains("<dsh-memory>") }
-            .associate { m -> m.messageId to com.dsh.core.data.AgentMemory.proposals(m.content).filterNot(com.dsh.core.data.AgentMemory::looksSecret) }
+        messages.filter { it.role == MessageRole.ASSISTANT && it.content.contains("<dsh-memory") }
+            .associate { m -> m.messageId to com.dsh.core.data.AgentMemory.proposals(m.content) }
             .filterValues { it.isNotEmpty() }
+    }
+    // «Сохранять без вопроса»: только ответы после включения — старые сессии память не пополняют.
+    LaunchedEffect(memProposals, memory.on, memory.auto) {
+        if (!memory.on || !memory.auto) return@LaunchedEffect
+        val created = messages.associate { it.messageId to it.createdAt }
+        memProposals.forEach { (id, list) ->
+            if (id in memory.handled || (created[id] ?: 0L) < memory.autoSince) return@forEach
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                list.forEach { p -> com.dsh.core.data.AgentMemory.add(p.text, fromChat = true, project = if (p.project) memProject else null) }
+                com.dsh.core.data.AgentMemory.markHandled(id)
+            }
+        }
     }
     @Suppress("NAME_SHADOWING")
     val messages = remember(messages) {
@@ -756,13 +769,14 @@ fun ModernChatScreen(
                 val saved = stringResource(R.string.mem_saved)
                 MemoryFactSheet(
                     initial = com.dsh.core.data.AgentMemory.normalize(t), isNew = true,
-                    issue = { text ->
-                        (com.dsh.core.data.AgentMemory.issue(text, memory.facts)
+                    scopes = if (memProject != null) listOf(stringResource(com.dsh.core.designsystem.R.string.ds_mem_scope_all), stringResource(com.dsh.core.designsystem.R.string.ds_mem_scope_here)) else emptyList(),
+                    issue = { text, scope ->
+                        (com.dsh.core.data.AgentMemory.issue(text, memory.facts, project = if (scope == 1) memProject else null)
                             ?: if (memory.facts.size >= com.dsh.core.data.AgentMemory.MAX_FACTS) com.dsh.core.data.MemoryIssue.TOO_LONG else null)
                             ?.let { com.dsh.core.designsystem.kit.MemoryFieldIssue.valueOf(it.name) }
                     },
-                    onSave = { text ->
-                        if (com.dsh.core.data.AgentMemory.add(text, fromChat = true) == null) {
+                    onSave = { text, scope ->
+                        if (com.dsh.core.data.AgentMemory.add(text, fromChat = true, project = if (scope == 1) memProject else null) == null) {
                             rememberText = null
                             android.widget.Toast.makeText(ctx, saved, android.widget.Toast.LENGTH_SHORT).show()
                         }
@@ -946,7 +960,7 @@ fun ModernChatScreen(
                                             Spacer(Modifier.height(18.dp))
                                         } else {
                                             AiAnswer(answer)
-                                            if (memory.on) memProposals[m.messageId]?.forEach { fact -> MemoryProposalCard(fact, onOpenMemory) }
+                                            if (memory.on) memProposals[m.messageId]?.forEach { p -> MemoryProposalCard(m.messageId, p, memProject, onOpenMemory) }
                                             // conversation.chat.assistant-actions: действия плагинов под ответом.
                                             com.dsh.plugin.nativehost.NativeSlot(
                                                 slot = com.deepseek.dsh.plugin.nativesdk.slots.NativeSlot.MESSAGE_ACTION,

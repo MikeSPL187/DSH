@@ -118,13 +118,15 @@ class DshScreensSweepTest {
     // ---------- Настройки ----------
 
     private val memDemo = com.dsh.feature.settings.ui.MemoryUi(
-        on = true,
+        on = true, projectName = "DSH-Workspace",
         rows = listOf(
             com.dsh.feature.settings.ui.MemoryRow(1, "Пишет на Kotlin и Compose; ответы — коротко и по-русски", "12 окт", fromChat = true),
-            com.dsh.feature.settings.ui.MemoryRow(2, "Проект DSH собирается командой ./gradlew :app:assembleDebug, тесты — ./gradlew test перед каждым коммитом", "20 окт", fromChat = false),
-            com.dsh.feature.settings.ui.MemoryRow(3, "Не трогать scripts/backup.sh без вопроса", "24 окт", fromChat = true),
+            com.dsh.feature.settings.ui.MemoryRow(2, "Проект DSH собирается командой ./gradlew :app:assembleDebug, тесты — ./gradlew test перед каждым коммитом", "20 окт", fromChat = false, project = "DSH-Workspace", here = true),
+            com.dsh.feature.settings.ui.MemoryRow(3, "Не трогать scripts/backup.sh без вопроса", "24 окт", fromChat = true, project = "DSH-Workspace", here = true),
+            com.dsh.feature.settings.ui.MemoryRow(4, "Сайт выкладывается через Netlify, ветка main", "2 окт", fromChat = true, project = "landing", here = false),
         ),
     )
+    private val memMany = memDemo.copy(auto = true, rows = memDemo.rows + (5L..9L).map { com.dsh.feature.settings.ui.MemoryRow(it, "Факт номер $it", "сегодня", fromChat = false) })
 
     private val provDemo = listOf(
         com.dsh.feature.settings.ui.ProviderRow("anthropic", "Claude", "•••• 7Qx2", true, last4 = "7Qx2", models = 9, catalog = true),
@@ -186,6 +188,8 @@ class DshScreensSweepTest {
                 "st-mem-list" to @Composable { SettingsHomeScreen(st.copy(memory = memDemo), onClose = {}, initialPage = StPage.Memory) },
                 "st-mem-off" to @Composable { SettingsHomeScreen(st.copy(memory = memDemo.copy(on = false)), onClose = {}, initialPage = StPage.Memory) },
                 "st-mem-sheet" to @Composable { SettingsHomeScreen(st.copy(memory = memDemo), onClose = {}, initialPage = StPage.Memory, initialSheet = "mem:2") },
+                "st-mem-many" to @Composable { SettingsHomeScreen(st.copy(memory = memMany), onClose = {}, initialPage = StPage.Memory) },
+                "st-mem-new-proj" to @Composable { SettingsHomeScreen(st.copy(memory = memDemo), onClose = {}, initialPage = StPage.Memory, initialSheet = "mem:newp") },
                 "st-mem-new" to @Composable { SettingsHomeScreen(st.copy(memory = memDemo), onClose = {}, initialPage = StPage.Memory, initialSheet = "mem:new") },
                 "st-host-off" to @Composable { SettingsHomeScreen(st.copy(hostRunning = false), onClose = {}, initialPage = StPage.Host) },
                 "st-agent-net" to @Composable {
@@ -523,18 +527,22 @@ class DshScreensSweepTest {
 
     /** Агент предложил запомнить правило: карточка «Запомнить?» ([saved] — уже «В памяти»). */
     @Composable
-    private fun chatMemory(saved: Boolean, sheet: String? = null) {
+    private fun chatMemory(saved: Boolean, sheet: String? = null, project: Boolean = false, auto: Boolean = false) {
         val fact = "Деплой — только по пятницам после 18:00, предупреждать в #releases"
-        androidx.compose.runtime.remember(saved) {
+        val dir = java.io.File(System.getProperty("java.io.tmpdir"), "DSH-Workspace")
+        androidx.compose.runtime.remember(saved, project, auto) {
             com.dsh.core.data.AgentMemory.setOn(true); com.dsh.core.data.AgentMemory.clear()
-            if (saved) com.dsh.core.data.AgentMemory.add(fact, fromChat = true)
+            com.dsh.core.data.AgentMemory.setAuto(auto)
+            com.dsh.core.data.AgentMemory.setProject(if (project) dir.also { it.mkdirs() } else null)
+            if (saved) com.dsh.core.data.AgentMemory.add(fact, fromChat = true, project = if (project) dir.absolutePath else null)
             saved
         }
+        val tag = if (project) "<dsh-memory scope=\"project\">" else "<dsh-memory>"
         val t0 = 1_700_000_000_000L
         com.dsh.feature.chat.ModernChatScreen(
             messages = listOf(
                 msg("u1", com.dsh.core.model.MessageRole.USER, "Запомни: деплоим только по пятницам после 18:00 и всегда пишем в #releases", t0),
-                msg("a1", com.dsh.core.model.MessageRole.ASSISTANT, "Хорошо. Предлагаю сохранить это в память — тогда я буду учитывать правило в каждой новой сессии.\n<dsh-memory>$fact</dsh-memory>", t0 + 4_000),
+                msg("a1", com.dsh.core.model.MessageRole.ASSISTANT, "Хорошо. Предлагаю сохранить это в память — тогда я буду учитывать правило в каждой новой сессии.\n$tag$fact</dsh-memory>", t0 + 4_000),
             ),
             onSendMessage = {}, initialSheet = sheet, sessionTitle = "Правило деплоя", online = true,
             topBar = { sc, ctx -> com.dsh.ModernTopAppBar(title = "Правило деплоя", workspace = "DSH-Workspace", scrolled = sc, context = ctx, onMenuClick = {}) },
@@ -589,6 +597,8 @@ class DshScreensSweepTest {
                 "chat-msg-ai-sheet" to @Composable { chatAgent(done = true, sheet = "msg-ai") },
                 "chat-mem" to @Composable { chatMemory(saved = false) },
                 "chat-mem-done" to @Composable { chatMemory(saved = true) },
+                "chat-mem-project" to @Composable { chatMemory(saved = false, project = true) },
+                "chat-mem-auto" to @Composable { chatMemory(saved = true, project = true, auto = true) },
                 "chat-mem-sheet" to @Composable { chatMemory(saved = false, sheet = "remember") },
                 "chat-mem-actions" to @Composable { chatMemory(saved = false, sheet = "msg") },
                 "chat-select-sheet" to @Composable { chatAgent(done = true, sheet = "select") },

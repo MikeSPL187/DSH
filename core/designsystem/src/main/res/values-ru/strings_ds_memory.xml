@@ -12,4 +12,6 @@
     <string name="ds_mem_delete_sure">Точно удалить?</string>
     <string name="ds_mem_remember">Запомнить</string>
     <string name="ds_mem_save">Сохранить</string>
+    <string name="ds_mem_scope_all">Все проекты</string>
+    <string name="ds_mem_scope_here">Этот проект</string>
 </resources>

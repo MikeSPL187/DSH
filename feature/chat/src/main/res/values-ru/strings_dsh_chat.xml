@@ -130,4 +130,9 @@
     <string name="message_action_remember">Запомнить</string>
     <string name="message_action_remember_sub">Добавить в память агента</string>
     <string name="mem_saved">Запомнено · агент увидит со следующей сессии</string>
+    <string name="mem_card_label_project">Запомнить для проекта %1$s?</string>
+    <string name="mem_card_label_saved">Память</string>
+    <string name="mem_card_label_project_saved">Память проекта %1$s</string>
+    <string name="mem_card_auto_done">Запомнено</string>
+    <string name="mem_card_undo">Отменить</string>
 </resources>

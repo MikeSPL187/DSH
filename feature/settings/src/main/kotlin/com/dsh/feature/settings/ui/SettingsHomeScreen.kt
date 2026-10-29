@@ -224,8 +224,10 @@ interface SettingsActions {
     fun openProviderSite(id: String) {}
     /** Память агента: включить или выключить (факты сохраняются). */
     fun setMemoryOn(on: Boolean) {}
-    /** Сохранить факт: новый ([id] = null) или правка; false — не сохранён (секрет, повтор, нет места). */
-    fun saveMemory(id: Long?, text: String): Boolean = false
+    /** «Сохранять без вопроса»: предложения агента сохраняются сами, в чате — «Отменить». */
+    fun setMemoryAuto(on: Boolean) {}
+    /** Сохранить факт: новый ([id] = null) или правка, [target] — где помнить; false — не сохранён (секрет, повтор, нет места). */
+    fun saveMemory(id: Long?, text: String, target: MemoryTarget): Boolean = false
     fun removeMemory(id: Long) {}
     fun clearMemory() {}
     fun manageKeysOnSite() {}
@@ -417,7 +419,9 @@ fun SettingsHomeScreen(
             val memKey = sheet?.removePrefix(MEM_SHEET)?.takeIf { sheet?.startsWith(MEM_SHEET) == true }
             var lastMem by remember { mutableStateOf<MemoryRow?>(null) }
             if (memKey != null) lastMem = ui.memory.rows.firstOrNull { it.id.toString() == memKey }
-            KSheet(memKey != null, onDismiss = { sheet = null }) { MemorySheet(ui.memory, lastMem, actions, toast) { sheet = null } }
+            var memForProject by remember { mutableStateOf(false) }
+            if (memKey != null) memForProject = memKey == "newp"
+            KSheet(memKey != null, onDismiss = { sheet = null }) { MemorySheet(ui.memory, lastMem, memForProject, actions, toast) { sheet = null } }
             KSheet(sheet == "discard", onDismiss = { sheet = null }) {
                 DiscardSheet(
                     onDrop = { sheet = null; editor.draft = editor.saved; stack.pop() },
@@ -447,7 +451,7 @@ fun SettingsHomeScreen(
                 StPage.About -> AboutPage(ui, actions, toast)
                 StPage.Mcp -> McpPage(ui.mcp, actions, toast, onOpen = { sheet = MCP_SHEET + it }) { stack.push(StPage.McpAdd) }
                 StPage.McpAdd -> McpAddPage(ui.mcp, actions, toast) { stack.pop() }
-                StPage.Memory -> MemoryPage(ui.memory, actions, toast) { id -> sheet = MEM_SHEET + (id?.toString() ?: "new") }
+                StPage.Memory -> MemoryPage(ui.memory, actions, toast) { id, here -> sheet = MEM_SHEET + (id?.toString() ?: if (here) "newp" else "new") }
                 StPage.GitHub -> GitHubPage(ui.github, onSignIn = { sheet = "github" }) { actions.gitHubSignOut(); toast.show(signedOutMsg) }
                 StPage.Instructions -> {
                     androidx.activity.compose.BackHandler(enabled = editor.dirty && sheet == null) { sheet = "discard" }

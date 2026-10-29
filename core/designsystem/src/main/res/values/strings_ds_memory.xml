@@ -12,4 +12,6 @@
     <string name="ds_mem_delete_sure">Delete for sure?</string>
     <string name="ds_mem_remember">Remember</string>
     <string name="ds_mem_save">Save</string>
+    <string name="ds_mem_scope_all">All projects</string>
+    <string name="ds_mem_scope_here">This project</string>
 </resources>

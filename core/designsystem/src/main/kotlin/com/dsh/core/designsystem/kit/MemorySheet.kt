@@ -43,23 +43,28 @@ enum class MemoryFieldIssue { EMPTY, TOO_LONG, SECRET, DUPLICATE }
  * @param initial текст факта; [isNew] — новый (из «Добавить факт» или «Запомнить» в чате), иначе правка.
  * @param issue причина отказа для текущего текста; null — можно сохранить.
  * @param onDelete удалить факт; null — у нового факта вместо «Удалить» — «Отмена» ([onCancel]).
+ * @param scopes где помнить: «Все проекты» и проект (`.fv-seg` над полем); пусто — выбора нет.
  */
 @Composable
 fun ColumnScope.MemoryFactSheet(
     initial: String,
     isNew: Boolean,
-    issue: (String) -> MemoryFieldIssue?,
-    onSave: (String) -> Unit,
+    issue: (String, Int) -> MemoryFieldIssue?,
+    onSave: (String, Int) -> Unit,
     onCancel: () -> Unit,
     onDelete: (() -> Unit)? = null,
     maxChars: Int = 500,
+    scopes: List<String> = emptyList(),
+    initialScope: Int = 0,
 ) {
     val c = Dsh.colors
     var text by remember(initial) { mutableStateOf(initial.take(maxChars)) }
+    var scope by remember(initial, initialScope) { mutableStateOf(initialScope) }
     var armed by remember(initial) { mutableStateOf(false) }
-    val why = issue(text)
-    val canSave = why == null && (isNew || text.trim() != initial.trim())
+    val why = issue(text, scope)
+    val canSave = why == null && (isNew || text.trim() != initial.trim() || scope != initialScope)
     SheetTitle(stringResource(if (isNew) R.string.ds_mem_new else R.string.ds_mem_fact))
+    if (scopes.size > 1) Segm(scopes, scope, { scope = it }, Modifier.padding(bottom = 10.dp), fontSize = 13.5.sp)
     val bad = why == MemoryFieldIssue.SECRET
     val shape = RoundedCornerShape(16.dp)
     val style = body(15.sp, 22.5.sp).copy(color = c.t1)
@@ -94,7 +99,7 @@ fun ColumnScope.MemoryFactSheet(
             Modifier.weight(1f), ink = c.danger, height = 52.dp, radius = 16.dp, fontSize = 16.sp, horizontal = 10.dp,
         )
         KBtn(
-            stringResource(if (isNew) R.string.ds_mem_remember else R.string.ds_mem_save), { onSave(text) },
+            stringResource(if (isNew) R.string.ds_mem_remember else R.string.ds_mem_save), { onSave(text, scope) },
             Modifier.weight(1.35f), kind = BtnKind.Primary, height = 52.dp, radius = 16.dp, fontSize = 16.sp, enabled = canSave,
         )
     }

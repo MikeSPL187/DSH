@@ -441,7 +441,7 @@
     <string name="st_mem_add">Add a fact</string>
     <string name="st_mem_empty">Nothing remembered yet</string>
     <string name="st_mem_empty_hint">Say “remember that…” in chat and the agent will offer to save it. Or add facts yourself.</string>
-    <string name="st_mem_note">Memory is the file ~/.agents/AGENTS.md in Linux on this phone. The agent sees new facts from the next session. Keys, tokens and passwords are never saved to memory.</string>
+    <string name="st_mem_note">Shared memory is ~/.agents/AGENTS.md, project memory is AGENTS.local.md in the project folder, outside git. The agent reads them at the start of a session. Keys, tokens and passwords are never saved to memory.</string>
     <string name="st_mem_clear">Clear memory</string>
     <plurals name="st_mem_clear_arm">
         <item quantity="one">Tap again to delete %d fact</item>
@@ -453,4 +453,13 @@
     <string name="st_mem_cleared">Memory cleared</string>
     <string name="st_mem_toggled_on">Memory on · the agent sees it from the next session</string>
     <string name="st_mem_toggled_off">Memory off · facts are kept, the agent doesn\'t see them</string>
+    <string name="st_mem_auto">Save without asking</string>
+    <string name="st_mem_auto_on_sub">The agent remembers on its own; you can undo in chat</string>
+    <string name="st_mem_auto_off_sub">The agent asks you first</string>
+    <string name="st_mem_auto_toggled_on">The agent will remember on its own — undo in chat</string>
+    <string name="st_mem_auto_toggled_off">The agent will ask before saving</string>
+    <string name="st_mem_search">Search memory</string>
+    <string name="st_mem_all">For all projects</string>
+    <string name="st_mem_project">Project %1$s</string>
+    <string name="st_mem_other">Other projects</string>
 </resources>

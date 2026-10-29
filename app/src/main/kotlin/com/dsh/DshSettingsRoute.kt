@@ -121,6 +121,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
     }
     val custom = providers.filter { it.configured && !isDeepSeek(it) }
     val memory by com.dsh.core.data.AgentMemory.state.collectAsState()
+    val memProject by com.dsh.core.data.AgentMemory.project.collectAsState()
 
     // Пределы агента: перечитываются при смене Host, его запуске и после каждой записи.
     var limits by remember { mutableStateOf<List<com.dsh.core.data.AgentLimitValue>>(emptyList()) }
@@ -305,8 +306,10 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         webSearch = webSearch,
         mcp = mcpUi(mcpList, pluginRows, hostUp = status?.phase == RuntimePhase.RUNNING),
         memory = com.dsh.feature.settings.ui.MemoryUi(
-            on = memory.on,
-            rows = memory.facts.map { com.dsh.feature.settings.ui.MemoryRow(it.id, it.text, shortDate(it.addedAt), it.fromChat) },
+            on = memory.on, auto = memory.auto, projectName = memProject?.let { java.io.File(it).name },
+            rows = memory.facts.map {
+                com.dsh.feature.settings.ui.MemoryRow(it.id, it.text, shortDate(it.addedAt), it.fromChat, it.project?.let { p -> java.io.File(p).name }, here = it.project != null && it.project == memProject)
+            },
         ),
         github = com.dsh.feature.settings.ui.GitHubUi(
             login = ghLogin,
@@ -419,8 +422,15 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         }
 
         override fun setMemoryOn(on: Boolean) { com.dsh.core.data.AgentMemory.setOn(on) }
-        override fun saveMemory(id: Long?, text: String): Boolean =
-            (if (id == null) com.dsh.core.data.AgentMemory.add(text, fromChat = false) else com.dsh.core.data.AgentMemory.edit(id, text)) == null
+        override fun setMemoryAuto(on: Boolean) { com.dsh.core.data.AgentMemory.setAuto(on) }
+        override fun saveMemory(id: Long?, text: String, target: com.dsh.feature.settings.ui.MemoryTarget): Boolean {
+            val project = when (target) {
+                com.dsh.feature.settings.ui.MemoryTarget.ALL -> null
+                com.dsh.feature.settings.ui.MemoryTarget.HERE -> memProject
+                com.dsh.feature.settings.ui.MemoryTarget.KEEP -> memory.facts.firstOrNull { it.id == id }?.project
+            }
+            return (if (id == null) com.dsh.core.data.AgentMemory.add(text, fromChat = false, project = project) else com.dsh.core.data.AgentMemory.edit(id, text, project)) == null
+        }
         override fun removeMemory(id: Long) { com.dsh.core.data.AgentMemory.remove(id) }
         override fun clearMemory() { com.dsh.core.data.AgentMemory.clear() }
 

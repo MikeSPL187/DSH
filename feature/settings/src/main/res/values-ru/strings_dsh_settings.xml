@@ -451,7 +451,7 @@
     <string name="st_mem_add">Добавить факт</string>
     <string name="st_mem_empty">Пока ничего не запомнено</string>
     <string name="st_mem_empty_hint">Скажите в чате «запомни, что…» — агент предложит сохранить. Или добавьте сами.</string>
-    <string name="st_mem_note">Память — файл ~/.agents/AGENTS.md в Linux на телефоне. Новые факты агент увидит со следующей сессии. Ключи, токены и пароли в память не сохраняются.</string>
+    <string name="st_mem_note">Общая память — ~/.agents/AGENTS.md, память проекта — AGENTS.local.md в его папке, вне git. Агент читает их в начале сессии. Ключи, токены и пароли в память не сохраняются.</string>
     <string name="st_mem_clear">Очистить память</string>
     <plurals name="st_mem_clear_arm">
         <item quantity="one">Нажмите ещё раз — удалить %d факт</item>
@@ -465,4 +465,13 @@
     <string name="st_mem_cleared">Память очищена</string>
     <string name="st_mem_toggled_on">Память включена · агент увидит её в следующей сессии</string>
     <string name="st_mem_toggled_off">Память выключена · факты сохранены, агент их не видит</string>
+    <string name="st_mem_auto">Сохранять без вопроса</string>
+    <string name="st_mem_auto_on_sub">Агент запоминает сам, в чате можно отменить</string>
+    <string name="st_mem_auto_off_sub">Агент сначала спрашивает вас</string>
+    <string name="st_mem_auto_toggled_on">Агент будет запоминать сам — в чате можно отменить</string>
+    <string name="st_mem_auto_toggled_off">Агент будет спрашивать перед сохранением</string>
+    <string name="st_mem_search">Поиск в памяти</string>
+    <string name="st_mem_all">Для всех проектов</string>
+    <string name="st_mem_project">Проект %1$s</string>
+    <string name="st_mem_other">Другие проекты</string>
 </resources>

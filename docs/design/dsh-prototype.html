@@ -4067,7 +4067,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     const hits = q ? MEM.list.filter((m) => m.t.toLowerCase().includes(q)) : MEM.list;
     const glob = hits.filter((m) => !m.p), proj = hits.filter((m) => m.p === PROJ);
     const grp = (title, rows, add) => rows.length || add ? `<div class="glabel gsplit"><span>${title}</span><span>${rows.length ? rows.length + " " + plural(rows.length, "факт", "факта", "фактов") : ""}</span></div><div class="gl">${rows.map(memRow).join("")}${add ? `<button class="st-row" data-memnew="${add}"><span class="si c6"><svg class="i"><use href="#i-plus"/></svg></span><span class="tx">Добавить факт</span><svg class="i sm chev-r"><use href="#i-right"/></svg></button>` : ""}</div>` : "";
-    return `<div class="gl">${tog("i-mem", "c3", "Помнить между сессиями", "memOn", ST.memOn ? "Агент читает память в начале каждой сессии" : "Выключено: факты сохранены, но агент их не видит")}${ST.memOn ? tog("i-bolt", "c4", "Сохранять без вопроса", "memAuto", ST.memAuto ? "Агент запоминает сам, в чате можно отменить" : "Агент предлагает, сохраняете вы") : ""}</div>
+    return `<div class="gl">${tog("i-mem", "c3", "Помнить между сессиями", "memOn", ST.memOn ? "Агент читает память в начале каждой сессии" : "Выключено: факты сохранены, но агент их не видит")}${ST.memOn ? tog("i-bolt", "c4", "Сохранять без вопроса", "memAuto", ST.memAuto ? "Агент запоминает сам, в чате можно отменить" : "Агент сначала спрашивает вас") : ""}</div>
       ${n ? `${n > 6 ? `<label class="fs-search on" style="margin-top:16px"><svg class="i sm"><use href="#i-search"/></svg><input id="memQ" placeholder="Поиск в памяти" value="${esc2(MEM.q)}" autocomplete="off"></label>` : ""}
       ${q && !hits.length ? `<div class="fs-empty">Ничего не нашлось</div>` : grp("Для всех проектов", glob, q ? "" : "all") + grp("Проект " + PROJ, proj, q ? "" : "proj")}`
       : `<div class="in-empty"><span class="si c3"><svg class="i"><use href="#i-mem"/></svg></span><b>Пока ничего не запомнено</b><p>Скажите в чате «запомни, что…» — агент предложит сохранить. Или добавьте сами.</p><button class="btn primary" data-memnew="all">Добавить факт</button></div>`}
@@ -4107,7 +4107,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   });
   document.addEventListener("input", (e) => { if (e.target.id !== "memQ") return; MEM.q = e.target.value; const pos = e.target.selectionStart; stRefresh(); const i = $("#memQ", stCur); i.focus(); i.setSelectionRange(pos, pos); });
   // Карточка под ответом: «Запомнить?» или, при «Сохранять без вопроса», уже сохранённый факт с «Отменить».
-  const memDone = (auto) => `<div class="done"><svg class="i sm"><use href="#i-check"/></svg>${auto ? "Запомнено" : "В памяти"}<button data-memopen>Открыть</button>${auto ? `<button data-memundo>Отменить</button>` : ""}</div>`;
+  const memDone = (auto) => `<div class="done"><svg class="i sm"><use href="#i-check"/></svg>${auto ? "Запомнено" : "В памяти"}<button data-memopen>Открыть</button><button data-memundo>Отменить</button></div>`;
   document.addEventListener("click", (e) => {
     const r = e.target.closest("[data-mem]"); if (r) { memSheet(+r.dataset.mem); return; }
     const nw = e.target.closest("[data-memnew]"); if (nw) { memSheet(null, "", nw.dataset.memnew === "proj"); return; }

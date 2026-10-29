@@ -43,17 +43,26 @@ object AgentInstructions {
     fun read(file: File): Result<String?> = runCatching {
         if (!file.isFile) return@runCatching null
         require(file.length() <= MAX_SOURCE) { "too large" }
-        file.readText()
+        // Блок памяти проекта ведёт приложение («Настройки → Память») — в редакторе его нет.
+        com.dsh.core.data.AgentMemory.withoutBlock(file.readText())
     }
 
     /** Записать целиком через временный файл рядом: агент не увидит половину файла. */
     fun write(file: File, text: String): Boolean = runCatching {
         file.parentFile?.mkdirs()
+        // Блок памяти, если он был в файле, остаётся на месте.
+        val memory = com.dsh.core.data.AgentMemory.blockOf(file.takeIf { it.isFile }?.readText())
+        @Suppress("NAME_SHADOWING")
+        val text = if (memory.isEmpty()) text else com.dsh.core.data.AgentMemory.merge(text, memory).orEmpty()
         val tmp = File(file.parentFile, ".${file.name}.dsh-tmp")
         tmp.writeText(text)
         if (!tmp.renameTo(file)) { file.writeText(text); tmp.delete() }
         true
     }.getOrDefault(false)
 
-    fun delete(file: File): Boolean = !file.exists() || file.delete()
+    /** Удалить файл; блок памяти проекта, если был, остаётся в файле один. */
+    fun delete(file: File): Boolean {
+        val memory = com.dsh.core.data.AgentMemory.blockOf(file.takeIf { it.isFile }?.readText())
+        return if (memory.isNotEmpty()) write(file, "") else !file.exists() || file.delete()
+    }
 }

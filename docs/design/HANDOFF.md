@@ -301,9 +301,12 @@ ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.grad
   `BLOCKED_ROUTES` не показываются, токены подписки (`sk-ant-oat…`, `eyJ…`, `ya29.…`) не сохраняются ни в один провайдер
   (`ModelProviders.save`). Авторизацию Host (OAuth из `login.ts` агента) приложение не вызывает и не открывать её.
   Ключ проверяется у провайдера только чтением списка моделей (`ProviderKeyCheck.kt`), ключ Google — в заголовке, не в адресе.
-- Память агента (`AgentMemory`, core:data): факты — в `files/agent-memory.json`, для агента — блок между
-  `<!-- dsh-memory:begin/end -->` в `~/.agents/AGENTS.md` rootfs (его читает `dsh-agent-instructions` в начале сессии;
-  чужой текст файла не трогается). Агент сам не пишет: предлагает `<dsh-memory>факт</dsh-memory>`, чат прячет тег
-  (`AgentMemory.strip`) и показывает карточку «Запомнить?». Секреты в память не сохраняются (`looksSecret`).
+- Память агента (`AgentMemory`, core:data): факты — в `files/agent-memory.json`; агенту — блоки между
+  `<!-- dsh-memory:begin/end -->`: общие в `~/.agents/AGENTS.md` rootfs, факты проекта в `AGENTS.local.md` его папки
+  (вносится в `.git/info/exclude`). Оба файла читает `dsh-agent-instructions` в начале сессии; чужой текст не трогается,
+  редактор инструкций блок не показывает и сохраняет (`withoutBlock`/`blockOf`). Агент сам не пишет: предлагает
+  `<dsh-memory [scope="project"]>факт</dsh-memory>`, чат прячет тег (`strip`) и показывает «Запомнить?»; при «Сохранять
+  без вопроса» сохраняет сам только ответы после включения (`autoSince`). Решение по сообщению помнится (`handled`).
+  Секреты в память не сохраняются (`looksSecret`).
 - Коммиты завершать строками:
   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` и `Claude-Session: <ссылка на сессию>`.
