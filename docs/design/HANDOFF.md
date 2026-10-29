@@ -85,9 +85,9 @@
    после входа отправка идёт сама. Отправка — из процесса приложения (JGit 5.13, `GitHubPush`), а не git в Linux:
    иначе токен виден процессам агента через `/proc`. Токен уходит только на `https://github.com/<o>/<r>`; конфиг
    с `url`/`http`/`credential`/`include`/`hooksPath` — отказ; хуки не запускаются; пользовательский и системный
-   конфиги JGit пустые (`GitHubPush.isolate`). **Нужно владельцу:** OAuth App на github.com (Developer settings →
-   OAuth Apps, включить Device Flow), его client id — в переменную репозитория `DSH_GITHUB_CLIENT_ID` (или
-   `-PdshGithubClientId` локально). Запрос на слияние — следующий шаг.
+   конфиги JGit пустые (`GitHubPush.isolate`). OAuth App владельца «DSH» (Device Flow включён, токены
+   без срока) — client id `Ov23likx4krz7JXH4v5K` по умолчанию в `app/build.gradle.kts`; другой — переменная
+   репозитория `DSH_GITHUB_CLIENT_ID` или `-PdshGithubClientId` локально. Запрос на слияние — следующий шаг.
 20. ~~MCP-серверы~~ — готово (аналог `/mcp` Claude Code). «Настройки → MCP-серверы»: список с состоянием из Host
    (запись `mcp-<имя>`: активна — «работает», упала — «ошибка», нет — «после перезапуска»), баннер «Перезапустить»,
    лист сервера (адрес или команда, токен «••••» + 4 символа, «Удалить» вторым нажатием) и «Новый MCP-сервер»:
