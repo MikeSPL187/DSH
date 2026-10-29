@@ -560,6 +560,7 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 .mini { height: 40px; padding: 0 10px; border-radius: 10px; background: var(--s2); font-family: var(--font-body); font-size: 12.5px; display: inline-flex; gap: 5px; align-items: center; color: var(--t1); }
 .mini .i { width: 14px; height: 14px; }
 .mini.ai { background: var(--accent-soft); color: var(--accent); }
+.mini.ic { width: 40px; padding: 0; justify-content: center; } /* «Копировать» — значком: три кнопки в строку на 360 */
 .explain { margin-top: 10px; padding: 11px 12px; border-radius: 14px; background: var(--s1); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); font-family: var(--font-body); font-size: 13.5px; line-height: 1.5; color: var(--t1); }
 .explain .eh { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 4px; letter-spacing: .02em; }
 .tdock { padding: 8px 10px 26px; flex: none; }
@@ -2796,7 +2797,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   }
   function errActions(b, cmd) {
     const a = document.createElement("div"); a.className = "blk-a";
-    a.innerHTML = `<button class="mini ai"><svg class="i"><use href="#i-spark"/></svg>Объяснить</button><button class="mini"><svg class="i"><use href="#i-copy"/></svg>Копировать</button><button class="mini"><svg class="i"><use href="#i-redo"/></svg>Повторить</button>`;
+    a.innerHTML = `<button class="mini ai"><svg class="i"><use href="#i-spark"/></svg>Объяснить</button><button class="mini ic" aria-label="Копировать"><svg class="i"><use href="#i-copy"/></svg></button><button class="mini"><svg class="i"><use href="#i-redo"/></svg>Повторить</button>`;
     const [ex, cp, rp] = $$("button", a);
     ex.addEventListener("click", async () => {
       ex.remove();

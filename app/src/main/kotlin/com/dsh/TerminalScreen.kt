@@ -501,7 +501,7 @@ private fun BlockView(
                 // `.blk-a`: переносится на новую строку, если не помещается
                 androidx.compose.foundation.layout.FlowRow(Modifier.padding(top = 9.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (b.explain == null) Mini(DshGlyphs.Spark, stringResource(R.string.tm_explain), ai = true) { onExplain(b) }
-                    Mini(DshGlyphs.Copy, stringResource(R.string.tm_copy)) { onCopy(b) }
+                    Mini(DshGlyphs.Copy, stringResource(R.string.tm_copy), iconOnly = true) { onCopy(b) }
                     Mini(DshGlyphs.Redo, stringResource(R.string.tm_retry)) { onRetry(b.cmd) }
                 }
             }
@@ -575,18 +575,19 @@ private fun duration(ms: Long): String {
 
 /** Кнопка `.mini`: 36, радиус 10, 12,5; `ai` — акцентная. */
 @Composable
-private fun Mini(icon: ImageVector, text: String, ai: Boolean = false, onClick: () -> Unit) {
+private fun Mini(icon: ImageVector, text: String, ai: Boolean = false, iconOnly: Boolean = false, onClick: () -> Unit) {
     val c = Dsh.colors
     val ia = remember { MutableInteractionSource() }
     val fg = if (ai) c.accent else c.t1
     Row(
-        Modifier.height(40.dp).pressScale(ia, 0.96f).clip(RoundedCornerShape(10.dp)).background(if (ai) c.accentSoft else c.s2)
-            .clickable(ia, ripple(), role = Role.Button, onClick = onClick).padding(horizontal = 10.dp),
+        // `.mini.ic` — только значок 40 × 40 (подпись — для чтения с экрана): три кнопки в строку на 360.
+        Modifier.height(40.dp).then(if (iconOnly) Modifier.size(40.dp) else Modifier).pressScale(ia, 0.96f).clip(RoundedCornerShape(10.dp)).background(if (ai) c.accentSoft else c.s2)
+            .clickable(ia, ripple(), role = Role.Button, onClick = onClick).then(if (iconOnly) Modifier.semantics { contentDescription = text } else Modifier.padding(horizontal = 10.dp)),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        horizontalArrangement = if (iconOnly) Arrangement.Center else Arrangement.spacedBy(5.dp),
     ) {
         Icon(icon, null, tint = fg, modifier = Modifier.size(14.dp))
-        Text(text, style = body(12.5.sp, 16.sp), color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (!iconOnly) Text(text, style = body(12.5.sp, 16.sp), color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
