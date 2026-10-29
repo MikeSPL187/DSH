@@ -117,6 +117,15 @@ class DshScreensSweepTest {
 
     // ---------- Настройки ----------
 
+    private val memDemo = com.dsh.feature.settings.ui.MemoryUi(
+        on = true,
+        rows = listOf(
+            com.dsh.feature.settings.ui.MemoryRow(1, "Пишет на Kotlin и Compose; ответы — коротко и по-русски", "12 окт", fromChat = true),
+            com.dsh.feature.settings.ui.MemoryRow(2, "Проект DSH собирается командой ./gradlew :app:assembleDebug, тесты — ./gradlew test перед каждым коммитом", "20 окт", fromChat = false),
+            com.dsh.feature.settings.ui.MemoryRow(3, "Не трогать scripts/backup.sh без вопроса", "24 окт", fromChat = true),
+        ),
+    )
+
     private val provDemo = listOf(
         com.dsh.feature.settings.ui.ProviderRow("anthropic", "Claude", "•••• 7Qx2", true, last4 = "7Qx2", models = 9, catalog = true),
         com.dsh.feature.settings.ui.ProviderRow("openrouter", "OpenRouter", "•••• k4Lm", true, last4 = "k4Lm", catalog = true),
@@ -171,8 +180,13 @@ class DshScreensSweepTest {
                 "st-provkey-format" to @Composable {
                     SettingsHomeScreen(st, onClose = {}, initialPage = StPage.ProvKey, initialProvider = "google", initialProviderKey = "sk-proj-wrong-provider-key")
                 },
+                "st-root-mem" to @Composable { SettingsHomeScreen(st.copy(memory = memDemo), onClose = {}) },
                 "st-models-prov" to @Composable { SettingsHomeScreen(st.copy(customProviders = provDemo), onClose = {}, initialPage = StPage.Models) },
                 "st-prov-sheet" to @Composable { SettingsHomeScreen(st.copy(customProviders = provDemo), onClose = {}, initialPage = StPage.Models, initialSheet = "prov:anthropic") },
+                "st-mem-list" to @Composable { SettingsHomeScreen(st.copy(memory = memDemo), onClose = {}, initialPage = StPage.Memory) },
+                "st-mem-off" to @Composable { SettingsHomeScreen(st.copy(memory = memDemo.copy(on = false)), onClose = {}, initialPage = StPage.Memory) },
+                "st-mem-sheet" to @Composable { SettingsHomeScreen(st.copy(memory = memDemo), onClose = {}, initialPage = StPage.Memory, initialSheet = "mem:2") },
+                "st-mem-new" to @Composable { SettingsHomeScreen(st.copy(memory = memDemo), onClose = {}, initialPage = StPage.Memory, initialSheet = "mem:new") },
                 "st-host-off" to @Composable { SettingsHomeScreen(st.copy(hostRunning = false), onClose = {}, initialPage = StPage.Host) },
                 "st-agent-net" to @Composable {
                     SettingsHomeScreen(
@@ -507,6 +521,26 @@ class DshScreensSweepTest {
         selectedModel = "DeepSeek V4", availableModels = listOf("DeepSeek V4"),
     ) }
 
+    /** Агент предложил запомнить правило: карточка «Запомнить?» ([saved] — уже «В памяти»). */
+    @Composable
+    private fun chatMemory(saved: Boolean, sheet: String? = null) {
+        val fact = "Деплой — только по пятницам после 18:00, предупреждать в #releases"
+        androidx.compose.runtime.remember(saved) {
+            com.dsh.core.data.AgentMemory.setOn(true); com.dsh.core.data.AgentMemory.clear()
+            if (saved) com.dsh.core.data.AgentMemory.add(fact, fromChat = true)
+        }
+        val t0 = 1_700_000_000_000L
+        com.dsh.feature.chat.ModernChatScreen(
+            messages = listOf(
+                msg("u1", com.dsh.core.model.MessageRole.USER, "Запомни: деплоим только по пятницам после 18:00 и всегда пишем в #releases", t0),
+                msg("a1", com.dsh.core.model.MessageRole.ASSISTANT, "Хорошо. Предлагаю сохранить это в память — тогда я буду учитывать правило в каждой новой сессии.\n<dsh-memory>$fact</dsh-memory>", t0 + 4_000),
+            ),
+            onSendMessage = {}, initialSheet = sheet, sessionTitle = "Правило деплоя", online = true,
+            topBar = { sc, ctx -> com.dsh.ModernTopAppBar(title = "Правило деплоя", workspace = "DSH-Workspace", scrolled = sc, context = ctx, onMenuClick = {}) },
+            selectedModel = "DeepSeek V4", availableModels = listOf("DeepSeek V4"),
+        )
+    }
+
     private val models = listOf(
         com.dsh.core.model.ModelProviderGroup(
             "deepseek-official", "DeepSeek",
@@ -552,6 +586,10 @@ class DshScreensSweepTest {
                 "chat-ctx-danger-sheet" to @Composable { chatAgent(done = true, stats = ctxStats(968_000), sheet = "context") },
                 "chat-msg-sheet" to @Composable { withRewind(rewindDemo) { chatAgent(done = true, sheet = "msg") } },
                 "chat-msg-ai-sheet" to @Composable { chatAgent(done = true, sheet = "msg-ai") },
+                "chat-mem" to @Composable { chatMemory(saved = false) },
+                "chat-mem-done" to @Composable { chatMemory(saved = true) },
+                "chat-mem-sheet" to @Composable { chatMemory(saved = false, sheet = "remember") },
+                "chat-mem-actions" to @Composable { chatMemory(saved = false, sheet = "msg") },
                 "chat-select-sheet" to @Composable { chatAgent(done = true, sheet = "select") },
                 "chat-rewind-sheet" to @Composable { withRewind(rewindDemo) { chatAgent(done = true, sheet = "rewind") } },
                 "chat-rewind-many-sheet" to @Composable { withRewind(rewindMany) { chatAgent(done = true, sheet = "rewind") } },

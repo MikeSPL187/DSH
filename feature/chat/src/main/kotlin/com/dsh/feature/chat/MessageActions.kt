@@ -24,6 +24,8 @@ fun androidx.compose.foundation.layout.ColumnScope.MessageActionsBody(
     /** Ответ агента: прочитать вслух или остановить ([speaking]). */
     onSpeak: (() -> Unit)? = null,
     speaking: Boolean = false,
+    /** «Запомнить»: лист факта памяти с текстом сообщения; null — память выключена. */
+    onRemember: (() -> Unit)? = null,
 ) {
     com.dsh.core.designsystem.DshSheetTitle(stringResource(R.string.message_actions_title))
     com.dsh.core.designsystem.DshSheetList {
@@ -42,6 +44,12 @@ fun androidx.compose.foundation.layout.ColumnScope.MessageActionsBody(
             com.dsh.core.designsystem.DshSheetItem(
                 com.dsh.core.designsystem.DshGlyphs.Flow, stringResource(R.string.message_action_fork), { onFork(message.seq.toInt()); onDismiss() },
                 sub = stringResource(R.string.message_action_fork_sub),
+            )
+        }
+        if (onRemember != null && message.content.isNotBlank()) {
+            com.dsh.core.designsystem.DshSheetItem(
+                com.dsh.core.designsystem.DshGlyphs.Mem, stringResource(R.string.message_action_remember), onRemember,
+                sub = stringResource(R.string.message_action_remember_sub),
             )
         }
         if (onRewind != null && message.role == MessageRole.USER) {

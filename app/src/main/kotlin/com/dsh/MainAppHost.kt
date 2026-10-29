@@ -425,6 +425,8 @@ fun MainAppHost(
     LaunchedEffect(ui.activeHostId, status.phase) {
         if (status.phase == RuntimePhase.RUNNING) {
             ensureOfficialWorkflowEnabled(dshRepository, ui.activeHostId)
+            // Linux мог быть переустановлен: блок памяти пишется заново, до первой сессии.
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.dsh.core.data.AgentMemory.sync() }
         }
     }
     val catalog by surfaceStore.catalogFlow.collectAsState()

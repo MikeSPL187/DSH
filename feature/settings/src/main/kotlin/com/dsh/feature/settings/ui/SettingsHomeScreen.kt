@@ -74,7 +74,7 @@ import kotlinx.coroutines.launch
 import com.dsh.core.designsystem.kit.DeviceSignInSheetBody
 
 /** Страницы «Настроек» (как `PAGES` в прототипе). */
-enum class StPage { Root, Models, Look, Agent, Host, Storage, Security, Notif, About, Instructions, GitHub, Mcp, McpAdd, ProvAdd, ProvKey }
+enum class StPage { Root, Models, Look, Agent, Host, Storage, Security, Notif, About, Instructions, GitHub, Mcp, McpAdd, ProvAdd, ProvKey, Memory }
 
 /** Состояние ключа провайдера. */
 enum class KeyState { Ok, Bad, Offline, Unknown, None }
@@ -165,6 +165,7 @@ data class SettingsUi(
     val instructions: List<InstructionRow> = emptyList(),
     /** Аккаунт GitHub: отправка коммитов и запросы на слияние. */
     val github: GitHubUi = GitHubUi(),
+    val memory: MemoryUi = MemoryUi(),
     /** MCP-серверы Host, добавленные в приложении. */
     val mcp: McpUi = McpUi(),
     // Оформление
@@ -221,6 +222,12 @@ interface SettingsActions {
     suspend fun removeProvider(id: String): Boolean = false
     /** Открыть страницу ключей провайдера (console.anthropic.com и т. п.). */
     fun openProviderSite(id: String) {}
+    /** Память агента: включить или выключить (факты сохраняются). */
+    fun setMemoryOn(on: Boolean) {}
+    /** Сохранить факт: новый ([id] = null) или правка; false — не сохранён (секрет, повтор, нет места). */
+    fun saveMemory(id: Long?, text: String): Boolean = false
+    fun removeMemory(id: Long) {}
+    fun clearMemory() {}
     fun manageKeysOnSite() {}
     suspend fun deleteKey(): Boolean = false
     fun setTheme(value: String) {}
@@ -280,7 +287,7 @@ private object NoActions : SettingsActions
 private val PageIcon = mapOf(
     StPage.Models to ("key" to Si.c1), StPage.Look to ("sun" to Si.c8), StPage.Agent to ("spark" to Si.c2),
     StPage.Host to ("server" to Si.c3), StPage.Storage to ("hdd2" to Si.c6), StPage.Security to ("shield" to Si.c5),
-    StPage.Notif to ("bell" to Si.c4), StPage.About to ("info" to Si.c6), StPage.Mcp to ("puzzle" to Si.c7),
+    StPage.Notif to ("bell" to Si.c4), StPage.About to ("info" to Si.c6), StPage.Mcp to ("puzzle" to Si.c7), StPage.Memory to ("mem" to Si.c3),
 )
 
 @Composable
@@ -301,6 +308,7 @@ private fun pageTitle(p: StPage): String = stringResource(
         StPage.McpAdd -> R.string.st_mcp_new
         StPage.ProvAdd -> R.string.st_pv_add
         StPage.ProvKey -> R.string.st_models
+        StPage.Memory -> R.string.st_mem
     },
 )
 
@@ -316,6 +324,7 @@ private fun pageSub(p: StPage, ui: SettingsUi): String? = when (p) {
     StPage.GitHub -> stringResource(R.string.st_gh_sub)
     StPage.Mcp -> stringResource(R.string.st_mcp_sub)
     StPage.ProvAdd -> stringResource(R.string.st_pv_add_page_sub)
+    StPage.Memory -> stringResource(R.string.st_mem_sub)
     else -> null
 }
 
@@ -404,6 +413,11 @@ fun SettingsHomeScreen(
                     ProviderSheet(r, actions, toast, onReplace = if (r.catalog) ({ sheet = null; provSel = r.id; stack.push(StPage.ProvKey) }) else null) { sheet = null }
                 }
             }
+            // Лист факта памяти: «mem:new» или «mem:<id>»; держит последний факт на время анимации закрытия.
+            val memKey = sheet?.removePrefix(MEM_SHEET)?.takeIf { sheet?.startsWith(MEM_SHEET) == true }
+            var lastMem by remember { mutableStateOf<MemoryRow?>(null) }
+            if (memKey != null) lastMem = ui.memory.rows.firstOrNull { it.id.toString() == memKey }
+            KSheet(memKey != null, onDismiss = { sheet = null }) { MemorySheet(ui.memory, lastMem, actions, toast) { sheet = null } }
             KSheet(sheet == "discard", onDismiss = { sheet = null }) {
                 DiscardSheet(
                     onDrop = { sheet = null; editor.draft = editor.saved; stack.pop() },
@@ -433,6 +447,7 @@ fun SettingsHomeScreen(
                 StPage.About -> AboutPage(ui, actions, toast)
                 StPage.Mcp -> McpPage(ui.mcp, actions, toast, onOpen = { sheet = MCP_SHEET + it }) { stack.push(StPage.McpAdd) }
                 StPage.McpAdd -> McpAddPage(ui.mcp, actions, toast) { stack.pop() }
+                StPage.Memory -> MemoryPage(ui.memory, actions, toast) { id -> sheet = MEM_SHEET + (id?.toString() ?: "new") }
                 StPage.GitHub -> GitHubPage(ui.github, onSignIn = { sheet = "github" }) { actions.gitHubSignOut(); toast.show(signedOutMsg) }
                 StPage.Instructions -> {
                     androidx.activity.compose.BackHandler(enabled = editor.dirty && sheet == null) { sheet = "discard" }
@@ -453,7 +468,7 @@ private fun RootPage(ui: SettingsUi, a: SettingsActions, go: (StPage) -> Unit) {
     FsView {
         FsSearch(query, { query = it }, stringResource(R.string.st_search), Modifier.padding(bottom = 12.dp).rise(0))
         if (query.isNotBlank()) {
-            val pages = listOf(StPage.Models, StPage.Look, StPage.Agent, StPage.Host, StPage.Storage, StPage.Security, StPage.Notif, StPage.About, StPage.Mcp)
+            val pages = listOf(StPage.Models, StPage.Look, StPage.Agent, StPage.Host, StPage.Storage, StPage.Security, StPage.Notif, StPage.About, StPage.Mcp, StPage.Memory)
             val titles = pages.map { pageTitle(it) }
             val hits = pages.indices.filter { i -> (titles[i] + " " + index.getOrElse(i) { "" }).lowercase().contains(query.trim().lowercase()) }
             if (hits.isEmpty()) FsEmpty(stringResource(R.string.st_nothing))
@@ -474,6 +489,7 @@ private fun RootPage(ui: SettingsUi, a: SettingsActions, go: (StPage) -> Unit) {
             row { PageRow(StPage.Models, pageTitle(StPage.Models), ui.defaultModel.ifBlank { null }) { go(StPage.Models) } }
             row { PageRow(StPage.Agent, pageTitle(StPage.Agent), approveLabel(ui.autoApprove)) { go(StPage.Agent) } }
             row { StRow(pageTitle(StPage.GitHub), icon = DshGlyphs.get("git"), tile = Si.c6, value = ui.github.login?.let { if (it.isEmpty()) stringResource(R.string.st_gh_on) else "@$it" } ?: stringResource(R.string.st_gh_off), chevron = true, onClick = { go(StPage.GitHub) }) }
+            row { PageRow(StPage.Memory, pageTitle(StPage.Memory), memoryValue(ui.memory)) { go(StPage.Memory) } }
             row { PageRow(StPage.Mcp, pageTitle(StPage.Mcp), mcpCount(ui.mcp)) { go(StPage.Mcp) } }
             row { StRow(stringResource(R.string.st_plugins), icon = DshGlyphs.Puzzle, tile = Si.c8, value = pluralStringResource(R.plurals.st_plugins_on, ui.pluginsOn, ui.pluginsOn), chevron = true, onClick = a::openPlugins) }
             row { StRow(stringResource(R.string.st_automation), icon = DshGlyphs.Clock, tile = Si.c7, value = pluralStringResource(R.plurals.st_auto_on, ui.automationsOn, ui.automationsOn), chevron = true, onClick = a::openAutomation) }
@@ -937,6 +953,7 @@ private const val MCP_SHEET = "mcp:"
 
 /** Лист подключённого провайдера: «prov:<id>». */
 private const val PROV_SHEET = "prov:"
+private const val MEM_SHEET = "mem:"
 
 // ---------- Host ----------
 

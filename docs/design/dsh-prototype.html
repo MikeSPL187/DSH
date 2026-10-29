@@ -888,6 +888,23 @@ button.dfoot { width: 100%; text-align: left; padding: 12px 6px 2px; }
 /* Провайдеры моделей: буква бренда в плитке, лид страницы ключа, плашка «только API-ключи» */
 .si.pv-l { font-family: var(--font-display); font-weight: 700; font-size: 19px; color: #fff; } /* крупный жирный — контраст 3:1 на цветной плитке */
 .pv-lead { margin: 2px 4px 16px; font-size: 14.5px; line-height: 1.5; color: var(--t2); }
+/* Память агента: строки фактов, лист факта, предложение «Запомнить?» в чате */
+.mem-row .tx .mt { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.mem-row .tx small { margin-top: 2px; }
+.mem-meta { display: flex; justify-content: space-between; gap: 12px; margin: 8px 4px 16px; font-size: 12.5px; line-height: 1.4; color: var(--t3); }
+.mem-meta #memErr { color: var(--danger); }
+.mem-meta #memCnt { flex: none; font-variant-numeric: tabular-nums; }
+#sheet-mem .cm-msg { min-height: 112px; }
+#sheet-mem .cm-msg.bad { border-color: color-mix(in srgb, var(--danger) 60%, var(--line)); }
+.mem-card { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: start; margin: -6px 0 18px; padding: 14px; border-radius: 18px; background: var(--s1); border: 1px solid var(--line); }
+.mem-card .si { width: 32px; height: 32px; border-radius: 10px; }
+.mem-card .si .i { width: 17px; height: 17px; }
+.mem-card .tx { font-size: 15px; line-height: 1.4; color: var(--t1); overflow-wrap: anywhere; }
+.mem-card .tx small { display: block; margin-bottom: 2px; font-size: 12.5px; color: var(--t3); }
+.mem-card .acts { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.mem-card .acts .btn { height: 40px; padding: 0 16px; border-radius: 12px; font-size: 14.5px; }
+.mem-card .done { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 14px; color: var(--ok); }
+.mem-card .done button { margin-left: auto; height: 40px; padding: 0 6px; background: none; border: 0; font: inherit; font-size: 14px; color: var(--accent); }
 .pv-safe { display: flex; gap: 12px; margin-top: 14px; padding: 14px; border-radius: 18px; background: var(--s1); border: 1px solid var(--line); font-size: 13px; line-height: 1.5; color: var(--t2); }
 .pv-safe .i { flex: none; color: var(--ok); margin-top: 1px; }
 .pv-safe b { display: block; margin-bottom: 2px; font-size: 14px; color: var(--t1); }
@@ -1503,6 +1520,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     <symbol id="i-more" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="3"/></symbol>
     <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
     <symbol id="i-text" viewBox="0 0 24 24"><path d="M4 18 8.5 6h1L14 18M5.5 14h6M15 18l2.7-7h.6L21 18M15.8 16h4.4"/></symbol>
+    <symbol id="i-mem" viewBox="0 0 24 24"><path d="M7 3h10a1 1 0 0 1 1 1v17l-6-4-6 4V4a1 1 0 0 1 1-1Z"/><path d="m12 7 1 2 2 .3-1.5 1.4.4 2.1-1.9-1-1.9 1 .4-2.1L9 9.3l2-.3Z"/></symbol>
     <symbol id="i-pin" viewBox="0 0 24 24"><path d="M9 4h6l-1 6 3 3H7l3-3ZM12 13v7"/></symbol>
     <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></symbol>
     <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z"/></symbol>
@@ -1542,6 +1560,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <button aria-pressed="false" data-go="agent">Работа агента</button>
         <button aria-pressed="false" data-go="mention">Ссылка «@»</button>
         <button aria-pressed="false" data-go="goal">Цель сессии</button>
+        <button aria-pressed="false" data-go="memory">Память</button>
         <button aria-pressed="false" data-go="plan">Проверка плана</button>
         <button aria-pressed="false" data-go="subagents">Субагенты</button>
         <button aria-pressed="false" data-go="browser">Браузер</button>
@@ -1813,6 +1832,15 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
         <h3 id="pvTitle">Claude</h3>
         <div class="mcp-kv" id="pvKv"></div>
         <div class="lim-btns"><button class="btn ghost st-danger" id="pvDel">Удалить ключ</button><button class="btn primary" id="pvRe">Заменить ключ</button></div>
+      </section>
+
+      <!-- Лист: факт в памяти агента -->
+      <section class="sheet" id="sheet-mem" aria-label="Факт в памяти">
+        <div class="grab"></div>
+        <h3 id="memTitle">Новый факт</h3>
+        <textarea class="cm-msg" id="memText" maxlength="500" placeholder="Например: пишу на Kotlin, отвечай коротко и по-русски" aria-label="Что запомнить"></textarea>
+        <div class="mem-meta"><span id="memErr" role="status"></span><span id="memCnt">0 / 500</span></div>
+        <div class="lim-btns"><button class="btn ghost" id="memDel">Отмена</button><button class="btn primary" id="memSave" disabled>Запомнить</button></div>
       </section>
 
       <!-- Лист: вход в GitHub по коду -->
@@ -3831,7 +3859,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   });
 
   // ---------- Настройки ----------
-  const ST = { approvals: "ask", clipboard: false, sleep: "15 мин", keepBg: true, ws: "private", lang: "Русский", codeSize: 13, notifDone: true, notifAsk: true, notifAuto: "err", haptics: true, biometric: false, analytics: false, hostOn: true, searchApi: false, sendQuestion: true };
+  const ST = { memOn: true, approvals: "ask", clipboard: false, sleep: "15 мин", keepBg: true, ws: "private", lang: "Русский", codeSize: 13, notifDone: true, notifAsk: true, notifAuto: "err", haptics: true, biometric: false, analytics: false, hostOn: true, searchApi: false, sendQuestion: true };
   const stBody = $("#stBody");
   let stStack = [], stCur = null, stQuery = "";
   const curTheme = () => document.documentElement.getAttribute("data-theme") || "system";
@@ -3853,10 +3881,11 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     mcpadd: ["Новый MCP-сервер", ""],
     provadd: ["Добавить провайдера", "Только API-ключи"],
     provkey: ["", ""],
+    mem: ["Память", "Что агент помнит между сессиями"],
   };
   const INDEX = [
     ["models", "API-ключ DeepSeek провайдер баланс расход модель по умолчанию"], ["look", "тема светлая тёмная язык русский english шрифт кода размер"],
-    ["mcp", "mcp сервер инструменты подключить tools model context protocol"], ["github", "github гитхаб вход push отправить коммит запрос на слияние pull request токен"], ["agent", "одобрение правки разрешения буфер обмена clipboard глубина рассуждения инструкции agents.md claude.md правила проекта пределы таймаут субагенты веб-поиск"], ["host", "host linux debian сон засыпать батарея фон удалённый сопряжение перезапуск"],
+    ["mem", "память запомнить забыть факты о себе предпочтения memory"], ["mcp", "mcp сервер инструменты подключить tools model context protocol"], ["github", "github гитхаб вход push отправить коммит запрос на слияние pull request токен"], ["agent", "одобрение правки разрешения буфер обмена clipboard глубина рассуждения инструкции agents.md claude.md правила проекта пределы таймаут субагенты веб-поиск"], ["host", "host linux debian сон засыпать батарея фон удалённый сопряжение перезапуск"],
     ["storage", "место кэш rootfs логи резервная копия экспорт очистить рабочая папка"], ["security", "буфер обмена плагины доверие сертификат биометрия блокировка шифрование keystore"],
     ["notif", "уведомления задачи автоматизация вибрация"], ["about", "версия лицензии журнал отчёт об ошибке"],
   ];
@@ -3867,6 +3896,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     if (page === "mcpadd") { v.innerHTML = mcpAddView(); return v; }
     if (page === "provadd") { v.innerHTML = provAddView(); return v; }
     if (page === "provkey") { v.innerHTML = provKeyView(); return v; }
+    if (page === "mem") { v.innerHTML = memView(); return v; }
     if (page === "github") {
       v.innerHTML = GH.login
         ? `<div class="gl"><div class="st-row"><span class="avatar">${GH.login[0].toUpperCase()}</span><span class="tx">@${GH.login}<small>Вошли ${GH.at}</small></span></div>${row("i-lock", "c3", "Доступ", "репозитории")}</div>
@@ -3883,7 +3913,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       <button class="st-prof" data-stgo="models"><span class="avatar">М</span><span class="tx"><b>Михаил</b><small>Свой ключ DeepSeek · по API</small></span><svg class="i sm" style="color:var(--t3)"><use href="#i-right"/></svg></button>
       <div class="st-bal"><div><b>12,40 $</b><small>баланс</small></div><div><b>0,38 $</b><small>сегодня</small></div><div><b>2,1 млн</b><small>токенов за месяц</small></div></div>
       <div class="glabel">Работа</div>
-      <div class="gl">${row(...ICON.models, "Модели и ключи", "DeepSeek V4", "models")}${row(...ICON.agent, "Агент", ST.approvals === "ask" ? "Спрашивать" : "Сам в папке", "agent")}${row(...ICON.github, "GitHub", GH.login ? "@" + GH.login : "не подключён", "github")}${row(...ICON.mcp, "MCP-серверы", MCP.list.length ? MCP.list.length + " " + (MCP.list.length === 1 ? "сервер" : "сервера") : "нет", "mcp")}${row("i-puzzle", "c8", "Плагины", "3 включено", "", ' data-act="plugins"')}${row("i-clock", "c7", "Автоматизация", "3 активны", "", ' data-act="automation"')}</div>
+      <div class="gl">${row(...ICON.models, "Модели и ключи", "DeepSeek V4", "models")}${row(...ICON.agent, "Агент", ST.approvals === "ask" ? "Спрашивать" : "Сам в папке", "agent")}${row(...ICON.mem, "Память", !ST.memOn ? "выключена" : MEM.list.length ? MEM.list.length + " " + plural(MEM.list.length, "факт", "факта", "фактов") : "пусто", "mem")}${row(...ICON.github, "GitHub", GH.login ? "@" + GH.login : "не подключён", "github")}${row(...ICON.mcp, "MCP-серверы", MCP.list.length ? MCP.list.length + " " + (MCP.list.length === 1 ? "сервер" : "сервера") : "нет", "mcp")}${row("i-puzzle", "c8", "Плагины", "3 включено", "", ' data-act="plugins"')}${row("i-clock", "c7", "Автоматизация", "3 активны", "", ' data-act="automation"')}</div>
       <div class="glabel">Устройство</div>
       <div class="gl">${row(...ICON.host, "Host", ST.hostOn ? "работает" : "остановлен", "host")}${row(...ICON.storage, "Хранилище", "3,1 ГБ", "storage")}${row(...ICON.notif, "Уведомления", "", "notif")}</div>
       <div class="glabel">Приложение</div>
@@ -3965,7 +3995,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       <p class="sub" style="margin:12px 6px 0">Основано на deepseek-harness-mobile 1.0.6. Работает с DeepSeek Harness.</p>`;
     return v;
   }
-  const ICON = { mcp: ["i-puzzle", "c7"], github: ["i-git", "c6"], models: ["i-key", "c1"], look: ["i-sun", "c8"], agent: ["i-spark", "c2"], host: ["i-server", "c3"], storage: ["i-hdd2", "c6"], security: ["i-shield", "c5"], notif: ["i-bell", "c4"], about: ["i-info", "c6"] };
+  const ICON = { mcp: ["i-puzzle", "c7"], github: ["i-git", "c6"], models: ["i-key", "c1"], look: ["i-sun", "c8"], agent: ["i-spark", "c2"], host: ["i-server", "c3"], storage: ["i-hdd2", "c6"], security: ["i-shield", "c5"], notif: ["i-bell", "c4"], about: ["i-info", "c6"], mem: ["i-mem", "c3"] };
   function stTitles() { const k = stStack[stStack.length - 1]; const c = k === "provkey" ? PCAT.find((x) => x.id === PROV.sel) : null;
     $("#stTitle").textContent = c ? c.name : PAGES[k][0]; $("#stSub").textContent = k === "root" ? "DSH 1.1.0" : c ? `${c.by} · API-ключ` : PAGES[k][1]; }
   // ── Провайдеры моделей: только API-ключи из консолей провайдеров. Вход по подписке (Claude Pro/Max, ChatGPT,
@@ -4015,6 +4045,79 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     $("#pvKv").innerHTML = `<div><span>Ключ</span><b class="mono">••••${p.last4}</b></div><div><span>Модели</span><b>${c.models}</b></div><div><span>Оплата</span><b>${c.site}</b></div>`;
     $("#pvDel").textContent = "Удалить ключ"; sheetOpen("prov");
   }
+
+  // ── Память агента: факты о пользователе в ~/.agents/AGENTS.md — его читает dsh-agent-instructions в начале сессии.
+  //    Агент сам не пишет в файл: он предлагает факт карточкой «Запомнить?», сохраняет только пользователь. ──
+  const MEM = { list: [
+    { id: 1, t: "Пишет на Kotlin и Compose; ответы — коротко и по-русски", at: "12 окт", src: "из чата" },
+    { id: 2, t: "Проект DSH собирается командой ./gradlew :app:assembleDebug, тесты — ./gradlew test перед каждым коммитом", at: "20 окт", src: "добавлено вручную" },
+    { id: 3, t: "Не трогать scripts/backup.sh без вопроса", at: "24 окт", src: "из чата" },
+  ], sel: null, armDel: false, armClear: false, seq: 10 };
+  const MEM_MAX = 500;
+  // Ключи, токены и пароли в память не попадают: файл читает каждая сессия и любая модель.
+  const MEM_SECRET = /(sk-[A-Za-z0-9_-]{12,}|AIza[0-9A-Za-z_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_|xox[abposr]-|eyJ[A-Za-z0-9_-]{16,}\.|ya29\.|-----BEGIN|\b(парол\w*|password|passwd|token|токен\w*|secret|секрет\w*)\s*[:=—-]\s*\S{4,})/i;
+  const memBytes = () => bytes(MEM.list.map((m) => "- " + m.t).join("\n"));
+  function memView() {
+    const n = MEM.list.length;
+    return `<div class="gl">${tog("i-mem", "c3", "Помнить между сессиями", "memOn", ST.memOn ? "Агент читает память в начале каждой сессии" : "Выключено: факты сохранены, но агент их не видит")}</div>
+      ${n ? `<div class="glabel gsplit"><span>Что агент знает о вас</span><span>${n} ${plural(n, "факт", "факта", "фактов")} · ${kb(memBytes())}</span></div>
+      <div class="gl">${MEM.list.map((m) => `<button class="st-row mem-row" data-mem="${m.id}"><span class="tx"><span class="mt">${esc2(m.t)}</span><small>${m.at} · ${m.src}</small></span><svg class="i sm chev-r"><use href="#i-right"/></svg></button>`).join("")}
+        <button class="st-row" data-memnew="1"><span class="si c6"><svg class="i"><use href="#i-plus"/></svg></span><span class="tx">Добавить факт</span><svg class="i sm chev-r"><use href="#i-right"/></svg></button></div>`
+      : `<div class="in-empty"><span class="si c3"><svg class="i"><use href="#i-mem"/></svg></span><b>Пока ничего не запомнено</b><p>Скажите в чате «запомни, что…» — агент предложит сохранить. Или добавьте сами.</p><button class="btn primary" data-memnew="1">Добавить факт</button></div>`}
+      <p class="sub" style="margin:8px 6px 0">Память — файл ~/.agents/AGENTS.md в Linux на телефоне. Новые факты агент увидит со следующей сессии. Ключи, токены и пароли в память не сохраняются.</p>
+      ${n ? `<div class="gl" style="margin-top:16px"><button class="st-row st-danger" id="memClear"><span class="si c5"><svg class="i"><use href="#i-trash"/></svg></span><span class="tx">${MEM.armClear ? `Нажмите ещё раз — удалить ${n} ${plural(n, "факт", "факта", "фактов")}` : "Очистить память"}</span></button></div>` : ""}`;
+  }
+  function memSheet(id, text = "") {
+    const m = MEM.list.find((x) => x.id === id); MEM.sel = m ? id : null; MEM.armDel = false;
+    $("#memTitle").textContent = m ? "Факт" : "Новый факт";
+    $("#memText").value = m ? m.t : text.slice(0, MEM_MAX);
+    $("#memDel").textContent = m ? "Удалить" : "Отмена"; $("#memDel").classList.toggle("st-danger", !!m);
+    $("#memSave").textContent = m ? "Сохранить" : "Запомнить";
+    memCheck(); sheetOpen("mem");
+  }
+  function memCheck() {
+    const t = $("#memText").value.trim(), m = MEM.list.find((x) => x.id === MEM.sel);
+    const secret = MEM_SECRET.test(t), dup = MEM.list.some((x) => x.id !== MEM.sel && x.t.toLowerCase() === t.toLowerCase());
+    $("#memErr").textContent = secret ? "Похоже на ключ или пароль — такое в память не сохраняется" : dup ? "Это уже есть в памяти" : "";
+    $("#memText").classList.toggle("bad", secret);
+    $("#memCnt").textContent = `${$("#memText").value.length} / ${MEM_MAX}`;
+    $("#memSave").disabled = !t || secret || dup || (m && m.t === t);
+  }
+  function memAdd(t, src) { MEM.list.push({ id: ++MEM.seq, t, at: "сегодня", src }); }
+  $("#memText").addEventListener("input", memCheck);
+  $("#memSave").addEventListener("click", () => {
+    const t = $("#memText").value.trim().replace(/\s+/g, " "), m = MEM.list.find((x) => x.id === MEM.sel);
+    if (m) m.t = t; else memAdd(t, "добавлено вручную");
+    sheetClose(); if (stCur && stStack[stStack.length - 1] === "mem") stRefresh();
+    toast(m ? "Факт изменён" : "Запомнено · агент увидит со следующей сессии");
+  });
+  $("#memDel").addEventListener("click", (e) => {
+    if (MEM.sel == null) { sheetClose(); return; }
+    if (!MEM.armDel) { MEM.armDel = true; e.currentTarget.textContent = "Точно удалить?"; return; }
+    MEM.list = MEM.list.filter((x) => x.id !== MEM.sel); sheetClose(); stRefresh(); toast("Факт удалён из памяти");
+  });
+  document.addEventListener("click", (e) => {
+    const r = e.target.closest("[data-mem]"); if (r) { memSheet(+r.dataset.mem); return; }
+    if (e.target.closest("[data-memnew]")) { memSheet(null); return; }
+    if (e.target.closest("#memClear")) { if (!MEM.armClear) { MEM.armClear = true; stRefresh(); return; } MEM.armClear = false; MEM.list = []; stRefresh(); toast("Память очищена"); return; }
+    // Карточка «Запомнить?» под ответом агента.
+    const card = e.target.closest(".mem-card"); if (!card) return;
+    if (e.target.closest("[data-memyes]")) {
+      const t = card.dataset.fact; if (!MEM.list.some((x) => x.t === t)) memAdd(t, "из чата");
+      $(".acts", card).outerHTML = `<div class="done"><svg class="i sm"><use href="#i-check"/></svg>В памяти<button data-memopen>Открыть</button></div>`;
+      anim($(".done", card), [{ opacity: 0, transform: "translateY(4px)" }, { opacity: 1, transform: "none" }], SNAPPY); return;
+    }
+    if (e.target.closest("[data-memno]")) { anim(card, [{ opacity: 1, transform: "none" }, { opacity: 0, transform: "scale(.96)" }], SNAPPY).onfinish = () => card.remove(); return; }
+    if (e.target.closest("[data-memopen]")) { screenOpen("settings"); setTimeout(() => $('[data-stgo="mem"]')?.click(), 450); }
+  });
+  function renderMemory() {
+    if (openSheet) sheetClose(true);
+    const fact = "Деплой — только по пятницам после 18:00, предупреждать в #releases";
+    thread.innerHTML = `<div class="msg-user">Запомни: деплоим только по пятницам после 18:00 и всегда пишем в #releases</div>
+      <div class="msg-ai"><p>Хорошо. Предлагаю сохранить это в память — тогда я буду учитывать правило в каждой новой сессии.</p></div>
+      <div class="mem-card" data-fact="${esc2(fact)}"><span class="si c3"><svg class="i"><use href="#i-mem"/></svg></span><span class="tx"><small>Запомнить?</small>${esc2(fact)}</span><div class="acts"><button class="btn ghost" data-memno>Не надо</button><button class="btn primary" data-memyes>Запомнить</button></div></div>`;
+    title.textContent = "Правило деплоя";
+  }
   function stPush(k) { const old = stCur, v = viewSt(k); stStack.push(k); stBody.appendChild(v); stCur = v; stTitles();
     if (old) { anim(v, [{ transform: "translateX(100%)" }, { transform: "translateX(0)" }], SMOOTH); anim(old, [{ transform: "translateX(0)", opacity: 1 }, { transform: "translateX(-28%)", opacity: .6 }], SMOOTH).onfinish = () => old.remove(); } }
   function stPop() { if (stStack.length <= 1) { screenClose(); return; }
@@ -4041,6 +4144,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       PROV.list = PROV.list.filter((x) => x.id !== c.id).concat({ id: c.id, last4: k.slice(-4) });
       stStack = ["root", "models"]; const v = viewSt("models"); stBody.replaceChild(v, stCur); stCur = v; stTitles(); toast(`${c.name} подключён · модели — в выборе модели`); return; }
     const t = e.target.closest("[data-sttog]"); if (t) { const k = t.dataset.sttog; ST[k] = !ST[k]; t.setAttribute("aria-checked", String(ST[k])); if (k === "clipboard") toast(ST[k] ? "Агент сможет читать буфер обмена" : "Буфер обмена закрыт для агента");
+      if (k === "memOn") { stRefresh(); toast(ST[k] ? "Память включена · агент увидит её в следующей сессии" : "Память выключена · факты сохранены, агент их не видит"); }
       if (k === "searchApi" || k === "sendQuestion") { stRefresh(); toast(k === "searchApi" ? (ST[k] ? "Поиск через Search API" : "Поиск через DeepSeek Messages") : (ST[k] ? "Вопрос уходит поисковику" : "Поисковик видит только запросы агента")); }
       return; }
     const th = e.target.closest("[data-sttheme]"); if (th) { $(`#themes [data-theme-set="${th.dataset.sttheme}"]`).click(); $$("[data-sttheme]", stCur).forEach((b) => b.setAttribute("aria-checked", String(b === th))); return; }
@@ -4411,6 +4515,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
       + liHtml("maSelect", "i-text", "Выделить текст")
       + (ai ? liHtml("maSpeak", TTS.on ? "i-stop" : "i-speaker", TTS.on ? "Остановить чтение" : "Прочитать вслух") : "")
       + liHtml("maFork", "i-flow", "Ответвить отсюда", "Новая сессия с этого места")
+      + liHtml("maMem", "i-mem", "Запомнить", "Добавить в память агента")
       + (ai ? "" : liHtml("maRewind", "i-undo", "Вернуться сюда", "Файлы и разговор — на выбор") + (RW.undo ? liHtml("maUndo", "i-redo", "Отменить возврат файлов", "Файлы станут как до возврата") : ""));
     sheetOpen("msg");
   }
@@ -4449,6 +4554,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     if (id === "maSpeak") { sheetClose(); if (TTS.on) ttsStop(); else ttsStart(RW.msg.innerText.trim()); }
     if (id === "maEdit") { const text = RW.msg.textContent; sheetClose(); toast("Новая ветка разговора · измените и отправьте"); const f = $("#field"); f.textContent = text; f.dispatchEvent(new Event("input", { bubbles: true })); setTimeout(() => { f.focus(); const r = document.createRange(); r.selectNodeContents(f); r.collapse(false); const sl = getSelection(); sl.removeAllRanges(); sl.addRange(r); }, 340); }
     if (id === "maFork") { sheetClose(); toast("Новая сессия с этого места"); }
+    if (id === "maMem") { const text = RW.msg.innerText.trim().replace(/\s+/g, " "); sheetClose(); setTimeout(() => memSheet(null, text), 320); }
     if (id === "maRewind") { sheetClose(); setTimeout(rwSheet, 320); }
     if (id === "maUndo") { RW.undo = false; RW.files = [["gradle/libs.versions.toml", "mod"], ["scripts/backup.sh", "add"]]; sheetClose(); toast("Возврат файлов отменён · 2 файла"); }
     if (id === "rwFiles") { const n = RW.files.length; RW.undo = true; RW.files = []; sheetClose(); toast(`Файлы возвращены · ${n} ${n === 1 ? "файл" : "файла"}`); }
@@ -4705,6 +4811,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     else if (g === "plan") { startAgentDemo(); setTimeout(() => { thread.insertAdjacentHTML("beforeend", '<button class="plan-card" data-act="planOpen"><span class="pc-ic"><svg class="i sm"><use href="#i-tasks"/></svg></span><span class="tx"><b>План: обновить Kotlin и починить сборку</b><small>4 шага · ждёт вашего решения</small></span><span class="go">Проверить</span></button>'); }, 600); setTimeout(() => screenOpen("plan"), 1400); }
     else if (g === "subagents") { startAgentDemo(); $("#dockSa").hidden = false; setTimeout(() => sheetOpen("subagents"), 900); }
     else if (g === "browser") browserOpen("localhost:5173");
+    else if (g === "memory") renderMemory();
     else if (g === "goal") { startAgentDemo(); setTimeout(() => goalShow(true), 400); }
     else if (g === "mention") { if (openSheet) sheetClose(true); if (!$(".home", thread) && !$(".work", thread)) renderHome(); mnStart(); }
     else if (g === "danger") { if (openSheet) sheetClose(true); renderDanger(); }

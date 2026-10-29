@@ -122,4 +122,12 @@
         <item quantity="many">%d шагов</item>
         <item quantity="other">%d шага</item>
     </plurals>
+    <string name="mem_card_label">Запомнить?</string>
+    <string name="mem_card_no">Не надо</string>
+    <string name="mem_card_yes">Запомнить</string>
+    <string name="mem_card_done">В памяти</string>
+    <string name="mem_card_open">Открыть</string>
+    <string name="message_action_remember">Запомнить</string>
+    <string name="message_action_remember_sub">Добавить в память агента</string>
+    <string name="mem_saved">Запомнено · агент увидит со следующей сессии</string>
 </resources>

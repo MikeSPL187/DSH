@@ -120,4 +120,12 @@
         <item quantity="one">%d step</item>
         <item quantity="other">%d steps</item>
     </plurals>
+    <string name="mem_card_label">Remember?</string>
+    <string name="mem_card_no">No thanks</string>
+    <string name="mem_card_yes">Remember</string>
+    <string name="mem_card_done">In memory</string>
+    <string name="mem_card_open">Open</string>
+    <string name="message_action_remember">Remember</string>
+    <string name="message_action_remember_sub">Add to the agent\'s memory</string>
+    <string name="mem_saved">Remembered · the agent sees it from the next session</string>
 </resources>

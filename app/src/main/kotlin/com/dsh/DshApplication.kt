@@ -182,6 +182,10 @@ class DshApplication : Application() {
         // и ради JobScheduler в фоне, где foreground-служба запрещена (Android 12+), — proot и Node работали бы без
         // службы и уведомления. Миграция папки Default — там же, перед прогревом. Автоматизации запускают Host сами.
         applicationScope.launch(Dispatchers.IO) { dshRepository.pruneMessageCache() }
+        // Память агента: факты — в личных файлах, для агента — блок в ~/.agents/AGENTS.md (если Linux уже установлен).
+        applicationScope.launch(Dispatchers.IO) {
+            com.dsh.core.data.AgentMemory.init(java.io.File(filesDir, "agent-memory.json"), java.io.File(runtimeLayout.agentsHomeDir, "AGENTS.md"))
+        }
     }
 }
 

@@ -81,6 +81,7 @@ object DshGlyphs {
     val More: ImageVector get() = get("more")
     val Arrow: ImageVector get() = get("arrow")
     val Text: ImageVector get() = get("text")
+    val Mem: ImageVector get() = get("mem")
     val Pin: ImageVector get() = get("pin")
     val Link: ImageVector get() = get("link")
     val Globe: ImageVector get() = get("globe")
@@ -147,6 +148,7 @@ object DshGlyphs {
         "more" to listOf(P("M5 12h.01M12 12h.01M19 12h.01", false, true, 3f)),
         "arrow" to listOf(P("M5 12h14M13 6l6 6-6 6", false, true, null)),
         "text" to listOf(P("M4 18 8.5 6h1L14 18M5.5 14h6M15 18l2.7-7h.6L21 18M15.8 16h4.4", false, true, null)),
+        "mem" to listOf(P("M7 3h10a1 1 0 0 1 1 1v17l-6-4-6 4V4a1 1 0 0 1 1-1Z", false, true, null), P("m12 7 1 2 2 .3-1.5 1.4.4 2.1-1.9-1-1.9 1 .4-2.1L9 9.3l2-.3Z", false, true, null)),
         "pin" to listOf(P("M9 4h6l-1 6 3 3H7l3-3ZM12 13v7", false, true, null)),
         "link" to listOf(P("M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1", false, true, null), P("M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1", false, true, null)),
         "globe" to listOf(P("M3,12a9,9 0 1,0 18,0a9,9 0 1,0 -18,0Z", false, true, null), P("M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3Z", false, true, null)),

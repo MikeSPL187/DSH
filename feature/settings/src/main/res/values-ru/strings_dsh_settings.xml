@@ -29,6 +29,7 @@
         <item>уведомления задачи автоматизация</item>
         <item>версия лицензии журнал отчёт об ошибке обновления</item>
         <item>mcp сервер инструменты подключить tools model context protocol</item>
+        <item>память запомнить забыть факты о себе предпочтения memory</item>
     </string-array>
     <string name="st_prof_key">Свой ключ %1$s · по API</string>
     <string name="st_prof_nokey">Ключ не подключён — нажмите, чтобы добавить</string>
@@ -431,4 +432,37 @@
     <string name="st_pv_remove_failed">Не удалось удалить: Host не ответил</string>
     <string name="st_pv_key_dots">Ключ ••••%1$s</string>
     <plurals name="st_pv_models_n"><item quantity="one">%d модель</item><item quantity="few">%d модели</item><item quantity="many">%d моделей</item><item quantity="other">%d модели</item></plurals>
+    <string name="st_mem">Память</string>
+    <string name="st_mem_sub">Что агент помнит между сессиями</string>
+    <string name="st_mem_on">Помнить между сессиями</string>
+    <string name="st_mem_on_sub">Агент читает память в начале каждой сессии</string>
+    <string name="st_mem_off_sub">Выключено: факты сохранены, но агент их не видит</string>
+    <string name="st_mem_known">Что агент знает о вас</string>
+    <plurals name="st_mem_facts">
+        <item quantity="one">%d факт</item>
+        <item quantity="few">%d факта</item>
+        <item quantity="many">%d фактов</item>
+        <item quantity="other">%d факта</item>
+    </plurals>
+    <string name="st_mem_value_off">выключена</string>
+    <string name="st_mem_value_empty">пусто</string>
+    <string name="st_mem_from_chat">из чата</string>
+    <string name="st_mem_manual">добавлено вручную</string>
+    <string name="st_mem_add">Добавить факт</string>
+    <string name="st_mem_empty">Пока ничего не запомнено</string>
+    <string name="st_mem_empty_hint">Скажите в чате «запомни, что…» — агент предложит сохранить. Или добавьте сами.</string>
+    <string name="st_mem_note">Память — файл ~/.agents/AGENTS.md в Linux на телефоне. Новые факты агент увидит со следующей сессии. Ключи, токены и пароли в память не сохраняются.</string>
+    <string name="st_mem_clear">Очистить память</string>
+    <plurals name="st_mem_clear_arm">
+        <item quantity="one">Нажмите ещё раз — удалить %d факт</item>
+        <item quantity="few">Нажмите ещё раз — удалить %d факта</item>
+        <item quantity="many">Нажмите ещё раз — удалить %d фактов</item>
+        <item quantity="other">Нажмите ещё раз — удалить %d факта</item>
+    </plurals>
+    <string name="st_mem_saved">Запомнено · агент увидит со следующей сессии</string>
+    <string name="st_mem_edited">Факт изменён</string>
+    <string name="st_mem_deleted">Факт удалён из памяти</string>
+    <string name="st_mem_cleared">Память очищена</string>
+    <string name="st_mem_toggled_on">Память включена · агент увидит её в следующей сессии</string>
+    <string name="st_mem_toggled_off">Память выключена · факты сохранены, агент их не видит</string>
 </resources>

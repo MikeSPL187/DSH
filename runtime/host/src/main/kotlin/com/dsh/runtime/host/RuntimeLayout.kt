@@ -23,6 +23,8 @@ data class RuntimeLayout(
     val rootfsDir: File get() = File(baseDir, RootfsNaming.INSTALL_DIR)
     val optDshDir: File get() = File(rootfsDir, "opt/dsh")
     val dshHomeDir: File get() = File(rootfsDir, "root/.dsh")
+    /** `~/.agents` в Linux: общий корень агентов; `AGENTS.md` в нём — память агента (`AgentMemory`). */
+    val agentsHomeDir: File get() = File(rootfsDir, "root/.agents")
 
     /**
      * Файл токена моста устройства.

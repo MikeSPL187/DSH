@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ds_mem_new">New fact</string>
+    <string name="ds_mem_fact">Fact</string>
+    <string name="ds_mem_hint">For example: I write Kotlin, keep answers short</string>
+    <string name="ds_mem_field">What to remember</string>
+    <string name="ds_mem_err_secret">Looks like a key or password — those are never saved to memory</string>
+    <string name="ds_mem_err_dup">This is already in memory</string>
+    <string name="ds_mem_err_full">Memory already holds 200 facts — delete some first</string>
+    <string name="ds_mem_cancel">Cancel</string>
+    <string name="ds_mem_delete">Delete</string>
+    <string name="ds_mem_delete_sure">Delete for sure?</string>
+    <string name="ds_mem_remember">Remember</string>
+    <string name="ds_mem_save">Save</string>
+</resources>

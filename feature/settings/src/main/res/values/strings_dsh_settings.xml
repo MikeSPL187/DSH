@@ -29,6 +29,7 @@
         <item>notifications tasks automation</item>
         <item>version licenses log bug report updates</item>
         <item>mcp server tools connect model context protocol</item>
+        <item>memory remember forget facts about me preferences память</item>
     </string-array>
     <string name="st_prof_key">Own %1$s key · API</string>
     <string name="st_prof_nokey">No key connected — tap to add one</string>
@@ -423,4 +424,33 @@
     <string name="st_pv_remove_failed">Could not delete: Host did not answer</string>
     <string name="st_pv_key_dots">Key ••••%1$s</string>
     <plurals name="st_pv_models_n"><item quantity="one">%d model</item><item quantity="other">%d models</item></plurals>
+    <string name="st_mem">Memory</string>
+    <string name="st_mem_sub">What the agent remembers across sessions</string>
+    <string name="st_mem_on">Remember across sessions</string>
+    <string name="st_mem_on_sub">The agent reads memory at the start of every session</string>
+    <string name="st_mem_off_sub">Off: facts are kept, but the agent doesn\'t see them</string>
+    <string name="st_mem_known">What the agent knows about you</string>
+    <plurals name="st_mem_facts">
+        <item quantity="one">%d fact</item>
+        <item quantity="other">%d facts</item>
+    </plurals>
+    <string name="st_mem_value_off">off</string>
+    <string name="st_mem_value_empty">empty</string>
+    <string name="st_mem_from_chat">from chat</string>
+    <string name="st_mem_manual">added manually</string>
+    <string name="st_mem_add">Add a fact</string>
+    <string name="st_mem_empty">Nothing remembered yet</string>
+    <string name="st_mem_empty_hint">Say “remember that…” in chat and the agent will offer to save it. Or add facts yourself.</string>
+    <string name="st_mem_note">Memory is the file ~/.agents/AGENTS.md in Linux on this phone. The agent sees new facts from the next session. Keys, tokens and passwords are never saved to memory.</string>
+    <string name="st_mem_clear">Clear memory</string>
+    <plurals name="st_mem_clear_arm">
+        <item quantity="one">Tap again to delete %d fact</item>
+        <item quantity="other">Tap again to delete %d facts</item>
+    </plurals>
+    <string name="st_mem_saved">Remembered · the agent sees it from the next session</string>
+    <string name="st_mem_edited">Fact updated</string>
+    <string name="st_mem_deleted">Fact deleted from memory</string>
+    <string name="st_mem_cleared">Memory cleared</string>
+    <string name="st_mem_toggled_on">Memory on · the agent sees it from the next session</string>
+    <string name="st_mem_toggled_off">Memory off · facts are kept, the agent doesn\'t see them</string>
 </resources>

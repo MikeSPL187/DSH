@@ -341,6 +341,10 @@ internal fun ChatRoute(d: ChatDeps) {
             ui.settingsInitialSection = com.dsh.feature.settings.ui.StPage.Models
             ui.activePage = ActivePage.SETTINGS
         },
+        onOpenMemory = {
+            ui.settingsInitialSection = com.dsh.feature.settings.ui.StPage.Memory
+            ui.activePage = ActivePage.SETTINGS
+        },
         onCompactNow = { d.sender.compactNow() },
         voiceEnabled = d.voiceEnabled,
         voiceRecording = runtimeUi.voiceRecording,

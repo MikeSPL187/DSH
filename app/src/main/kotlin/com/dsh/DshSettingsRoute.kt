@@ -120,6 +120,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         HostTheme.refresh()
     }
     val custom = providers.filter { it.configured && !isDeepSeek(it) }
+    val memory by com.dsh.core.data.AgentMemory.state.collectAsState()
 
     // Пределы агента: перечитываются при смене Host, его запуске и после каждой записи.
     var limits by remember { mutableStateOf<List<com.dsh.core.data.AgentLimitValue>>(emptyList()) }
@@ -303,6 +304,10 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         limits = limits,
         webSearch = webSearch,
         mcp = mcpUi(mcpList, pluginRows, hostUp = status?.phase == RuntimePhase.RUNNING),
+        memory = com.dsh.feature.settings.ui.MemoryUi(
+            on = memory.on,
+            rows = memory.facts.map { com.dsh.feature.settings.ui.MemoryRow(it.id, it.text, shortDate(it.addedAt), it.fromChat) },
+        ),
         github = com.dsh.feature.settings.ui.GitHubUi(
             login = ghLogin,
             signedAt = GitHubAccount.signedAt(context)?.let { java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())) },
@@ -412,6 +417,12 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
             if (ok) tick++
             return ok
         }
+
+        override fun setMemoryOn(on: Boolean) { com.dsh.core.data.AgentMemory.setOn(on) }
+        override fun saveMemory(id: Long?, text: String): Boolean =
+            (if (id == null) com.dsh.core.data.AgentMemory.add(text, fromChat = false) else com.dsh.core.data.AgentMemory.edit(id, text)) == null
+        override fun removeMemory(id: Long) { com.dsh.core.data.AgentMemory.remove(id) }
+        override fun clearMemory() { com.dsh.core.data.AgentMemory.clear() }
 
         override fun openProviderSite(id: String) { ProviderCatalog.spec(id)?.let { openWebLink(context, it.siteUrl) } }
 

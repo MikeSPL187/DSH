@@ -1,5 +1,6 @@
 package com.dsh.feature.chat
 
+import com.dsh.core.designsystem.kit.MemoryFactSheet
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -269,6 +270,8 @@ fun ModernChatScreen(
     spentToday: String? = null,
     /** Открыть «Модели и ключи», где баланс и расход. */
     onOpenSpending: () -> Unit = {},
+    /** «Открыть» в карточке «В памяти»: настройки → «Память». */
+    onOpenMemory: () -> Unit = {},
     /** Сжать контекст сессии сейчас (`/compact`), не трогая поле ввода. */
     onCompactNow: () -> Unit = {},
     /** Имя из профиля аккаунта для приветствия. */
@@ -298,6 +301,21 @@ fun ModernChatScreen(
     defaultModelId: String? = null,
     modifier: Modifier = Modifier
 ) {
+    // Память агента: предложения `<dsh-memory>` из ответов — карточками «Запомнить?», в тексте их не видно.
+    val memory by com.dsh.core.data.AgentMemory.state.collectAsState()
+    val memProposals = remember(messages) {
+        messages.filter { it.role == MessageRole.ASSISTANT && it.content.contains("<dsh-memory>") }
+            .associate { m -> m.messageId to com.dsh.core.data.AgentMemory.proposals(m.content).filterNot(com.dsh.core.data.AgentMemory::looksSecret) }
+            .filterValues { it.isNotEmpty() }
+    }
+    @Suppress("NAME_SHADOWING")
+    val messages = remember(messages) {
+        messages.map { m -> if (m.role == MessageRole.ASSISTANT && m.content.contains("<dsh-mem")) m.copy(content = com.dsh.core.data.AgentMemory.strip(m.content)) else m }
+    }
+    @Suppress("NAME_SHADOWING")
+    val streamingText = remember(streamingText) { com.dsh.core.data.AgentMemory.strip(streamingText) }
+    // «Запомнить» из меню сообщения: лист факта с текстом сообщения.
+    var rememberText by remember { mutableStateOf(if (initialSheet == "remember") messages.firstOrNull { it.role == MessageRole.USER }?.content else null) }
     var inputText by remember { mutableStateOf("") }
     // Распознанный текст — в черновик: в веб-версии вставка идёт в позицию курсора до записи;
     // здесь черновик — одна строка, текст добавляется в конец, его можно поправить перед отправкой.
@@ -572,7 +590,7 @@ fun ModernChatScreen(
             lastScroll = y
         }
     }
-    val closeSheets = { actionMessage = null; selectText = null; rewindMessage = null; shareOpen = false; variantFor = null; variantsOpen = false; trajectoryOpen = false; pendingConfirm = null; modelMenuOpen = false; permissionMenuOpen = false; agentPresetMenuOpen = false; toolDetail = null; changeDiffIndex = null; commandSheetOpen = false; subagentsOpen = false; contextOpen = false }
+    val closeSheets = { actionMessage = null; selectText = null; rememberText = null; rewindMessage = null; shareOpen = false; variantFor = null; variantsOpen = false; trajectoryOpen = false; pendingConfirm = null; modelMenuOpen = false; permissionMenuOpen = false; agentPresetMenuOpen = false; toolDetail = null; changeDiffIndex = null; commandSheetOpen = false; subagentsOpen = false; contextOpen = false }
     val effortOptions = reasoningOptions
     val sheet: (@Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit)? = when {
         modelMenuOpen -> {
@@ -731,6 +749,29 @@ fun ModernChatScreen(
             }
             body
         }
+        rememberText != null -> {
+            val t = rememberText!!
+            val body: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
+                val ctx = LocalContext.current
+                val saved = stringResource(R.string.mem_saved)
+                MemoryFactSheet(
+                    initial = com.dsh.core.data.AgentMemory.normalize(t), isNew = true,
+                    issue = { text ->
+                        (com.dsh.core.data.AgentMemory.issue(text, memory.facts)
+                            ?: if (memory.facts.size >= com.dsh.core.data.AgentMemory.MAX_FACTS) com.dsh.core.data.MemoryIssue.TOO_LONG else null)
+                            ?.let { com.dsh.core.designsystem.kit.MemoryFieldIssue.valueOf(it.name) }
+                    },
+                    onSave = { text ->
+                        if (com.dsh.core.data.AgentMemory.add(text, fromChat = true) == null) {
+                            rememberText = null
+                            android.widget.Toast.makeText(ctx, saved, android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onCancel = { rememberText = null },
+                )
+            }
+            body
+        }
         selectText != null -> {
             val t = selectText!!
             val body: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = { SelectTextBody(t) }
@@ -755,6 +796,7 @@ fun ModernChatScreen(
                     onRewind = { actionMessage = null; rewindMessage = m },
                     onEdit = if (m.seq > 0L) ({ actionMessage = null; services.rewindConversation(m) }) else null,
                     onSelect = { actionMessage = null; selectText = m.content },
+                    onRemember = if (memory.on) ({ actionMessage = null; rememberText = m.content.substringAfter('\u0001') }) else null,
                     onSpeak = {
                         actionMessage = null
                         if (reader.speaking) reader.stop()
@@ -904,6 +946,7 @@ fun ModernChatScreen(
                                             Spacer(Modifier.height(18.dp))
                                         } else {
                                             AiAnswer(answer)
+                                            if (memory.on) memProposals[m.messageId]?.forEach { fact -> MemoryProposalCard(fact, onOpenMemory) }
                                             // conversation.chat.assistant-actions: действия плагинов под ответом.
                                             com.dsh.plugin.nativehost.NativeSlot(
                                                 slot = com.deepseek.dsh.plugin.nativesdk.slots.NativeSlot.MESSAGE_ACTION,

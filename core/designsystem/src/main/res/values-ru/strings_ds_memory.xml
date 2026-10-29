@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ds_mem_new">Новый факт</string>
+    <string name="ds_mem_fact">Факт</string>
+    <string name="ds_mem_hint">Например: пишу на Kotlin, отвечай коротко и по-русски</string>
+    <string name="ds_mem_field">Что запомнить</string>
+    <string name="ds_mem_err_secret">Похоже на ключ или пароль — такое в память не сохраняется</string>
+    <string name="ds_mem_err_dup">Это уже есть в памяти</string>
+    <string name="ds_mem_err_full">В памяти уже 200 фактов — удалите лишние</string>
+    <string name="ds_mem_cancel">Отмена</string>
+    <string name="ds_mem_delete">Удалить</string>
+    <string name="ds_mem_delete_sure">Точно удалить?</string>
+    <string name="ds_mem_remember">Запомнить</string>
+    <string name="ds_mem_save">Сохранить</string>
+</resources>
