@@ -66,9 +66,12 @@ object BrowserUrls {
         val rel = decoded.trimStart('/').ifEmpty { "index.html" }
         val base = runCatching { root.canonicalFile }.getOrNull() ?: return null
         val target = runCatching { File(base, rel).canonicalFile }.getOrNull() ?: return null
-        val inside = target.path.startsWith(base.path + File.separator)
-        val file = if (inside && target.isDirectory) File(target, "index.html") else target
-        return file.takeIf { inside && it.isFile }
+        fun inside(file: File) = file.path.startsWith(base.path + File.separator)
+        if (!inside(target)) return null
+        // index.html папки проверяется так же, как сам путь: ссылка index.html → файл вне рабочей
+        // папки раньше проходила, потому что граница проверялась только для папки (DSH-15).
+        val file = if (target.isDirectory) runCatching { File(target, "index.html").canonicalFile }.getOrNull() else target
+        return file?.takeIf { inside(it) && it.isFile }
     }
 
     /** MIME по расширению для ответов рабочей папки; неизвестное — как двоичные данные. */

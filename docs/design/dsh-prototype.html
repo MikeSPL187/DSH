@@ -388,6 +388,7 @@ svg { display: block; }
 .tile .i { color: var(--t1); }
 .list { background: var(--s2); border-radius: 18px; overflow: hidden; }
 .li { display: flex; align-items: center; gap: 12px; padding: 13px 14px; width: 100%; text-align: left; font-size: 15px; }
+.li[hidden] { display: none; }
 .li + .li { border-top: 1px solid var(--line); }
 .li .tx { flex: 1; min-width: 0; }
 .li small { display: block; color: var(--t3); font-size: 12.5px; margin-top: 1px; line-height: 1.35; }
@@ -3170,7 +3171,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
     const isDir = path.endsWith("/");
     const c = CHANGED[path], cin = isDir ? changedIn(path) : 0;
     const meta = isDir ? countIn(path) + (cin ? ` · изменено ${cin}` : "") : (showPath ? path : META[path] || "");
-    return `<button class="fr" data-path="${path}">${ftHtml(path)}<span class="tx"><b>${name}</b><small>${meta}</small></span>${c ? `<span class="chg ${c.k}">${c.k === "A" ? "новый" : "изм."}</span>` : ""}${isDir ? `<svg class="i sm go"><use href="#i-right"/></svg>` : `<span class="more" data-more="${path}" role="button" aria-label="Действия"><svg class="i sm"><use href="#i-more"/></svg></span>`}</button>`;
+    return `<button class="fr" data-path="${path}">${ftHtml(path)}<span class="tx"><b>${name}</b><small>${meta}</small></span>${c ? `<span class="chg ${c.k}">${c.k === "A" ? "новый" : "изм."}</span>` : ""}<span class="more" data-more="${path}" role="button" aria-label="Действия"><svg class="i sm"><use href="#i-more"/></svg></span></button>`;
   }
   function viewDir(dir) {
     const v = document.createElement("div"); v.className = "fs-view";
@@ -3460,7 +3461,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   let faPath = "";
   fsBody.addEventListener("click", (e) => {
     const more = e.target.closest("[data-more]");
-    if (more) { e.stopPropagation(); faPath = more.dataset.more; $("#faIc").outerHTML = ftHtml(faPath).replace('class="ft', 'id="faIc" class="ft'); $("#faName").textContent = faPath.split("/").pop(); $("#faMeta").textContent = META[faPath] || faPath; sheetOpen("file"); return; }
+    if (more) { e.stopPropagation(); faPath = more.dataset.more; $("#faIc").outerHTML = ftHtml(faPath).replace('class="ft', 'id="faIc" class="ft'); $("#faName").textContent = faPath.replace(/\/$/, "").split("/").pop(); $("#faMeta").textContent = faPath.endsWith("/") ? countIn(faPath) : META[faPath] || faPath; document.querySelectorAll('#sheet-file [data-fa="share"], #sheet-file [data-fa="edit"]').forEach((b) => { b.hidden = faPath.endsWith("/"); }); sheetOpen("file"); return; }
     const fa2 = e.target.closest("[data-fa2]"); if (fa2) { fileAction(fa2.dataset.fa2, fa2.dataset.path); return; }
     const hc = e.target.closest("[data-hc]"); if (hc) { fsPush({ t: "commit", p: hc.dataset.hc }); return; }
     if (e.target.closest("[data-hlog]")) { fsPush({ t: "log", p: "" }); return; }

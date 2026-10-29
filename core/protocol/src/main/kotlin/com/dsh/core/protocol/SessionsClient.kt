@@ -13,13 +13,15 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.decodeFromJsonElement
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import java.io.IOException
+
+/** Имя пресета прав Host: `read-only`, `workspace-write`, `danger-full-access`, `auto`. */
+private val PERMISSION_PRESET_NAME = Regex("[a-z0-9][a-z0-9_-]{0,63}")
 
 /** Сессии: список, создание, модель и доступ, отправка, поток follow с историей, поиск. */
 internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
@@ -48,46 +50,38 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
     }
 
     override suspend fun listSessions(hostId: String): RemoteResult<List<SessionInfo>> = withContext(kotlinx.coroutines.Dispatchers.IO) {
+        // Host 0.2.x: `session/list` — свой маршрут, обязательный rpcId и единственный аргумент `_request`
+        // (имя параметра метода Host). Прежний POST /api без них получал 404, и список сессий не обновлялся.
         val payload = buildJsonObject {
             put("type", "client-request")
+            put("rpcId", java.util.UUID.randomUUID().toString())
             put("method", "session/list")
             put("payload", buildJsonObject {
-                put("args", buildJsonObject {})
+                put("args", buildJsonObject { put("_request", buildJsonObject {}) })
             })
         }.toString()
 
         val request = Request.Builder()
-            .url("$baseUrl/api")
+            .url("$baseUrl/api/session/list")
             .post(payload.toRequestBody(mediaTypeJson))
             .build()
 
         try {
             client.newCall(request).execute().use { response ->
+                val bodyStr = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
                     return@withContext RemoteResult.Failure(
                         "dsh/remote/error",
-                        "Failed to list sessions, HTTP ${response.code}"
+                        extractRpcError(bodyStr) ?: "Failed to list sessions, HTTP ${response.code}"
                     )
                 }
-                val bodyStr = response.body?.string() ?: "{}"
-                try {
-                    // Try parsing standard DSH response or fallback to direct array
-                    val jsonElem = json.parseHostJson(bodyStr)
-                    val itemsElem = if (jsonElem is kotlinx.serialization.json.JsonObject) {
-                        jsonElem["result"]?.let { res ->
-                            if (res is kotlinx.serialization.json.JsonObject) res["value"]?.let { v ->
-                                if (v is kotlinx.serialization.json.JsonObject) v["items"] else v
-                            } else null
-                        } ?: jsonElem["items"] ?: jsonElem
-                    } else jsonElem
-                    val list = json.decodeFromJsonElement<List<SessionInfo>>(itemsElem)
-                    RemoteResult.Success(list)
-                } catch (_: Exception) {
-                    RemoteResult.Failure(
-                        "dsh/session/list-malformed",
-                        "Failed to decode session list from DSH Host"
+                val result = confirmedResult(bodyStr)
+                    ?: return@withContext RemoteResult.Failure(
+                        "dsh/session/list-rejected",
+                        extractRpcError(bodyStr) ?: "Host did not confirm the session list"
                     )
-                }
+                parseSessionList(hostId, result["value"])?.let { RemoteResult.Success(it) }
+                    ?: RemoteResult.Failure("dsh/session/list-malformed", "Failed to decode session list from DSH Host")
             }
         } catch (e: IOException) {
             RemoteResult.Failure("dsh/net/timeout", e.message ?: "Network error listing sessions")
@@ -197,15 +191,8 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                         extractRpcError(body) ?: "HTTP ${response.code}",
                     )
                 }
-                val root = runCatching { json.parseHostJson(body) as? kotlinx.serialization.json.JsonObject }
-                    .getOrNull()
-                val result = root?.get("result") as? kotlinx.serialization.json.JsonObject
-                if (result?.get("ok")?.toString() == "false") {
-                    val error = result["error"] as? kotlinx.serialization.json.JsonObject
-                    RemoteResult.Failure(
-                        "dsh/session/select-model",
-                        (error?.get("message")?.toString() ?: error?.toString()).orEmpty(),
-                    )
+                if (confirmedResult(body) == null) {
+                    RemoteResult.Failure("dsh/session/select-model", extractRpcError(body) ?: "Host did not confirm the model")
                 } else {
                     RemoteResult.Success(true)
                 }
@@ -220,36 +207,48 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
         sessionId: String,
         preset: String
     ): RemoteResult<Boolean> = withContext(kotlinx.coroutines.Dispatchers.IO) {
+        // В Host нет маршрута session/selectPermission (404): права меняет только команда `/permission <пресет>`
+        // через commands/execute — так же, как веб-клиент Host. Имя пресета попадает в строку команды,
+        // поэтому принимается только простое имя: пробел или перевод строки дописали бы к команде лишнее.
+        if (!PERMISSION_PRESET_NAME.matches(preset)) {
+            return@withContext RemoteResult.Failure("dsh/session/select-permission", "invalid permission preset")
+        }
         val payload = buildJsonObject {
             put("type", "client-request")
             put("rpcId", java.util.UUID.randomUUID().toString())
-            put("method", "session/selectPermission")
+            put("method", "commands/execute")
             put("payload", buildJsonObject {
                 put("args", buildJsonObject {
-                    put("sessionId", sessionId)
-                    put("preset", preset)
+                    put("agentId", sessionId)
+                    put("line", "/permission $preset")
+                    put("submittedAttachments", buildJsonArray {})
                 })
             })
         }.toString()
 
         val request = Request.Builder()
-            .url("$baseUrl/api/session/selectPermission")
+            .url("$baseUrl/api/commands/execute")
             .post(payload.toRequestBody(mediaTypeJson))
             .build()
 
-        // Права — граница безопасности: сбой сети или отказ Host — это отказ, а не «выбрано».
+        // Права — граница безопасности: «выбрано» только когда Host выполнил команду и ответил success.
+        // Сбой сети, отказ Host, пустой ответ, неизвестная команда или неизвестный пресет — отказ.
         try {
             client.newCall(request).execute().use { response ->
                 val body = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
                     return@use RemoteResult.Failure("dsh/session/select-permission", extractRpcError(body) ?: "HTTP ${response.code}")
                 }
-                val result = runCatching { json.parseHostJson(body) as? kotlinx.serialization.json.JsonObject }
-                    .getOrNull()?.get("result") as? kotlinx.serialization.json.JsonObject
-                if (result?.get("ok")?.toString() == "false") {
-                    RemoteResult.Failure("dsh/session/select-permission", extractRpcError(body) ?: "rejected by Host")
-                } else {
+                val result = confirmedResult(body)
+                    ?: return@use RemoteResult.Failure("dsh/session/select-permission", extractRpcError(body) ?: "rejected by Host")
+                val outcome = ((result["value"] as? kotlinx.serialization.json.JsonObject)?.get("result")
+                    as? kotlinx.serialization.json.JsonObject)
+                val kind = (outcome?.get("kind") as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+                if (kind == "success") {
                     RemoteResult.Success(true)
+                } else {
+                    val text = (outcome?.get("text") as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+                    RemoteResult.Failure("dsh/session/select-permission", text ?: "the Host has no /permission command")
                 }
             }
         } catch (e: Exception) {
@@ -264,7 +263,9 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                 put("rpcId", java.util.UUID.randomUUID().toString())
                 put("method", "session/cancel")
                 put("payload", buildJsonObject {
-                    put("args", buildJsonObject { put("sessionId", sessionId) })
+                    // Аргумент метода Host — `request` (SessionCancelRequest); голый sessionId Host отклонял
+                    // как arguments-invalid, и «Стоп» не останавливал агента.
+                    put("args", buildJsonObject { put("request", buildJsonObject { put("sessionId", sessionId) }) })
                 })
             }.toString()
             val request = Request.Builder()
@@ -311,13 +312,20 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
         }.getOrDefault(false)
     }
 
-    /** HTTP 200 и Host не ответил `ok: false`: отказ Host — не успех (G-03, G-22). */
-    private fun hostAccepted(response: okhttp3.Response): Boolean {
-        if (!response.isSuccessful) return false
-        val body = response.body?.string().orEmpty()
-        val result = runCatching { (json.parseHostJson(body) as? kotlinx.serialization.json.JsonObject)?.get("result") }
-            .getOrNull() as? kotlinx.serialization.json.JsonObject
-        return (result?.get("ok") as? kotlinx.serialization.json.JsonPrimitive)?.content != "false"
+    /** HTTP 200 и Host подтвердил `ok: true`; пустой, битый ответ или `ok: false` — отказ (DSH-03). */
+    private fun hostAccepted(response: okhttp3.Response): Boolean =
+        response.isSuccessful && confirmedResult(response.body?.string().orEmpty()) != null
+
+    /**
+     * `result` ответа Host, только если он явно подтверждён `ok: true`. Иначе null: `{}`, ответ без
+     * `result`, `ok: false` или нестрогое `"ok": "true"` не считаются согласием Host.
+     */
+    private fun confirmedResult(body: String): kotlinx.serialization.json.JsonObject? {
+        val result = runCatching {
+            (json.parseHostJson(body) as? kotlinx.serialization.json.JsonObject)?.get("result")
+        }.getOrNull() as? kotlinx.serialization.json.JsonObject ?: return null
+        val ok = result["ok"] as? kotlinx.serialization.json.JsonPrimitive
+        return result.takeIf { ok != null && !ok.isString && ok.content == "true" }
     }
 
     override suspend fun getSessionStats(
@@ -421,12 +429,11 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                         "Send message failed, HTTP ${response.code}"
                     )
                 }
-                val envelope = runCatching {
-                    json.parseHostJson(body) as? kotlinx.serialization.json.JsonObject
-                }.getOrNull()
-                val result = envelope?.get("result") as? kotlinx.serialization.json.JsonObject
-                if (result != null && result["ok"]?.toString() == "false") {
-                    val error = result["error"] as? kotlinx.serialization.json.JsonObject
+                if (confirmedResult(body) == null) {
+                    val result = runCatching {
+                        (json.parseHostJson(body) as? kotlinx.serialization.json.JsonObject)?.get("result")
+                    }.getOrNull() as? kotlinx.serialization.json.JsonObject
+                    val error = result?.get("error") as? kotlinx.serialization.json.JsonObject
                     val code = (error?.get("code") as? kotlinx.serialization.json.JsonPrimitive)?.content
                         ?: "dsh/remote/error"
                     val message = (error?.get("message") as? kotlinx.serialization.json.JsonPrimitive)?.content
@@ -1108,6 +1115,12 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                     close(t)
                 }
 
+                // Host закрыл поток сам (перезапуск, обновление плагина): закрытие нужно подтвердить —
+                // без ответа OkHttp не доводит рукопожатие до onClosed, и подписка не восстанавливалась (DSH-08).
+                override fun onClosing(webSocket: okhttp3.WebSocket, code: Int, reason: String) {
+                    webSocket.close(1000, null)
+                }
+
                 override fun onClosed(
                     webSocket: okhttp3.WebSocket,
                     code: Int,
@@ -1216,6 +1229,12 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                     close(t)
                 }
 
+                // Host закрыл поток сам (перезапуск, обновление плагина): закрытие нужно подтвердить —
+                // без ответа OkHttp не доводит рукопожатие до onClosed, и подписка не восстанавливалась (DSH-08).
+                override fun onClosing(webSocket: okhttp3.WebSocket, code: Int, reason: String) {
+                    webSocket.close(1000, null)
+                }
+
                 override fun onClosed(
                     webSocket: okhttp3.WebSocket,
                     code: Int,
@@ -1276,6 +1295,12 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                 close(t)
             }
 
+            // Host закрыл поток сам (перезапуск, обновление плагина): закрытие нужно подтвердить —
+            // без ответа OkHttp не доводит рукопожатие до onClosed, и подписка не восстанавливалась (DSH-08).
+            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                webSocket.close(1000, null)
+            }
+
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 close()
             }
@@ -1291,4 +1316,35 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
     }
 
     override fun subscribeEvents(hostId: String): Flow<RemoteEvent> = eventBus
+}
+
+/**
+ * Значение `session/list` Host → сессии приложения; null — ответ не того вида.
+ * Строки сабагентов не попадают в список: они открываются из своей родительской сессии.
+ * Название и права — из проекций строки; пустое название означает «Host его не знает»
+ * (репозиторий тогда оставляет локальное).
+ */
+internal fun parseSessionList(hostId: String, value: kotlinx.serialization.json.JsonElement?): List<SessionInfo>? {
+    val items = (value as? kotlinx.serialization.json.JsonObject)?.get("items") as? kotlinx.serialization.json.JsonArray
+        ?: return null
+    return items.mapNotNull { element ->
+        val item = element as? kotlinx.serialization.json.JsonObject ?: return@mapNotNull null
+        fun text(obj: kotlinx.serialization.json.JsonObject?, key: String) =
+            (obj?.get(key) as? kotlinx.serialization.json.JsonPrimitive)?.takeIf { it.isString }?.content
+        val sessionId = text(item, "sessionId")?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+        if (text(item, "origin") == "subagent" || text(item, "parentSessionId") != null) return@mapNotNull null
+        val values = (item["projections"] as? kotlinx.serialization.json.JsonObject)?.get("values")
+            as? kotlinx.serialization.json.JsonObject
+        val running = (item["running"] as? kotlinx.serialization.json.JsonPrimitive)?.content == "true"
+        SessionInfo(
+            hostId = hostId,
+            sessionId = sessionId,
+            title = text(values, "title").orEmpty(),
+            workspacePath = text(item, "cwd"),
+            status = if (running) "running" else "idle",
+            updatedAt = (item["updatedAt"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toLongOrNull()
+                ?: System.currentTimeMillis(),
+            permissionPreset = text(values?.get("permissions") as? kotlinx.serialization.json.JsonObject, "currentValue"),
+        )
+    }
 }

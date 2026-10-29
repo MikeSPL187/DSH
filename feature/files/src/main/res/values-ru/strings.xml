@@ -80,6 +80,7 @@
     <string name="fs_delete">Удалить</string>
     <string name="fs_cancel">Отмена</string>
     <string name="fs_deleted">Удалено</string>
+    <string name="fs_delete_failed">Не удалось удалить «%1$s» полностью</string>
     <string name="fs_ask_prompt">Объясни, что делает %1$s</string>
     <string name="fs_review_prompt">Проверь мои изменения перед коммитом</string>
     <string name="fs_history">История</string>
@@ -220,6 +221,7 @@
     <string name="fe_replace_all">Все</string>
     <string name="fe_replaced">Заменено: %1$d</string>
     <string name="fs_create_failed">Не удалось создать «%1$s» — проверьте доступ к папке</string>
+    <string name="fs_rename_failed">Не удалось переименовать «%1$s» — проверьте доступ к папке</string>
     <string name="fe_empty">Файл пуст — начните печатать</string>
     <string name="fs_hunk_line">Строка %1$d</string>
     <string name="fs_hunk_lines">Строки %1$d–%2$d</string>

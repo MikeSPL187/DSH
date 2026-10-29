@@ -32,14 +32,32 @@ object AutomationScheduler {
     private const val EXTRA_ID = "automation_id"
     private const val EXTRA_AT = "planned_at"
 
-    private fun jobId(id: String) = 0x4155_0000 or (id.hashCode() and 0xffff)
+    /** Номера заданий автоматизаций: 0x4155_0000…0x4155_FFFF. */
+    private const val JOB_BASE = 0x4155_0000
+    private const val JOB_SPAN = 0x1_0000
+
+    /**
+     * Свободный номер задания для [id]. Первый кандидат — от хэша id (у одной автоматизации он обычно
+     * один и тот же), но 16 бит хэша у разных UUID совпадают: тогда берётся следующий свободный номер.
+     * Раньше совпавший номер молча заменял задание другой автоматизации, и та переставала запускаться (DSH-12).
+     */
+    private fun freeJobId(js: JobScheduler, id: String): Int? {
+        val taken = js.allPendingJobs.mapTo(HashSet()) { it.id }
+        val start = id.hashCode() and 0xffff
+        return (0 until JOB_SPAN).asSequence().map { JOB_BASE or ((start + it) and 0xffff) }.firstOrNull { it !in taken }
+    }
+
+    /** Задания этой автоматизации — по её id в данных задания, а не по номеру. */
+    private fun jobsOf(js: JobScheduler, id: String): List<Int> =
+        js.allPendingJobs.filter { (it.id and 0xffff.inv()) == JOB_BASE && it.extras.getString(EXTRA_ID) == id }.map { it.id }
 
     fun schedule(context: Context, a: Automation) {
         val js = context.getSystemService(JobScheduler::class.java) ?: return
-        js.cancel(jobId(a.id))
+        jobsOf(js, a.id).forEach(js::cancel)
         val at = AutomationStore.nextRun(a) ?: return
+        val jobId = freeJobId(js, a.id) ?: return
         val extras = PersistableBundle().apply { putString(EXTRA_ID, a.id); putLong(EXTRA_AT, at) }
-        val job = JobInfo.Builder(jobId(a.id), ComponentName(context, AutomationJobService::class.java))
+        val job = JobInfo.Builder(jobId, ComponentName(context, AutomationJobService::class.java))
             .setMinimumLatency((at - System.currentTimeMillis()).coerceAtLeast(0))
             .setRequiresCharging(a.charge)
             .setRequiredNetworkType(if (a.wifi) JobInfo.NETWORK_TYPE_UNMETERED else JobInfo.NETWORK_TYPE_ANY)
@@ -50,7 +68,8 @@ object AutomationScheduler {
     }
 
     fun cancel(context: Context, id: String) {
-        context.getSystemService(JobScheduler::class.java)?.cancel(jobId(id))
+        val js = context.getSystemService(JobScheduler::class.java) ?: return
+        jobsOf(js, id).forEach(js::cancel)
     }
 
     /** Пересчитать все задания (после запуска приложения и изменений). */

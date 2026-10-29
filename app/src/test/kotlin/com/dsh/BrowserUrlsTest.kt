@@ -59,6 +59,22 @@ class BrowserUrlsTest {
     }
 
     @Test
+    fun `directory index link cannot expose a file outside the workspace`() {
+        // DSH-15: index.html папки — ссылка на файл вне рабочей папки.
+        val root = tmp.newFolder("ws-link")
+        val site = File(root, "site").apply { mkdirs() }
+        val private = tmp.newFile("private.txt").apply { writeText("QA SYNTHETIC PRIVATE FILE") }
+        java.nio.file.Files.createSymbolicLink(File(site, "index.html").toPath(), private.toPath())
+        assertNull(BrowserUrls.resolveWorkspace(root, "/site/"))
+        assertNull(BrowserUrls.resolveWorkspace(root, "/site/index.html"))
+        // Ссылка внутри рабочей папки остаётся рабочей.
+        val docs = File(root, "docs").apply { mkdirs() }
+        File(docs, "page.html").writeText("<p>ok</p>")
+        java.nio.file.Files.createSymbolicLink(File(docs, "index.html").toPath(), File(docs, "page.html").toPath())
+        assertEquals("page.html", BrowserUrls.resolveWorkspace(root, "/docs/")?.name)
+    }
+
+    @Test
     fun `output links cover only addresses the browser may open`() {
         var opened = ""
         val text = AnnotatedString("  ➜  Local:   http://localhost:5173/, docs https://vitejs.dev. LAN http://192.168.1.5:5173/")

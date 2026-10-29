@@ -158,6 +158,12 @@ internal class HostEventsClient(private val conn: HostConnection) : HostEventsAp
                     closed.complete(Unit)
                 }
 
+                // Host закрыл поток сам (перезапуск, обновление плагина): закрытие нужно подтвердить —
+                // без ответа OkHttp не доводит рукопожатие до onClosed, и подписка не восстанавливалась (DSH-08).
+                override fun onClosing(webSocket: okhttp3.WebSocket, code: Int, reason: String) {
+                    webSocket.close(1000, null)
+                }
+
                 override fun onClosed(webSocket: okhttp3.WebSocket, code: Int, reason: String) {
                     closed.complete(Unit)
                 }
@@ -213,7 +219,15 @@ internal class HostEventsClient(private val conn: HostConnection) : HostEventsAp
             .url("$baseUrl/api/\$events/result")
             .post(payload.toString().toRequestBody(mediaTypeJson))
             .build()
-        return client.newCall(request).execute().use { it.isSuccessful }
+        // Доставлено — только когда Host принял ответ (`ok: true`). HTTP 200 с `ok: false` (поток уже
+        // переподключён, clientId устарел) — не доставка: событие снова можно ответить после переподключения.
+        return client.newCall(request).execute().use { response ->
+            response.isSuccessful && runCatching {
+                val result = (json.parseHostJson(response.body?.string().orEmpty()) as? kotlinx.serialization.json.JsonObject)
+                    ?.get("result") as? kotlinx.serialization.json.JsonObject
+                (result?.get("ok") as? kotlinx.serialization.json.JsonPrimitive)?.let { !it.isString && it.content == "true" } == true
+            }.getOrDefault(false)
+        }
     }
 
     /** Отправка ответа приложения на waterfall. */

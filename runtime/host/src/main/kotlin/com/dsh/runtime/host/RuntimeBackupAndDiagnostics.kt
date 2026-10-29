@@ -3,7 +3,6 @@ package com.dsh.runtime.host
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -144,16 +143,17 @@ class RuntimeBackupAndDiagnostics(
         for (file in folder.listFiles() ?: emptyArray()) {
             val path = file.toPath()
             if (java.nio.file.Files.isSymbolicLink(path)) continue
-            // Копия «без API-ключей»: файлы с секретами в архив не попадают.
+            // Копия «без API-ключей»: файлы с секретами в архив не попадают, в остальных ключи вычищаются (BackupSecrets).
             if (SECRET_FILE.containsMatchIn(file.name)) continue
             if (java.nio.file.Files.isDirectory(path, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
                 zipDirectory(file, "$parentFolder/${file.name}", zos, rows)
             } else if (java.nio.file.Files.isRegularFile(path, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
                 zos.putNextEntry(ZipEntry("$parentFolder/${file.name}"))
+                // Хэш — от того, что записано в копию (после очистки секретов): по нему проверяется подпись.
                 val digest = java.security.MessageDigest.getInstance("SHA-256")
-                FileInputStream(file).use { fis ->
-                    java.security.DigestInputStream(fis, digest).copyTo(zos)
-                }
+                val sink = java.security.DigestOutputStream(zos, digest)
+                BackupSecrets.copyScrubbed(file, sink)
+                sink.flush()
                 zos.closeEntry()
                 rows += "$parentFolder/${file.name}".removePrefix("dsh_home/") to ContentDigest.hex(digest.digest())
             }
@@ -176,9 +176,11 @@ class RuntimeBackupAndDiagnostics(
         val staging = File(layout.dshHomeDir.parentFile, RESTORE_STAGING)
         SafeFiles.deleteTree(staging)
         runCatching {
+            var marked = false
             SafeZip.extract(input, staging) { entry, index ->
                 if (index == 0) {
                     require(entry.name == BACKUP_MARKER) { "not a DSH backup" }
+                    marked = true
                     return@extract null
                 }
                 if (entry.name == BACKUP_SIGNATURE) return@extract SIGNATURE_FILE
@@ -186,6 +188,9 @@ class RuntimeBackupAndDiagnostics(
                 rel?.takeIf { it.isNotBlank() && it != SIGNATURE_FILE && !SECRET_FILE.containsMatchIn(it.substringAfterLast('/')) }
                     ?.let { "$HOME_DIR/$it" }
             }
+            // Пустой или посторонний ZIP без знака снимка — не копия DSH: раньше проверка жила только
+            // в обработке первой записи, и архив без записей «восстанавливался» с успехом (DSH-14).
+            require(marked) { "not a DSH backup" }
             val home = File(staging, HOME_DIR).apply { mkdirs() }
             val signature = File(staging, SIGNATURE_FILE).takeIf { it.isFile }?.readText()?.trim()
             val trusted = signature != null && signature.startsWith(SIGNATURE_PREFIX) && signer != null &&

@@ -21,6 +21,14 @@ interface DshDao {
     @Query("UPDATE sessions SET archived = :archived WHERE hostId = :hostId AND sessionId = :sessionId")
     suspend fun updateSessionArchived(hostId: String, sessionId: String, archived: Int)
 
+    /** Отметки «закреплено» по полному набору Host: сессии из [ids] — 1, остальные — 0. */
+    @Query("UPDATE sessions SET pinned = CASE WHEN sessionId IN (:ids) THEN 1 ELSE 0 END WHERE hostId = :hostId")
+    suspend fun syncSessionsPinned(hostId: String, ids: List<String>)
+
+    /** Отметки «в архиве» по полному набору Host: сессии из [ids] — 1, остальные — 0. */
+    @Query("UPDATE sessions SET archived = CASE WHEN sessionId IN (:ids) THEN 1 ELSE 0 END WHERE hostId = :hostId")
+    suspend fun syncSessionsArchived(hostId: String, ids: List<String>)
+
     @Query("UPDATE sessions SET updatedAt = :updatedAt WHERE hostId = :hostId AND sessionId = :sessionId")
     suspend fun touchSession(hostId: String, sessionId: String, updatedAt: Long)
 

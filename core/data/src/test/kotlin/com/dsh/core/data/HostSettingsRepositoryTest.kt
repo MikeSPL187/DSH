@@ -6,6 +6,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -46,6 +47,18 @@ class HostSettingsRepositoryTest {
         assertEquals(2, ops.size)
         assertEquals(listOf("providers", "x", "baseURL"), ops[0].jsonObject["path"]!!.jsonArray.map { it.jsonPrimitive.content })
         assertEquals("https://api", ops[0].jsonObject["value"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `unconditional writes omit expectedRevision instead of sending null`() = runBlocking {
+        // DSH-04: Host принимает число или отсутствие поля; JSON null он отклоняет (gateway/input-invalid).
+        val host = FakeHost { method, _ -> if (method == "settings/mutate") """{"result":{"ok":true}}""" else null }
+        val repository = repository(host)
+        assertTrue(repository.setSettings("local", "llm-pi-ai", listOf(listOf("x") to JsonPrimitive(1)), expectedRevision = null))
+        assertTrue(repository.unsetSettings("local", "llm-pi-ai", listOf(listOf("x"))))
+        host.calls.forEach { (_, args) ->
+            assertFalse(args, "expectedRevision" in hostJson.parseToJsonElement(args).jsonObject)
+        }
     }
 
     @Test

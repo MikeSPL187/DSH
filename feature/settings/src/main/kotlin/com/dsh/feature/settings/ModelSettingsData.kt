@@ -148,7 +148,8 @@ fun parseModelProviders(
         parsed
     }
     // Встроенный DeepSeek API есть всегда — даже если каталог Host не пришёл, его можно настроить.
-    val hasDeepSeek = deduped.any { it.id.contains("deepseek", ignoreCase = true) || it.name.contains("DeepSeek", ignoreCase = true) }
+    // Только по точному id и ключу: свой шлюз «my-deepseek-proxy» не заменяет официальный DeepSeek (DSH-07).
+    val hasDeepSeek = deduped.any { it.id == "deepseek-official" || it.id == "deepseek" || it.keyRef == "DEEPSEEK_API_KEY" }
     return if (hasDeepSeek) deduped else deduped + ModelProviderUi(
         id = "deepseek",
         name = "DeepSeek",

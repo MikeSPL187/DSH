@@ -13,6 +13,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -599,6 +600,7 @@ private fun Group(content: @Composable ColumnScope.() -> Unit) {
 }
 
 /** `.fr`: строка файла или папки. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun FileRow(
     name: String,
@@ -614,7 +616,10 @@ private fun FileRow(
     Column {
         if (!first) Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
         Row(
-            Modifier.fillMaxWidth().heightIn(min = 58.dp).clickable(role = Role.Button, onClick = onClick).padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+            // Долгое нажатие — те же действия, что у «⋯» (переименовать, удалить, поделиться…).
+            Modifier.fillMaxWidth().heightIn(min = 58.dp)
+                .combinedClickable(role = Role.Button, onLongClick = onMore, onClick = onClick)
+                .padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -633,8 +638,10 @@ private fun FileRow(
                 )
             }
             trailing?.invoke()
+            // У папки тоже есть «⋯»: без неё подпапку нельзя было переименовать или удалить (DSH-11).
+            // Нажатие на саму строку папки по-прежнему открывает её.
             when {
-                dir || onMore == null -> Icon(DshGlyphs.Right, null, tint = c.t3, modifier = Modifier.padding(end = 8.dp).size(18.dp))
+                onMore == null -> Icon(DshGlyphs.Right, null, tint = c.t3, modifier = Modifier.padding(end = 8.dp).size(18.dp))
                 else -> IconBtn(DshGlyphs.More, stringResource(R.string.fs_more), size = 40.dp, tint = c.t3, onClick = onMore)
             }
         }
@@ -1594,6 +1601,7 @@ private fun ColumnScope.SheetBody(
     val c = Dsh.colors
     val scope = rememberCoroutineScope()
     val createFailed = stringResource(R.string.fs_create_failed, "%s")
+    val renameFailed = stringResource(R.string.fs_rename_failed, "%s")
     when (sheet) {
         Sheet.EditDiscard -> EditDiscardSheet(onEditDrop, onEditKeep)
         Sheet.EditConflict -> EditConflictSheet(onEditReload, onEditOverwrite)
@@ -1678,6 +1686,7 @@ private fun ColumnScope.SheetBody(
             val f = file(sheet.path)
             NameForm(stringResource(R.string.fs_rename_title), f.name, stringResource(R.string.fs_rename), f.parentFile ?: root, except = f.name) { name ->
                 if (runCatching { f.renameTo(File(f.parentFile, name)) }.getOrDefault(false)) { refresh(); onDone() }
+                else onToast(renameFailed.format(f.name))
             }
         }
         is Sheet.Delete -> {
@@ -1690,12 +1699,15 @@ private fun ColumnScope.SheetBody(
                 modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 14.dp),
             )
             val deleted = stringResource(R.string.fs_deleted)
+            val deleteFailed = stringResource(R.string.fs_delete_failed, f.name)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 DshButton(stringResource(R.string.fs_cancel), onDone, Modifier.weight(1f), kind = DshButtonKind.Ghost)
                 DshButton(stringResource(R.string.fs_delete), {
                     scope.launch {
-                        val ok = withContext(Dispatchers.IO) { runCatching { f.deleteRecursively() }.getOrDefault(false) }
-                        if (ok) { onToast(deleted); refresh() }
+                        val ok = withContext(Dispatchers.IO) { deleteTree(f) }
+                        // Часть дерева могла удалиться и при отказе — список перечитывается в любом случае.
+                        refresh()
+                        onToast(if (ok) deleted else deleteFailed)
                         onDone()
                     }
                 }, Modifier.weight(1f), kind = DshButtonKind.Danger, icon = DshGlyphs.Trash)

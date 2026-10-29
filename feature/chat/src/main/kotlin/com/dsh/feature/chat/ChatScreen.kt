@@ -54,6 +54,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -114,6 +116,18 @@ enum class PermissionPreset(
         confirmEnableResId = R.string.perm_auto_confirm_enable,
     ),
 }
+
+/**
+ * Сохранение черновика в состоянии экрана. Состояние Activity ограничено ~1 МБ на всё приложение:
+ * огромная вставка (лог, файл) уронила бы сохранение, поэтому черновик длиннее [MAX_SAVED_DRAFT]
+ * в состояние не пишется — он живёт, пока жив экран, как раньше.
+ */
+private val DraftSaver = Saver<String, String>(
+    save = { draft -> draft.takeIf { it.length <= MAX_SAVED_DRAFT } },
+    restore = { it },
+)
+
+private const val MAX_SAVED_DRAFT = 100_000
 
 /** Название текстовой слэш-команды на языке интерфейса (для метки в поле ввода); не текстовая — null. */
 private fun commandLabelRes(token: String): Int? = when (token) {
@@ -329,7 +343,8 @@ fun ModernChatScreen(
     val streamingText = remember(streamingText) { com.dsh.core.data.AgentMemory.strip(streamingText) }
     // «Запомнить» из меню сообщения: лист факта с текстом сообщения.
     var rememberText by remember { mutableStateOf(if (initialSheet == "remember") messages.firstOrNull { it.role == MessageRole.USER }?.content else null) }
-    var inputText by remember { mutableStateOf("") }
+    // Черновик переживает пересоздание экрана и процесса (DSH-10): набранный запрос не пропадает.
+    var inputText by rememberSaveable(stateSaver = DraftSaver) { mutableStateOf("") }
     // Распознанный текст — в черновик: в веб-версии вставка идёт в позицию курсора до записи;
     // здесь черновик — одна строка, текст добавляется в конец, его можно поправить перед отправкой.
     LaunchedEffect(voiceTranscript) {

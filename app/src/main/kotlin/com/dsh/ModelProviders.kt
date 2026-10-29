@@ -53,17 +53,21 @@ internal class ModelProviders(private val repository: DshRepository) {
      * @param key новый ключ; пусто — ключ не меняется.
      * @param baseUrl свой адрес API; пусто — не меняется.
      * @param models модели провайдера; пусто — не меняются.
-     * @return false — Host не принял ключ: в Keystore он не пишется, «Настройки» не покажут его сохранённым.
+     * @return false — Host не принял ключ или настройки провайдера: экран не сообщает «сохранено» (DSH-05).
+     *   Новый провайдер при отказе в настройках откатывается: его ключ убирается из Host и Keystore,
+     *   чтобы не остаться наполовину настроенным (ключ есть, адреса и протокола нет).
      */
     suspend fun save(hostId: String, provider: ModelProviderUi, key: String, baseUrl: String = "", models: List<String> = emptyList()): Boolean {
         // Токен входа по подписке (Claude Pro/Max, ChatGPT, Google) в стороннем приложении запрещён правилами провайдеров —
         // за него блокируют аккаунт. Не сохраняется ни в один провайдер, включая «свой», где бы его ни вставили.
         if (com.dsh.feature.settings.logic.ProviderCatalog.isSubscriptionToken(key)) return false
         if (com.dsh.feature.settings.logic.ProviderCatalog.blocked(provider.id)) return false
+        val vaultRef = vaultRefOf(provider)
         if (key.isNotBlank()) {
             if (!repository.plugins.setCredential(hostId, provider.keyRef, key)) return false
-            ApiKeyVault.save(if (isDeepSeek(provider)) DEEPSEEK_VAULT_REF else provider.keyRef, key)
+            ApiKeyVault.save(vaultRef, key)
         }
+        var saved = true
         if (provider.settingsNs.isNotBlank()) {
             val path = provider.settingsPath
             val values = buildList<Pair<List<String>, JsonElement>> {
@@ -79,17 +83,21 @@ internal class ModelProviders(private val repository: DshRepository) {
                     add(path + "models" to JsonArray(models.map { buildJsonObject { put("id", it); put("name", it) } }))
                 }
             }
-            if (values.isNotEmpty()) repository.hostSettings.setSettings(hostId, provider.settingsNs, values, null)
+            if (values.isNotEmpty()) saved = repository.hostSettings.setSettings(hostId, provider.settingsNs, values, null)
+        }
+        if (!saved && !provider.configured && key.isNotBlank()) {
+            if (repository.plugins.unsetCredential(hostId, provider.keyRef)) ApiKeyVault.delete(vaultRef)
         }
         refresh(hostId)
         repository.hostSettings.refreshModelCatalog(hostId)
-        return true
+        return saved
     }
 
     /** Удалить провайдера целиком: ключ из Host и Keystore и его профиль настроек (он уйдёт из списка и выбора модели). */
     suspend fun remove(hostId: String, provider: ModelProviderUi): Boolean {
-        repository.plugins.unsetCredential(hostId, provider.keyRef)
-        ApiKeyVault.delete(provider.keyRef)
+        // Host не удалил ключ — провайдер остаётся как был: иначе ключ жил бы в Host без следа в «Настройках».
+        if (!repository.plugins.unsetCredential(hostId, provider.keyRef)) return false
+        ApiKeyVault.delete(vaultRefOf(provider))
         val ok = provider.settingsNs.isBlank() || provider.settingsPath.isEmpty() ||
             repository.hostSettings.unsetSettings(hostId, provider.settingsNs, listOf(provider.settingsPath))
         refresh(hostId)
@@ -97,15 +105,43 @@ internal class ModelProviders(private val repository: DshRepository) {
         return ok
     }
 
-    /** Удалить ключ провайдера из Host и Keystore. */
-    suspend fun deleteKey(hostId: String, provider: ModelProviderUi?) {
-        if (provider != null) repository.plugins.unsetCredential(hostId, provider.keyRef)
-        ApiKeyVault.delete(if (provider == null || isDeepSeek(provider)) DEEPSEEK_VAULT_REF else provider.keyRef)
+    /**
+     * Удалить ключ провайдера из Host и Keystore.
+     * @return false — Host не подтвердил удаление: локальная отметка о ключе остаётся, потому что Host
+     *   продолжает хранить и использовать ключ (DSH-06). Повтор безопасен: удаление в Host идемпотентно.
+     */
+    suspend fun deleteKey(hostId: String, provider: ModelProviderUi?): Boolean {
+        if (provider != null && !repository.plugins.unsetCredential(hostId, provider.keyRef)) return false
+        ApiKeyVault.delete(if (provider == null) DEEPSEEK_VAULT_REF else vaultRefOf(provider))
         refresh(hostId)
+        return true
     }
 }
 
-/** Провайдер — это DeepSeek (официальный маршрут или ключ DeepSeek). */
+/** Ссылка на ключ в Keystore: у официального DeepSeek — общий слот, у остальных — свой. */
+private fun vaultRefOf(provider: ModelProviderUi): String = if (isDeepSeek(provider)) DEEPSEEK_VAULT_REF else provider.keyRef
+
+/** Ключ официального DeepSeek в Host. */
+internal const val DEEPSEEK_KEY_REF = "DEEPSEEK_API_KEY"
+
+/** id официального DeepSeek: маршрут Host и общий провайдер pi-ai, который подменяет его без маршрута. */
+private val DEEPSEEK_PROVIDER_IDS = setOf("deepseek-official", "deepseek")
+
+/**
+ * Провайдер — официальный DeepSeek. Только точные id и ссылка на ключ: подстрока в имени своего шлюза
+ * (`my-deepseek-proxy`) не делает его DeepSeek — иначе его ключ лёг бы в слот официального ключа,
+ * а баланс и быстрые функции отправляли бы ключ шлюза в api.deepseek.com (DSH-07).
+ */
 internal fun isDeepSeek(provider: ModelProviderUi): Boolean =
-    provider.id == "deepseek-official" || provider.id.contains("deepseek") ||
-        provider.keyRef.contains("deepseek", ignoreCase = true)
+    provider.id in DEEPSEEK_PROVIDER_IDS || provider.keyRef == DEEPSEEK_KEY_REF
+
+/**
+ * id нового своего провайдера из [name]: не совпадает ни с одним провайдером каталога [taken]
+ * и с официальным DeepSeek — иначе «свой» провайдер переписал бы чужой профиль и ключ.
+ */
+internal fun customProviderId(name: String, taken: Set<String>): String {
+    val base = name.lowercase(java.util.Locale.ROOT).replace(Regex("[^a-z0-9]+"), "-").trim('-').ifBlank { "custom-api" }
+    val reserved = taken + DEEPSEEK_PROVIDER_IDS + "deepseek-account"
+    if (base !in reserved && base.uppercase(java.util.Locale.ROOT).replace('-', '_') + "_API_KEY" != DEEPSEEK_KEY_REF) return base
+    return generateSequence(1) { it + 1 }.map { if (it == 1) "$base-custom" else "$base-custom-$it" }.first { it !in reserved }
+}

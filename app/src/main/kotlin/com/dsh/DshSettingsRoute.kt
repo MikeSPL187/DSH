@@ -386,7 +386,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         }
 
         override suspend fun addProvider(name: String, baseUrl: String, key: String): Boolean {
-            val id = name.lowercase(Locale.ROOT).replace(Regex("[^a-z0-9]+"), "-").trim('-').ifBlank { "custom-api" }
+            val id = customProviderId(name, providers.map { it.id }.toSet())
             val models = (checkApiKey(OnboardingProvider.CUSTOM, baseUrl, key) as? KeyCheck.Ok)?.models.orEmpty()
             val provider = ModelProviderUi(
                 id = id, name = name, models = models, keyRef = id.uppercase(Locale.ROOT).replace('-', '_') + "_API_KEY",
@@ -439,7 +439,10 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         override fun manageKeysOnSite() { openWebLink(context, "https://platform.deepseek.com/api_keys") }
 
         override suspend fun deleteKey(): Boolean {
-            d.modelProviders.deleteKey(hostId, providers.firstOrNull(::isDeepSeek))
+            if (!d.modelProviders.deleteKey(hostId, providers.firstOrNull(::isDeepSeek))) {
+                toast.show(context.getString(R.string.st_key_delete_failed))
+                return false
+            }
             withContext(Dispatchers.IO) { BalanceLedger.clear(context) }
             d.oauthManager.signInWithApiKey("")
             balance = null; ledger = null; keyState = KeyState.None

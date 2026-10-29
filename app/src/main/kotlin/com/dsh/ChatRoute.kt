@@ -401,16 +401,21 @@ internal fun workspaceFileOf(path: String, workspace: File): File? {
     return real.takeIf { it.toPath().startsWith(root) }
 }
 
-private fun permissionPresetOf(hostId: String?): PermissionPreset = when (hostId) {
-    "read_only" -> PermissionPreset.READ_ONLY
-    "danger_full_access" -> PermissionPreset.FULL_ACCESS
-    "auto_review" -> PermissionPreset.AUTO_REVIEW
+/**
+ * Пресет Host → вариант меню. Имена Host пишутся через дефис (`read-only`); вариант с подчёркиванием
+ * принимается для строк, сохранённых прежними версиями приложения.
+ */
+private fun permissionPresetOf(hostId: String?): PermissionPreset = when (hostId?.replace('_', '-')) {
+    "read-only" -> PermissionPreset.READ_ONLY
+    "danger-full-access" -> PermissionPreset.FULL_ACCESS
+    "auto", "auto-review" -> PermissionPreset.AUTO_REVIEW
     else -> PermissionPreset.WORKSPACE_WRITE
 }
 
+/** Имя пресета для команды Host `/permission` — как в каталоге Host (`permissionPresets/catalog`). */
 private fun PermissionPreset.hostId(): String = when (this) {
-    PermissionPreset.READ_ONLY -> "read_only"
-    PermissionPreset.FULL_ACCESS -> "danger_full_access"
-    PermissionPreset.AUTO_REVIEW -> "auto_review"
-    else -> "workspace_write"
+    PermissionPreset.READ_ONLY -> READ_ONLY_PRESET
+    PermissionPreset.FULL_ACCESS -> "danger-full-access"
+    PermissionPreset.AUTO_REVIEW -> "auto"
+    else -> "workspace-write"
 }

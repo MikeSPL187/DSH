@@ -12,9 +12,12 @@ import java.util.concurrent.TimeUnit
  * отвеченным, ход агента висит до перезапуска Host: ни повтор, ни ответ после повторной доставки не уходят.
  */
 class WaterfallAnswerRetryTest {
-    private fun withHost(vararg codes: Int, block: (HostEventsClient, MockWebServer) -> Unit) {
+    private fun withHost(vararg codes: Int, block: (HostEventsClient, MockWebServer) -> Unit) =
+        withReplies(*codes.map { it to if (it == 200) ACCEPTED else "{}" }.toTypedArray(), block = block)
+
+    private fun withReplies(vararg replies: Pair<Int, String>, block: (HostEventsClient, MockWebServer) -> Unit) {
         val server = MockWebServer()
-        codes.forEach { server.enqueue(MockResponse().setResponseCode(it).setBody("{}")) }
+        replies.forEach { (code, body) -> server.enqueue(MockResponse().setResponseCode(code).setBody(body)) }
         server.start()
         try {
             val events = HostEventsClient(HostConnection(server.url("/").toString().trimEnd('/'), OkHttpClient()))
@@ -50,5 +53,20 @@ class WaterfallAnswerRetryTest {
         Thread.sleep(200)
         events.answerWaterfall("local-host", "e1", null)
         assertEquals(null, server.takeRequest(500, TimeUnit.MILLISECONDS))
+    }
+
+    @Test
+    fun answerRejectedByHostIsRetried() = withReplies(
+        200 to """{"result":{"ok":false,"error":{"code":"gateway/internal","message":"no active event stream"}}}""",
+        200 to ACCEPTED,
+    ) { events, server ->
+        // HTTP 200 с `ok: false` — Host ответ не принял; считать его доставленным нельзя.
+        events.answerWaterfall("local-host", "e1", null)
+        assertEquals("/api/\$events/result", server.takeRequest(5, TimeUnit.SECONDS)?.path)
+        assertEquals("/api/\$events/result", server.takeRequest(5, TimeUnit.SECONDS)?.path)
+    }
+
+    private companion object {
+        const val ACCEPTED = """{"type":"server-response","result":{"ok":true}}"""
     }
 }

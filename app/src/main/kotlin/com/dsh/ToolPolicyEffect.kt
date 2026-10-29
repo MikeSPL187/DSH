@@ -54,4 +54,4 @@ internal fun clonedProjectPreset(cloned: Boolean, sessionId: String?, pending: S
     if (cloned && sessionId == null && pending == null) READ_ONLY_PRESET else null
 
 /** Пресет прав Host «Только чтение». */
-internal const val READ_ONLY_PRESET = "read_only"
+internal const val READ_ONLY_PRESET = "read-only"

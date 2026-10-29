@@ -81,6 +81,7 @@
     <string name="fs_delete">Delete</string>
     <string name="fs_cancel">Cancel</string>
     <string name="fs_deleted">Deleted</string>
+    <string name="fs_delete_failed">Could not delete “%1$s” completely</string>
     <string name="fs_ask_prompt">Explain what %1$s does</string>
     <string name="fs_review_prompt">Review my changes before committing</string>
     <string name="fs_history">History</string>
@@ -219,6 +220,7 @@
     <string name="fe_replace_all">All</string>
     <string name="fe_replaced">Replaced: %1$d</string>
     <string name="fs_create_failed">Couldn’t create “%1$s” — check access to the folder</string>
+    <string name="fs_rename_failed">Couldn’t rename “%1$s” — check access to the folder</string>
     <string name="fe_empty">The file is empty — start typing</string>
     <string name="fs_hunk_line">Line %1$d</string>
     <string name="fs_hunk_lines">Lines %1$d–%2$d</string>

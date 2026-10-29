@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -114,7 +115,18 @@ class DshRepository(
     suspend fun refreshSessions(hostId: String) {
         val sessions = (client.listSessions(hostId) as? RemoteResult.Success)?.data ?: return
         liveSessionIdsFlow.value = sessions.map { it.sessionId }.toSet()
-        dao.insertSessions(sessions.map { it.toEntity() })
+        upsertSessions(hostId, sessions)
+    }
+
+    /**
+     * Записать сессии от Host поверх кэша, не теряя того, чего в ответе Host нет: закрепление и архив
+     * (их ведёт workspace/follow), модель, курсор истории `lastSeq`, а при пустом названии — локальное.
+     * Простая замена строки обнуляла бы всё это при каждом обновлении списка.
+     */
+    private suspend fun upsertSessions(hostId: String, sessions: List<SessionInfo>) {
+        if (sessions.isEmpty()) return
+        val cached = dao.getSessionsForHost(hostId).first().associateBy { it.sessionId }
+        dao.insertSessions(sessions.map { session -> session.mergedInto(cached[session.sessionId]) })
     }
 
     suspend fun createSession(
@@ -267,9 +279,7 @@ class DshRepository(
             cleaned.filter { entity ->
                 val prev = previous
                 previous = entity
-                !(prev != null && entity.role == "USER" && prev.role == "USER" &&
-                    prev.contentJson == entity.contentJson &&
-                    kotlin.math.abs((entity.createdAt ?: 0L) - (prev.createdAt ?: 0L)) < 1_500)
+                prev == null || !isLegacyEchoPair(prev, entity)
             }.map { entity ->
                 ChatMessage(
                     hostId = entity.hostId,
@@ -539,6 +549,10 @@ class DshRepository(
                 val root = runCatching { hostJson.parseHostJson(frame) as? JsonObject }.getOrNull()
                     ?: return@collect
                 _hostWorkspacesFlow.value = workspaceTree.apply(root)
+                // Закрепление и архив ведёт Host: без этого значок «закреплено» не появлялся вовсе,
+                // а архив с другого устройства не скрывал сессию.
+                workspaceTree.pinnedSessionIds?.let { dao.syncSessionsPinned(hostId, it.toList()) }
+                workspaceTree.archivedSessionIds?.let { dao.syncSessionsArchived(hostId, it.toList()) }
                 // Серия кадров — одно обновление списка сессий.
                 workspaceRefreshJob?.cancel()
                 workspaceRefreshJob = scope.launch {
@@ -607,7 +621,7 @@ class DshRepository(
                     status = "done",
                 )))
             }
-            is RemoteEvent.SessionUpdated -> dao.insertSessions(listOf(event.session.toEntity()))
+            is RemoteEvent.SessionUpdated -> upsertSessions(event.session.hostId, listOf(event.session))
             else -> Unit
         }
     }
@@ -686,6 +700,21 @@ private fun isInjectedContextMessage(text: String): Boolean {
         trimmed.startsWith("Browser time zone for this request:")
 }
 
+/** Сессия от Host поверх строки кэша [cached] (см. `upsertSessions`); без строки — как есть. */
+internal fun SessionInfo.mergedInto(cached: SessionEntity?): SessionEntity {
+    val fresh = toEntity()
+    if (cached == null) return fresh.copy(title = title.ifBlank { null })
+    return fresh.copy(
+        title = title.ifBlank { cached.title.orEmpty() }.ifBlank { null },
+        workspacePath = cached.workspacePath ?: workspacePath,
+        lastSeq = cached.lastSeq,
+        archived = cached.archived,
+        pinned = cached.pinned,
+        model = model ?: cached.model,
+        permissionPreset = permissionPreset ?: cached.permissionPreset,
+    )
+}
+
 private fun SessionInfo.toEntity(archived: Boolean = this.archived, pinned: Boolean = this.pinned) = SessionEntity(
     hostId = hostId,
     sessionId = sessionId,
@@ -699,6 +728,18 @@ private fun SessionInfo.toEntity(archived: Boolean = this.archived, pinned: Bool
     model = model,
     permissionPreset = permissionPreset,
 )
+
+/**
+ * Пара «своё оптимистичное сообщение + эхо Host» из кэша старых версий: тот же текст подряд в пределах
+ * 1,5 с, и хотя бы одно из двух — локальная копия (id приложения `msg_…`/`local_…`). Два сообщения
+ * с id Host — это два настоящих сообщения (пользователь намеренно повторил «continue»), они остаются (DSH-09).
+ */
+internal fun isLegacyEchoPair(prev: MessageEntity, next: MessageEntity): Boolean =
+    prev.role == "USER" && next.role == "USER" && prev.contentJson == next.contentJson &&
+        kotlin.math.abs((next.createdAt ?: 0L) - (prev.createdAt ?: 0L)) < 1_500 &&
+        (isLocalMessageId(prev.messageId) || isLocalMessageId(next.messageId))
+
+private fun isLocalMessageId(id: String): Boolean = id.startsWith("msg_") || id.startsWith("local_")
 
 /** Вывод инструмента в кэше — не больше [MAX_TOOL_BODY] символов (G-17): чат показывает его в листе, целиком он у Host. */
 internal const val MAX_TOOL_BODY = 64 * 1024

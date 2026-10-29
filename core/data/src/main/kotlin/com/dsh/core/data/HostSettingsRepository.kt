@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
@@ -68,7 +67,9 @@ class HostSettingsRepository internal constructor(
                     })
                 }
             })
-            put("expectedRevision", expectedRevision?.let(::JsonPrimitive) ?: JsonNull)
+            // Контракт Host: число или отсутствие поля. JSON null Host отклоняет (gateway/input-invalid),
+            // поэтому запись «без проверки ревизии» не отправляет поле вовсе (DSH-04).
+            expectedRevision?.let { put("expectedRevision", it) }
         }
         return calls.ok(hostId, "settings/mutate", args)
     }
@@ -85,7 +86,6 @@ class HostSettingsRepository internal constructor(
                     })
                 }
             })
-            put("expectedRevision", JsonNull)
         }
         return calls.ok(hostId, "settings/mutate", args)
     }

@@ -13,7 +13,7 @@ class ClonedProjectPresetTest {
 
     @Test
     fun choiceOfUserAndExistingChatsAreKept() {
-        assertNull(clonedProjectPreset(cloned = true, sessionId = null, pending = "workspace_write"))
+        assertNull(clonedProjectPreset(cloned = true, sessionId = null, pending = "workspace-write"))
         assertNull(clonedProjectPreset(cloned = true, sessionId = "s1", pending = null))
         assertNull(clonedProjectPreset(cloned = false, sessionId = null, pending = null))
     }

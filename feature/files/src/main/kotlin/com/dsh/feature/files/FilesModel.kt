@@ -174,6 +174,36 @@ internal fun walkFiles(root: File, limit: Int = 4000, maxDirs: Int = 20_000): Li
     return out
 }
 
+/**
+ * Удалить файл или папку целиком, не заходя в символические ссылки: ссылка удаляется как ссылка.
+ * `File.deleteRecursively()` идёт по ссылкам на папки — удаление папки проекта с `node_modules` от pnpm
+ * или ссылкой на общую память стёрло бы файлы вне рабочей папки.
+ * @return true, если пути больше нет.
+ */
+internal fun deleteTree(file: File): Boolean {
+    val root = file.toPath()
+    val noFollow = java.nio.file.LinkOption.NOFOLLOW_LINKS
+    if (!java.nio.file.Files.exists(root, noFollow)) return true
+    return runCatching {
+        if (java.nio.file.Files.isDirectory(root, noFollow)) {
+            // walkFileTree по умолчанию не ходит по ссылкам: ссылка приходит в visitFile как обычный файл.
+            java.nio.file.Files.walkFileTree(root, object : java.nio.file.SimpleFileVisitor<java.nio.file.Path>() {
+                override fun visitFile(path: java.nio.file.Path, attrs: java.nio.file.attribute.BasicFileAttributes) =
+                    java.nio.file.FileVisitResult.CONTINUE.also { java.nio.file.Files.deleteIfExists(path) }
+
+                override fun visitFileFailed(path: java.nio.file.Path, exc: java.io.IOException) =
+                    java.nio.file.FileVisitResult.CONTINUE.also { java.nio.file.Files.deleteIfExists(path) }
+
+                override fun postVisitDirectory(dir: java.nio.file.Path, exc: java.io.IOException?) =
+                    java.nio.file.FileVisitResult.CONTINUE.also { java.nio.file.Files.deleteIfExists(dir) }
+            })
+        } else {
+            java.nio.file.Files.deleteIfExists(root)
+        }
+        !java.nio.file.Files.exists(root, noFollow)
+    }.getOrDefault(false)
+}
+
 /** Содержимое папки: сначала папки, потом файлы, скрытые — в конце; по имени без учёта регистра. */
 internal fun listDir(dir: File): List<File> =
     (dir.listFiles()?.toList() ?: emptyList())

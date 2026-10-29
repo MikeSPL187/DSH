@@ -133,6 +133,12 @@ internal class AccountClient(private val conn: HostConnection) : AccountApi {
                     close(t)
                 }
 
+                // Host закрыл поток сам (перезапуск, обновление плагина): закрытие нужно подтвердить —
+                // без ответа OkHttp не доводит рукопожатие до onClosed, и подписка не восстанавливалась (DSH-08).
+                override fun onClosing(webSocket: okhttp3.WebSocket, code: Int, reason: String) {
+                    webSocket.close(1000, null)
+                }
+
                 override fun onClosed(webSocket: okhttp3.WebSocket, code: Int, reason: String) {
                     close()
                 }

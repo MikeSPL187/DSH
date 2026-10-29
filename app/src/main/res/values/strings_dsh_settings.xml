@@ -3,6 +3,7 @@
     <string name="settings_restore_done">Restored files: %1$d</string>
     <string name="settings_restore_failed">Couldn\'t restore — this isn\'t a DSH backup</string>
     <string name="key_lost_reenter">The saved API key can no longer be decrypted on this phone — enter it again</string>
+    <string name="st_key_delete_failed">The key was not deleted: Linux did not confirm the removal. Start Linux and try again.</string>
     <string name="settings_restore_apply_failed">Could not restore — nothing was changed</string>
     <string name="restore_confirm_title">Restore from backup?</string>
     <string name="restore_confirm_desc">The backup was made on this phone. Host settings and session data will be replaced; the Host restarts.</string>

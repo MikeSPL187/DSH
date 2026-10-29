@@ -19,11 +19,20 @@ data class HostWorkspaceInfo(
 
 /**
  * Дерево рабочих папок Host, которое собирается из кадров `workspace/follow`:
- * `baseline`/`replace` — всё заново, `upsert`/`remove` — одна папка, `order` — порядок.
+ * `baseline`/`replace` — всё заново, `upsert`/`remove` — одна папка, `order` — порядок,
+ * `pinned`/`archived` — полные наборы закреплённых и архивных сессий.
  */
 internal class WorkspaceTree {
     private val byId = LinkedHashMap<String, HostWorkspaceInfo>()
     private val order = mutableListOf<String>()
+
+    /** Закреплённые сессии Host (`pinnedSessionIds`); null — Host ещё не прислал. */
+    var pinnedSessionIds: Set<String>? = null
+        private set
+
+    /** Архивные сессии Host (`archivedSessionIds`); null — Host ещё не прислал. */
+    var archivedSessionIds: Set<String>? = null
+        private set
 
     /** Применить кадр и вернуть папки по порядку Host; незнакомый кадр ничего не меняет. */
     fun apply(frame: JsonObject): List<HostWorkspaceInfo> {
@@ -32,7 +41,11 @@ internal class WorkspaceTree {
                 byId.clear()
                 order.clear()
                 (value["items"] as? JsonArray)?.mapNotNull(::parseWorkspace)?.forEach(::put)
+                ids(value["pinnedSessionIds"])?.let { pinnedSessionIds = it }
+                ids(value["archivedSessionIds"])?.let { archivedSessionIds = it }
             }
+            "pinned" -> ids(frame["pinnedSessionIds"])?.let { pinnedSessionIds = it }
+            "archived" -> ids(frame["archivedSessionIds"])?.let { archivedSessionIds = it }
             "upsert" -> parseWorkspace(frame["workspace"])?.let(::put)
             "remove" -> frame.str("workspaceId")?.let { id ->
                 byId.remove(id)
@@ -45,6 +58,9 @@ internal class WorkspaceTree {
         }
         return order.mapNotNull(byId::get)
     }
+
+    private fun ids(element: JsonElement?): Set<String>? =
+        (element as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }?.toSet()
 
     private fun put(workspace: HostWorkspaceInfo) {
         byId[workspace.id] = workspace

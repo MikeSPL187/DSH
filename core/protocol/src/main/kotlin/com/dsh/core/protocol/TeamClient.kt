@@ -32,13 +32,14 @@ internal class TeamClient(private val conn: HostConnection) : TeamApi {
     ): RemoteResult<AgentTeamSummary?> = withContext(kotlinx.coroutines.Dispatchers.IO) {
         val payload = buildJsonObject {
             put("type", "client-request")
+            put("rpcId", java.util.UUID.randomUUID().toString())
             put("method", "session/projections")
             put("payload", buildJsonObject {
-                put("args", buildJsonObject { put("sessionId", sessionId) })
+                put("args", buildJsonObject { put("request", buildJsonObject { put("sessionId", sessionId) }) })
             })
         }.toString()
         val request = Request.Builder()
-            .url("$baseUrl/api")
+            .url("$baseUrl/api/session/projections")
             .post(payload.toRequestBody(mediaTypeJson))
             .build()
         try {
@@ -121,6 +122,7 @@ internal class TeamClient(private val conn: HostConnection) : TeamApi {
     ): RemoteResult<List<AutomationTaskItem>> = withContext(kotlinx.coroutines.Dispatchers.IO) {
         val payload = buildJsonObject {
             put("type", "client-request")
+            put("rpcId", java.util.UUID.randomUUID().toString())
             put("method", "schedule/catalog")
             put("payload", buildJsonObject {
                 put("args", buildJsonObject {})
@@ -128,7 +130,7 @@ internal class TeamClient(private val conn: HostConnection) : TeamApi {
         }.toString()
 
         val request = Request.Builder()
-            .url("$baseUrl/api")
+            .url("$baseUrl/api/schedule/catalog")
             .post(payload.toRequestBody(mediaTypeJson))
             .build()
 
@@ -174,6 +176,7 @@ internal class TeamClient(private val conn: HostConnection) : TeamApi {
     ): RemoteResult<List<TeamTaskItem>> = withContext(kotlinx.coroutines.Dispatchers.IO) {
         val payload = buildJsonObject {
             put("type", "client-request")
+            put("rpcId", java.util.UUID.randomUUID().toString())
             put("method", "team/listTasks")
             put("payload", buildJsonObject {
                 put("args", buildJsonObject {})
@@ -181,7 +184,7 @@ internal class TeamClient(private val conn: HostConnection) : TeamApi {
         }.toString()
 
         val request = Request.Builder()
-            .url("$baseUrl/api")
+            .url("$baseUrl/api/team/listTasks")
             .post(payload.toRequestBody(mediaTypeJson))
             .build()
 
