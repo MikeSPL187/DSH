@@ -433,8 +433,8 @@ private fun RootPage(ui: SettingsUi, a: SettingsActions, go: (StPage) -> Unit) {
             row { PageRow(StPage.Agent, pageTitle(StPage.Agent), approveLabel(ui.autoApprove)) { go(StPage.Agent) } }
             row { StRow(pageTitle(StPage.GitHub), icon = DshGlyphs.get("git"), tile = Si.c6, value = ui.github.login?.let { if (it.isEmpty()) stringResource(R.string.st_gh_on) else "@$it" } ?: stringResource(R.string.st_gh_off), chevron = true, onClick = { go(StPage.GitHub) }) }
             row { PageRow(StPage.Mcp, pageTitle(StPage.Mcp), mcpCount(ui.mcp)) { go(StPage.Mcp) } }
-            row { StRow(stringResource(R.string.st_plugins), icon = DshGlyphs.Puzzle, tile = Si.c8, value = pluralStringResource(R.plurals.st_plugins_on, ui.pluginsOn, ui.pluginsOn), onClick = a::openPlugins) }
-            row { StRow(stringResource(R.string.st_automation), icon = DshGlyphs.Clock, tile = Si.c7, value = pluralStringResource(R.plurals.st_auto_on, ui.automationsOn, ui.automationsOn), onClick = a::openAutomation) }
+            row { StRow(stringResource(R.string.st_plugins), icon = DshGlyphs.Puzzle, tile = Si.c8, value = pluralStringResource(R.plurals.st_plugins_on, ui.pluginsOn, ui.pluginsOn), chevron = true, onClick = a::openPlugins) }
+            row { StRow(stringResource(R.string.st_automation), icon = DshGlyphs.Clock, tile = Si.c7, value = pluralStringResource(R.plurals.st_auto_on, ui.automationsOn, ui.automationsOn), chevron = true, onClick = a::openAutomation) }
         }
         GLabel(stringResource(R.string.st_g_device), Modifier.rise(5))
         Gl(Modifier.rise(6)) {

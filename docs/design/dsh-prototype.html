@@ -3802,7 +3802,7 @@ button.gr:active, button.st-row:active, .plr:active, .ar:active, button.hr:activ
   const stBody = $("#stBody");
   let stStack = [], stCur = null, stQuery = "";
   const curTheme = () => document.documentElement.getAttribute("data-theme") || "system";
-  const row = (ic, c, title, val = "", go = "", extra = "") => `<button class="st-row"${go ? ` data-stgo="${go}"` : ""}${extra}><span class="si ${c}"><svg class="i"><use href="#${ic}"/></svg></span><span class="tx">${title}</span>${val ? `<span class="val">${val}</span>` : ""}${go ? `<svg class="i sm chev-r"><use href="#i-right"/></svg>` : ""}</button>`;
+  const row = (ic, c, title, val = "", go = "", extra = "") => `<button class="st-row"${go ? ` data-stgo="${go}"` : ""}${extra}><span class="si ${c}"><svg class="i"><use href="#${ic}"/></svg></span><span class="tx">${title}</span>${val ? `<span class="val">${val}</span>` : ""}${go || extra.includes("data-act") ? `<svg class="i sm chev-r"><use href="#i-right"/></svg>` : ""}</button>`;
   const tog = (ic, c, title, key, sub = "") => `<div class="st-row"><span class="si ${c}"><svg class="i"><use href="#${ic}"/></svg></span><span class="tx">${title}${sub ? `<small>${sub}</small>` : ""}</span><span class="toggle" role="switch" aria-label="${title}" aria-checked="${ST[key]}" data-sttog="${key}" tabindex="0"></span></div>`;
   const PAGES = {
     root: ["Настройки", ""],
