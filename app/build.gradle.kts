@@ -22,8 +22,8 @@ android {
         applicationId = "app.dsh.mobile"
         minSdk = 26
         targetSdk = 35
-        versionCode = 111
-        versionName = "1.1.1"
+        versionCode = 112
+        versionName = "1.1.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Client id OAuth App владельца для входа в GitHub (device flow, без client secret): не секрет, его видно всем.
