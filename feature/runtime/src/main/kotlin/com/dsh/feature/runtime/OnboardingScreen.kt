@@ -130,6 +130,7 @@ data class OnboardingKey(
  * @property done Linux установлен и Host отвечает.
  * @property error понятная причина ошибки; null — ошибок нет.
  * @property errorDetail техническая подробность мелким шрифтом.
+ * @property hostFailed установка завершена, ошибка относится к запуску Host.
  */
 @Immutable
 data class LinuxInstall(
@@ -143,6 +144,7 @@ data class LinuxInstall(
     val done: Boolean = false,
     val error: String? = null,
     val errorDetail: String? = null,
+    val hostFailed: Boolean = false,
 )
 
 /** Языки интерфейса в переключателе сверху: тег и самоназвание. */
@@ -182,6 +184,7 @@ fun OnboardingScreen(
     onFinish: (OnboardingKey?) -> Unit,
     modifier: Modifier = Modifier,
     onRestoreBackup: (() -> Unit)? = null,
+    onCopyReport: (() -> Unit)? = null,
 ) {
     val c = Dsh.colors
     var step by rememberSaveable { mutableStateOf(0) }
@@ -298,7 +301,7 @@ fun OnboardingScreen(
                         dir = dir,
                     )
                     2 -> WorkspaceStep(shared, { shared = it; waitingShared = false }, sharedAccessGranted, dir)
-                    else -> LinuxStep(install, notify, onNotifyChange, dir)
+                    else -> LinuxStep(install, notify, onNotifyChange, dir, onCopyReport)
                 }
             }
         }
@@ -908,15 +911,15 @@ private fun Radio(selected: Boolean) {
 
 /** Шаг 3: ход установки Linux, этапы и уведомление о готовности. */
 @Composable
-private fun LinuxStep(install: LinuxInstall, notify: Boolean, onNotifyChange: (Boolean) -> Unit, dir: Int) {
-    val c = Dsh.colors
+private fun LinuxStep(install: LinuxInstall, notify: Boolean, onNotifyChange: (Boolean) -> Unit, dir: Int, onCopyReport: (() -> Unit)? = null) {
     val title = when {
+        install.hostFailed -> R.string.ob_env_host_failed
         install.error != null -> R.string.ob_env_failed
         install.done -> R.string.ob_env_done
         else -> R.string.ob_env_title
     }
-    StepHead(3, stringResource(title), stringResource(if (install.error != null) R.string.ob_env_lead_failed else R.string.ob_env_lead), dir)
-    InstallCard(install, Modifier.enter(3, dir))
+    StepHead(3, stringResource(title), stringResource(installLead(install)), dir)
+    InstallCard(install, Modifier.enter(3, dir), onCopyReport)
     NotifyRow(notify, onNotifyChange, Modifier.enter(4, dir))
 }
 
@@ -925,22 +928,23 @@ private fun LinuxStep(install: LinuxInstall, notify: Boolean, onNotifyChange: (B
  * тот же заголовок и блок хода установки, кнопка «Повторить» при ошибке.
  */
 @Composable
-fun LinuxSetupScreen(install: LinuxInstall, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+fun LinuxSetupScreen(install: LinuxInstall, onRetry: () -> Unit, modifier: Modifier = Modifier, onCopyReport: (() -> Unit)? = null) {
     val c = Dsh.colors
     Column(modifier.fillMaxSize().background(c.bg).statusBarsPadding()) {
         Column(
             Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 22.dp, end = 22.dp, top = 66.dp, bottom = 20.dp),
         ) {
             val title = when {
+                install.hostFailed -> R.string.ob_env_host_failed
                 install.error != null -> R.string.ob_env_failed
                 install.done -> R.string.ob_env_done
                 else -> R.string.ob_env_title
             }
             Text(stringResource(title), style = H2, color = c.t1, modifier = Modifier.semantics { heading() })
             Spacer(Modifier.height(8.dp))
-            Text(stringResource(if (install.error != null) R.string.ob_env_lead_failed else R.string.ob_env_lead), style = Lead, color = c.t2)
+            Text(stringResource(installLead(install)), style = Lead, color = c.t2)
             Spacer(Modifier.height(22.dp))
-            InstallCard(install, Modifier)
+            InstallCard(install, Modifier, onCopyReport)
         }
         Bottom(
             primaryText = stringResource(if (install.error != null) R.string.ob_retry else R.string.ob_installing),
@@ -954,7 +958,7 @@ fun LinuxSetupScreen(install: LinuxInstall, onRetry: () -> Unit, modifier: Modif
 
 /** `.ob-inst`: процент, полоса и три этапа. */
 @Composable
-private fun InstallCard(install: LinuxInstall, modifier: Modifier) {
+private fun InstallCard(install: LinuxInstall, modifier: Modifier, onCopyReport: (() -> Unit)? = null) {
     val c = Dsh.colors
     val pct = (install.progress.coerceIn(0f, 1f) * 100).toInt()
     Column(
@@ -975,7 +979,7 @@ private fun InstallCard(install: LinuxInstall, modifier: Modifier) {
         // `.ob-err`: при ошибке вместо процента и полосы — что не получилось и что делать (карточка короче —
         // помещается на маленьком экране); техническая причина — под «Подробности».
         if (install.error != null) {
-            InstallError(install)
+            InstallError(install, onCopyReport)
         } else {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
             Text(
@@ -1018,14 +1022,14 @@ private fun InstallCard(install: LinuxInstall, modifier: Modifier) {
         Stage(
             label = stringResource(R.string.ob_stage_check),
             state = stageState(2, install),
-            note = "SHA-256",
+            note = stringResource(R.string.ob_stage_check_note),
         )
     }
 }
 
 /** `.ob-err`: значок, «Не удалось …» по этапу, причина простыми словами и «Подробности» с технической причиной. */
 @Composable
-private fun InstallError(install: LinuxInstall) {
+private fun InstallError(install: LinuxInstall, onCopyReport: (() -> Unit)?) {
     val c = Dsh.colors
     var more by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1045,11 +1049,33 @@ private fun InstallError(install: LinuxInstall) {
                     modifier = Modifier.offset(x = (-10).dp).heightIn(min = 40.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button) { more = !more }
                         .padding(horizontal = 10.dp).wrapContentHeight(Alignment.CenterVertically),
                 )
-                if (more) Text(install.errorDetail, style = TextStyle(fontFamily = DshFonts.mono, fontSize = 11.5.sp, lineHeight = 17.sp), color = c.t3)
+                if (more) Text(
+                    install.errorDetail,
+                    style = TextStyle(fontFamily = DshFonts.mono, fontSize = 11.5.sp, lineHeight = 17.sp),
+                    color = c.t2,
+                    // Длинный журнал прокручивается внутри карточки, не отодвигая этапы на десятки экранов.
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 170.dp).verticalScroll(rememberScrollState()),
+                )
+            }
+            if (onCopyReport != null) {
+                Text(
+                    stringResource(R.string.ob_copy_report),
+                    style = TextStyle(fontFamily = DshFonts.body, fontWeight = FontWeight.Medium, fontSize = 13.5.sp),
+                    color = c.accent,
+                    modifier = Modifier.offset(x = (-10).dp).heightIn(min = 40.dp).clip(RoundedCornerShape(12.dp))
+                        .clickable(role = Role.Button, onClick = onCopyReport)
+                        .padding(horizontal = 10.dp).wrapContentHeight(Alignment.CenterVertically),
+                )
             }
         }
     }
     Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
+}
+
+private fun installLead(install: LinuxInstall): Int = when {
+    install.hostFailed -> R.string.ob_env_host_failed_lead
+    install.error != null -> R.string.ob_env_lead_failed
+    else -> R.string.ob_env_lead
 }
 
 /** `.ob-notif`: строка группы с переключателем. */

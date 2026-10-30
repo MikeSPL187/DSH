@@ -58,6 +58,26 @@ class HostProcessRunnerTest {
     }
 
     @Test
+    fun `markError refreshes the timestamp and the next launch publishes fresh STARTING`() = runBlocking {
+        val runner = HostProcessRunner()
+        val workingDir = Files.createTempDirectory("dsh-host-retry").toFile()
+        try {
+            val failedAt = System.currentTimeMillis()
+            runner.markError("previous failure")
+            assertTrue(runner.statusFlow.value.updatedAtMillis >= failedAt)
+            val retryAt = System.currentTimeMillis()
+            runner.launchProcess(endpointCommand(), workingDir).getOrThrow()
+            val status = runner.statusFlow.value
+            assertEquals(RuntimePhase.STARTING, status.phase)
+            assertEquals(null, status.lastError)
+            assertTrue(status.updatedAtMillis >= retryAt)
+        } finally {
+            runner.terminate()
+            workingDir.deleteRecursively()
+        }
+    }
+
+    @Test
     fun `process exit during startup becomes error with exit code and log tail`() = runBlocking {
         val runner = HostProcessRunner()
         val workingDir = Files.createTempDirectory("dsh-host-runner-exit").toFile()

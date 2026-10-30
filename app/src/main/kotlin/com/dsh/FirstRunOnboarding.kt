@@ -152,6 +152,14 @@ internal fun FirstRunOnboarding(
                 }
             }
         },
+        onCopyReport = if (install.hostFailed) {
+            {
+                scope.launch {
+                    val status = runtimeManager.getStatus()
+                    copyHostStartupReport(context, status, status.lastError ?: runtimeUi.hostStartupDetail)
+                }
+            }
+        } else null,
         notify = notify,
         onNotifyChange = { notify = it },
         language = language,
@@ -181,8 +189,13 @@ internal fun FirstRunOnboarding(
 internal fun rememberFriendlyLinuxInstall(runtimeUi: AppRuntimeUiState): LinuxInstall {
     val context = LocalContext.current
     val s = rememberLinuxInstall(runtimeUi)
+    return friendlyLinuxInstall(s) { context.getString(it) }
+}
+
+internal fun friendlyLinuxInstall(s: LinuxInstall, getString: (Int) -> String): LinuxInstall {
     val raw = s.error ?: return s
-    return s.copy(error = context.getString(installErrorText(raw)), errorDetail = raw)
+    val message = if (s.hostFailed) com.dsh.feature.runtime.R.string.ob_err_host else installErrorText(raw)
+    return s.copy(error = getString(message), errorDetail = raw)
 }
 
 /** Понятная причина сбоя установки по тексту исключения. */
@@ -206,6 +219,7 @@ private fun installErrorText(raw: String): Int {
  */
 @Composable
 private fun rememberLinuxInstall(runtimeUi: AppRuntimeUiState): LinuxInstall {
+    val context = LocalContext.current
     val (p, _) = runtimeUi.rootfsSetupProgress
     val rootfsDone = runtimeUi.rootfsReady == true
     val hostDone = runtimeUi.hostProgressReady
@@ -216,8 +230,9 @@ private fun rememberLinuxInstall(runtimeUi: AppRuntimeUiState): LinuxInstall {
         rootfs < 0.51f -> 0
         else -> 1
     }
-    val error = runtimeUi.rootfsSetupError ?: if (rootfsDone && runtimeUi.hostStartupError) {
-        runtimeUi.hostStartupDetail ?: "Host"
+    val hostFailed = runtimeUi.rootfsSetupError == null && rootfsDone && runtimeUi.hostStartupError
+    val error = runtimeUi.rootfsSetupError ?: if (hostFailed) {
+        runtimeUi.hostStartupDetail ?: context.getString(R.string.host_startup_no_detail)
     } else null
 
     // Оставшееся время — по скорости с начала установки.
@@ -236,6 +251,7 @@ private fun rememberLinuxInstall(runtimeUi: AppRuntimeUiState): LinuxInstall {
         etaSeconds = eta,
         done = rootfsDone && hostDone,
         error = error,
+        hostFailed = hostFailed,
     )
 }
 

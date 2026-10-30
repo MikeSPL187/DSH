@@ -44,6 +44,8 @@
     <string name="ob_env_title">Устанавливаю Linux</string>
     <string name="ob_env_done">Всё готово</string>
     <string name="ob_env_failed">Linux не установился</string>
+    <string name="ob_env_host_failed">Linux не запустился</string>
+    <string name="ob_env_host_failed_lead">Загрузка и распаковка прошли. Не запустился сам Linux — причина в «Подробностях».</string>
     <string name="ob_env_lead">Debian с git, Python и Node. Это нужно один раз — можно свернуть приложение, установка не прервётся.</string>
     <string name="ob_env_lead_failed">Проверьте подключение к интернету и нажмите «Повторить». Без Linux агент не сможет запускать команды.</string>
     <string name="ob_err_download">Не удалось скачать</string>
@@ -57,6 +59,8 @@
     <string name="ob_stage_download">Загрузка</string>
     <string name="ob_stage_unpack">Распаковка</string>
     <string name="ob_stage_check">Проверка</string>
+    <string name="ob_stage_check_note">Запуск</string>
+    <string name="ob_copy_report">Скопировать отчёт</string>
     <string name="ob_of">%1$s из %2$s</string>
     <string name="ob_notify">Сообщить о готовности</string>
     <string name="ob_notify_sub">Одно уведомление</string>
@@ -69,4 +73,5 @@
     <string name="ob_err_offline">Нет соединения с интернетом. Подключитесь и нажмите «Повторить».</string>
     <string name="ob_err_space">Не хватает места: Linux нужно около 1,5 ГБ.</string>
     <string name="ob_err_generic">Установка прервалась. Нажмите «Повторить».</string>
+    <string name="ob_err_host">Linux установлен, но не запустился. Нажмите «Повторить»; если не поможет — скопируйте отчёт.</string>
 </resources>

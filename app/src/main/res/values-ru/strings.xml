@@ -9,7 +9,8 @@
     <string name="drawer_default_user">Пользователь DeepSeek</string>
     <string name="action_cancel">Отмена</string>
     <string name="row_rename">Переименовать</string>
-    <string name="host_startup_copied">Диагностика скопирована</string>
+    <string name="host_startup_copied">Скопировано</string>
+    <string name="host_startup_no_detail">Host не сообщил причину. Откройте Настройки → Linux → Журнал</string>
     <string name="host_startup_timeout">Локальный Host не запустился за 90 с</string>
     <string name="host_starting">Запуск локального Host…</string>
     <string name="official_agent_team_title">Команда агентов</string>

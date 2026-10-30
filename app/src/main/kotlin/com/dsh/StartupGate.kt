@@ -143,9 +143,18 @@ internal fun StartupGate(
 
     if (!runtimeUi.showOnboarding && runtimeUi.rootfsReady != true) {
         // Переустановка Linux (обязательное обновление): тот же блок, что на шаге 3 первого запуска.
+        val install = rememberFriendlyLinuxInstall(runtimeUi)
         com.dsh.feature.runtime.LinuxSetupScreen(
-            install = rememberFriendlyLinuxInstall(runtimeUi),
+            install = install,
             onRetry = { runtimeUi.rootfsInstallAttempt++ },
+            onCopyReport = if (install.hostFailed) {
+                {
+                    scope.launch {
+                        val current = runtimeManager.getStatus()
+                        copyHostStartupReport(context, current, current.lastError ?: runtimeUi.hostStartupDetail)
+                    }
+                }
+            } else null,
         )
         return false
     }
@@ -189,9 +198,11 @@ internal fun StartupGate(
                     runtimeUi.hostStartupError = false
                     runtimeUi.hostStartupDetail = null
                 }
+                isPreviousHostFailure(current, startedAt) ->
+                    kotlinx.coroutines.delay(300) // Ошибка прошлой попытки: новый запуск ещё не сменил статус.
                 current.phase == RuntimePhase.ERROR -> {
                     runtimeUi.hostStartupError = true
-                    runtimeUi.hostStartupDetail = null
+                    runtimeUi.hostStartupDetail = hostFailureDetail(current, includeTail = runtimeUi.showOnboarding)
                     break
                 }
                 else -> kotlinx.coroutines.delay(300)
@@ -201,7 +212,6 @@ internal fun StartupGate(
     if (!runtimeUi.showOnboarding && runtimeUi.rootfsReady == true && !runtimeUi.hostProgressReady) {
         val failed = runtimeUi.hostStartupError
         val failDetail = runtimeUi.hostStartupDetail ?: if (failed) status.lastError else null
-        val copiedLabel = stringResource(R.string.host_startup_copied)
         com.dsh.feature.runtime.HostStartScreen(
             status = stringResource(R.string.host_starting),
             failed = failed,
@@ -209,18 +219,7 @@ internal fun StartupGate(
             detail = failDetail,
             logTail = if (failed) status.logTail else emptyList(),
             onCopyReport = {
-                // Вывод уже очищен от секретов (runner), в отчёт идёт целиком: главное часто в конце.
-                val payload = buildString {
-                    appendLine("DSH Host startup failed")
-                    appendLine("device: ${android.os.Build.BRAND} ${android.os.Build.MODEL}")
-                    appendLine("android: ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})")
-                    appendLine("abi: ${android.os.Build.SUPPORTED_ABIS.joinToString()}")
-                    failDetail?.takeIf { it.isNotBlank() }?.let { appendLine("error: $it") }
-                    status.logTail.forEach { appendLine(it) }
-                }
-                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-                clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("DSH host startup", payload))
-                android.widget.Toast.makeText(context, copiedLabel, android.widget.Toast.LENGTH_SHORT).show()
+                copyHostStartupReport(context, status, failDetail)
             },
             onRetry = {
                 runtimeUi.hostStartupError = false
@@ -263,4 +262,32 @@ internal fun StartupGate(
         return false
     }
     return true
+}
+
+/** Ошибка прошлой попытки не должна обрывать повтор до публикации нового STARTING. */
+internal fun isPreviousHostFailure(s: RuntimeStatus, startedAt: Long): Boolean =
+    s.phase == RuntimePhase.ERROR && s.updatedAtMillis < startedAt
+
+/** Причина сбоя Host и последние строки вывода (уже без секретов), для экрана и отчёта. */
+internal fun hostFailureDetail(s: RuntimeStatus, includeTail: Boolean = true): String? {
+    val tail = if (includeTail) s.logTail.takeLast(20).joinToString("\n") else ""
+    return listOfNotNull(s.lastError?.takeIf { it.isNotBlank() }, tail.takeIf { it.isNotBlank() })
+        .distinct().joinToString("\n\n").ifBlank { null }
+}
+
+/** Только очищенный статус раннера: порт и токен в отчёт не попадают. */
+internal fun hostStartupReport(status: RuntimeStatus, detail: String? = status.lastError): String = buildString {
+    appendLine("DSH Host startup failed")
+    appendLine("device: ${android.os.Build.BRAND} ${android.os.Build.MODEL}")
+    appendLine("android: ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})")
+    appendLine("abi: ${android.os.Build.SUPPORTED_ABIS.joinToString()}")
+    detail?.takeIf { it.isNotBlank() }?.let { appendLine("error: $it") }
+    status.logTail.forEach { appendLine(it) }
+}
+
+internal fun copyHostStartupReport(context: android.content.Context, status: RuntimeStatus, detail: String? = status.lastError) {
+    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+        ?: return
+    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("DSH host startup", hostStartupReport(status, detail)))
+    android.widget.Toast.makeText(context, R.string.host_startup_copied, android.widget.Toast.LENGTH_SHORT).show()
 }

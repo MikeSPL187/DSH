@@ -823,6 +823,11 @@ class DefaultHostRuntimeManager(
     }
 
     private suspend fun startLocked(workspacePath: String): Result<RuntimeStatus> {
+        // Отказ до запуска процесса тоже виден экрану: иначе он ждёт таймаут в STOPPED.
+        fun fail(e: Throwable): Result<RuntimeStatus> {
+            runner.markError(e.message ?: HostStrings.get(R.string.rt_host_exited, "The Host process exited during startup"))
+            return Result.failure(e)
+        }
         // NonCancellable: если область вызывающего отменят (смена страницы, перекомпоновка, «Назад»), runner
         // не должен застрять в STARTING. Запуск либо доходит до конца, либо — до явной ERROR; страхуют сторож и таймаут.
         val result = withContext(Dispatchers.IO + NonCancellable) {
@@ -833,7 +838,7 @@ class DefaultHostRuntimeManager(
         val hasRootfs = File(layout.rootfsDir, "etc/os-release").isFile ||
             File(layout.rootfsDir, "usr/bin/env").isFile
         if (!hasRootfs) {
-            return@withContext Result.failure(
+            return@withContext fail(
                 IllegalStateException(HostStrings.get(R.string.rt_not_installed, "The rootfs is not installed: install it from the runtime page first"))
             )
         }
@@ -848,7 +853,7 @@ class DefaultHostRuntimeManager(
             installedRootfsVersion != null &&
             !RootfsNaming.isDshCompatible(installedRootfsVersion, expectedDsh)
         ) {
-            return@withContext Result.failure(
+            return@withContext fail(
                 IllegalStateException(
                     HostStrings.get(R.string.rt_incompatible, "The rootfs is incompatible with this APK: installed %1\$s, this APK targets dsh%2\$s. Reinstall a matching rootfs in Settings → Runtime.", installedRootfsVersion, expectedDsh)
                 )
@@ -873,7 +878,7 @@ class DefaultHostRuntimeManager(
         }
         killStaleHostProcesses()
         if (!layout.prootBinary.isFile) {
-            return@withContext Result.failure(
+            return@withContext fail(
                 IllegalStateException(com.dsh.core.model.Tr.t("${layout.prootBinary.name} is missing: proot for this ABI must be packaged in jniLibs", "Нет ${layout.prootBinary.name}: proot для этого ABI должен быть в jniLibs"))
             )
         }
@@ -1010,7 +1015,7 @@ class DefaultHostRuntimeManager(
         // Пока готовились, пришла остановка (восстановление копии, авто-сон, «Стоп»): процесс не поднимаем.
         if (lifecycle.stopRequested) {
             bridge.stop()
-            return@withContext Result.failure(IllegalStateException(com.dsh.core.model.Tr.t("Host start was cancelled by a stop request", "Запуск Host отменён: пришла остановка")))
+            return@withContext fail(IllegalStateException(com.dsh.core.model.Tr.t("Host start was cancelled by a stop request", "Запуск Host отменён: пришла остановка")))
         }
         val launchResult = runner.launchProcess(
             command = launchCmd,

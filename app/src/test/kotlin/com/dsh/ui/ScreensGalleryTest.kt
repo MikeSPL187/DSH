@@ -14,11 +14,13 @@ import com.dsh.feature.files.FileItem
 import com.dsh.feature.files.FilesScreen
 import com.dsh.feature.runtime.OnboardingScreen
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
+import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
@@ -363,6 +365,7 @@ class ScreensGalleryTest {
         dark: Boolean = false,
         install: com.dsh.feature.runtime.LinuxInstall = com.dsh.feature.runtime.LinuxInstall(),
         granted: Boolean = false,
+        onCopyReport: (() -> Unit)? = null,
         steps: androidx.compose.ui.test.junit4.AndroidComposeTestRule<*, *>.() -> Unit = {},
     ) {
         compose.mainClock.autoAdvance = false
@@ -375,6 +378,7 @@ class ScreensGalleryTest {
                     onWhereKey = {}, onChoosePrivate = {}, onRequestShared = {}, onRetryInstall = {},
                     notify = true, onNotifyChange = {}, language = "ru", onLanguage = {},
                     onFinish = {}, onRestoreBackup = {},
+                    onCopyReport = onCopyReport,
                 )
             }
         }
@@ -416,6 +420,65 @@ class ScreensGalleryTest {
     @Test fun ob3ErrorSmall() = renderOb("55c_ob_linux_error_360x640", install = installFailed) { keyOk(); tap("Продолжить"); tap("Продолжить") }
     @Config(qualifiers = "ru-w412dp-h915dp-xxhdpi")
     @Test fun ob3ErrorMoreDark() = renderOb("55d_ob_linux_error_more_412_dark", dark = true, install = installFailed) { keyOk(); tap("Продолжить"); tap("Продолжить"); tap("Подробности") }
+
+    private val hostFailed = installed.copy(
+        progress = 0.92f, done = false, hostFailed = true,
+        error = "Linux установлен, но не запустился. Нажмите «Повторить»; если не поможет — скопируйте отчёт.",
+        errorDetail = "Host exited (exit=3): connect ECONNREFUSED\n\n" +
+            (1..40).joinToString("\n") { "[$it] Cannot connect to local Host: /root/.dsh/profiles/web/node_modules/example/entry.js" },
+    )
+
+    private fun renderHostFailed(name: String, dark: Boolean = false) {
+        var copied = false
+        renderOb(name, dark = dark, install = hostFailed, onCopyReport = { copied = true }) {
+            keyOk(); tap("Продолжить"); tap("Продолжить")
+            onNodeWithText("Linux не запустился").assertExists()
+            onNodeWithText("Запуск").assertExists()
+            onNodeWithText("SHA-256").assertDoesNotExist()
+            ScreenShots.capture(this, "${name}_collapsed", activity)
+            onNodeWithText("Подробности").performScrollTo().performClick()
+            mainClock.advanceTimeBy(500)
+            val density = activity.resources.displayMetrics.density
+            val journal = onNodeWithText(hostFailed.errorDetail!!).performScrollTo()
+            org.junit.Assert.assertTrue("Журнал ограничен десятью строками", journal.fetchSemanticsNode().boundsInRoot.height <= 170 * density)
+            journal.performTouchInput { swipeUp() }
+            mainClock.advanceTimeBy(500)
+            val copy = onNodeWithText("Скопировать отчёт").performScrollTo()
+            val bounds = copy.fetchSemanticsNode().boundsInRoot
+            org.junit.Assert.assertTrue("Кнопка отчёта не меньше 40 dp", bounds.height >= 40 * density)
+            copy.performClick()
+            org.junit.Assert.assertTrue(copied)
+            ScreenShots.capture(this, "${name}_details", activity)
+            // performScrollTo ждёт новую раскладку без шага часов; жест снаружи журнала прокручивает сам экран.
+            onRoot().performTouchInput {
+                swipe(
+                    start = androidx.compose.ui.geometry.Offset(width * 0.08f, height * 0.65f),
+                    end = androidx.compose.ui.geometry.Offset(width * 0.08f, height * 0.25f),
+                    durationMillis = 400,
+                )
+            }
+            mainClock.advanceTimeBy(1_200)
+            onNodeWithText("Проверка").assertIsDisplayed()
+            onNodeWithText("Повторить").assertIsDisplayed()
+        }
+    }
+
+    @Test @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    fun ob3HostFailed360() = renderHostFailed("55e_ob_host_failed_360")
+    @Test @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    fun ob3HostFailed360Dark() = renderHostFailed("55f_ob_host_failed_360_dark", dark = true)
+    @Test @Config(qualifiers = "ru-w390dp-h844dp-xxhdpi")
+    fun ob3HostFailed390() = renderHostFailed("55g_ob_host_failed_390")
+    @Test @Config(qualifiers = "ru-w390dp-h844dp-xxhdpi")
+    fun ob3HostFailed390Dark() = renderHostFailed("55h_ob_host_failed_390_dark", dark = true)
+    @Test @Config(qualifiers = "ru-w412dp-h915dp-xxhdpi")
+    fun ob3HostFailed412() = renderHostFailed("55i_ob_host_failed_412")
+    @Test @Config(qualifiers = "ru-w412dp-h915dp-xxhdpi")
+    fun ob3HostFailed412Dark() = renderHostFailed("55j_ob_host_failed_412_dark", dark = true)
+
+    @Test fun linuxSetupHostFailed() = render("58b_linux_setup_host_failed", dark = true) {
+        com.dsh.feature.runtime.LinuxSetupScreen(install = hostFailed, onRetry = {}, onCopyReport = {})
+    }
     @Test fun linuxSetup() = render("58_linux_setup", dark = true) {
         com.dsh.feature.runtime.LinuxSetupScreen(install = installing, onRetry = {})
     }
