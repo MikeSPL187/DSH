@@ -84,7 +84,9 @@ RUN set -eu; \
     echo "replaced $count @deepseek-ai packages with the source build"; \
     rm -rf /out
 WORKDIR /usr/local/lib/node_modules/@deepseek-ai/dsh/lib
+# CommonJS внутри ESM (в том числе undici) требует require с опорой на bundle.
 RUN ../node_modules/.bin/esbuild bin.js --bundle --platform=node --format=esm --target=node24 \
+      --banner:js='/* dsh-host-bundle-require-v1 */ import { createRequire as __dshHostCreateRequire } from "node:module"; var require = __dshHostCreateRequire(import.meta.url);' \
       --outfile=host.bundle.mjs --external:*.node --external:node:* --log-level=warning \
   && ls -lh host.bundle.mjs
 # В образ — без dev-зависимостей (esbuild и прочее только для сборки).
