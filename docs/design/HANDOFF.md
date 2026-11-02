@@ -104,6 +104,18 @@ ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.grad
   при высоте телефона (360×740, 390×844, 412×915).
 - Обход экранов Настроек/Плагинов/Автоматизации/Терминала: `app/src/test/.../ui/DshScreensSweepTest.kt` → `app/build/ui-sweep/`.
 
+## Эмулятор с настоящим первым запуском (проверено 2026-11)
+- Новый эмулятор без KVM стартует только с `ANDROID_I_WANT_MY_TCG=yes` (уже в `emulator.sh`). Каждое `adb shell input`
+  ≈ 10–15 с; ключ вводить кусками по 5 символов (`input text`), иначе символы теряются.
+- Сеть: `adb root; adb shell settings put global http_proxy 10.0.2.2:<порт HTTPS_PROXY>`. api.deepseek.com прокси
+  не перехватывает — проверка ключа и баланс работают; github.com перехватывается (CA прокси на устройстве нет).
+- rootfs: скачать x86_64 из `app/src/main/assets/rootfs-manifest.json` в контейнере, сверить SHA-256, положить
+  `adb push … /data/data/com.dsh.mobile.debug/files/cache/rootfs-local.tar.gz` (+ `chown` на uid приложения).
+  Распаковка на TCG ≈ 40 мин.
+- Host на этом эмуляторе не запускается: proot падает `handle_tracee_event: assertion "IS_IN_SYSENTER(tracee)"`
+  (ptrace под TCG). Живой чат с агентом — только на телефоне или эмуляторе с KVM.
+- Локаль: `setprop persist.sys.locale ru-RU; setprop ctl.restart zygote`.
+
 ## Грабли
 - Android обрезает пробелы в начале/конце строковых ресурсов — такие строки брать в кавычки.
 - `org.json` в чистых JVM-тестах не работает — такие тесты делать в Robolectric (app).
