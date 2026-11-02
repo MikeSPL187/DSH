@@ -33,7 +33,6 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.put
-import java.util.Locale
 import java.util.UUID
 
 /**
@@ -152,7 +151,7 @@ class PluginsRepository internal constructor(
             return
         }
         // Подписи регистраций — thunk `t('key')`: мост разрешает их только с языком интерфейса.
-        val locale = Locale.getDefault().toLanguageTag()
+        val locale = HOST_LOCALE
         when (val all = registry.slotRegistrations(locale = locale)) {
             is BridgeResult.Success -> {
                 _pluginSlotEntriesFlow.value = all.value.registrations
@@ -257,7 +256,7 @@ class PluginsRepository internal constructor(
             _bridgeWarningsFlow.value = emptyList()
             return
         }
-        val result = BridgePluginCatalog.load(registry, iconSize, Locale.getDefault().toLanguageTag())
+        val result = BridgePluginCatalog.load(registry, iconSize, HOST_LOCALE)
         _bridgePluginCatalogFlow.value = result.catalog
         _bridgeWarningsFlow.value = result.warnings
     }
@@ -412,3 +411,10 @@ internal fun <T> RemoteResult<T>.toResult(): Result<T> = when (this) {
     is RemoteResult.Success -> Result.success(data)
     is RemoteResult.Failure -> Result.failure(IllegalStateException(message))
 }
+
+/**
+ * Язык текстов, которые присылает Host (названия плагинов, подписи слотов). Host знает только zh и en,
+ * приложение — ru и en: с языком телефона `ru-RU` мост отвечал на языке Host по умолчанию — по-китайски
+ * («智能体团队» вместо «Agent Teams»). Поэтому всегда английский, как и `syncHostLocale`.
+ */
+internal const val HOST_LOCALE = "en"

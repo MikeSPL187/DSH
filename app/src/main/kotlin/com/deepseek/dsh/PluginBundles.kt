@@ -1,7 +1,6 @@
 package com.deepseek.dsh
 
 import android.content.Context
-import android.widget.Toast
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -111,7 +110,7 @@ internal class BundleToggle(
     )
 
     private fun toast(text: String, long: Boolean = false) =
-        Toast.makeText(context, text, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
+        com.deepseek.dsh.core.designsystem.kit.DshToast.show(text)
 }
 
 /** Окно «Нужен перезапуск» после переключения плагина: причины от Host и «Перезапустить сейчас». */
@@ -230,7 +229,7 @@ internal fun PluginPollingEffect(ui: AppUiState, repository: DshRepository, runn
                 val events = plugins.pendingPluginEvents()
                 plugins.dispatchPluginEvents(events)
                 events.filter { it.kind == "toast" && it.text.isNotBlank() }
-                    .forEach { Toast.makeText(context, it.text, Toast.LENGTH_SHORT).show() }
+                    .forEach { com.deepseek.dsh.core.designsystem.kit.DshToast.show(it.text) }
             }
         }
     }

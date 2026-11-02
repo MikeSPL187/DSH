@@ -140,7 +140,7 @@ internal fun AppDrawer(
                                 ui.selectedSessionId = forked
                                 go(ActivePage.CHAT)
                             } else {
-                                android.widget.Toast.makeText(context, context.getString(R.string.session_fork_failed), android.widget.Toast.LENGTH_SHORT).show()
+                                com.deepseek.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.session_fork_failed))
                             }
                         }
                     },

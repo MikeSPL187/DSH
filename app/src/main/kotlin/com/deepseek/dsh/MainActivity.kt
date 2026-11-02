@@ -13,6 +13,7 @@ import com.deepseek.dsh.plugin.surface.SurfaceCatalogStore
 import com.deepseek.dsh.runtime.host.HostProcessRunner
 import com.deepseek.dsh.runtime.host.HostRuntimeManager
 import java.io.File
+import androidx.compose.ui.unit.dp
 
 class MainActivity : ComponentActivity() {
     /** Внешняя папка приложения: proot на Android 11+ надёжно читает и пишет её (без MANAGE_EXTERNAL_STORAGE). */
@@ -140,6 +141,9 @@ class MainActivity : ComponentActivity() {
                     // Отстающий bridge-плагин — окно после запуска; необязательное обновление rootfs — только в настройках.
                     BridgeUpdatePrompt()
                     BiometricGate()
+                    // Общий тост системы (`.toast`) поверх всех экранов вместо системного Toast Android.
+                    // Выше дока и поля ввода чата (на экранах без них просто чуть выше).
+                    com.deepseek.dsh.core.designsystem.kit.ToastHost(com.deepseek.dsh.core.designsystem.kit.DshToast.state, bottom = 172.dp)
                 }
             }
         }

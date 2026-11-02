@@ -746,9 +746,24 @@ class ToastState {
 @Composable
 fun rememberToast(): ToastState = remember { ToastState() }
 
+/**
+ * Общий тост приложения: тот же `.toast` системы вместо серого системного Toast Android.
+ * Показывается из любого места и потока; рисует его один [ToastHost] в корне экрана (MainActivity).
+ */
+object DshToast {
+    val state = ToastState()
+    private val main = android.os.Handler(android.os.Looper.getMainLooper())
+
+    fun show(text: CharSequence) {
+        val message = text.toString()
+        if (message.isBlank()) return
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) state.show(message) else main.post { state.show(message) }
+    }
+}
+
 /** Тост `.toast`: тёмная «таблетка» над низом экрана (112 dp), 2,3 с. */
 @Composable
-fun ToastHost(state: ToastState, modifier: Modifier = Modifier) {
+fun ToastHost(state: ToastState, modifier: Modifier = Modifier, bottom: androidx.compose.ui.unit.Dp = 112.dp) {
     val msg = state.message
     var shown by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(state.serial) {
@@ -758,7 +773,7 @@ fun ToastHost(state: ToastState, modifier: Modifier = Modifier) {
         shown = null
         state.clear()
     }
-    Box(modifier.fillMaxSize().navigationBarsPadding().padding(bottom = 112.dp, start = 16.dp, end = 16.dp), contentAlignment = Alignment.BottomCenter) {
+    Box(modifier.fillMaxSize().navigationBarsPadding().padding(bottom = bottom, start = 16.dp, end = 16.dp), contentAlignment = Alignment.BottomCenter) {
         AnimatedVisibility(
             visible = shown != null,
             enter = fadeIn(DshMotion.lively()) + slideInVertically(DshMotion.lively()) { -it / 2 } + scaleIn(DshMotion.lively(), initialScale = 0.96f),

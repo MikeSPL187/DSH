@@ -47,11 +47,7 @@ class ChatSender(
                 )
                 if (result != null) {
                     val message = result.text ?: result.kind
-                    android.widget.Toast.makeText(
-                        context,
-                        message,
-                        android.widget.Toast.LENGTH_SHORT,
-                    ).show()
+                    com.deepseek.dsh.core.designsystem.kit.DshToast.show(message)
                     repository.refreshSessionStats(
                         ui.activeHostId, sid,
                     )
@@ -171,9 +167,7 @@ class ChatSender(
                 }
                 repository.sendMessage(ui.activeHostId, sid, outgoingText, encodedImages)
             } else {
-                android.widget.Toast.makeText(
-                    context, context.getString(R.string.session_create_failed), android.widget.Toast.LENGTH_LONG
-                ).show()
+                com.deepseek.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.session_create_failed))
                 // Keep what the user typed visible: the composer is
                 // already cleared, so dropping the bubble loses the text.
                 pendingMessages.add(

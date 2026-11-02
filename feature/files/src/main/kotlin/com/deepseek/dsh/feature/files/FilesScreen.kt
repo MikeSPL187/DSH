@@ -664,8 +664,11 @@ private fun DocView(f: File, path: String, change: GitChange?, onDiff: () -> Uni
                 Text(
                     buildAnnotatedString {
                         append(stringResource(if (change.kind == ChangeKind.ADDED) R.string.fs_banner_new else R.string.fs_banner_mod))
-                        append(" · ")
-                        withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(stat(change)) }
+                        // «+0» у пустого нового файла — шум: число строк только когда оно есть.
+                        if (change.added > 0 || change.deleted > 0) {
+                            append(" · ")
+                            withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(stat(change)) }
+                        }
                     },
                     style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.5.sp),
                     color = c.warn,
@@ -686,6 +689,8 @@ private fun DocView(f: File, path: String, change: GitChange?, onDiff: () -> Uni
             ext in ImageExt -> ImagePreview(f)
             data == null -> Unit
             data.first.isEmpty() && !data.second && f.length() > 0 -> Empty(stringResource(R.string.fs_binary))
+            // Пустой файл: понятная подпись вместо блока кода с одной пустой строкой «1».
+            f.length() == 0L -> Empty(stringResource(R.string.fs_empty_file), stringResource(R.string.fs_empty_file_hint))
             else -> {
                 CodeBlock(data.first.ifEmpty { listOf("") }, ext)
                 if (data.second) Text(stringResource(R.string.fs_too_big, MAX_VIEW_LINES), style = TextStyle(fontFamily = DshFonts.body, fontSize = 12.5.sp), color = c.t3, modifier = Modifier.padding(top = 8.dp, start = 4.dp))
@@ -898,7 +903,15 @@ private fun ChangesView(
                         modifier = Modifier.padding(top = 10.dp, bottom = 4.dp),
                     )
                     Text(
-                        stringResource(R.string.fs_changed_list, files.take(3).joinToString(", ") { it.path.substringAfterLast('/') } + if (files.size > 3) "…" else ""),
+                        // Только новые — «Добавлено», только удалённые — «Удалено», иначе «Изменено».
+                        stringResource(
+                            when {
+                                files.all { it.kind == ChangeKind.ADDED } -> R.string.fs_added_list
+                                files.all { it.kind == ChangeKind.DELETED } -> R.string.fs_deleted_list
+                                else -> R.string.fs_changed_list
+                            },
+                            files.take(3).joinToString(", ") { it.path.substringAfterLast('/') } + if (files.size > 3) "…" else "",
+                        ),
                         style = TextStyle(fontFamily = DshFonts.body, fontSize = 14.sp, lineHeight = 20.sp),
                         color = c.t2,
                     )

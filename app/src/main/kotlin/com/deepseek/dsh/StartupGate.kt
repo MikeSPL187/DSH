@@ -222,7 +222,7 @@ internal fun StartupGate(
                 }
                 val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
                 clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("DSH host startup", payload))
-                android.widget.Toast.makeText(context, copiedLabel, android.widget.Toast.LENGTH_SHORT).show()
+                com.deepseek.dsh.core.designsystem.kit.DshToast.show(copiedLabel)
             },
             onRetry = {
                 runtimeUi.hostStartupError = false

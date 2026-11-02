@@ -317,12 +317,12 @@ private suspend fun applyKey(
         )
     }
     if (provider == null) {
-        android.widget.Toast.makeText(context, context.getString(R.string.onboarding_key_failed), android.widget.Toast.LENGTH_LONG).show()
+        com.deepseek.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.onboarding_key_failed))
         return
     }
     val baseUrl = if (key.provider == OnboardingProvider.CUSTOM) key.baseUrl else ""
     if (!modelProviders.save(hostId, provider, key.key, baseUrl, key.models)) {
-        android.widget.Toast.makeText(context, context.getString(R.string.onboarding_key_failed), android.widget.Toast.LENGTH_LONG).show()
+        com.deepseek.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.onboarding_key_failed))
         return
     }
     if (key.provider == OnboardingProvider.DEEPSEEK) oauthManager.signInWithApiKey(key.key)

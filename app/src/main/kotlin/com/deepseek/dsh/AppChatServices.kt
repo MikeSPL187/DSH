@@ -50,7 +50,7 @@ class AppChatServices(
                 ui.selectedSessionId = forked
                 runCatching { repository.watchSession(host, forked) }
             } else {
-                android.widget.Toast.makeText(context, context.getString(R.string.session_fork_failed), android.widget.Toast.LENGTH_LONG).show()
+                com.deepseek.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.session_fork_failed))
             }
         }
     }

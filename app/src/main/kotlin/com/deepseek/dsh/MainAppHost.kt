@@ -513,11 +513,7 @@ fun MainAppHost(
                 }
                 runtimeUi.workspaceRevision += 1
                 result.skipped.forEach { name ->
-                    android.widget.Toast.makeText(
-                        context,
-                        context.getString(R.string.attachment_copy_failed, name),
-                        android.widget.Toast.LENGTH_SHORT,
-                    ).show()
+                    com.deepseek.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.attachment_copy_failed, name))
                 }
             }
         }
@@ -654,21 +650,13 @@ fun MainAppHost(
                 runtimeUi.filesRevision += 1
                 runtimeUi.workspaceRevision += 1
                 if (result.added.isNotEmpty()) {
-                    android.widget.Toast.makeText(
-                        context,
-                        context.getString(
+                    com.deepseek.dsh.core.designsystem.kit.DshToast.show(context.getString(
                             com.deepseek.dsh.feature.files.R.string.files_imported,
                             result.added.size,
-                        ),
-                        android.widget.Toast.LENGTH_SHORT,
-                    ).show()
+                        ))
                 }
                 result.skipped.forEach { name ->
-                    android.widget.Toast.makeText(
-                        context,
-                        context.getString(R.string.attachment_copy_failed, name),
-                        android.widget.Toast.LENGTH_SHORT,
-                    ).show()
+                    com.deepseek.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.attachment_copy_failed, name))
                 }
             }
         }
@@ -716,7 +704,7 @@ fun MainAppHost(
                 ui.filesDir = dir
                 filesImportLauncher.launch(arrayOf("*/*"))
             },
-            onToast = { text -> android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_SHORT).show() },
+            onToast = { text -> com.deepseek.dsh.core.designsystem.kit.DshToast.show(text) },
         )
     }
 

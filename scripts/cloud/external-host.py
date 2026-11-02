@@ -58,7 +58,8 @@ def sync_settings(rootfs):
 
 
 def ensure_mounts(rootfs):
-    for d, cmd in (("proc", ["mount", "-t", "proc", "proc"]), ("dev", ["mount", "--bind", "/dev"])):
+    # dev/pts — для терминала (forkpty), без него terminal/create отвечает «forkpty(3) failed».
+    for d, cmd in (("proc", ["mount", "-t", "proc", "proc"]), ("dev", ["mount", "--bind", "/dev"]), ("dev/pts", ["mount", "--bind", "/dev/pts"])):
         target = os.path.join(rootfs, d)
         os.makedirs(target, exist_ok=True)
         if subprocess.run(["mountpoint", "-q", target]).returncode != 0:

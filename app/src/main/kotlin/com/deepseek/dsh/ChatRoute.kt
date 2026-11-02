@@ -1,6 +1,5 @@
 package com.deepseek.dsh
 
-import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -110,7 +109,7 @@ internal fun ChatRoute(d: ChatDeps) {
     }
 
     fun toast(text: String, long: Boolean = false) =
-        Toast.makeText(context, text, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
+        com.deepseek.dsh.core.designsystem.kit.DshToast.show(text)
 
     val send: (String) -> Unit = { text ->
         d.sender.send(text, ModelChoice(model.id, model.providerGroup?.id ?: defaultProvider))

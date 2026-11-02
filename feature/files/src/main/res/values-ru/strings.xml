@@ -88,4 +88,8 @@
     <plurals name="fs_min_ago"><item quantity="one">%d мин назад</item><item quantity="few">%d мин назад</item><item quantity="many">%d мин назад</item><item quantity="other">%d мин назад</item></plurals>
     <plurals name="fs_days_ago"><item quantity="one">%d день назад</item><item quantity="few">%d дня назад</item><item quantity="many">%d дней назад</item><item quantity="other">%d дня назад</item></plurals>
     <plurals name="fs_weeks_ago"><item quantity="one">%d неделю назад</item><item quantity="few">%d недели назад</item><item quantity="many">%d недель назад</item><item quantity="other">%d недели назад</item></plurals>
+    <string name="fs_empty_file">Файл пуст</string>
+    <string name="fs_empty_file_hint">Нажмите «Спросить», чтобы агент его наполнил</string>
+    <string name="fs_added_list">Добавлено: %1$s</string>
+    <string name="fs_deleted_list">Удалено: %1$s</string>
 </resources>

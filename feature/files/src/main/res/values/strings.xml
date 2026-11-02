@@ -89,4 +89,8 @@
     <plurals name="fs_min_ago"><item quantity="one">%d min ago</item><item quantity="other">%d min ago</item></plurals>
     <plurals name="fs_days_ago"><item quantity="one">%d day ago</item><item quantity="other">%d days ago</item></plurals>
     <plurals name="fs_weeks_ago"><item quantity="one">%d week ago</item><item quantity="other">%d weeks ago</item></plurals>
+    <string name="fs_empty_file">The file is empty</string>
+    <string name="fs_empty_file_hint">Tap “Ask” to have the agent fill it</string>
+    <string name="fs_added_list">Added: %1$s</string>
+    <string name="fs_deleted_list">Deleted: %1$s</string>
 </resources>

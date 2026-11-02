@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.union
@@ -576,12 +577,12 @@ fun ModernChatScreen(
                     onProject = { commandSheetOpen = false; append("@") },
                     onPaste = {
                         commandSheetOpen = false
-                        clip()?.let { append(it) } ?: android.widget.Toast.makeText(ctx, empty, android.widget.Toast.LENGTH_SHORT).show()
+                        clip()?.let { append(it) } ?: com.deepseek.dsh.core.designsystem.kit.DshToast.show(empty)
                     },
                     onLink = {
                         commandSheetOpen = false
                         clip()?.takeIf { android.util.Patterns.WEB_URL.matcher(it).matches() }?.let { append(it) }
-                            ?: android.widget.Toast.makeText(ctx, noLink, android.widget.Toast.LENGTH_SHORT).show()
+                            ?: com.deepseek.dsh.core.designsystem.kit.DshToast.show(noLink)
                     },
                     terminal = terminalContext,
                     onTerminal = {
@@ -625,7 +626,7 @@ fun ModernChatScreen(
                     onCopy = { text ->
                         (ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
                             .setPrimaryClip(android.content.ClipData.newPlainText("message", text))
-                        android.widget.Toast.makeText(ctx, copied, android.widget.Toast.LENGTH_SHORT).show()
+                        com.deepseek.dsh.core.designsystem.kit.DshToast.show(copied)
                     },
                     onFork = services::forkAt,
                     onDismiss = { actionMessage = null },
@@ -759,7 +760,7 @@ fun ModernChatScreen(
                                                 onCopy = {
                                                     val cm = localContext.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                                     cm.setPrimaryClip(android.content.ClipData.newPlainText("message", answer))
-                                                    android.widget.Toast.makeText(localContext, copied, android.widget.Toast.LENGTH_SHORT).show()
+                                                    com.deepseek.dsh.core.designsystem.kit.DshToast.show(copied)
                                                 },
                                                 onRetry = { retryAnswer(m) },
                                                 onShare = {
@@ -875,9 +876,12 @@ fun ModernChatScreen(
                 )
             }
             if (goal != null || todos.isNotEmpty()) PlanDock(goal, todos)
-            // Док прячется, пока открыта клавиатура (`.dock.away`).
+            // Док прячется, пока открыта клавиатура (`.dock.away`). По видимости клавиатуры, а не по фокусу поля:
+            // после «Назад» клавиатура закрыта, а фокус остаётся — раньше док так и не возвращался.
+            @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+            val imeOpen = WindowInsets.isImeVisible
             AnimatedVisibility(
-                visible = !composerFocused,
+                visible = !(composerFocused && imeOpen),
                 enter = fadeIn() + androidx.compose.animation.scaleIn(com.deepseek.dsh.core.designsystem.DshMotion.snappy(), initialScale = 0.94f) + slideInVertically { it / 3 },
                 exit = fadeOut() + androidx.compose.animation.scaleOut(com.deepseek.dsh.core.designsystem.DshMotion.snappy(), targetScale = 0.94f) + slideOutVertically { it / 3 },
             ) {
