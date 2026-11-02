@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -294,6 +295,7 @@ fun OnboardingScreen(
                         check = check,
                         onWhereKey = onWhereKey,
                         dir = dir,
+                        onKeyDone = { if (keyAccepted) go(2) },
                     )
                     2 -> WorkspaceStep(shared, { shared = it; waitingShared = false }, sharedAccessGranted, dir)
                     else -> LinuxStep(install, notify, onNotifyChange, dir)
@@ -420,7 +422,8 @@ private fun Bottom(primaryText: String, primaryEnabled: Boolean, onPrimary: () -
             pulse.animateTo(1f, DshMotion.lively())
         }
     }
-    Column(Modifier.fillMaxWidth().padding(start = 22.dp, end = 22.dp, top = 10.dp).navigationBarsPadding().padding(bottom = 16.dp)) {
+    // Над клавиатурой: с открытой клавиатурой «Продолжить» не прячется под ней.
+    Column(Modifier.fillMaxWidth().padding(start = 22.dp, end = 22.dp, top = 10.dp).navigationBarsPadding().imePadding().padding(bottom = 16.dp)) {
         DshButton(
             primaryText,
             onPrimary,
@@ -583,6 +586,8 @@ private fun ModelStep(
     check: KeyCheck?,
     onWhereKey: () -> Unit,
     dir: Int,
+    /** «Готово» на клавиатуре в поле ключа: проверенный ключ — сразу следующий шаг. */
+    onKeyDone: () -> Unit = {},
 ) {
     val c = Dsh.colors
     val clipboard = LocalClipboardManager.current
@@ -646,6 +651,7 @@ private fun ModelStep(
             secret = true,
             ok = check is KeyCheck.Ok,
             keyboard = KeyboardType.Password,
+            onImeDone = onKeyDone,
             onPaste = {
                 // Вставленный ключ не остаётся в буфере обмена: его читают клавиатура и другие приложения.
                 clipboard.getText()?.text?.trim()?.takeIf { it.isNotEmpty() }?.let { onKey(it); clipboard.setText(androidx.compose.ui.text.AnnotatedString("")) }
@@ -714,6 +720,8 @@ private fun Field(
     keyboard: KeyboardType,
     onPaste: (() -> Unit)? = null,
     onCommit: (() -> Unit)? = null,
+    /** Только кнопка «Готово» клавиатуры (не потеря фокуса). */
+    onImeDone: (() -> Unit)? = null,
 ) {
     val c = Dsh.colors
     var focused by remember { mutableStateOf(false) }
@@ -753,7 +761,7 @@ private fun Field(
                     cursorBrush = SolidColor(c.accent),
                     visualTransformation = if (secret && !shown) PasswordVisualTransformation('•') else VisualTransformation.None,
                     keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = false, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { onCommit?.invoke(); defaultKeyboardAction(ImeAction.Done) }),
+                    keyboardActions = KeyboardActions(onDone = { onCommit?.invoke(); defaultKeyboardAction(ImeAction.Done); onImeDone?.invoke() }),
                     modifier = Modifier.fillMaxWidth().onFocusChanged {
                         if (focused && !it.isFocused) onCommit?.invoke()
                         focused = it.isFocused
@@ -909,6 +917,8 @@ private fun Radio(selected: Boolean) {
 private fun LinuxStep(install: LinuxInstall, notify: Boolean, onNotifyChange: (Boolean) -> Unit, dir: Int) {
     val c = Dsh.colors
     val title = when {
+        // Linux уже распакован (этап 2), не запустился агент — это не «Linux не установился».
+        install.error != null && install.stage >= 2 -> R.string.ob_host_failed
         install.error != null -> R.string.ob_env_failed
         install.done -> R.string.ob_env_done
         else -> R.string.ob_env_title
@@ -930,6 +940,7 @@ fun LinuxSetupScreen(install: LinuxInstall, onRetry: () -> Unit, modifier: Modif
             Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 22.dp, end = 22.dp, top = 66.dp, bottom = 20.dp),
         ) {
             val title = when {
+                install.error != null && install.stage >= 2 -> R.string.ob_host_failed
                 install.error != null -> R.string.ob_env_failed
                 install.done -> R.string.ob_env_done
                 else -> R.string.ob_env_title

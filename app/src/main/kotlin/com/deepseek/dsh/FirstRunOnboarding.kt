@@ -162,7 +162,9 @@ internal fun rememberFriendlyLinuxInstall(runtimeUi: AppRuntimeUiState): LinuxIn
     val context = LocalContext.current
     val s = rememberLinuxInstall(runtimeUi)
     val raw = s.error ?: return s
-    return s.copy(error = context.getString(installErrorText(raw)), errorDetail = raw)
+    // Linux распакован, упал запуск агента — свой текст, а не «Установка прервалась».
+    val text = if (s.stage >= 2) com.deepseek.dsh.feature.runtime.R.string.ob_err_host else installErrorText(raw)
+    return s.copy(error = context.getString(text), errorDetail = raw)
 }
 
 /** Понятная причина сбоя установки по тексту исключения. */

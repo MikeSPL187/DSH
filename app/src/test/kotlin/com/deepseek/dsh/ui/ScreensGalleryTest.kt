@@ -217,6 +217,7 @@ class ScreensGalleryTest {
     @Test fun ob3Done() = renderOb("55_ob_linux_done", install = installed) { keyOk(); tap("Продолжить"); tap("Продолжить") }
     @Test fun ob3Error() = renderOb("55b_ob_linux_error", install = installing.copy(error = "Не удалось установить защищённое соединение. Проверьте дату и время на телефоне или другую сеть.", errorDetail = "java.security.cert.CertPathValidatorException: Trust anchor for certification path not found.")) { keyOk(); tap("Продолжить"); tap("Продолжить") }
 
+    @Test fun ob3HostError() = renderOb("55c_ob_host_error", install = installing.copy(stage = 2, progress = 0.92f, error = "Linux установлен, но агент не запустился. Нажмите «Повторить».", errorDetail = "Процесс Host завершился (exit=134): proot warning: signal 6 received from process 6165")) { keyOk(); tap("Продолжить"); tap("Продолжить") }
     @Test fun linuxSetup() = render("58_linux_setup", dark = true) {
         com.deepseek.dsh.feature.runtime.LinuxSetupScreen(install = installing, onRetry = {})
     }

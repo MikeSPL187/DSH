@@ -191,7 +191,9 @@ internal fun StartupGate(
                 }
                 current.phase == RuntimePhase.ERROR -> {
                     runtimeUi.hostStartupError = true
-                    runtimeUi.hostStartupDetail = null
+                    // Причина с кодом выхода и последней строкой вывода: без неё на шаге 3 первого
+                    // запуска под «Установка прервалась» было написано только «Host».
+                    runtimeUi.hostStartupDetail = current.lastError?.takeIf { it.isNotBlank() }
                     break
                 }
                 else -> kotlinx.coroutines.delay(300)

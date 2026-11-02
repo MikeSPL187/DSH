@@ -63,4 +63,6 @@
     <string name="ob_err_offline">Нет соединения с интернетом. Подключитесь и нажмите «Повторить».</string>
     <string name="ob_err_space">Не хватает места: Linux нужно около 1,5 ГБ.</string>
     <string name="ob_err_generic">Установка прервалась. Нажмите «Повторить».</string>
+    <string name="ob_host_failed">Агент не запустился</string>
+    <string name="ob_err_host">Linux установлен, но агент не запустился. Нажмите «Повторить».</string>
 </resources>
