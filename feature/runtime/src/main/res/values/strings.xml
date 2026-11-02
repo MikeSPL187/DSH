@@ -67,4 +67,5 @@
     <string name="ob_host_failed">The agent did not start</string>
     <string name="ob_err_host">Linux is installed, but the agent did not start. Tap “Retry”.</string>
     <string name="ob_open_without_agent">Open without the agent</string>
+    <string name="ob_env_lead_done">Debian with git, Python and Node is installed, the agent is running. You can start.</string>
 </resources>

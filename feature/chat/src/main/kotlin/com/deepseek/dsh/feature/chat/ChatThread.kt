@@ -644,8 +644,8 @@ internal fun MessageFeedbackActions(
 ) {
     val c = Dsh.colors
     var noteOpen by remember { mutableStateOf(false) }
-    ChatIconBtn(DshGlyphs.Check, stringResource(R.string.feedback_helpful), tint = if (current?.rating == "positive") c.accent else c.t3, iconSize = 18.dp) { onRating("positive") }
-    ChatIconBtn(DshGlyphs.X, stringResource(R.string.feedback_not_helpful), tint = if (current?.rating == "negative") c.danger else c.t3, iconSize = 18.dp) { onRating("negative") }
+    ChatIconBtn(DshGlyphs.ThumbUp, stringResource(R.string.feedback_helpful), tint = if (current?.rating == "positive") c.accent else c.t3, iconSize = 18.dp) { onRating("positive") }
+    ChatIconBtn(DshGlyphs.ThumbDown, stringResource(R.string.feedback_not_helpful), tint = if (current?.rating == "negative") c.danger else c.t3, iconSize = 18.dp) { onRating("negative") }
     if (current != null) ChatIconBtn(DshGlyphs.Pencil, stringResource(if (current.note.isNullOrBlank()) R.string.feedback_add_note else R.string.feedback_edit_note), tint = c.t3, iconSize = 18.dp) { noteOpen = !noteOpen }
     if (noteOpen) {
         var draft by remember(current?.note) { mutableStateOf(current?.note.orEmpty()) }

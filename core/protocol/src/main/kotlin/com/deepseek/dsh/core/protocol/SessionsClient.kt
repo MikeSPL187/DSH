@@ -518,6 +518,9 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
     private val historyCursors =
         java.util.concurrent.ConcurrentHashMap<String, Long>()
 
+    /** Сессии, у которых в проигрываемом снимке был turn/start без turn/end. */
+    private val replayOpenTurn: MutableSet<String> = java.util.Collections.synchronizedSet(mutableSetOf())
+
     /** Есть ли у сессии более ранняя история. */
     private val historyHasMore =
         java.util.concurrent.ConcurrentHashMap<String, Boolean>()
@@ -616,8 +619,15 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                                     as? kotlinx.serialization.json.JsonObject ?: return@forEach
                                 val seq = event["seq"]?.toString()?.toLongOrNull() ?: 0L
                                 if (seq > 0 && (minSeq == 0L || seq < minSeq)) minSeq = seq
-                                handleDurableEvent(sessionId, hostId, event)
+                                handleDurableEvent(sessionId, hostId, event, replay = true)
                             }
+                            // Ход из истории без turn/end идёт сейчас, только если у Host есть активный ответ.
+                            // Иначе он оборвался (Host перезапустился после сна или был остановлен системой и не
+                            // записал конец): раньше такая сессия навсегда оставалась «Думаю» с кнопкой «Стоп».
+                            val openTurn = replayOpenTurn.remove(sessionId)
+                            val activeAttempt = (value["assistantStream"] as? kotlinx.serialization.json.JsonObject)
+                                ?.get("activeAttempt") as? kotlinx.serialization.json.JsonObject
+                            eventBus.tryEmit(RemoteEvent.SessionRunning(sessionId, openTurn && activeAttempt != null))
                             val hasMore = value["hasMore"]?.toString() == "true"
                             val cursor = value["cursor"]?.toString()?.toLongOrNull()
                                 ?: minSeq
@@ -808,10 +818,17 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
         sessionId: String,
         hostId: String,
         event: kotlinx.serialization.json.JsonObject,
+        /** Событие из истории (снимок follow), а не живое: «идёт ход» по нему не включается. */
+        replay: Boolean = false,
     ) {
         val eventType = event["type"]?.toString()?.trim('"') ?: return
         val data = event["data"] as? kotlinx.serialization.json.JsonObject ?: return
         val seq = event["seq"]?.toString()?.toLongOrNull() ?: System.currentTimeMillis()
+        // Живое событие хода (инструмент, ответ) значит, что ход идёт сейчас — даже если его turn/start
+        // пришёл в снимке истории (переподключение посреди хода).
+        if (!replay && (eventType == "tool/call" || eventType == "tool/result" || eventType == "assistant/message")) {
+            eventBus.tryEmit(RemoteEvent.SessionRunning(sessionId, true))
+        }
         when (eventType) {
             "tool-workflow/run-start", "tool-workflow/agent-start",
             "tool-workflow/agent-end", "tool-workflow/run-end" -> {
@@ -891,8 +908,9 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                 val turn = data["turn"]?.toString()?.toIntOrNull() ?: return
                 eventBus.tryEmit(RemoteEvent.ChangesAnnounced(sessionId, seq, turn))
             }
-            "turn/start" -> eventBus.tryEmit(RemoteEvent.SessionRunning(sessionId, true))
+            "turn/start" -> if (replay) replayOpenTurn.add(sessionId) else eventBus.tryEmit(RemoteEvent.SessionRunning(sessionId, true))
             "turn/end" -> {
+                replayOpenTurn.remove(sessionId)
                 eventBus.tryEmit(RemoteEvent.SessionRunning(sessionId, false))
                 // При сбое модели или сети Host шлёт только turn/end.reason.error без ответа;
                 // чтобы не было пустого пузыря, текст ошибки становится сообщением ассистента.

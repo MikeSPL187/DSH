@@ -936,7 +936,8 @@ private fun LinuxStep(install: LinuxInstall, notify: Boolean, onNotifyChange: (B
         install.done -> R.string.ob_env_done
         else -> R.string.ob_env_title
     }
-    StepHead(3, stringResource(title), stringResource(R.string.ob_env_lead), dir)
+    // Когда всё готово, «можно свернуть, установка не прервётся» уже не к месту.
+    StepHead(3, stringResource(title), stringResource(if (install.done) R.string.ob_env_lead_done else R.string.ob_env_lead), dir)
     InstallCard(install, Modifier.enter(3, dir))
     NotifyRow(notify, onNotifyChange, Modifier.enter(4, dir))
 }
@@ -960,7 +961,7 @@ fun LinuxSetupScreen(install: LinuxInstall, onRetry: () -> Unit, modifier: Modif
             }
             Text(stringResource(title), style = H2, color = c.t1, modifier = Modifier.semantics { heading() })
             Spacer(Modifier.height(8.dp))
-            Text(stringResource(R.string.ob_env_lead), style = Lead, color = c.t2)
+            Text(stringResource(if (install.done) R.string.ob_env_lead_done else R.string.ob_env_lead), style = Lead, color = c.t2)
             Spacer(Modifier.height(22.dp))
             InstallCard(install, Modifier)
         }

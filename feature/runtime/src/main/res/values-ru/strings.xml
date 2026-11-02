@@ -66,4 +66,5 @@
     <string name="ob_host_failed">Агент не запустился</string>
     <string name="ob_err_host">Linux установлен, но агент не запустился. Нажмите «Повторить».</string>
     <string name="ob_open_without_agent">Открыть без агента</string>
+    <string name="ob_env_lead_done">Debian с git, Python и Node установлен, агент запущен. Можно начинать.</string>
 </resources>

@@ -809,7 +809,8 @@ fun MainAppHost(
             val chatTopBar: @Composable (Boolean) -> Unit = { scrolled ->
                 androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxWidth()) {
                             ModernTopAppBar(
-                                workspace = runtimeUi.activeWorkspaceName,
+                                // То же имя, что в меню: «Рабочая папка по умолчанию», а не имя папки на диске.
+                                workspace = workspaceLabelOf(runtimeUi.activeWorkspaceName),
                                 live = status.phase == RuntimePhase.RUNNING || ui.activeHostId != com.deepseek.dsh.core.model.HostDescriptor.Local().id,
                                 scrolled = scrolled,
                                 onNew = {
