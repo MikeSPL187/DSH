@@ -112,6 +112,10 @@ ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.grad
 - rootfs: скачать x86_64 из `app/src/main/assets/rootfs-manifest.json` в контейнере, сверить SHA-256, положить
   `adb push … /data/data/com.dsh.mobile.debug/files/cache/rootfs-local.tar.gz` (+ `chown` на uid приложения).
   Распаковка на TCG ≈ 40 мин.
+- Живой чат на таком эмуляторе: Host запускается в контейнере (chroot в распакованный rootfs), приложение
+  подключается к нему — `python3 scripts/cloud/external-host.py --rootfs <rootfs>` (ставит флаг
+  `cache/debug-external-host`, только debug-сборка; `adb forward` к мосту, `adb reverse` к Host). Host не должен видеть
+  `HTTPS_PROXY` (падает на своём undici) — прокси включает Node (`NODE_USE_ENV_PROXY`), скрипт это делает.
 - Host на этом эмуляторе не запускается: proot падает `handle_tracee_event: assertion "IS_IN_SYSENTER(tracee)"`
   (ptrace под TCG). Живой чат с агентом — только на телефоне или эмуляторе с KVM.
 - Локаль: `setprop persist.sys.locale ru-RU; setprop ctl.restart zygote`.
