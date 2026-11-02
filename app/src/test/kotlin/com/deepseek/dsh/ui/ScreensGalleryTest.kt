@@ -12,6 +12,9 @@ import com.deepseek.dsh.feature.files.FileItem
 import com.deepseek.dsh.feature.files.FilesScreen
 import com.deepseek.dsh.feature.runtime.OnboardingScreen
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.swipeDown
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -270,6 +273,49 @@ class ScreensGalleryTest {
         compose.onAllNodes(androidx.compose.ui.test.hasText("Готово", substring = true))[0].performClick()
         compose.mainClock.advanceTimeBy(1_500)
         ScreenShots.capture(compose, name, compose.activity)
+    }
+
+    private val richAnswer = listOf(
+        msg("r1", com.deepseek.dsh.core.model.MessageRole.USER, "Напиши функцию повтора запроса с паузой и объясни"),
+        msg(
+            "r2", com.deepseek.dsh.core.model.MessageRole.ASSISTANT,
+            "## Повтор с паузой\n\nФункция повторяет вызов до **3 раз**, пауза растёт ~~линейно~~ *вдвое*. " +
+                "Подробнее — в [документации Kotlin](https://kotlinlang.org/docs/coroutines-overview.html).\n\n" +
+                "```kotlin\n// Повтор с экспоненциальной паузой\nsuspend fun <T> retry(times: Int = 3, block: suspend () -> T): T {\n" +
+                "    var delayMs = 200L\n    repeat(times - 1) {\n        runCatching { return block() }\n        delay(delayMs) /* пауза */\n" +
+                "        delayMs *= 2\n    }\n    return block()\n}\n```\n\n" +
+                "> Не повторяйте запросы, которые меняют данные,\n> если сервер не поддерживает идемпотентность.\n\n---\n\n" +
+                "| Попытка | Пауза |\n|---|---|\n| 1 | 200 мс |\n| 2 | 400 мс |\n\n```bash\n$ ./gradlew test # проверить\necho \"готово\"\n```",
+        ),
+    )
+
+    private fun renderRich(name: String, dark: Boolean, scroll: Boolean = false, action: (androidx.compose.ui.test.junit4.AndroidComposeTestRule<*, *>.() -> Unit)? = null) {
+        compose.mainClock.autoAdvance = false
+        compose.setContent { DshTheme(darkTheme = dark) { com.deepseek.dsh.feature.chat.ModernChatScreen(messages = richAnswer, onSendMessage = {}) } }
+        compose.mainClock.advanceTimeBy(1_500)
+        if (scroll) {
+            compose.onAllNodes(androidx.compose.ui.test.hasScrollToIndexAction())[0].performTouchInput { swipeDown() }
+            compose.mainClock.advanceTimeBy(1_500)
+        }
+        action?.invoke(compose)
+        compose.mainClock.advanceTimeBy(1_500)
+        ScreenShots.capture(compose, name, compose.activity)
+    }
+
+    @Test fun chatRich() = renderRich("15_chat_rich", dark = false)
+    @Test fun chatRichDark() = renderRich("15b_chat_rich_dark", dark = true)
+    @Config(qualifiers = "ru-w360dp-h740dp-xxhdpi")
+    @Test fun chatRichNarrow() = renderRich("15c_chat_rich_360", dark = false)
+    @Config(qualifiers = "ru-w390dp-h844dp-xxhdpi")
+    @Test fun chatRichMidDark() = renderRich("15d_chat_rich_390_dark", dark = true)
+    @Test fun chatRichTop() = renderRich("15e_chat_rich_top_dark", dark = true, scroll = true)
+    @Test fun chatMessageActions() = renderRich("16_chat_message_actions", dark = false) {
+        onNode(androidx.compose.ui.test.hasText("Напиши функцию", substring = true)).performTouchInput { longClick() }
+    }
+    @Test fun chatMessageSelect() = renderRich("16b_chat_message_select_dark", dark = true) {
+        onNode(androidx.compose.ui.test.hasText("Напиши функцию", substring = true)).performTouchInput { longClick() }
+        mainClock.advanceTimeBy(1_000)
+        onNode(androidx.compose.ui.test.hasText("Выделить текст")).performClick()
     }
 
     @Test

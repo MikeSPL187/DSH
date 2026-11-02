@@ -116,7 +116,7 @@ class ChatLogicTest {
         assertEquals(MarkdownBlock.ListItem("•", "nested", depth = 1), blocks[3])
         assertEquals(MarkdownBlock.ListItem("•", "done", checked = true), blocks[4])
         assertEquals(MarkdownBlock.ListItem("1.", "first"), blocks[5])
-        assertEquals(MarkdownBlock.Code("val a = 1"), blocks[6])
+        assertEquals(MarkdownBlock.Code("val a = 1", "kotlin"), blocks[6])
         assertEquals(MarkdownBlock.Table(listOf(listOf("A", "B"), listOf("1", "2"))), blocks[7])
         assertEquals(MarkdownBlock.Quote("quoted"), blocks[8])
     }
@@ -124,5 +124,29 @@ class ChatLogicTest {
     @Test
     fun `unclosed code block during streaming keeps the text`() {
         assertEquals(listOf(MarkdownBlock.Code("partial")), parseMarkdownBlocks("```\npartial"))
+    }
+
+    @Test
+    fun `quotes on consecutive lines merge, rules and strikethrough parse`() {
+        val blocks = parseMarkdownBlocks("> first\n> second\n>\n> third\n\n---\n\ntext ~~old~~ new")
+        assertEquals(MarkdownBlock.Quote("first second\nthird"), blocks[0])
+        assertEquals(MarkdownBlock.Rule, blocks[1])
+        val strike = nextInline("text ~~old~~ new")!!
+        assertEquals(InlineKind.Strike, strike.kind)
+        assertEquals("old", strike.text)
+    }
+
+    @Test
+    fun `inline links, autolinks and code take priority correctly`() {
+        val link = nextInline("see [docs](https://example.com/a) now")!!
+        assertEquals(InlineKind.Link, link.kind)
+        assertEquals("https://example.com/a", link.url)
+        val auto = nextInline("open https://example.com/x. Done")!!
+        assertEquals(InlineKind.AutoLink, auto.kind)
+        assertEquals("https://example.com/x", auto.url)
+        // Внутри кода разметка не разбирается.
+        assertEquals(InlineKind.Code, nextInline("`**not bold**`")!!.kind)
+        // snake_case и умножение не превращаются в курсив.
+        assertEquals(null, nextInline("call my_func_name with 2 * 3 * 4"))
     }
 }

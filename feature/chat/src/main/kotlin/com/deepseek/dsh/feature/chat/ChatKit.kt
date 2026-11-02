@@ -328,6 +328,21 @@ fun ChatDock(
     }
 }
 
+/** Кнопка «К последнему сообщению»: стеклянный круг 44 dp, как док, со стрелкой вниз. */
+@Composable
+fun ScrollToBottomButton(modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val c = Dsh.colors
+    val ia = remember { MutableInteractionSource() }
+    val label = stringResource(R.string.chat_scroll_bottom)
+    Box(
+        modifier.size(44.dp).pressScale(ia, 0.9f).floatShadow(CircleShape, c.isDark).clip(CircleShape)
+            .background(c.glass.compositeOn(c.bg)).border(1.dp, c.glassLine, CircleShape)
+            .clickable(ia, ripple(), role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) { Icon(DshGlyphs.Chev, null, tint = c.t1, modifier = Modifier.size(22.dp)) }
+}
+
 @Composable
 private fun DockBtn(icon: ImageVector, label: String, compact: Boolean, badge: Int?, onClick: () -> Unit) {
     val c = Dsh.colors

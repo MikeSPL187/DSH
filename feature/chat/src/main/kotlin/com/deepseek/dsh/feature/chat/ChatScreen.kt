@@ -348,6 +348,10 @@ fun ModernChatScreen(
         a.callId?.let { decided[it] = allowed to (a.tier == ApprovalTier.DESTRUCTIVE) }
         dangerOpen = false
     }
+    // «Ответить заново»: повторить последний вопрос пользователя до этого ответа.
+    fun retryAnswer(answer: ChatMessage) {
+        messages.lastOrNull { it.role == MessageRole.USER && it.createdAt <= answer.createdAt }?.let { onSendMessage(it.content) }
+    }
     val runningWorkKey = chatRows.lastOrNull { it is ChatRow.Work && !it.done }?.let { (it as ChatRow.Work).key }
     // Последний ответ агента после последнего хода работы — к нему приставляется итог изменений.
     val finalAnswerId = remember(chatRows) {
@@ -359,11 +363,33 @@ fun ModernChatScreen(
     // Вклады в слоты (fast-mode и др.) меняют модель и уровень сессии через тот же вход.
     com.deepseek.dsh.plugin.nativehost.NativeHost.modelSelectHandler = onNativeModelSelect
 
+    // Лента следует за новыми строками, только пока она внизу: если пользователь прокрутил вверх
+    // и читает, она не прыгает, а появляется кнопка «К последнему сообщению».
+    val atBottom by remember { derivedStateOf { !listState.canScrollForward } }
+    var follow by remember { mutableStateOf(true) }
+    LaunchedEffect(listState) {
+        var dragged = false
+        launch {
+            listState.interactionSource.interactions.collect { if (it is androidx.compose.foundation.interaction.DragInteraction.Start) dragged = true }
+        }
+        snapshotFlow { listState.isScrollInProgress }.collect { scrolling ->
+            if (!scrolling && dragged) { follow = !listState.canScrollForward; dragged = false }
+        }
+    }
+    // Своё новое сообщение всегда возвращает ленту вниз.
+    val lastUserId = messages.lastOrNull { it.role == MessageRole.USER }?.messageId
+    LaunchedEffect(lastUserId) { follow = true }
     // chatRows делит рассуждения и инструменты на строки, индексы не совпадают с messages — прокрутка по числу строк.
     LaunchedEffect(chatRows.size, isThinking, approval?.eventId) {
-        if (chatRows.isNotEmpty()) {
+        if (chatRows.isNotEmpty() && follow) {
             // До самого низа: последний элемент может быть выше экрана (ход работы, ответ).
             listState.animateScrollToItem(listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1, Int.MAX_VALUE / 2)
+        }
+    }
+    // Печатающийся ответ растёт внутри одной строки — догонять его без анимации, чтобы не дёргалось.
+    LaunchedEffect(streamingText.length, streamingReasoning.length) {
+        if (follow && chatRows.isNotEmpty() && !listState.isScrollInProgress) {
+            listState.scrollToItem(listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1, Int.MAX_VALUE / 2)
         }
     }
 
@@ -603,6 +629,8 @@ fun ModernChatScreen(
                     },
                     onFork = services::forkAt,
                     onDismiss = { actionMessage = null },
+                    onEdit = { text -> inputText = text; composerFocused = true },
+                    onRetry = { retryAnswer(m) },
                 )
             }
             body
@@ -733,9 +761,7 @@ fun ModernChatScreen(
                                                     cm.setPrimaryClip(android.content.ClipData.newPlainText("message", answer))
                                                     android.widget.Toast.makeText(localContext, copied, android.widget.Toast.LENGTH_SHORT).show()
                                                 },
-                                                onRetry = {
-                                                    messages.lastOrNull { it.role == MessageRole.USER && it.createdAt <= m.createdAt }?.let { onSendMessage(it.content) }
-                                                },
+                                                onRetry = { retryAnswer(m) },
                                                 onShare = {
                                                     val send = android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT, answer)
                                                     localContext.startActivity(android.content.Intent.createChooser(send, null).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
@@ -827,6 +853,17 @@ fun ModernChatScreen(
                 .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars)),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            // `К последнему сообщению`: круглая кнопка над доком, пока лента прокручена вверх.
+            AnimatedVisibility(
+                visible = messages.isNotEmpty() && !atBottom && !follow,
+                enter = fadeIn(com.deepseek.dsh.core.designsystem.DshMotion.snappy()) + androidx.compose.animation.scaleIn(com.deepseek.dsh.core.designsystem.DshMotion.lively(), initialScale = 0.8f),
+                exit = fadeOut(com.deepseek.dsh.core.designsystem.DshMotion.snappy()) + androidx.compose.animation.scaleOut(com.deepseek.dsh.core.designsystem.DshMotion.snappy(), targetScale = 0.8f),
+            ) {
+                ScrollToBottomButton(Modifier.padding(bottom = 10.dp)) {
+                    follow = true
+                    sheetScope.launch { listState.animateScrollToItem(listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1, Int.MAX_VALUE / 2) }
+                }
+            }
             if (queuedMessages.isNotEmpty()) {
                 QueuedMessagesDock(
                     messages = queuedMessages,

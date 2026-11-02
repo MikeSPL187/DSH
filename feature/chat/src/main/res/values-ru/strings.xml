@@ -119,4 +119,13 @@
     <string name="chat_approval_reject">Отклонить</string>
     <string name="chat_approval_allow_once">Разрешить</string>
     <string name="chat_approval_armed_hint">Нажмите ещё раз в течение 3 секунд</string>
+    <string name="markdown_code">Код</string>
+    <string name="markdown_collapse">Свернуть</string>
+    <string name="markdown_show_all">Показать все строки · %1$d</string>
+    <string name="message_action_edit">Изменить и отправить</string>
+    <string name="message_action_select">Выделить текст</string>
+    <string name="message_action_retry">Ответить заново</string>
+    <string name="message_select_title">Выделение текста</string>
+    <string name="message_select_hint">Нажмите и удерживайте, чтобы выделить фрагмент</string>
+    <string name="chat_scroll_bottom">К последнему сообщению</string>
 </resources>
