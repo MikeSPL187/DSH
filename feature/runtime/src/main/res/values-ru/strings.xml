@@ -50,7 +50,7 @@
     <string name="ob_ready">готово</string>
     <string name="ob_stage_download">Загрузка</string>
     <string name="ob_stage_unpack">Распаковка</string>
-    <string name="ob_stage_check">Проверка</string>
+    <string name="ob_stage_check">Запуск агента</string>
     <string name="ob_of">%1$s из %2$s</string>
     <string name="ob_notify">Сообщить о готовности</string>
     <string name="ob_notify_sub">Одно уведомление</string>
@@ -65,4 +65,5 @@
     <string name="ob_err_generic">Установка прервалась. Нажмите «Повторить».</string>
     <string name="ob_host_failed">Агент не запустился</string>
     <string name="ob_err_host">Linux установлен, но агент не запустился. Нажмите «Повторить».</string>
+    <string name="ob_open_without_agent">Открыть без агента</string>
 </resources>

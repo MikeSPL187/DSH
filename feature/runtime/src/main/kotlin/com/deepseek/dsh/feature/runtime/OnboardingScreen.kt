@@ -309,9 +309,22 @@ fun OnboardingScreen(
             altText = when (step) {
                 0 -> if (onRestoreBackup != null) stringResource(R.string.ob_restore) else null
                 1 -> stringResource(R.string.ob_skip_key)
+                // Linux установлен, агент не запустился: не держать человека на «Повторить».
+                3 -> if (install.error != null && install.stage >= 2) stringResource(R.string.ob_open_without_agent) else null
                 else -> null
             },
-            onAlt = { if (step == 0) onRestoreBackup?.invoke() else { key = ""; go(2) } },
+            onAlt = {
+                when (step) {
+                    0 -> onRestoreBackup?.invoke()
+                    1 -> { key = ""; go(2) }
+                    // Ключ сохраняется, приложение открывается; агент запустится с экрана запуска.
+                    else -> onFinish(
+                        key.trim().takeIf { it.isNotEmpty() && keyAccepted }?.let {
+                            OnboardingKey(provider, baseUrl.trim(), it, (check as? KeyCheck.Ok)?.models.orEmpty())
+                        },
+                    )
+                }
+            },
         )
     }
 }
@@ -1019,9 +1032,10 @@ private fun InstallCard(install: LinuxInstall, modifier: Modifier) {
             note = if (install.stage == 1 && !install.done && install.error == null) "${install.unpackPercent}%" else "",
         )
         Stage(
+            // Этот этап — запуск агента и его готовность (SHA-256 проверяется при загрузке).
             label = stringResource(R.string.ob_stage_check),
             state = stageState(2, install),
-            note = "SHA-256",
+            note = "",
         )
         if (install.error != null) {
             Text(

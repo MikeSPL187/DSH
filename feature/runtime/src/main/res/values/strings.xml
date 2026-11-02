@@ -51,7 +51,7 @@
     <string name="ob_ready">done</string>
     <string name="ob_stage_download">Download</string>
     <string name="ob_stage_unpack">Unpacking</string>
-    <string name="ob_stage_check">Check</string>
+    <string name="ob_stage_check">Starting the agent</string>
     <string name="ob_of">%1$s of %2$s</string>
     <string name="ob_notify">Notify when ready</string>
     <string name="ob_notify_sub">One notification</string>
@@ -66,4 +66,5 @@
     <string name="ob_err_generic">Something went wrong while installing. Tap “Retry”.</string>
     <string name="ob_host_failed">The agent did not start</string>
     <string name="ob_err_host">Linux is installed, but the agent did not start. Tap “Retry”.</string>
+    <string name="ob_open_without_agent">Open without the agent</string>
 </resources>
