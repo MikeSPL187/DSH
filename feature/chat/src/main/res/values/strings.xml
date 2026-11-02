@@ -19,7 +19,7 @@
     <string name="perm_auto_review">Auto review</string>
     <string name="perm_auto_badge">EXP</string>
     <string name="perm_desc_read_only">Can only inspect workspace and run safety checks, cannot modify files</string>
-    <string name="perm_desc_workspace_write">Can create, edit and modify files inside the workspace</string>
+    <string name="perm_desc_workspace_write">Creates, edits and deletes files in the workspace without asking; outside it — only with your consent</string>
     <string name="perm_desc_danger_full_access">Runs without a sandbox; fewer confirmations and direct file or external command access</string>
     <string name="perm_desc_auto_review">Run without a sandbox after an experimental same-model review of every native tool call and PTC inner call.</string>
     <string name="perm_confirm_title">Enable Full access?</string>

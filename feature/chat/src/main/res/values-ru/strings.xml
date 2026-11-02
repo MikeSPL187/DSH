@@ -16,7 +16,7 @@
     <string name="perm_auto_review">Автопроверка</string>
     <string name="perm_auto_badge">ЭКСП</string>
     <string name="perm_desc_read_only">Может только просматривать рабочую папку и выполнять безопасные проверки, без изменения файлов</string>
-    <string name="perm_desc_workspace_write">Может создавать, редактировать и изменять файлы внутри рабочей папки</string>
+    <string name="perm_desc_workspace_write">Создаёт, меняет и удаляет файлы в рабочей папке без вопросов; за её пределами — с вашего согласия</string>
     <string name="perm_desc_danger_full_access">Работает без песочницы: меньше подтверждений, прямой доступ к файлам и внешним командам</string>
     <string name="perm_desc_auto_review">Работа без песочницы с экспериментальной проверкой каждого вызова инструмента и внутреннего вызова PTC той же моделью.</string>
     <string name="perm_confirm_title">Включить полный доступ?</string>

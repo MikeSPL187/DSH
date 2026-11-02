@@ -118,8 +118,8 @@
     <string name="st_appr_ask">Ask every time</string>
     <string name="st_appr_ask_sub">The agent shows the changes and waits for your “yes”</string>
     <string name="st_appr_auto">On its own in the workspace</string>
-    <string name="st_appr_auto_sub">Edits inside the project need no approval and show in “Changes”</string>
-    <string name="st_appr_never">Deleting and commands outside the project — always asked</string>
+    <string name="st_appr_auto_sub">Edits and deletions inside the project need no approval and show in “Changes”</string>
+    <string name="st_appr_never">Actions outside the project — always asked</string>
     <string name="st_appr_never_sub">This can\'t be turned off</string>
     <string name="st_appr_unavailable">Host hasn\'t sent its permission rules yet — your choice applies once it answers.</string>
     <string name="st_phone_access">Phone access</string>

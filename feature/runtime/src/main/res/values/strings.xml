@@ -8,7 +8,7 @@
     <string name="ob_feat_agent">The agent does the work</string>
     <string name="ob_feat_agent_sub">Reads the project, edits code and checks the build itself</string>
     <string name="ob_feat_control">You stay in control</string>
-    <string name="ob_feat_control_sub">Edits and deletions only with your consent</string>
+    <string name="ob_feat_control_sub">All changes are visible; outside the project — with your consent</string>
     <string name="ob_start">Get started</string>
     <string name="ob_restore">Restore from backup</string>
     <string name="ob_step">Step %1$d of %2$d</string>

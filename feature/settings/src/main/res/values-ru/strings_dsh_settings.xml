@@ -124,8 +124,8 @@
     <string name="st_appr_ask">Спрашивать каждый раз</string>
     <string name="st_appr_ask_sub">Агент покажет изменения и подождёт вашего «да»</string>
     <string name="st_appr_auto">Сам в рабочей папке</string>
-    <string name="st_appr_auto_sub">Правки внутри проекта — без вопросов, видны во «Изменениях»</string>
-    <string name="st_appr_never">Удаление и команды вне проекта — всегда с вопросом</string>
+    <string name="st_appr_auto_sub">Правки и удаление внутри проекта — без вопросов, видны во «Изменениях»</string>
+    <string name="st_appr_never">Действия вне проекта — всегда с вопросом</string>
     <string name="st_appr_never_sub">Это нельзя отключить</string>
     <string name="st_appr_unavailable">Host ещё не прислал правила разрешений — выбор сохранится, когда он ответит.</string>
     <string name="st_phone_access">Доступ к телефону</string>

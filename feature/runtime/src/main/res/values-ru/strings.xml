@@ -7,7 +7,7 @@
     <string name="ob_feat_agent">Агент делает работу</string>
     <string name="ob_feat_agent_sub">Читает проект, правит код и сам проверяет сборку</string>
     <string name="ob_feat_control">Под вашим контролем</string>
-    <string name="ob_feat_control_sub">Правки и удаление — только с вашего согласия</string>
+    <string name="ob_feat_control_sub">Все изменения видны, вне проекта — с вашего согласия</string>
     <string name="ob_start">Начать</string>
     <string name="ob_restore">Восстановить из резервной копии</string>
     <string name="ob_step">Шаг %1$d из %2$d</string>
