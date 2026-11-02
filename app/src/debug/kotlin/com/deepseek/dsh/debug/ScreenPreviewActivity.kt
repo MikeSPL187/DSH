@@ -16,6 +16,7 @@ import com.deepseek.dsh.core.designsystem.DshTheme
 import com.deepseek.dsh.core.designsystem.kit.rememberToast
 import com.deepseek.dsh.terminal.Explain
 import com.deepseek.dsh.terminal.TermModel
+import kotlinx.coroutines.launch
 
 /**
  * Только для debug-сборки: экран терминала на устройстве без Linux, на тех же данных,
@@ -132,6 +133,7 @@ class ScreenPreviewActivity : ComponentActivity() {
         fun tool(id: String, name: String, status: String, body: String, args: String, at: Long) =
             msg("tool_$id", com.deepseek.dsh.core.model.MessageRole.TOOL, "\u0002TOOL\u0002$id\u0002$name\u0002$status\u0002$body\u0002$args", at)
         val log = "> Configure project :app\n> Task :app:compileDebugKotlin\ne: This version (1.7.3) of the Compose Compiler\n   requires Kotlin 2.0.21 but you appear to be using 2.0.0\nBUILD FAILED in 12s"
+        if (state == "chat-live") { LiveChatPreview(onMenu); return }
         val messages = if (state == "chat-home") emptyList() else listOf(
             msg("u1", com.deepseek.dsh.core.model.MessageRole.USER, "Сборка падает после обновления Compose. Найди причину и исправь.", t0),
             tool("c1", "read", "ok", "...", "{\"path\":\"app/build.gradle.kts\"}", t0 + 1_000),
@@ -151,6 +153,34 @@ class ScreenPreviewActivity : ComponentActivity() {
             topBar = { sc -> com.deepseek.dsh.ModernTopAppBar(title = if (state == "chat-home") "" else "Сборка падает после обновления Compose", workspace = "DSH-Workspace", scrolled = sc, onMenuClick = onMenu) },
             userName = "Михаил", resume = if (state == "chat-home") com.deepseek.dsh.feature.chat.ChatResume("s1", "Сборка падает после обновления Compose") else null,
             filesBadge = 2, onOpenTerminal = {}, voiceEnabled = true, selectedModel = "DeepSeek V4", availableModels = listOf("DeepSeek V4"),
+        )
+    }
+
+    /** «Живой» чат без Host: сообщения появляются, через секунду приходит ответ с Markdown и кодом. */
+    @androidx.compose.runtime.Composable
+    private fun LiveChatPreview(onMenu: () -> Unit) {
+        val messages = remember { androidx.compose.runtime.mutableStateListOf<com.deepseek.dsh.core.model.ChatMessage>() }
+        var thinking by remember { androidx.compose.runtime.mutableStateOf(false) }
+        val scope = androidx.compose.runtime.rememberCoroutineScope()
+        var n by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+        fun reply(q: String) = "## Ответ ${n}\n\nВы спросили: *${q.take(60)}*. Вот пример с **кодом** и ссылкой на [Kotlin](https://kotlinlang.org).\n\n" +
+            "```kotlin\n" + (1..(if (n % 2 == 0) 46 else 8)).joinToString("\n") { "val line$it = \"значение $it\" // строка $it" } + "\n```\n\n" +
+            "> Цитата: проверьте сборку\n> перед коммитом.\n\n- [x] Пункт выполнен\n- [ ] Пункт в работе\n\n| Ключ | Значение |\n|---|---|\n| a | 1 |\n\nГотово ~~почти~~ полностью."
+        com.deepseek.dsh.feature.chat.ModernChatScreen(
+            messages = messages.toList(), isThinking = thinking, onStopClick = { thinking = false },
+            onSendMessage = { text ->
+                val t = System.currentTimeMillis()
+                n++
+                messages.add(com.deepseek.dsh.core.model.ChatMessage("h", "s", "u$n", com.deepseek.dsh.core.model.MessageRole.USER, text, createdAt = t, seq = (n * 2 - 1).toLong()))
+                thinking = true
+                scope.launch {
+                    kotlinx.coroutines.delay(1200)
+                    if (thinking) messages.add(com.deepseek.dsh.core.model.ChatMessage("h", "s", "a$n", com.deepseek.dsh.core.model.MessageRole.ASSISTANT, reply(text), createdAt = t + 1, seq = (n * 2).toLong()))
+                    thinking = false
+                }
+            },
+            topBar = { sc -> com.deepseek.dsh.ModernTopAppBar(title = if (messages.isEmpty()) "" else "Живой чат", workspace = "DSH-Workspace", scrolled = sc, onMenuClick = onMenu) },
+            userName = "Михаил", filesBadge = 0, onOpenTerminal = {}, selectedModel = "DeepSeek V4", availableModels = listOf("DeepSeek V4"),
         )
     }
 }

@@ -99,10 +99,12 @@ class ChatSender(
             Triple(file, mediaType, name)
         }
         attachments.clear()
+        // Прошлая неудачная попытка в новом чате больше не нужна — сейчас пробуем снова.
+        pendingMessages.removeAll { it.messageId.startsWith(FAILED_PREFIX) || it.messageId.startsWith(ERROR_PREFIX) }
         pendingMessages.add(
             ChatMessage(
                 hostId = ui.activeHostId,
-                sessionId = ui.selectedSessionId ?: "pending",
+                sessionId = ui.selectedSessionId ?: PENDING_SESSION,
                 messageId = localId,
                 role = MessageRole.USER,
                 content = text,
@@ -126,10 +128,14 @@ class ChatSender(
                 ).getOrNull()?.sessionId
                 sid = createOnce()
                 if (sid == null) {
-                    // Host мог упасть или ещё не готов: один перезапуск и повтор.
+                    // Host мог уснуть по простою, упасть или ещё просыпаться: запустить (start ждёт порт
+                    // и токен) и повторять, пока клиент не подключится, — до ~30 с, а не одну попытку через 10 с.
                     runtimeManager.start(workspaceRoot().absolutePath)
-                    kotlinx.coroutines.delay(10000)
-                    sid = createOnce()
+                    for (attempt in 0 until SESSION_CREATE_RETRIES) {
+                        sid = createOnce()
+                        if (sid != null) break
+                        kotlinx.coroutines.delay(SESSION_CREATE_RETRY_MS)
+                    }
                 }
                 if (sid != null) {
                     // mkdir Host под proot может вернуть ENOENT — папку сессии создаёт приложение.
@@ -140,6 +146,10 @@ class ChatSender(
                     ).mkdirs()
                     ui.selectedSessionId = sid
                     createdSession = true
+                    // Мгновенный пузырь создан до сессии — теперь он принадлежит ей (лента показывает
+                    // временные сообщения только своей сессии).
+                    val index = pendingMessages.indexOfFirst { it.messageId == localId }
+                    if (index >= 0) pendingMessages[index] = pendingMessages[index].copy(sessionId = sid!!)
                 }
             }
             if (sid != null) {
@@ -169,8 +179,8 @@ class ChatSender(
                 pendingMessages.add(
                     ChatMessage(
                         hostId = ui.activeHostId,
-                        sessionId = "pending",
-                        messageId = "local_failed_${System.nanoTime()}",
+                        sessionId = PENDING_SESSION,
+                        messageId = "$FAILED_PREFIX${System.nanoTime()}",
                         role = MessageRole.USER,
                         content = text,
                         createdAt = System.currentTimeMillis(),
@@ -179,8 +189,8 @@ class ChatSender(
                 pendingMessages.add(
                     ChatMessage(
                         hostId = ui.activeHostId,
-                        sessionId = "pending",
-                        messageId = "local_error_${System.nanoTime()}",
+                        sessionId = PENDING_SESSION,
+                        messageId = "$ERROR_PREFIX${System.nanoTime()}",
                         role = MessageRole.ASSISTANT,
                         content = "⚠️ " + context.getString(R.string.session_create_failed),
                         createdAt = System.currentTimeMillis(),
@@ -195,3 +205,18 @@ class ChatSender(
         }
     }
 }
+
+/** Метка временных сообщений нового чата, у которого ещё нет сессии. */
+internal const val PENDING_SESSION = "pending"
+private const val FAILED_PREFIX = "local_failed_"
+private const val ERROR_PREFIX = "local_error_"
+private const val SESSION_CREATE_RETRIES = 15
+private const val SESSION_CREATE_RETRY_MS = 2_000L
+
+/**
+ * Временные сообщения (мгновенный пузырь, ошибка отправки), которые видны в открытом чате:
+ * только своей сессии, а сообщения без сессии — только в новом чате. Раньше ошибка
+ * «Не удалось создать сессию» из нового чата показывалась в любой открытой сессии.
+ */
+internal fun pendingForSession(pending: List<ChatMessage>, selectedSessionId: String?): List<ChatMessage> =
+    pending.filter { it.sessionId == (selectedSessionId ?: PENDING_SESSION) }
