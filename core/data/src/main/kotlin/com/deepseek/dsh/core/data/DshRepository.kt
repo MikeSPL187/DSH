@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
@@ -276,12 +277,7 @@ class DshRepository(
     /** Первая строка последнего ответа агента по каждой сессии, без разметки Markdown. */
     fun sessionPreviews(hostId: String): Flow<Map<String, String>> =
         dao.lastAssistantMessages(hostId).map { rows ->
-            rows.mapNotNull { row ->
-                val line = row.content.orEmpty().lineSequence()
-                    .map { it.replace(MARKDOWN_MARKS, "").replace(MARKDOWN_LINK, "$1").trim() }
-                    .firstOrNull { it.isNotEmpty() && !it.startsWith("```") }
-                line?.let { row.sessionId to it.take(120) }
-            }.toMap()
+            rows.mapNotNull { row -> sessionPreviewLine(row.content.orEmpty())?.let { row.sessionId to it } }.toMap()
         }
 
     /**
@@ -508,13 +504,13 @@ class DshRepository(
      */
     fun subscribeRemoteEvents(hostId: String) {
         if (!subscribedHosts.add(hostId)) return
-        scope.launch(Dispatchers.IO) { client.subscribeEvents(hostId).collect { onSessionEvent(hostId, it) } }
-        scope.launch(Dispatchers.IO) { client.forwardedHostEvents(hostId).collect { onHostEvent(hostId, it) } }
-        scope.launch(Dispatchers.IO) { client.watchAccount(hostId).collect(account::onAccountView) }
-        scope.launch(Dispatchers.IO) { client.forwardedWaterfalls(hostId).collect { approvals.onWaterfall(hostId, it) } }
-        scope.launch(Dispatchers.IO) { client.forwardedEventPayloads(hostId).collect(plugins::onEventPayload) }
-        scope.launch(Dispatchers.IO) { client.sessionControl(hostId).collect(::onControlFrame) }
-        scope.launch(Dispatchers.IO) {
+        followHost { client.subscribeEvents(hostId).collect { onSessionEvent(hostId, it) } }
+        followHost { client.forwardedHostEvents(hostId).collect { onHostEvent(hostId, it) } }
+        followHost { client.watchAccount(hostId).collect(account::onAccountView) }
+        followHost { client.forwardedWaterfalls(hostId).collect { approvals.onWaterfall(hostId, it) } }
+        followHost { client.forwardedEventPayloads(hostId).collect(plugins::onEventPayload) }
+        followHost { client.sessionControl(hostId).collect(::onControlFrame) }
+        followHost {
             client.workspaceFollow(hostId).collect { frame ->
                 val root = runCatching { hostJson.parseToJsonElement(frame) as? JsonObject }.getOrNull()
                     ?: return@collect
@@ -526,6 +522,29 @@ class DshRepository(
                     refreshSessions(hostId)
                 }
             }
+        }
+    }
+
+    /**
+     * Поток событий Host с переподключением. Обрыв сокета (Host перезапустился после сна, сменилась
+     * сеть, прокси отклонил соединение) закрывал поток с исключением: оно никем не ловилось и роняло
+     * всё приложение, а подписка терялась до перезапуска — чат переставал получать события.
+     * Теперь обрыв ловится, поток открывается снова с паузой 1 → 30 с (сброс после долгой работы).
+     */
+    private fun followHost(block: suspend () -> Unit) = scope.launch(Dispatchers.IO) {
+        var pause = FOLLOW_RETRY_MIN_MS
+        while (isActive) {
+            val startedAt = System.currentTimeMillis()
+            try {
+                block()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.w("DshRepository", "поток Host оборвался: ${e.message}")
+            }
+            if (System.currentTimeMillis() - startedAt > FOLLOW_HEALTHY_MS) pause = FOLLOW_RETRY_MIN_MS
+            delay(pause)
+            pause = (pause * 2).coerceAtMost(FOLLOW_RETRY_MAX_MS)
         }
     }
 
@@ -646,11 +665,6 @@ class DshRepository(
         _streamingTextFlow.value = ""
         _streamingReasoningFlow.value = ""
     }
-
-    private companion object {
-        val MARKDOWN_MARKS = Regex("[*_`#>]+")
-        val MARKDOWN_LINK = Regex("\\[([^\\]]*)]\\([^)]*\\)")
-    }
 }
 
 /** Большинство вызовов сессий и папок принимают аргументы в виде `{request: {...}}`. */
@@ -677,3 +691,20 @@ private fun SessionInfo.toEntity(archived: Boolean = this.archived, pinned: Bool
     model = model,
     permissionPreset = permissionPreset,
 )
+
+private const val FOLLOW_RETRY_MIN_MS = 1_000L
+private const val FOLLOW_RETRY_MAX_MS = 30_000L
+private const val FOLLOW_HEALTHY_MS = 30_000L
+
+/**
+ * Подпись сессии в меню — первая строка ответа агента. Сообщение хранится как
+ * «рассуждение \u0001 ответ»: раньше в меню попадало рассуждение модели вместо ответа.
+ */
+internal fun sessionPreviewLine(content: String): String? =
+    content.substringAfter('\u0001').lineSequence()
+        .map { it.replace(MARKDOWN_MARKS, "").replace(MARKDOWN_LINK, "$1").trim() }
+        .firstOrNull { it.isNotEmpty() && !it.startsWith("```") }
+        ?.take(120)
+
+private val MARKDOWN_MARKS = Regex("[*_`#>]+")
+private val MARKDOWN_LINK = Regex("\\[([^\\]]*)]\\([^)]*\\)")

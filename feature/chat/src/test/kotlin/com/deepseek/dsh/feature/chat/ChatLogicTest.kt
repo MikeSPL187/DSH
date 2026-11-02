@@ -111,7 +111,7 @@ class ChatLogicTest {
             """.trimIndent(),
         )
         assertEquals(MarkdownBlock.Heading(1, "Title"), blocks[0])
-        assertEquals(MarkdownBlock.Paragraph("Some text continues here."), blocks[1])
+        assertEquals(MarkdownBlock.Paragraph("Some text\ncontinues here."), blocks[1])
         assertEquals(MarkdownBlock.ListItem("•", "item"), blocks[2])
         assertEquals(MarkdownBlock.ListItem("•", "nested", depth = 1), blocks[3])
         assertEquals(MarkdownBlock.ListItem("•", "done", checked = true), blocks[4])

@@ -49,4 +49,15 @@ class TasksRepositoryTest {
         assertFalse(tasks.deleteSchedule("local", "s1", "a"))
         assertEquals(listOf("schedule/delete"), host.calls.map { it.first })
     }
+
+    @Test
+    fun `broken job stream does not crash the app`() {
+        var crashed: Throwable? = null
+        val handler = kotlinx.coroutines.CoroutineExceptionHandler { _, e -> crashed = e }
+        // У подставного Host нет jobList — вызов бросает, как оборванный веб-сокет.
+        val tasks = TasksRepository(FakeHost { _, _ -> null }.client, HostCalls(FakeHost { _, _ -> null }.client), CoroutineScope(Dispatchers.Unconfined + handler))
+        tasks.watchJobs("local", "s1")
+        assertEquals(null, crashed)
+        assertTrue(tasks.jobsFlow.value.isEmpty())
+    }
 }

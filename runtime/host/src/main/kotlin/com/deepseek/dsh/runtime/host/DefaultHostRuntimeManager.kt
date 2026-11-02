@@ -238,6 +238,25 @@ class DefaultHostRuntimeManager(
      * Патчи приложения: исправляют в DSH пути, которые под proot/Android дают ENOSYS, — разбор путей,
      * снятие файловых блокировок и временные папки spill — без повторной загрузки всего rootfs.
      */
+    /**
+     * Только отладочная сборка (FLAG_DEBUGGABLE; в релизе ветка недостижима): если в кеше приложения
+     * лежит `debug-external-host`, вместо proot запускается локальная «труба» к Host, который работает
+     * снаружи (контейнер разработчика за `adb reverse`/`adb forward`). Приложение пишет параметры
+     * запуска в `debug-external-request`, внешний запускатель кладёт вывод Host в `debug-external-stdout`,
+     * а этот процесс печатает его — порт и токен разбираются как обычно. Нужен там, где proot не работает
+     * (эмулятор без KVM), чтобы пройти живой чат с агентом. Файлы в личной папке приложения: снаружи их
+     * кладёт только root или run-as.
+     */
+    private fun debugExternalHostCommand(bridgePort: Int, workspacePath: String): List<String>? {
+        val debuggable = (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        if (!debuggable || !File(layout.cacheDir, "debug-external-host").isFile) return null
+        val out = File(layout.cacheDir, "debug-external-stdout")
+        out.delete()
+        File(layout.cacheDir, "debug-external-request").writeText("bridgePort=$bridgePort\nworkspace=$workspacePath\nat=${System.currentTimeMillis()}\n")
+        val path = shellCommand(listOf(out.absolutePath))
+        return listOf("/system/bin/sh", "-c", "until [ -f $path ]; do sleep 1; done; exec tail -n +1 -f $path")
+    }
+
     private fun applyBundledRuntimePatches() {
         // Образ со вшитыми патчами: файлы DSH уже «исходник + патч», замена целыми файлами из APK
         // вернула бы старый движок. Остаётся только Node preload в /root/.dsh.
@@ -988,7 +1007,8 @@ class DefaultHostRuntimeManager(
         val cmd = ProotCommandBuilder.build(launchConfig)
         // Запуск через shell: прямой exec proot унаследовал бы окружение компоновщика процесса приложения,
         // и разбор модулей Node в proot отличался бы от ручного запуска.
-        val launchCmd = listOf("/system/bin/sh", "-c", shellCommand(cmd))
+        val launchCmd = debugExternalHostCommand(bridgePort, workspacePath)
+            ?: listOf("/system/bin/sh", "-c", shellCommand(cmd))
 
         val logFile = File(layout.logsDir, "host_${System.currentTimeMillis()}.log")
         logFile.appendText("[CMD] ${cmd.joinToString(" ")}\n")

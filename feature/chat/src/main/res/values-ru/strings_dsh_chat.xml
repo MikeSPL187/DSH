@@ -119,4 +119,5 @@
         <item quantity="many">%d шагов</item>
         <item quantity="other">%d шага</item>
     </plurals>
+    <string name="ck_work_done_plain">Готово</string>
 </resources>

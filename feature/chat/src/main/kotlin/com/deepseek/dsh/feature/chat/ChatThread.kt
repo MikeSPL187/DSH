@@ -470,6 +470,11 @@ internal fun WorkBlock(
     val running = tools.lastOrNull { it.status == "running" }
     val label = when {
         approval != null && !done -> stringResource(R.string.ck_h_wait)
+        // Длительность неизвестна (история перечитана после перезапуска — у всех событий одно время):
+        // без «· 0 с», которое выглядело бы как настоящее время работы.
+        done && durationMs < MIN_KNOWN_DURATION_MS && tools.isNotEmpty() ->
+            stringResource(R.string.ck_work_done_short, androidx.compose.ui.res.pluralStringResource(R.plurals.ck_steps, tools.size, tools.size))
+        done && durationMs < MIN_KNOWN_DURATION_MS -> stringResource(R.string.ck_work_done_plain)
         done && tools.isNotEmpty() -> stringResource(R.string.ck_work_done, androidx.compose.ui.res.pluralStringResource(R.plurals.ck_steps, tools.size, tools.size), ckDuration(durationMs))
         done -> stringResource(R.string.ck_work_done_short, ckDuration(durationMs))
         else -> ckHeadLabel(running?.name)
@@ -665,3 +670,6 @@ internal fun MessageFeedbackActions(
         }
     }
 }
+
+/** Короче этого длительность хода считается неизвестной. */
+private const val MIN_KNOWN_DURATION_MS = 500L

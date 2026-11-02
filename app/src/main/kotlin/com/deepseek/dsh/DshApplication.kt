@@ -71,6 +71,9 @@ class DshApplication : Application() {
 
     val okHttpClient by lazy {
         OkHttpClient.Builder()
+            // Клиент ходит только к Host на 127.0.0.1: системный прокси Wi-Fi (корпоративная сеть, VPN)
+            // не должен перехватывать loopback — иначе веб-сокеты получали 405 от прокси.
+            .proxy(java.net.Proxy.NO_PROXY)
             .cookieJar(cookieJar)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)

@@ -107,7 +107,9 @@ class TasksRepository internal constructor(
         jobsSessionId = sessionId
         _jobsFlow.value = emptyList()
         jobsJob = scope.launch(Dispatchers.IO) {
-            client.jobList(hostId, sessionId).collect { _jobsFlow.value = it }
+            // Обрыв сокета не должен ронять приложение: список задач просто перестаёт обновляться.
+            runCatching { client.jobList(hostId, sessionId).collect { _jobsFlow.value = it } }
+                .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }
         }
     }
 

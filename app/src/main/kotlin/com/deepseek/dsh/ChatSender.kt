@@ -122,7 +122,7 @@ class ChatSender(
             if (sid == null) {
                 suspend fun createOnce(): String? = repository.createSession(
                     ui.activeHostId,
-                    text.take(24),
+                    sessionTitleFrom(text),
                     "/workspace/${runtimeUi.activeWorkspaceName}",
                     (ui.pendingAgentPreset ?: ui.currentAppSettings.transcriptView).takeIf { it.isNotBlank() }
                 ).getOrNull()?.sessionId
@@ -220,3 +220,20 @@ private const val SESSION_CREATE_RETRY_MS = 2_000L
  */
 internal fun pendingForSession(pending: List<ChatMessage>, selectedSessionId: String?): List<ChatMessage> =
     pending.filter { it.sessionId == (selectedSessionId ?: PENDING_SESSION) }
+
+/**
+ * Название новой сессии из первого сообщения: первая непустая строка без ссылок-вложений,
+ * до 40 символов по границе слова с «…». Раньше — жёсткие 24 символа посреди слова
+ * («Reply with one short sen»).
+ */
+internal fun sessionTitleFrom(text: String): String {
+    val line = text.lineSequence().map { it.trim() }
+        .firstOrNull { it.isNotEmpty() && !it.startsWith("@") } ?: text.trim()
+    if (line.length <= SESSION_TITLE_MAX) return line
+    val cut = line.take(SESSION_TITLE_MAX)
+    val space = cut.lastIndexOf(' ')
+    val head = if (space >= SESSION_TITLE_MAX / 2) cut.substring(0, space) else cut
+    return head.trimEnd(' ', ',', '.', ':', ';', '-') + "…"
+}
+
+private const val SESSION_TITLE_MAX = 40
