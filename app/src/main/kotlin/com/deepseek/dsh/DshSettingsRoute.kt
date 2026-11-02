@@ -430,9 +430,7 @@ private suspend fun fetchDeepSeekBalance(key: String): Pair<KeyState, Pair<Doubl
             when (c.responseCode) {
                 401, 403 -> KeyState.Bad to null
                 in 200..299 -> {
-                    val info = org.json.JSONObject(c.inputStream.bufferedReader().readText()).getJSONArray("balance_infos").getJSONObject(0)
-                    val sign = when (info.optString("currency")) { "USD" -> "$"; "CNY" -> "¥"; else -> info.optString("currency") }
-                    KeyState.Ok to (info.getString("total_balance").toDouble() to sign)
+                    KeyState.Ok to pickBalance(c.inputStream.bufferedReader().readText())
                 }
                 else -> KeyState.Offline to null
             }

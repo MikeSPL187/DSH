@@ -260,17 +260,28 @@ internal suspend fun checkApiKey(provider: OnboardingProvider, baseUrl: String, 
         }
     }
 
-/** `balance_infos[0]` → «12,40 $» / «85,00 ¥» в формате текущего языка. */
-internal fun parseBalance(body: String): String? = runCatching {
-    val info = JSONObject(body).getJSONArray("balance_infos").getJSONObject(0)
-    val amount = info.getString("total_balance").toDouble()
-    val sign = when (info.optString("currency")) {
+/**
+ * Баланс из `balance_infos`: (сумма, знак валюты). У аккаунта может быть несколько валют
+ * (например, CNY 91,52 и USD 0,00) в любом порядке — берётся та, где больше денег, а не первая:
+ * раньше при пополненных юанях показывалось «на балансе 0,00 $».
+ */
+internal fun pickBalance(body: String): Pair<Double, String>? = runCatching {
+    val infos = JSONObject(body).getJSONArray("balance_infos")
+    val all = (0 until infos.length()).map { infos.getJSONObject(it) }
+        .map { it.getString("total_balance").toDouble() to it.optString("currency") }
+    val best = all.maxByOrNull { it.first } ?: return@runCatching null
+    val sign = when (best.second) {
         "USD" -> "$"
         "CNY" -> "¥"
-        else -> info.optString("currency")
+        else -> best.second
     }
-    String.format(java.util.Locale.getDefault(), "%.2f %s", amount, sign)
+    best.first to sign
 }.getOrNull()
+
+/** Баланс → «12,40 $» / «85,00 ¥» в формате текущего языка. */
+internal fun parseBalance(body: String): String? = pickBalance(body)?.let { (amount, sign) ->
+    String.format(java.util.Locale.getDefault(), "%.2f %s", amount, sign)
+}
 
 /** Список моделей OpenAI-совместимого `/models`. */
 internal fun parseModels(body: String): List<String> = runCatching {
