@@ -43,7 +43,14 @@ class AppChatServices(
     override fun refreshFeedback() = withSession { sid -> scope.launch { repository.refreshMessageFeedback(host, sid) } }
 
     override fun rate(messageId: String, rating: String?, note: String?) =
-        withSession { sid -> scope.launch { repository.rateMessage(host, sid, messageId, rating, note) } }
+        withSession { sid ->
+            scope.launch {
+                // Отказ Host — видно, а не «кнопка просто не нажалась».
+                if (!repository.rateMessage(host, sid, messageId, rating, note)) com.dsh.core.designsystem.kit.DshToast.show(
+                    com.dsh.core.model.Tr.t("Rating was not saved", "Оценка не сохранилась"),
+                )
+            }
+        }
 
     override val images: StateFlow<Map<String, List<AttachmentImageRef>>> = repository.messageImagesFlow
 

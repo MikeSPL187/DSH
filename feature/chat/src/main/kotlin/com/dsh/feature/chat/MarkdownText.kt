@@ -82,25 +82,45 @@ fun MarkdownMessageText(text: String, color: Color = com.dsh.core.designsystem.D
                     Text(inlineMarkdown(block.text, color), style = bodyTextStyle(), color = if (block.checked == true) c.t3 else color, modifier = Modifier.weight(1f))
                 }
                 is MarkdownBlock.Code -> CodeBlock(block.code, block.lang)
-                is MarkdownBlock.Table -> Column(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.s1).border(1.dp, c.line, RoundedCornerShape(14.dp))
-                        .horizontalScroll(rememberScrollState()),
+                is MarkdownBlock.Table -> androidx.compose.foundation.layout.BoxWithConstraints(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.s1).border(1.dp, c.line, RoundedCornerShape(14.dp)),
                 ) {
+                  val cardWidth = maxWidth
+                  Box(Modifier.horizontalScroll(rememberScrollState())) {
+                    // Общая ширина столбца — по самой широкой ячейке (64–220 dp): раньше каждая строка мерилась
+                    // сама, столбцы съезжали, а фон заголовка и разделители обрывались раньше края таблицы.
+                    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+                    val density = androidx.compose.ui.platform.LocalDensity.current
+                    val headStyle = ckBody(13.5.sp, 18.sp, FontWeight.SemiBold)
+                    val cellStyle = ckBody(13.5.sp, 18.sp, FontWeight.Normal)
+                    val columns = block.rows.maxOfOrNull { it.size } ?: 0
+                    val widths = remember(block.rows, density) {
+                        List(columns) { col ->
+                            val px = block.rows.mapIndexed { index, cells ->
+                                val cell = cells.getOrNull(col) ?: return@mapIndexed 0
+                                measurer.measure(inlineMarkdownOf(cell, color, c.t3, c.codeBg), if (index == 0) headStyle else cellStyle, softWrap = false).size.width
+                            }.maxOrNull() ?: 0
+                            with(density) { px.toDp() }.coerceIn(64.dp, 220.dp) + 1.dp
+                        }
+                    }
+                  Column(Modifier.widthIn(min = cardWidth).width(androidx.compose.foundation.layout.IntrinsicSize.Max)) {
                     block.rows.forEachIndexed { index, cells ->
                         Row(
-                            Modifier.then(if (index == 0) Modifier.background(c.s2) else Modifier)
+                            Modifier.fillMaxWidth().then(if (index == 0) Modifier.background(c.s2) else Modifier)
                                 .drawBehind { if (index > 0) drawRect(c.line, size = androidx.compose.ui.geometry.Size(size.width, 1.dp.toPx())) }
                                 .padding(horizontal = 12.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
-                            cells.forEach { cell ->
+                            cells.forEachIndexed { col, cell ->
                                 Text(
-                                    inlineMarkdown(cell, color), style = ckBody(13.5.sp, 18.sp, if (index == 0) FontWeight.SemiBold else FontWeight.Normal),
-                                    color = if (index == 0) c.t2 else color, modifier = Modifier.widthIn(min = 64.dp, max = 220.dp),
+                                    inlineMarkdown(cell, color), style = if (index == 0) headStyle else cellStyle,
+                                    color = if (index == 0) c.t2 else color, modifier = Modifier.width(widths.getOrElse(col) { 64.dp }),
                                 )
                             }
                         }
                     }
+                  }
+                  }
                 }
                 is MarkdownBlock.Quote -> Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
                     Box(Modifier.width(3.dp).fillMaxHeight().clip(RoundedCornerShape(2.dp)).background(c.s3))

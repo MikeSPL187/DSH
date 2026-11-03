@@ -16,4 +16,10 @@ class SessionPreviewTest {
         assertEquals("docs", sessionPreviewLine("[docs](https://x.y)"))
         assertEquals(null, sessionPreviewLine("  \n"))
     }
+
+    @Test
+    fun `link with parentheses in its address leaves no stray bracket`() {
+        // Настоящий ответ агента: в меню было «Created hello.py) and ran it».
+        assertEquals("Created hello.py and ran it", sessionPreviewLine("Created [hello.py](hello.py#print(\"hi\")) and ran it"))
+    }
 }

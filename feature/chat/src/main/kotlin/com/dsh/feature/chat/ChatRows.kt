@@ -9,6 +9,15 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 
+private const val REASONING_SUFFIX = "_r"
+private const val ANSWER_SUFFIX = "_a"
+
+/**
+ * Id сообщения у Host для строки ленты: итоговый ответ с рассуждением показывается отдельной строкой
+ * с суффиксом. Оценка 👍/👎 по id с суффиксом молча не сохранялась — у Host такого сообщения нет.
+ */
+internal fun hostMessageIdOf(rowMessageId: String): String = rowMessageId.removeSuffix(ANSWER_SUFFIX)
+
 /** Строка ленты чата. */
 internal sealed interface ChatRow {
     data class Single(val message: ChatMessage) : ChatRow
@@ -54,9 +63,9 @@ internal fun buildChatRows(messages: List<ChatMessage>, isThinking: Boolean): Li
                         val reasoning = message.content.substring(0, sep)
                         val answer = message.content.substring(sep + 1)
                         if (reasoning.isNotBlank()) {
-                            process.add(message.copy(messageId = message.messageId + "_r", content = reasoning + '\u0001'))
+                            process.add(message.copy(messageId = message.messageId + REASONING_SUFFIX, content = reasoning + '\u0001'))
                         }
-                        if (answer.isNotBlank()) finalAnswer = message.copy(messageId = message.messageId + "_a", content = answer)
+                        if (answer.isNotBlank()) finalAnswer = message.copy(messageId = message.messageId + ANSWER_SUFFIX, content = answer)
                     }
                 }
                 message.role == MessageRole.ASSISTANT -> process.add(message)

@@ -490,9 +490,9 @@ class DshRepository(
      * Оценить ответ: берём у Host текущую версию записи, затем put или delete,
      * обновлённый список — в [messageFeedbackFlow]. [rating] null — снять оценку.
      */
-    suspend fun rateMessage(hostId: String, sessionId: String, messageId: String, rating: String?, note: String?) {
+    suspend fun rateMessage(hostId: String, sessionId: String, messageId: String, rating: String?, note: String?): Boolean {
         val version = listMessageFeedback(hostId, sessionId)[messageId]?.version
-        runCatching {
+        val saved = runCatching {
             if (rating != null) {
                 calls.ok(hostId, "messageFeedback/put", requestOf(buildJsonObject {
                     put("sessionId", sessionId)
@@ -508,9 +508,10 @@ class DshRepository(
                     put("messageId", messageId)
                     put("ifVersion", version)
                 }))
-            }
-        }
+            } else true
+        }.getOrDefault(false)
         refreshMessageFeedback(hostId, sessionId)
+        return saved
     }
 
     suspend fun refreshMessageFeedback(hostId: String, sessionId: String) {
@@ -764,7 +765,8 @@ internal fun storedContent(message: ChatMessage): String {
 }
 
 private val MARKDOWN_MARKS = Regex("[*_`#>]+")
-private val MARKDOWN_LINK = Regex("\\[([^\\]]*)]\\([^)]*\\)")
+// Адрес со сбалансированными скобками (`[f](f.py#print("hi"))`) — как в чате; иначе в превью оставалась «)».
+private val MARKDOWN_LINK = Regex("\\[([^\\]]*)]\\((?:[^()]|\\([^()]*\\))*\\)")
 
 /**
  * Подпись сессии в меню — первая строка ответа агента. Сообщение хранится как

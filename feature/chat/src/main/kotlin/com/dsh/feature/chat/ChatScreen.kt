@@ -1010,14 +1010,15 @@ fun ModernChatScreen(
                                                 },
                                             ) {
                                                 // Оценка ответа (плагин message-feedback) — теми же кнопками.
+                                                val ratedId = hostMessageIdOf(m.messageId)
                                                 if (feedbackFlow != null) MessageFeedbackActions(
-                                                    current = feedback[m.messageId],
+                                                    current = feedback[ratedId],
                                                     onRating = { rating ->
-                                                        val existing = feedback[m.messageId]
-                                                        services.rate(m.messageId, if (existing?.rating == rating) null else rating, existing?.note)
+                                                        val existing = feedback[ratedId]
+                                                        services.rate(ratedId, if (existing?.rating == rating) null else rating, existing?.note)
                                                     },
                                                     onNote = { note ->
-                                                        services.rate(m.messageId, feedback[m.messageId]?.rating ?: "positive", note)
+                                                        services.rate(ratedId, feedback[ratedId]?.rating ?: "positive", note)
                                                     },
                                                 )
                                             }

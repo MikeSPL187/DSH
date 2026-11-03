@@ -935,7 +935,8 @@ fun MainAppHost(
             val chatTopBar: @Composable (Boolean, com.dsh.feature.chat.ChatContextChip?) -> Unit = { scrolled, contextChip ->
                 androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxWidth()) {
                             ModernTopAppBar(
-                                workspace = runtimeUi.activeWorkspaceName,
+                                // Как в меню: папка по умолчанию — «Рабочая папка по умолчанию», а не имя на диске «Default».
+                                workspace = workspaceLabelOf(runtimeUi.activeWorkspaceName),
                                 live = status.phase == RuntimePhase.RUNNING || ui.activeHostId != com.dsh.core.model.HostDescriptor.Local().id,
                                 scrolled = scrolled,
                                 context = contextChip,
