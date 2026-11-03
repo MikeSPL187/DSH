@@ -24,6 +24,28 @@ object AppLanguage {
     private const val LEGACY_RECREATE_DELAY_MS = 250L
     private val SUPPORTED = setOf("system", "en", "ru")
 
+    private const val KEY_RETURN = "return_to_look_at"
+    /** Отметка старше этого — смена языка не пересоздала экран (тот же язык); не открывать Настройки потом. */
+    private const val RETURN_WINDOW_MS = 120_000L
+
+    /**
+     * Смена языка в «Настройки → Оформление» пересоздаёт Activity (Android 8–12 — сами, 13+ — система),
+     * и навигация терялась: человек оказывался в чате. Перед сменой — отметка, после — [consumeReturnToLook].
+     */
+    fun markReturnToLook(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putLong(KEY_RETURN, System.currentTimeMillis()).apply()
+    }
+
+    /** Вернуться ли в «Оформление» после пересоздания; отметка снимается. */
+    fun consumeReturnToLook(context: Context, now: Long = System.currentTimeMillis()): Boolean {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val at = prefs.getLong(KEY_RETURN, 0L)
+        if (at == 0L) return false
+        prefs.edit().remove(KEY_RETURN).apply()
+        return now - at in 0..RETURN_WINDOW_MS
+    }
+
     /** Выбор пользователя: `system` / `en` / `ru`. */
     fun selection(context: Context): String =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, "system")

@@ -376,7 +376,7 @@
     <string name="st_mcp_state_err">Не запустился — подробности в журнале Host</string>
     <string name="st_mcp_state_pending">после перезапуска Host</string>
     <string name="st_mcp_delete">Удалить</string>
-    <string name="st_mcp_delete_confirm">Ещё раз — удалить</string>
+    <string name="st_mcp_delete_confirm">Точно удалить?</string>
     <string name="st_mcp_removed">Удалено · нужен перезапуск Host</string>
     <string name="st_mcp_remove_failed">Не удалось удалить сервер</string>
     <string name="st_mcp_by_url">По адресу</string>

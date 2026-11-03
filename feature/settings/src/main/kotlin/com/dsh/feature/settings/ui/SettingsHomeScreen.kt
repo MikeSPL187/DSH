@@ -895,7 +895,9 @@ private fun AgentPage(
         Gl(Modifier.selectableGroup()) {
             row { Rad(stringResource(R.string.st_appr_ask), stringResource(R.string.st_appr_ask_sub), ui.autoApprove == false) { a.setAutoApprove(false) } }
             row { Rad(stringResource(R.string.st_appr_auto), stringResource(R.string.st_appr_auto_sub), ui.autoApprove == true) { a.setAutoApprove(true) } }
-            row { RadNever(stringResource(R.string.st_appr_never), stringResource(R.string.st_appr_never_sub)) }
+            // При полном доступе агент ничего не спрашивает — обещание «всегда с вопросом» было бы неправдой
+            // рядом с подписью «он ничего не спрашивает»; строка вернётся с выбором режима.
+            if (!ui.fullAccess) row { RadNever(stringResource(R.string.st_appr_never), stringResource(R.string.st_appr_never_sub)) }
         }
         when {
             ui.fullAccess -> SubNote(stringResource(R.string.st_appr_full_access))

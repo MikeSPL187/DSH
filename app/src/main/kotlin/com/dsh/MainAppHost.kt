@@ -931,6 +931,13 @@ fun MainAppHost(
             // У чата полная шапка; у страниц со своим заголовком второй шапки нет.
             // Вложенные страницы «Плагинов», «Автоматизации» и «Настроек» закрывает их собственный стек.
             BackHandler(enabled = ui.activePage != ActivePage.CHAT) { ui.activePage = ActivePage.CHAT }
+            // После смены языка в «Оформлении» Activity пересоздана — вернуть туда же, а не в чат.
+            LaunchedEffect(Unit) {
+                if (AppLanguage.consumeReturnToLook(context)) {
+                    ui.settingsInitialSection = com.dsh.feature.settings.ui.StPage.Look
+                    ui.activePage = ActivePage.SETTINGS
+                }
+            }
             // Смена страницы — без чужой клавиатуры: открытая от поля чата, она оставалась на «Плагинах»
             // и забирала фокус в поиск (Android 8–12).
             val pageFocus = androidx.compose.ui.platform.LocalFocusManager.current

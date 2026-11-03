@@ -23,6 +23,7 @@ internal fun rememberAppLanguage(
     val context = LocalContext.current
     var selection by remember { mutableStateOf(AppLanguage.selection(context)) }
     val change: (String) -> Unit = { next ->
+        if (next != selection) AppLanguage.markReturnToLook(context)
         selection = next
         AppLanguage.apply(context, next)
         scope.launch {
