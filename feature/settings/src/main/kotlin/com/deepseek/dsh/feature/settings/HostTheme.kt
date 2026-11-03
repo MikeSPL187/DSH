@@ -18,9 +18,15 @@ import kotlinx.serialization.json.intOrNull
  * выбор пишет в Host; без моста — как в системе.
  */
 object HostTheme {
-    /** `light` / `dark` / `system`; по умолчанию как в системе. */
-    var preference by mutableStateOf("system")
-        private set
+    /** Тема из настроек Host (`ui-theme.preference`, общая с веб-интерфейсом). */
+    private var hostPreference by mutableStateOf("system")
+
+    /**
+     * `light` / `dark` / `system`. Выбор в приложении применяется сразу и хранится у себя: раньше тема
+     * писалась только в Host, и если он отклонял запись («profile reload requires the root Include entry»),
+     * переключатель молча ничего не делал.
+     */
+    val preference: String get() = com.deepseek.dsh.feature.settings.logic.DshUserPrefs.theme ?: hostPreference
 
     /** Размер основного текста (`ui-theme.fontSize` Host); null — ещё не прочитан. */
     var fontSize by mutableStateOf<Int?>(null)
@@ -45,12 +51,16 @@ object HostTheme {
 
     fun refresh() = reader?.invoke()
 
-    fun setPreference(value: String) = writer?.invoke(value)
+    fun setPreference(value: String) {
+        com.deepseek.dsh.feature.settings.logic.DshUserPrefs.theme = value
+        // Синхронизация с Host — для веб-интерфейса; отказ Host тему в приложении не отменяет.
+        writer?.invoke(value)
+    }
 
     private suspend fun load(repository: DshRepository, hostId: String) {
         val doc = runCatching { repository.hostSettings.namespace(hostId, NS) }.getOrNull() ?: return
         revision = doc.revision ?: revision
-        (doc.value["preference"] as? JsonPrimitive)?.contentOrNull?.let { preference = it }
+        (doc.value["preference"] as? JsonPrimitive)?.contentOrNull?.let { hostPreference = it }
         fontSize = (doc.value["fontSize"] as? JsonPrimitive)?.intOrNull
     }
 

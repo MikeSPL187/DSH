@@ -21,6 +21,7 @@ object DshUserPrefs {
     private var _biometric by mutableStateOf(false)
     private var _notifAsk by mutableStateOf(true)
     private var _notifAuto by mutableStateOf("err")
+    private var _theme by mutableStateOf<String?>(null)
 
     var codeSize: Int get() = _codeSize; set(v) { _codeSize = v.coerceIn(11, 16); edit { putInt("codeSize", _codeSize) } }
     var haptics: Boolean get() = _haptics; set(v) { _haptics = v; edit { putBoolean("haptics", v) } }
@@ -28,6 +29,8 @@ object DshUserPrefs {
     var notifAsk: Boolean get() = _notifAsk; set(v) { _notifAsk = v; edit { putBoolean("notifAsk", v) } }
     /** `always` / `err` / `never`. */
     var notifAuto: String get() = _notifAuto; set(v) { _notifAuto = v; edit { putString("notifAuto", v) } }
+    /** Тема, выбранная в приложении (`light` / `dark` / `system`); null — ещё не выбирали, берётся из Host. */
+    var theme: String? get() = _theme; set(v) { _theme = v; edit { putString("theme", v) } }
 
     fun init(context: Context) {
         app = context.applicationContext
@@ -37,6 +40,7 @@ object DshUserPrefs {
         _biometric = p.getBoolean("biometric", false)
         _notifAsk = p.getBoolean("notifAsk", true)
         _notifAuto = p.getString("notifAuto", "err") ?: "err"
+        _theme = p.getString("theme", null)
     }
 
     private fun edit(block: android.content.SharedPreferences.Editor.() -> Unit) {

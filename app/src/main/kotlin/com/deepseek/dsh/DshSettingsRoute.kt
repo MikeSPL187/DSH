@@ -140,7 +140,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
     }
 
     // Место на телефоне.
-    var storage by remember { mutableStateOf<StorageUsage?>(null) }
+    var storage by remember { mutableStateOf<StorageUsage?>(StorageScanner.last) }
     LaunchedEffect(tick) { storage = withContext(Dispatchers.IO) { StorageScanner.scan(context, d.layout.rootfsDir, d.workspace) } }
 
     // Рабочая папка и тема — живые значения, без перезапуска экрана.
@@ -190,9 +190,9 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         keyLast4 = ApiKeyVault.last4(DEEPSEEK_VAULT_REF),
         keyAdded = ApiKeyVault.addedAt(DEEPSEEK_VAULT_REF)?.let { shortDate(it) },
         balance = balance?.let { money(it.first) },
-        today = ledger?.let { money(it.today) },
-        monthSpent = ledger?.let { money(it.month) },
-        monthSpentFraction = ledger?.let { l -> balance?.first?.let { b -> (l.month / (l.month + b)).toFloat() } } ?: 0f,
+        today = ledger?.today?.let { money(it) },
+        monthSpent = ledger?.month?.let { money(it) },
+        monthSpentFraction = ledger?.month?.let { m -> balance?.first?.let { b -> (m / (m + b)).toFloat() } } ?: 0f,
         balanceDays = ledger?.daysLeft,
         customProviders = custom.map { p ->
             ProviderRow(p.id, p.name, ApiKeyVault.last4(p.keyRef)?.let { context.getString(R.string.settings_key_dots, it) } ?: p.baseUrl.removePrefix("https://"), if (p.keyConfigured) true else null)
@@ -208,6 +208,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         pluginsOn = d.pluginsOn,
         automationsOn = d.automationsOn,
         autoApprove = approveState(),
+        fullAccess = HostPermissionPreset.current?.contains("danger") == true,
         clipboard = clipboard,
         workspaceShared = sharedWs,
         theme = HostTheme.preference,
@@ -398,7 +399,9 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
 private fun approveState(): Boolean? {
     val current = HostPermissionPreset.current ?: return null
     if (HostPermissionPreset.options.isEmpty()) return null
-    return "workspace" in current || ("write" in current && "danger" !in current)
+    // Полный доступ — ни «спрашивать», ни «сам в папке»: ничего не отмечено, под вариантами — подпись.
+    if ("danger" in current) return null
+    return "workspace" in current || "write" in current
 }
 
 private fun shortDate(millis: Long): String {

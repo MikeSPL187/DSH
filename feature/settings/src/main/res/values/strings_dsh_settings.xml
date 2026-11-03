@@ -224,4 +224,6 @@
     <string name="st_about_note">Based on deepseek-harness-mobile 1.0.6. Works with DeepSeek Harness.</string>
     <string name="st_model_default">Default model</string>
     <string name="st_models_empty">Host hasn\'t sent the model list yet</string>
+    <string name="st_appr_full_access">Now the agent has full access without a sandbox and never asks. Choose a mode above.</string>
+    <string name="st_appr_full_short">Full access</string>
 </resources>

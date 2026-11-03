@@ -230,4 +230,6 @@
     <string name="st_about_note">Основано на deepseek-harness-mobile 1.0.6. Работает с DeepSeek Harness.</string>
     <string name="st_model_default">Модель по умолчанию</string>
     <string name="st_models_empty">Host ещё не прислал список моделей</string>
+    <string name="st_appr_full_access">Сейчас у агента полный доступ без песочницы — он ничего не спрашивает. Выберите режим выше.</string>
+    <string name="st_appr_full_short">Полный доступ</string>
 </resources>

@@ -120,6 +120,15 @@ ANDROID_HOME=/opt/android-sdk bash ./gradlew --offline -q --no-daemon -Dorg.grad
   (ptrace под TCG). Живой чат с агентом — только на телефоне или эмуляторе с KVM.
 - Локаль: `setprop persist.sys.locale ru-RU; setprop ctl.restart zygote`.
 
+## Настройки: проверено на эмуляторе (2026-11-03)
+- Host в контейнере отклоняет `settings/mutate` для живых настроек (`ui-theme`, `permission`):
+  «profile reload requires the root Include entry». На телефоне не проверено. Поэтому тема теперь применяется
+  и хранится в приложении (`DshUserPrefs.theme`), а в Host только синхронизируется; отказ сменить режим доступа —
+  тост, а не тихий «успех».
+- Режим доступа по умолчанию, пока его не меняли, берётся из `permissionPresets/catalog.defaultPreset`
+  (в настройках пусто). У Host это `danger-full-access` — на странице «Агент» ни один вариант не отмечен, есть подпись.
+- Расход «сегодня / за месяц» — по снимкам баланса; самое первое чтение — «—», а не «0,00».
+
 ## Грабли
 - Android обрезает пробелы в начале/конце строковых ресурсов — такие строки брать в кавычки.
 - `org.json` в чистых JVM-тестах не работает — такие тесты делать в Robolectric (app).

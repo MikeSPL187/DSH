@@ -63,6 +63,13 @@ class MainActivity : ComponentActivity() {
         // не сжимает. Иначе некоторые прошивки (например, MIUI) и сжимают, и сообщают отступ IME —
         // поле ввода чата поднималось дважды. На старых системах enableEdgeToEdge совместим.
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+        // Полосы прозрачные: под ними фон текущей темы приложения. Цвет из темы окна (#FBFBFB) оставался
+        // светлым и при «Графите» — белые значки времени и батареи на белом были не видны.
+        @Suppress("DEPRECATION")
+        run {
+            window.statusBarColor = android.graphics.Color.TRANSPARENT
+            window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        }
 
         workspaceManager = WorkspaceManager(
             preferredPublicDir = visibleWorkspaceDir,

@@ -35,7 +35,7 @@
     <string name="model_menu_model">Model</string>
     <string name="reasoning_fast">Fast</string>
     <string name="reasoning_deep_think">DeepThink</string>
-    <string name="reasoning_max">Max Reasoning</string>
+    <string name="reasoning_max">Max</string>
 
     <!-- Composer plus menu (aligned with ui-commands / ui-input-trigger) -->
     <string name="cmd_goal">Goal</string>

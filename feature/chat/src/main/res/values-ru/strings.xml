@@ -30,7 +30,7 @@
     <string name="model_menu_model">Модель</string>
     <string name="reasoning_fast">Быстро</string>
     <string name="reasoning_deep_think">DeepThink</string>
-    <string name="reasoning_max">Максимальные рассуждения</string>
+    <string name="reasoning_max">Максимум</string>
     <string name="cmd_goal">Цель</string>
     <string name="cmd_feedback">Отзыв</string>
     <string name="cmd_feedback_desc">Оставить отзыв об этой сессии</string>

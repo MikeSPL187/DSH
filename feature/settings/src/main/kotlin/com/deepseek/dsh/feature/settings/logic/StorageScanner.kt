@@ -13,17 +13,26 @@ import java.io.File
 object StorageScanner {
     private const val WEEK = 7 * 86_400_000L
 
+    /**
+     * Последний подсчёт: обход Linux (десятки тысяч файлов) идёт секунды, и всё это время страница
+     * «Хранилище» показывала «…». Теперь сразу видны прошлые цифры, а свежие приходят следом.
+     */
+    @Volatile
+    var last: StorageUsage? = null
+        private set
+
     fun scan(context: Context, rootfs: File?, workspace: File?): StorageUsage {
         val files = context.filesDir.parentFile ?: context.filesDir
         val linux = rootfs?.let(::size) ?: 0L
         val projects = workspace?.takeIf { it.exists() }?.let(::size) ?: 0L
         val cache = size(context.cacheDir) + (context.externalCacheDir?.let(::size) ?: 0L)
-        val all = size(files)
+        // Linux (десятки тысяч файлов) обходится один раз: в общей папке он пропускается, а не считается заново.
         val inside = { f: File? -> f != null && f.absolutePath.startsWith(files.absolutePath) }
-        val other = (all - (if (inside(rootfs)) linux else 0) - (if (inside(workspace)) projects else 0) - size(context.cacheDir)).coerceAtLeast(0)
+        val rest = size(files, skip = rootfs?.takeIf { inside(it) })
+        val other = (rest - (if (inside(workspace)) projects else 0) - size(context.cacheDir)).coerceAtLeast(0)
         val logs = oldLogs(files).sumOf { it.length() }
         val device = runCatching { StatFs(context.filesDir.absolutePath).totalBytes }.getOrDefault(0L)
-        return StorageUsage(linux, projects, cache, other, logs, device)
+        return StorageUsage(linux, projects, cache, other, logs, device).also { last = it }
     }
 
     /** Очистить: `cache` — кэш приложения, `logs` — старые журналы. Возвращает освобождённые байты. */
@@ -44,12 +53,14 @@ object StorageScanner {
     }
 
     /** Размер папки без перехода по символьным ссылкам (rootfs полон ими). */
-    fun size(f: File): Long {
+    fun size(f: File, skip: File? = null): Long {
         if (!f.exists()) return 0
         var total = 0L
+        val skipPath = skip?.absolutePath
         val stack = ArrayDeque<File>().apply { add(f) }
         while (stack.isNotEmpty()) {
             val cur = stack.removeLast()
+            if (skipPath != null && cur.absolutePath == skipPath) continue
             val isLink = runCatching { java.nio.file.Files.isSymbolicLink(cur.toPath()) }.getOrDefault(false)
             if (isLink) continue
             if (cur.isDirectory) cur.listFiles()?.let { stack.addAll(it) } else total += cur.length()
