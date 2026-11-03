@@ -239,13 +239,23 @@ private fun rememberLinuxInstall(runtimeUi: AppRuntimeUiState): LinuxInstall {
         runtimeUi.hostStartupDetail ?: context.getString(R.string.host_startup_no_detail)
     } else null
 
-    // Оставшееся время — по скорости с начала установки.
-    var startedAt by remember { mutableLongStateOf(0L) }
-    LaunchedEffect(progress > 0.02f) { if (progress > 0.02f && startedAt == 0L) startedAt = System.currentTimeMillis() }
-    val eta = if (startedAt > 0 && progress in 0.05f..0.99f) {
-        val elapsed = (System.currentTimeMillis() - startedAt) / 1000f
-        (elapsed / progress * (1f - progress)).toInt()
-    } else null
+    // Оставшееся время — по скорости ТЕКУЩЕГО этапа: загрузка бывает мгновенной (файл уже на телефоне
+    // или быстрая сеть), а распаковка — долгой; средняя скорость с начала установки обещала «≈ 5 с»
+    // на десятки минут. Пересчёт раз в секунду: если процент стоит, оценка честно растёт.
+    var stageStart by remember { mutableStateOf(-1 to 0L) }
+    var stageStartProgress by remember { mutableStateOf(0f) }
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(stage) {
+        stageStart = stage to System.currentTimeMillis()
+        stageStartProgress = progress
+    }
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(1000)
+            now = System.currentTimeMillis()
+        }
+    }
+    val eta = if (stageStart.first == stage) installEta(stageStart.second, stageStartProgress, now, progress) else null
 
     return LinuxInstall(
         progress = progress,
@@ -257,6 +267,18 @@ private fun rememberLinuxInstall(runtimeUi: AppRuntimeUiState): LinuxInstall {
         error = error,
         hostFailed = hostFailed,
     )
+}
+
+/**
+ * Сколько секунд осталось до конца установки по скорости текущего этапа; null — пока рано судить
+ * (этап идёт меньше 5 с или продвинулся меньше чем на 1 %) или установка почти закончена.
+ */
+internal fun installEta(stageStartMs: Long, stageStartProgress: Float, nowMs: Long, progress: Float): Int? {
+    if (progress !in 0.02f..0.99f) return null
+    val elapsed = (nowMs - stageStartMs) / 1000f
+    val done = progress - stageStartProgress
+    if (elapsed < 5f || done < 0.01f) return null
+    return ((1f - progress) / (done / elapsed)).toInt()
 }
 
 internal val keyClient: OkHttpClient by lazy {
