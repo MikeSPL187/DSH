@@ -971,11 +971,23 @@ private fun androidx.compose.foundation.layout.RowScope.ActBtn(icon: ImageVector
     }
 }
 
-/** «+1 −1». */
+/** «+1 −1»; нулевая сторона не пишется. */
 private fun stat(ch: GitChange): String = buildString {
-    append("+").append(ch.added)
-    if (ch.deleted > 0) append(" −").append(ch.deleted)
+    if (ch.added > 0) append("+").append(ch.added)
+    if (ch.added > 0 && ch.deleted > 0) append(" ")
+    if (ch.deleted > 0) append("−").append(ch.deleted)
 }
+
+/**
+ * «+n −m» цветами: нулевая сторона не пишется (как плашка файла в прототипе), ноль и ноль — пусто.
+ * Раньше у пустого нового файла в «Изменениях» стояло «+0». [gap] — пробел между частями.
+ */
+internal fun diffStat(added: Int, deleted: Int, ok: Color, danger: Color, gap: String = " "): AnnotatedString =
+    buildAnnotatedString {
+        if (added > 0) withStyle(SpanStyle(color = ok)) { append("+$added") }
+        if (added > 0 && deleted > 0) append(gap)
+        if (deleted > 0) withStyle(SpanStyle(color = danger)) { append("−$deleted") }
+    }
 
 /** `.code`: номера строк и текст с подсветкой, общий горизонтальный сдвиг. */
 @Composable
@@ -1059,11 +1071,9 @@ private fun DiffView(
                 Text(
                     buildAnnotatedString {
                         append(path)
-                        if (change != null && change.added >= 0) {
+                        if (change != null && change.added >= 0 && (change.added > 0 || change.deleted > 0)) {
                             append(" · ")
-                            if (change.added > 0 || change.deleted == 0) withStyle(SpanStyle(color = c.ok)) { append("+${change.added}") }
-                            if (change.added > 0 && change.deleted > 0) append(" ")
-                            if (change.deleted > 0) withStyle(SpanStyle(color = c.danger)) { append("−${change.deleted}") }
+                            append(diffStat(change.added, change.deleted, c.ok, c.danger))
                         }
                     },
                     style = TextStyle(fontFamily = DshFonts.body, fontSize = 12.5.sp),
@@ -1074,10 +1084,15 @@ private fun DiffView(
             }
         }
         val list = rows
-        if (list != null && list.isNotEmpty()) {
+        // Фрагменты без строк (новый пустой файл) не рисуются: раньше было «Удаление после строки 1» и пустая рамка.
+        val hunks = remember(list) { list?.let { hunksOf(it).filter { h -> h.any { r -> r is DiffRow.Line } } }.orEmpty() }
+        if (list != null && hunks.isEmpty() && history == null && change != null && change.added == 0 && change.deleted == 0) {
+            Empty(stringResource(R.string.fs_empty_file))
+        }
+        if (hunks.isNotEmpty()) {
             val style = Mono.copy(fontSize = 12.5.sp, lineHeight = 21.25.sp)
             // По фрагментам (`.hk`): подпись строк и «Отменить» — только у изменённого файла (новый и удалённый — целиком).
-            hunksOf(list).forEachIndexed { hi, hunk ->
+            hunks.forEachIndexed { hi, hunk ->
             val header = (hunk.first() as DiffRow.Hunk).text
             Row(
                 Modifier.padding(top = if (hi > 0) 14.dp else 0.dp, bottom = 6.dp).fillMaxWidth().heightIn(min = 44.dp).padding(start = 4.dp, end = 2.dp),
@@ -1209,9 +1224,10 @@ private fun ChangesView(
                     Text(
                         buildAnnotatedString {
                             append(pluralStringResource(R.plurals.fs_files_n, files.size, files.size))
-                            append(" · ")
-                            withStyle(SpanStyle(color = c.ok)) { append("+$plus") }
-                            if (minus > 0) { append(" "); withStyle(SpanStyle(color = c.danger)) { append("−$minus") } }
+                            if (plus > 0 || minus > 0) {
+                                append(" · ")
+                                append(diffStat(plus, minus, c.ok, c.danger))
+                            }
                         },
                         style = TextStyle(fontFamily = DshFonts.display, fontWeight = FontWeight.SemiBold, fontSize = 21.sp, lineHeight = 26.sp),
                         color = c.t1,
@@ -1253,8 +1269,7 @@ private fun ChangesView(
                             trailing = {
                                 Text(
                                     buildAnnotatedString {
-                                        withStyle(SpanStyle(color = c.ok)) { append("+${ch.added.coerceAtLeast(0)}") }
-                                        if (ch.deleted > 0) { append(" "); withStyle(SpanStyle(color = c.danger)) { append("−${ch.deleted}") } }
+                                        append(diffStat(ch.added.coerceAtLeast(0), ch.deleted, c.ok, c.danger))
                                     },
                                     style = Mono.copy(fontSize = 13.sp),
                                 )
@@ -1401,12 +1416,11 @@ private fun CommitView(ci: CommitInfo, git: FilesGit?, branch: String, onFile: (
                 buildAnnotatedString {
                     append("${ci.author} · ${relativeTime(ci.time)}")
                     if (list.isNotEmpty()) {
-                        append(" · " + pluralStringResource(R.plurals.fs_files_n, list.size, list.size) + " · ")
-                        withStyle(SpanStyle(fontFamily = DshFonts.mono)) {
-                            if (plus > 0 || minus == 0) withStyle(SpanStyle(color = c.ok)) { append("+$plus") }
+                        append(" · " + pluralStringResource(R.plurals.fs_files_n, list.size, list.size))
+                        if (plus > 0 || minus > 0) {
+                            append(" · ")
                             // Неразрывный пробел: «+20 −17» не разъезжается по строкам.
-                            if (plus > 0 && minus > 0) append("\u00A0")
-                            if (minus > 0) withStyle(SpanStyle(color = c.danger)) { append("−$minus") }
+                            withStyle(SpanStyle(fontFamily = DshFonts.mono)) { append(diffStat(plus, minus, c.ok, c.danger, gap = "\u00A0")) }
                         }
                     }
                 },
@@ -1433,9 +1447,7 @@ private fun CommitView(ci: CommitInfo, git: FilesGit?, branch: String, onFile: (
                                     f.added < 0 -> Badge(stringResource(R.string.fs_badge_bin), c.t2, c.s2)
                                     else -> Text(
                                         buildAnnotatedString {
-                                            if (f.added > 0 || f.deleted == 0) withStyle(SpanStyle(color = c.ok)) { append("+${f.added}") }
-                                            if (f.added > 0 && f.deleted > 0) append(" ")
-                                            if (f.deleted > 0) withStyle(SpanStyle(color = c.danger)) { append("−${f.deleted}") }
+                                            append(diffStat(f.added, f.deleted, c.ok, c.danger))
                                         },
                                         style = Mono.copy(fontSize = 13.sp),
                                     )

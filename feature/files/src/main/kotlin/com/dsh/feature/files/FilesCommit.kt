@@ -133,9 +133,10 @@ internal fun ColumnScope.CommitSheetBody(
             buildAnnotatedString {
                 append(pluralStringResource(R.plurals.fs_files_n, files.size, files.size))
                 append(" · ")
-                withStyle(SpanStyle(color = c.ok)) { append("+$plus") }
-                if (minus > 0) { append(" "); withStyle(SpanStyle(color = c.danger)) { append("−$minus") } }
-                append(" · ")
+                if (plus > 0 || minus > 0) {
+                    append(diffStat(plus, minus, c.ok, c.danger))
+                    append(" · ")
+                }
                 append(stringResource(R.string.fs_cm_all))
             },
             style = TextStyle(fontFamily = DshFonts.body, fontSize = 13.5.sp, lineHeight = 18.sp), color = c.t2,

@@ -113,7 +113,7 @@ private fun Stat(added: Int, deleted: Int) {
     val c = Dsh.colors
     Text(
         buildAnnotatedString {
-            if (added > 0 || deleted == 0) withStyle(SpanStyle(color = c.ok)) { append("+$added") }
+            if (added > 0) withStyle(SpanStyle(color = c.ok)) { append("+$added") }
             if (added > 0 && deleted > 0) append(" ")
             if (deleted > 0) withStyle(SpanStyle(color = c.danger)) { append("−$deleted") }
         },
