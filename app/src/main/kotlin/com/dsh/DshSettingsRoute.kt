@@ -297,6 +297,8 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         automationsOn = d.automationsOn,
         autoApprove = approveState(),
         fullAccess = HostPermissionPreset.current?.contains("danger") == true,
+        // Пока варианты не прочитаны — показываем; прочитаны и подходящего нет — прячем.
+        askAvailable = HostPermissionPreset.options.isEmpty() || askPresetOf(HostPermissionPreset.options.map { it.value }) != null,
         clipboard = clipboard,
         thirdPartyPlugins = thirdPartyPlugins,
         networkFull = networkFull,
@@ -458,8 +460,10 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         override fun setAutoApprove(auto: Boolean) {
             val options = HostPermissionPreset.options.map { it.value }
             val pick = if (auto) options.firstOrNull { "workspace" in it || ("write" in it && "danger" !in it) }
-            else options.firstOrNull { "read" in it || "ask" in it || "default" in it || "untrusted" in it }
+            else askPresetOf(options)
+            // Раньше без подходящего режима нажатие молча ничего не делало.
             if (pick != null) HostPermissionPreset.set(pick)
+            else toast.show(context.getString(R.string.st_mode_unavailable))
         }
 
         override suspend fun setAgentLimit(current: com.dsh.core.data.AgentLimitValue, value: Long?): Boolean {
@@ -632,6 +636,10 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
     )
 }
 
+
+/** Режим Host «спрашивать каждый раз»; null — у Host такого нет (стандартные: workspace-write, danger-full-access). */
+internal fun askPresetOf(options: List<String>): String? =
+    options.firstOrNull { "read" in it || "ask" in it || "default" in it || "untrusted" in it }
 
 /** Правило одобрения из пресетов Host: true — правки в папке без вопросов. */
 private fun approveState(): Boolean? {

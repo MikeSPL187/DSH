@@ -248,4 +248,5 @@
     <string name="shortcut_files">Files</string>
     <string name="share_label">Ask DSH</string>
     <plurals name="share_skipped"><item quantity="one">%d file not added: over 100 MB or unreadable</item><item quantity="other">%d files not added: over 100 MB or unreadable</item></plurals>
+    <string name="st_mode_unavailable">Host has no such mode — update Host or choose another</string>
 </resources>

@@ -153,6 +153,8 @@ data class SettingsUi(
     val autoApprove: Boolean? = false,
     /** У агента режим полного доступа без песочницы (ни один из двух вариантов не подходит). */
     val fullAccess: Boolean = false,
+    /** Есть ли у Host режим «спрашивать каждый раз»; нет — вариант не показывается (нажатие ничего бы не делало). */
+    val askAvailable: Boolean = true,
     val clipboard: Boolean = false,
     /** Плагины Host из сети (npm, GitHub, рынок) разрешены (G-48). */
     val thirdPartyPlugins: Boolean = false,
@@ -893,7 +895,7 @@ private fun AgentPage(
     FsView {
         GLabel(stringResource(R.string.st_edits), top = 4.dp)
         Gl(Modifier.selectableGroup()) {
-            row { Rad(stringResource(R.string.st_appr_ask), stringResource(R.string.st_appr_ask_sub), ui.autoApprove == false) { a.setAutoApprove(false) } }
+            if (ui.askAvailable) row { Rad(stringResource(R.string.st_appr_ask), stringResource(R.string.st_appr_ask_sub), ui.autoApprove == false) { a.setAutoApprove(false) } }
             row { Rad(stringResource(R.string.st_appr_auto), stringResource(R.string.st_appr_auto_sub), ui.autoApprove == true) { a.setAutoApprove(true) } }
             // При полном доступе агент ничего не спрашивает — обещание «всегда с вопросом» было бы неправдой
             // рядом с подписью «он ничего не спрашивает»; строка вернётся с выбором режима.
