@@ -1,6 +1,5 @@
 package com.dsh
 
-import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -115,7 +114,7 @@ internal fun ChatRoute(d: ChatDeps) {
     }
 
     fun toast(text: String, long: Boolean = false) =
-        Toast.makeText(context, text, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
+        com.dsh.core.designsystem.kit.DshToast.show(text)
 
     val subagents by repository.subagentsFlow.collectAsState()
     // Разговор субагента закрыт другим путём (меню, новая сессия) — плашка уходит вместе с ним.

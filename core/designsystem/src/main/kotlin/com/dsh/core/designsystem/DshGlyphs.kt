@@ -55,6 +55,8 @@ object DshGlyphs {
     val Check: ImageVector get() = get("check")
     val Pause: ImageVector get() = get("pause")
     val X: ImageVector get() = get("x")
+    val ThumbUp: ImageVector get() = get("thumb-up")
+    val ThumbDown: ImageVector get() = get("thumb-down")
     val Alert: ImageVector get() = get("alert")
     val Copy: ImageVector get() = get("copy")
     val Redo: ImageVector get() = get("redo")
@@ -122,6 +124,8 @@ object DshGlyphs {
         "check" to listOf(P("m5 12 4.5 4.5L19 7", false, true, null)),
         "pause" to listOf(P("M9 6v12M15 6v12", false, true, null)),
         "x" to listOf(P("M6 6l12 12M18 6 6 18", false, true, null)),
+        "thumb-up" to listOf(P("M7 10v12", false, true, null), P("M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z", false, true, null)),
+        "thumb-down" to listOf(P("M17 14V2", false, true, null), P("M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z", false, true, null)),
         "alert" to listOf(P("M12 9v4M12 17h.01", false, true, null), P("M10.3 3.9 2.4 17.6A2 2 0 0 0 4.1 20.6h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z", false, true, null)),
         "copy" to listOf(P("M11.5,9h6a2.5,2.5 0 0 1 2.5,2.5v6a2.5,2.5 0 0 1 -2.5,2.5h-6a2.5,2.5 0 0 1 -2.5,-2.5v-6a2.5,2.5 0 0 1 2.5,-2.5Z", false, true, null), P("M5 15a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2", false, true, null)),
         "redo" to listOf(P("M20 12a8 8 0 1 1-2.3-5.7L20 8", false, true, null), P("M20 3v5h-5", false, true, null)),

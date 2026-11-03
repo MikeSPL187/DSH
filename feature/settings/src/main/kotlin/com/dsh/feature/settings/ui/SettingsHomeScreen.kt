@@ -1,5 +1,7 @@
 package com.dsh.feature.settings.ui
 
+import androidx.compose.ui.semantics.editableText
+import androidx.compose.ui.semantics.password
 import com.dsh.core.designsystem.kit.*
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -149,6 +151,8 @@ data class SettingsUi(
     val automationsOn: Int = 0,
     /** true — «Сам в рабочей папке», false — «Спрашивать», null — Host не отдал пресеты. */
     val autoApprove: Boolean? = false,
+    /** У агента режим полного доступа без песочницы (ни один из двух вариантов не подходит). */
+    val fullAccess: Boolean = false,
     val clipboard: Boolean = false,
     /** Плагины Host из сети (npm, GitHub, рынок) разрешены (G-48). */
     val thirdPartyPlugins: Boolean = false,
@@ -491,7 +495,7 @@ private fun RootPage(ui: SettingsUi, a: SettingsActions, go: (StPage) -> Unit) {
         GLabel(stringResource(R.string.st_g_work), Modifier.rise(3))
         Gl(Modifier.rise(4)) {
             row { PageRow(StPage.Models, pageTitle(StPage.Models), ui.defaultModel.ifBlank { null }) { go(StPage.Models) } }
-            row { PageRow(StPage.Agent, pageTitle(StPage.Agent), approveLabel(ui.autoApprove)) { go(StPage.Agent) } }
+            row { PageRow(StPage.Agent, pageTitle(StPage.Agent), if (ui.fullAccess) stringResource(R.string.st_appr_full_short) else approveLabel(ui.autoApprove)) { go(StPage.Agent) } }
             row { StRow(pageTitle(StPage.GitHub), icon = DshGlyphs.get("git"), tile = Si.c6, value = ui.github.login?.let { if (it.isEmpty()) stringResource(R.string.st_gh_on) else "@$it" } ?: stringResource(R.string.st_gh_off), chevron = true, onClick = { go(StPage.GitHub) }) }
             row { PageRow(StPage.Memory, pageTitle(StPage.Memory), memoryValue(ui.memory)) { go(StPage.Memory) } }
             row { PageRow(StPage.Mcp, pageTitle(StPage.Mcp), mcpCount(ui.mcp)) { go(StPage.Mcp) } }
@@ -609,7 +613,14 @@ private fun ModelsPage(ui: SettingsUi, a: SettingsActions, toast: ToastState, on
         Gl {
             row { StRow(stringResource(R.string.st_model), icon = DshGlyphs.Cpu, tile = Si.c1, value = ui.defaultModel.ifBlank { "—" }, onClick = { onSheet("model") }) }
             row { StRow(stringResource(R.string.st_reasoning), icon = DshGlyphs.Sliders, tile = Si.c2, value = ui.reasoning.ifBlank { "—" }, onClick = { onSheet("model") }) }
-            row { StRow(stringResource(R.string.st_for_auto), icon = DshGlyphs.Clock, tile = Si.c7, value = ui.automationModel.ifBlank { "—" }, onClick = { onSheet("automodel") }) }
+            // «Модель · уровень» не помещается рядом с заголовком: модель — значением, уровень — подписью.
+            row {
+                val auto = ui.automationModel.split(" · ", limit = 2)
+                StRow(
+                    stringResource(R.string.st_for_auto), icon = DshGlyphs.Clock, tile = Si.c7,
+                    sub = auto.getOrNull(1), value = auto.first().ifBlank { "—" }, onClick = { onSheet("automodel") },
+                )
+            }
         }
         GLabel(stringResource(R.string.st_key))
         Gl {
@@ -747,7 +758,13 @@ internal fun Field(
                 modifier = Modifier.fillMaxWidth().semantics { contentDescription = placeholder }.onFocusChanged {
                     if (focused && !it.isFocused) onCommit?.invoke()
                     focused = it.isFocused
-                },
+                }.then(
+                    // QA F004: «Показать» открывает секрет только глазам; службам специальных возможностей — точки.
+                    if (secret || keyboard == KeyboardType.Password) Modifier.semantics {
+                        password()
+                        editableText = androidx.compose.ui.text.AnnotatedString("•".repeat(value.length))
+                    } else Modifier,
+                ),
             )
         }
         trailing?.invoke()
@@ -880,7 +897,10 @@ private fun AgentPage(
             row { Rad(stringResource(R.string.st_appr_auto), stringResource(R.string.st_appr_auto_sub), ui.autoApprove == true) { a.setAutoApprove(true) } }
             row { RadNever(stringResource(R.string.st_appr_never), stringResource(R.string.st_appr_never_sub)) }
         }
-        if (ui.autoApprove == null) SubNote(stringResource(R.string.st_appr_unavailable))
+        when {
+            ui.fullAccess -> SubNote(stringResource(R.string.st_appr_full_access))
+            ui.autoApprove == null -> SubNote(stringResource(R.string.st_appr_unavailable))
+        }
         GLabel(stringResource(R.string.st_phone_access))
         Gl {
             row {
@@ -1055,7 +1075,9 @@ private fun StoragePage(ui: SettingsUi, a: SettingsActions, toast: ToastState) {
         StCard {
             BigWithNote(s?.let { bytes(it.total) } ?: "…", if (s != null && s.device > 0) stringResource(R.string.st_of_device, bytes(s.device)) else null)
             val parts = s?.let { listOf(it.linux, it.projects, it.cache, it.other) } ?: emptyList()
-            val sum = parts.sum().coerceAtLeast(1)
+            // Доля от всего места на телефоне, как в подписи «1,5 ГБ из 5,8 ГБ»: раньше полоса делилась
+            // на сумму частей DSH и всегда была заполнена целиком.
+            val sum = maxOf(parts.sum(), s?.device ?: 0L).coerceAtLeast(1)
             Row(Modifier.padding(top = 4.dp, bottom = 10.dp).fillMaxWidth().height(14.dp).clip(RoundedCornerShape(7.dp)).background(Dsh.colors.s3)) {
                 parts.forEachIndexed { i, v -> if (v > 0) Box(Modifier.weight(v.toFloat() / sum).fillMaxHeight().background(colors[i])) }
                 val rest = 1f - parts.sum().toFloat() / sum

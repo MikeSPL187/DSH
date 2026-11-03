@@ -310,12 +310,7 @@ class DshRepository(
     /** Первая строка последнего ответа агента по каждой сессии, без разметки Markdown. */
     fun sessionPreviews(hostId: String): Flow<Map<String, String>> =
         dao.lastAssistantMessages(hostId).map { rows ->
-            rows.mapNotNull { row ->
-                val line = row.content.orEmpty().lineSequence()
-                    .map { it.replace(MARKDOWN_MARKS, "").replace(MARKDOWN_LINK, "$1").trim() }
-                    .firstOrNull { it.isNotEmpty() && !it.startsWith("```") }
-                line?.let { row.sessionId to it.take(120) }
-            }.toMap()
+            rows.mapNotNull { row -> sessionPreviewLine(row.content.orEmpty())?.let { row.sessionId to it } }.toMap()
         }
 
     /**
@@ -699,8 +694,6 @@ class DshRepository(
     }
 
     private companion object {
-        val MARKDOWN_MARKS = Regex("[*_`#>]+")
-        val MARKDOWN_LINK = Regex("\\[([^\\]]*)]\\([^)]*\\)")
     }
 }
 
@@ -769,3 +762,16 @@ internal fun storedContent(message: ChatMessage): String {
     }
     return parts.joinToString("\u0002")
 }
+
+private val MARKDOWN_MARKS = Regex("[*_`#>]+")
+private val MARKDOWN_LINK = Regex("\\[([^\\]]*)]\\([^)]*\\)")
+
+/**
+ * Подпись сессии в меню — первая строка ответа агента. Сообщение хранится как
+ * «рассуждение \u0001 ответ»: раньше в меню попадало рассуждение модели вместо ответа.
+ */
+internal fun sessionPreviewLine(content: String): String? =
+    content.substringAfter('\u0001').lineSequence()
+        .map { it.replace(MARKDOWN_MARKS, "").replace(MARKDOWN_LINK, "$1").trim() }
+        .firstOrNull { it.isNotEmpty() && !it.startsWith("```") }
+        ?.take(120)

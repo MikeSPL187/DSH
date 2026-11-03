@@ -4,7 +4,6 @@ import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
-import android.widget.Toast
 import com.dsh.core.data.DshRepository
 
 /**
@@ -26,21 +25,13 @@ suspend fun performSessionExport(
 ) {
     val bytes = runCatching { repository.exportSessionLog(hostId, sessionId) }.getOrNull()
     if (bytes == null || bytes.isEmpty()) {
-        Toast.makeText(
-            context,
-            context.getString(R.string.session_export_failed),
-            Toast.LENGTH_LONG,
-        ).show()
+        com.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.session_export_failed))
         return
     }
     val saved = runCatching { saveZip(context, sessionId, bytes) }.getOrDefault(false)
-    Toast.makeText(
-        context,
-        context.getString(
+    com.dsh.core.designsystem.kit.DshToast.show(context.getString(
             if (saved) R.string.session_export_saved else R.string.session_export_failed,
-        ),
-        Toast.LENGTH_LONG,
-    ).show()
+        ))
 }
 
 /** Запись в Download через MediaStore; true — uri получен. */
@@ -84,11 +75,7 @@ fun shareArchive(context: Context, result: Result<java.io.File>, chooserTitle: S
     val file = result.getOrNull()
     if (file == null || !file.isFile) {
         val reason = result.exceptionOrNull()?.message
-        Toast.makeText(
-            context,
-            if (reason.isNullOrBlank()) failedMessage else "$failedMessage: $reason",
-            Toast.LENGTH_LONG,
-        ).show()
+        com.dsh.core.designsystem.kit.DshToast.show(if (reason.isNullOrBlank()) failedMessage else "$failedMessage: $reason")
         return
     }
     pruneOldArchives(file.parentFile, keep = 3)
@@ -104,7 +91,7 @@ fun shareArchive(context: Context, result: Result<java.io.File>, chooserTitle: S
                 .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
         )
     }.onFailure {
-        Toast.makeText(context, failedMessage, Toast.LENGTH_LONG).show()
+        com.dsh.core.designsystem.kit.DshToast.show(failedMessage)
     }
 }
 

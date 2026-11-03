@@ -1,5 +1,6 @@
 package com.dsh.feature.chat
 
+import androidx.compose.foundation.layout.isImeVisible
 import com.dsh.core.designsystem.kit.MemoryFactSheet
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -678,12 +679,12 @@ fun ModernChatScreen(
                     onProject = { commandSheetOpen = false; append("@") },
                     onPaste = {
                         commandSheetOpen = false
-                        clip()?.let { append(it) } ?: android.widget.Toast.makeText(ctx, empty, android.widget.Toast.LENGTH_SHORT).show()
+                        clip()?.let { append(it) } ?: com.dsh.core.designsystem.kit.DshToast.show(empty)
                     },
                     onLink = {
                         commandSheetOpen = false
                         clip()?.takeIf { android.util.Patterns.WEB_URL.matcher(it).matches() }?.let { append(it) }
-                            ?: android.widget.Toast.makeText(ctx, noLink, android.widget.Toast.LENGTH_SHORT).show()
+                            ?: com.dsh.core.designsystem.kit.DshToast.show(noLink)
                     },
                     terminal = terminalContext,
                     onReference = {
@@ -735,7 +736,7 @@ fun ModernChatScreen(
                     if (withPoint) {
                         services.startVariant(m)
                         val n = (services.variantsInfo()?.count ?: 1) + 1
-                        android.widget.Toast.makeText(ctx, ctx.getString(R.string.vr_started, n), android.widget.Toast.LENGTH_SHORT).show()
+                        com.dsh.core.designsystem.kit.DshToast.show(ctx.getString(R.string.vr_started, n))
                     } else onSendMessage(m.content)
                 }
             }
@@ -758,7 +759,7 @@ fun ModernChatScreen(
                     onCopy = { text ->
                         (ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
                             .setPrimaryClip(android.content.ClipData.newPlainText(title, text))
-                        android.widget.Toast.makeText(ctx, copiedText, android.widget.Toast.LENGTH_SHORT).show()
+                        com.dsh.core.designsystem.kit.DshToast.show(copiedText)
                         shareOpen = false
                     },
                     onShare = { text, name -> shareOpen = false; services.shareText(title, text, name) },
@@ -772,7 +773,7 @@ fun ModernChatScreen(
                 val ctx = LocalContext.current
                 RewindSheetBody(m, services) { text ->
                     rewindMessage = null
-                    text?.let { android.widget.Toast.makeText(ctx, it, android.widget.Toast.LENGTH_SHORT).show() }
+                    text?.let { com.dsh.core.designsystem.kit.DshToast.show(it) }
                 }
             }
             body
@@ -793,7 +794,7 @@ fun ModernChatScreen(
                     onSave = { text, scope ->
                         if (com.dsh.core.data.AgentMemory.add(text, fromChat = true, project = if (scope == 1) memProject else null) == null) {
                             rememberText = null
-                            android.widget.Toast.makeText(ctx, saved, android.widget.Toast.LENGTH_SHORT).show()
+                            com.dsh.core.designsystem.kit.DshToast.show(saved)
                         }
                     },
                     onCancel = { rememberText = null },
@@ -818,7 +819,7 @@ fun ModernChatScreen(
                     onCopy = { text ->
                         (ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
                             .setPrimaryClip(android.content.ClipData.newPlainText("message", text))
-                        android.widget.Toast.makeText(ctx, copied, android.widget.Toast.LENGTH_SHORT).show()
+                        com.dsh.core.designsystem.kit.DshToast.show(copied)
                     },
                     onFork = services::forkAt,
                     onDismiss = { actionMessage = null },
@@ -829,7 +830,7 @@ fun ModernChatScreen(
                     onSpeak = {
                         actionMessage = null
                         if (reader.speaking) reader.stop()
-                        else reader.speak(m.content) { android.widget.Toast.makeText(ctx, ctx.getString(R.string.tts_unavailable), android.widget.Toast.LENGTH_LONG).show() }
+                        else reader.speak(m.content) { com.dsh.core.designsystem.kit.DshToast.show(ctx.getString(R.string.tts_unavailable)) }
                     },
                     speaking = reader.speaking,
                     onUndo = if (canUndo) ({
@@ -837,7 +838,7 @@ fun ModernChatScreen(
                         undoScope.launch {
                             val r = services.undoRewind()
                             val text = r.fold({ n -> ctx.resources.getQuantityString(R.plurals.rw_undone, n, n) }, { ctx.getString(R.string.rw_failed) })
-                            android.widget.Toast.makeText(ctx, text, android.widget.Toast.LENGTH_SHORT).show()
+                            com.dsh.core.designsystem.kit.DshToast.show(text)
                         }
                     }) else null,
                 )
@@ -989,7 +990,7 @@ fun ModernChatScreen(
                                                 onCopy = {
                                                     val cm = localContext.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                                     cm.setPrimaryClip(android.content.ClipData.newPlainText("message", answer))
-                                                    android.widget.Toast.makeText(localContext, copied, android.widget.Toast.LENGTH_SHORT).show()
+                                                    com.dsh.core.designsystem.kit.DshToast.show(copied)
                                                 },
                                                 // «Повторить» — «Другой вариант»: результат сохраняется, задача решается заново с той же точки.
                                                 onRetry = {
@@ -1132,8 +1133,12 @@ fun ModernChatScreen(
             }
             if (goal != null || todos.isNotEmpty()) PlanDock(goal, todos, onGoalAction)
             // Док прячется, пока открыта клавиатура (`.dock.away`).
+            // Док прячется, пока открыта клавиатура: по видимости клавиатуры, а не по фокусу поля — после «Назад»
+            // клавиатура закрыта, а фокус остаётся, и док раньше не возвращался.
+            @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+            val imeOpen = androidx.compose.foundation.layout.WindowInsets.isImeVisible
             AnimatedVisibility(
-                visible = !composerFocused,
+                visible = !(composerFocused && imeOpen),
                 enter = fadeIn() + androidx.compose.animation.scaleIn(com.dsh.core.designsystem.DshMotion.snappy(), initialScale = 0.94f) + slideInVertically { it / 3 },
                 exit = fadeOut() + androidx.compose.animation.scaleOut(com.dsh.core.designsystem.DshMotion.snappy(), targetScale = 0.94f) + slideOutVertically { it / 3 },
             ) {

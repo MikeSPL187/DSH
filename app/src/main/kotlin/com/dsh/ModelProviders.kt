@@ -83,7 +83,11 @@ internal class ModelProviders(private val repository: DshRepository) {
                     add(path + "models" to JsonArray(models.map { buildJsonObject { put("id", it); put("name", it) } }))
                 }
             }
-            if (values.isNotEmpty()) saved = repository.hostSettings.setSettings(hostId, provider.settingsNs, values, null)
+            // QA F026: значения, которые уже стоят (у DeepSeek `apiKeyEnv` объявлен заранее), не переписываются —
+            // Host может отклонить запись живой настройки, и тогда сохранённый ключ откатывался с «не удалось».
+            val current = runCatching { repository.hostSettings.namespace(hostId, provider.settingsNs)?.value }.getOrNull()
+            val changed = values.filter { (p, v) -> current == null || valueAt(current, p) != v }
+            if (changed.isNotEmpty()) saved = repository.hostSettings.setSettings(hostId, provider.settingsNs, changed, null)
         }
         if (!saved && !provider.configured && key.isNotBlank()) {
             if (repository.plugins.unsetCredential(hostId, provider.keyRef)) ApiKeyVault.delete(vaultRef)
@@ -144,4 +148,11 @@ internal fun customProviderId(name: String, taken: Set<String>): String {
     val reserved = taken + DEEPSEEK_PROVIDER_IDS + "deepseek-account"
     if (base !in reserved && base.uppercase(java.util.Locale.ROOT).replace('-', '_') + "_API_KEY" != DEEPSEEK_KEY_REF) return base
     return generateSequence(1) { it + 1 }.map { if (it == 1) "$base-custom" else "$base-custom-$it" }.first { it !in reserved }
+}
+
+/** Значение настройки по пути ([path] — ключи вложенных объектов); null — такого нет. */
+internal fun valueAt(root: kotlinx.serialization.json.JsonObject, path: List<String>): JsonElement? {
+    var cur: JsonElement? = root
+    for (k in path) cur = (cur as? kotlinx.serialization.json.JsonObject)?.get(k) ?: return null
+    return cur
 }

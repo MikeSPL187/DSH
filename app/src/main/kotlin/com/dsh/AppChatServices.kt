@@ -62,7 +62,7 @@ class AppChatServices(
                 ui.selectedSessionId = forked
                 runCatching { repository.watchSession(host, forked) }
             } else {
-                android.widget.Toast.makeText(context, context.getString(R.string.session_fork_failed), android.widget.Toast.LENGTH_LONG).show()
+                com.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.session_fork_failed))
             }
         }
     }
@@ -149,7 +149,7 @@ class AppChatServices(
                 origin.takeIf { cp.restore(it, sid).isSuccess }
             }
             if (origin == null) {
-                android.widget.Toast.makeText(context, context.getString(com.dsh.feature.chat.R.string.vr_failed), android.widget.Toast.LENGTH_LONG).show()
+                com.dsh.core.designsystem.kit.DshToast.show(context.getString(com.dsh.feature.chat.R.string.vr_failed))
                 return@launch
             }
             fun register(newSid: String) {
@@ -199,12 +199,12 @@ class AppChatServices(
             }
             reloadGroups()
             if (target == null) {
-                android.widget.Toast.makeText(context, context.getString(com.dsh.feature.chat.R.string.vr_failed), android.widget.Toast.LENGTH_LONG).show()
+                com.dsh.core.designsystem.kit.DshToast.show(context.getString(com.dsh.feature.chat.R.string.vr_failed))
                 return@launch
             }
             ui.selectedSessionId = target.session
             runCatching { repository.watchSession(host, target.session) }
-            android.widget.Toast.makeText(context, context.getString(com.dsh.feature.chat.R.string.vr_kept, index + 1), android.widget.Toast.LENGTH_SHORT).show()
+            com.dsh.core.designsystem.kit.DshToast.show(context.getString(com.dsh.feature.chat.R.string.vr_kept, index + 1))
         }
     }
 

@@ -318,7 +318,7 @@ private fun FindBar(editor: FileEditor) {
             KBtn(
                 stringResource(R.string.fe_replace_all), {
                     val n = editor.replaceEverything()
-                    if (n > 0) android.widget.Toast.makeText(ctx, ctx.getString(R.string.fe_replaced, n), android.widget.Toast.LENGTH_SHORT).show()
+                    if (n > 0) com.dsh.core.designsystem.kit.DshToast.show(ctx.getString(R.string.fe_replaced, n))
                 },
                 kind = BtnKind.Ghost, height = 40.dp, radius = 12.dp, fontSize = 13.5.sp, horizontal = 12.dp, enabled = m.isNotEmpty(),
             )

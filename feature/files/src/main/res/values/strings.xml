@@ -228,4 +228,8 @@
     <string name="fs_hunk_revert">Revert</string>
     <string name="fs_hunk_done">Fragment reverted</string>
     <string name="fs_hunk_stale">The file changed — refresh the changes and try again</string>
+    <string name="fs_empty_file">The file is empty</string>
+    <string name="fs_empty_file_hint">Tap “Ask” to have the agent fill it</string>
+    <string name="fs_added_list">Added: %1$s</string>
+    <string name="fs_deleted_list">Deleted: %1$s</string>
 </resources>

@@ -233,7 +233,7 @@ fun BrowserScreen(target: BrowserTarget, onClose: () -> Unit) {
             val copied = stringResource(R.string.br_copied)
             DshIconButton(DshGlyphs.Copy, stringResource(R.string.br_copy), tint = c.t2) {
                 clipboard.setText(AnnotatedString(url))
-                android.widget.Toast.makeText(ctx, copied, android.widget.Toast.LENGTH_SHORT).show()
+                com.dsh.core.designsystem.kit.DshToast.show(copied)
             }
         }
     }

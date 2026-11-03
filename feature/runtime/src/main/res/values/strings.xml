@@ -8,7 +8,7 @@
     <string name="ob_feat_agent">The agent does the work</string>
     <string name="ob_feat_agent_sub">Reads the project, edits code and checks the build itself</string>
     <string name="ob_feat_control">You stay in control</string>
-    <string name="ob_feat_control_sub">Edits and deletions only with your consent</string>
+    <string name="ob_feat_control_sub">All changes are visible; outside the project — with your consent</string>
     <string name="ob_start">Get started</string>
     <string name="ob_restore">Restore from backup</string>
     <string name="ob_step">Step %1$d of %2$d</string>
@@ -48,7 +48,7 @@
     <string name="ob_env_host_failed">Linux didn\'t start</string>
     <string name="ob_env_host_failed_lead">Download and unpacking finished. Linux itself didn\'t start — see Details.</string>
     <string name="ob_env_lead">Debian with git, Python and Node. This happens once — you can minimize the app, the install keeps going.</string>
-    <string name="ob_env_lead_failed">Check the internet connection and tap Retry. Without Linux the agent can’t run commands.</string>
+    <string name="ob_env_lead_failed">Tap “Retry”. Without Linux the agent cannot run commands.</string>
     <string name="ob_err_download">Download failed</string>
     <string name="ob_err_unpack">Unpacking failed</string>
     <string name="ob_err_check">Check failed</string>
@@ -59,8 +59,8 @@
     <string name="ob_ready">done</string>
     <string name="ob_stage_download">Download</string>
     <string name="ob_stage_unpack">Unpacking</string>
-    <string name="ob_stage_check">Check</string>
-    <string name="ob_stage_check_note">Start</string>
+    <string name="ob_stage_check">Starting the agent</string>
+    <string name="ob_stage_check_note"></string>
     <string name="ob_copy_report">Copy report</string>
     <string name="ob_of">%1$s of %2$s</string>
     <string name="ob_notify">Notify when ready</string>
@@ -75,4 +75,6 @@
     <string name="ob_err_space">Not enough free space: Linux needs about 1.5 GB.</string>
     <string name="ob_err_generic">Something went wrong while installing. Tap “Retry”.</string>
     <string name="ob_err_host">Linux is installed but didn\'t start. Tap Retry; if it doesn\'t help, copy the report.</string>
+    <string name="ob_open_without_agent">Open without the agent</string>
+    <string name="ob_key_lost">Android closed DSH while you were in another window — enter the key once more</string>
 </resources>

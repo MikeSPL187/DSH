@@ -14,7 +14,8 @@ import java.time.ZoneId
 object BalanceLedger {
     private const val PREFS = "dsh_balance_ledger"
 
-    data class Summary(val today: Double, val month: Double, val daysLeft: Int?)
+    /** Расход за сегодня и за месяц; null — расход пока неизвестен (самое первое чтение баланса). */
+    data class Summary(val today: Double?, val month: Double?, val daysLeft: Int?)
 
     private data class Sample(val at: Long, val amount: Double)
 
@@ -52,6 +53,9 @@ object BalanceLedger {
         val dayStart = today.atStartOfDay(zone).toInstant().toEpochMilli()
         val monthStart = today.withDayOfMonth(1).atStartOfDay(zone).toInstant().toEpochMilli()
         val weekStart = now - 7 * 86_400_000L
+        // Расход известен, если в периоде есть снимок раньше текущего чтения (баланс видели в двух точках).
+        // Самое первое чтение — сравнивать не с чем: «0,00» выглядело бы как «ничего не потрачено».
+        fun known(from: Long) = samples.any { it.first >= from && it.first < now }
         fun spentSince(from: Long): Double {
             var spent = 0.0
             // Считаем только падения между снимками внутри периода: что было до него — неизвестно когда.
@@ -67,7 +71,7 @@ object BalanceLedger {
         val firstAt = samples.firstOrNull()?.first ?: now
         val days = ((now - maxOf(firstAt, weekStart)) / 86_400_000.0).coerceAtLeast(1.0)
         val perDay = week / days
-        return Summary(spentSince(dayStart), spentSince(monthStart), if (perDay > 0.0001) (current / perDay).toInt() else null)
+        return Summary(spentSince(dayStart).takeIf { known(dayStart) }, spentSince(monthStart).takeIf { known(monthStart) }, if (perDay > 0.0001) (current / perDay).toInt() else null)
     }
 
     fun clear(context: Context) { context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply() }

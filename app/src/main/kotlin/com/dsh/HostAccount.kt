@@ -43,11 +43,7 @@ class HostAccount internal constructor(
             }
             if (view == null) {
                 ui.signInPending = false
-                android.widget.Toast.makeText(
-                    context,
-                    context.getString(R.string.login_failed_host),
-                    android.widget.Toast.LENGTH_SHORT
-                ).show()
+                com.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.login_failed_host))
                 return@launch
             }
             when {
@@ -61,11 +57,7 @@ class HostAccount internal constructor(
                     kotlinx.coroutines.delay(30_000)
                     if (ui.signInPending && ui.signInOpenedUrl == null) {
                         ui.signInPending = false
-                        android.widget.Toast.makeText(
-                            context,
-                            context.getString(R.string.login_failed_link),
-                            android.widget.Toast.LENGTH_SHORT
-                        ).show()
+                        com.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.login_failed_link))
                     }
                 }
             }
@@ -74,11 +66,7 @@ class HostAccount internal constructor(
                 kotlinx.coroutines.delay(10 * 60_000)
                 if (ui.signInPending) {
                     ui.signInPending = false
-                    android.widget.Toast.makeText(
-                        context,
-                        context.getString(R.string.login_incomplete),
-                        android.widget.Toast.LENGTH_SHORT
-                    ).show()
+                    com.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.login_incomplete))
                 }
             }
         }
@@ -126,11 +114,7 @@ internal fun rememberHostAccount(
                             if (view.attemptPhase in setOf("failed", "expired", "cancelled")) {
                                 ui.signInPending = false
                                 ui.signInOpenedUrl = null
-                                android.widget.Toast.makeText(
-                                    context,
-                                    context.getString(R.string.login_incomplete),
-                                    android.widget.Toast.LENGTH_SHORT,
-                                ).show()
+                                com.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.login_incomplete))
                             }
                         }
                     }

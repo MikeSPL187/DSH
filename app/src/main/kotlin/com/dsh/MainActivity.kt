@@ -15,6 +15,7 @@ import com.dsh.plugin.surface.SurfaceCatalogStore
 import com.dsh.runtime.host.HostProcessRunner
 import com.dsh.runtime.host.HostRuntimeManager
 import java.io.File
+import androidx.compose.ui.unit.dp
 
 class MainActivity : ComponentActivity() {
     /** Внешняя папка приложения: proot на Android 11+ надёжно читает и пишет её (без MANAGE_EXTERNAL_STORAGE). */
@@ -71,6 +72,13 @@ class MainActivity : ComponentActivity() {
         // не сжимает. Иначе некоторые прошивки (например, MIUI) и сжимают, и сообщают отступ IME —
         // поле ввода чата поднималось дважды. На старых системах enableEdgeToEdge совместим.
         androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+        // Полосы прозрачные: под ними фон текущей темы приложения. Цвет из темы окна (#FBFBFB) оставался
+        // светлым и при «Графите» — белые значки времени и батареи на белом были не видны.
+        @Suppress("DEPRECATION")
+        run {
+            window.statusBarColor = android.graphics.Color.TRANSPARENT
+            window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        }
         // Ярлык на иконке («Новая сессия», «Терминал», «Файлы») и сами ярлыки.
         if (savedInstanceState == null) IncomingShare.fromShortcut(intent)
         IncomingShare.publishShortcuts(applicationContext)
@@ -159,6 +167,9 @@ class MainActivity : ComponentActivity() {
                     BridgeUpdatePrompt()
                     }
                     BiometricGate()
+                    // Общий тост системы (`.toast`) поверх всех экранов вместо системного Toast Android,
+                    // выше дока и поля ввода чата.
+                    com.dsh.core.designsystem.kit.ToastHost(com.dsh.core.designsystem.kit.DshToast.state, bottom = 172.dp)
                 }
             }
         }

@@ -162,7 +162,7 @@ internal fun DshPluginsRoute(d: PluginDeps) {
         val update = m?.takeIf { it.installationStatus == "update-available" }?.presentedVersion
         val dir = bundleDir(d.rootfsDir, b.name)
         PluginUi(
-            id = b.name, name = b.title.ifBlank { b.name.substringAfterLast('/') }, letter = pluginLetter(b.title.ifBlank { b.name.substringAfterLast('/') }),
+            id = b.name, name = pluginDisplayName(b.title, b.name), letter = pluginLetter(pluginDisplayName(b.title, b.name)),
             hue = pluginHue(b.name), native = false, version = b.version ?: "—", on = b.enabled,
             update = update?.version, changelog = null,
             by = if (b.official) "DSH Team" else (m?.author ?: b.name.substringBefore('/').removePrefix("@").takeIf { b.name.startsWith("@") }),
@@ -211,7 +211,7 @@ internal fun DshPluginsRoute(d: PluginDeps) {
     val plugins = (hosts + natives).sortedBy { it.blocked }
 
     val catalog = market.filter { e -> e.installationStatus == "not-installed" && d.bundles.none { it.name == e.name } }.take(6).map { e ->
-        CatalogUi(e.name, e.title.ifBlank { e.name }, pluginLetter(e.title.ifBlank { e.name }), pluginHue(e.name), e.description.orEmpty())
+        CatalogUi(e.name, pluginDisplayName(e.title, e.name), pluginLetter(pluginDisplayName(e.title, e.name)), pluginHue(e.name), e.description.orEmpty())
     }
 
     val fileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -500,3 +500,19 @@ internal fun PluginUiPage(
 @Composable
 private fun androidx.compose.ui.Modifier.fillMaxSizeBg() =
     this.then(androidx.compose.ui.Modifier.fillMaxSize().background(com.dsh.core.designsystem.Dsh.colors.bg))
+
+/**
+ * Название плагина для списка. Если Host не прислал названия (или прислал имя пакета —
+ * «@deepseek-ai/dsh-base», «web-app»), оно делается из имени пакета: без области и приставок
+ * dsh-/plugin, через пробел, с большой буквы — «Base», «Web app», «Mobile bridge».
+ */
+internal fun pluginDisplayName(title: String?, packageName: String): String {
+    val t = title?.trim().orEmpty()
+    val last = packageName.substringAfterLast('/')
+    val looksRaw = t.isEmpty() || t == packageName || t == last || (t.contains('-') && !t.contains(' ') && t == t.lowercase())
+    if (!looksRaw) return t
+    val base = (t.ifEmpty { last }).substringAfterLast('/')
+        .removePrefix("dsh-").removeSuffix("-plugin").removeSuffix("-bundle").removeSuffix("-profile")
+        .replace('-', ' ').replace('_', ' ').trim()
+    return base.replaceFirstChar { it.uppercase() }.ifEmpty { last }
+}

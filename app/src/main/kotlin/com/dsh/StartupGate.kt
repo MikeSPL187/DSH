@@ -289,5 +289,5 @@ internal fun copyHostStartupReport(context: android.content.Context, status: Run
     val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
         ?: return
     clipboard.setPrimaryClip(android.content.ClipData.newPlainText("DSH host startup", hostStartupReport(status, detail)))
-    android.widget.Toast.makeText(context, R.string.host_startup_copied, android.widget.Toast.LENGTH_SHORT).show()
+    com.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.host_startup_copied))
 }

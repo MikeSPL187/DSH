@@ -127,7 +127,7 @@ fun PlanReviewScreen(
             val copied = stringResource(R.string.plan_review_copied)
             ChatIconBtn(DshGlyphs.Copy, stringResource(R.string.plan_review_copy), tint = c.t2, iconSize = 18.dp) {
                 clipboard.setText(AnnotatedString(review.markdown))
-                android.widget.Toast.makeText(ctx, copied, android.widget.Toast.LENGTH_SHORT).show()
+                com.dsh.core.designsystem.kit.DshToast.show(copied)
             }
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 24.dp)) {

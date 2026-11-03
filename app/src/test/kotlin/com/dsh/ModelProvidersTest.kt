@@ -125,4 +125,12 @@ class ModelProvidersTest {
         assertEquals("openrouter-custom-2", customProviderId("OpenRouter", setOf("openrouter", "openrouter-custom")))
         assertEquals("custom-api", customProviderId("!!!", emptySet()))
     }
+
+    @Test
+    fun `settings value lookup follows nested path`() {
+        // QA F026: уже стоящее значение не переписывается — сравнение по пути в настройках Host.
+        val root = kotlinx.serialization.json.Json.parseToJsonElement("""{"providers":{"x":{"apiKeyEnv":"X_API_KEY"}}}""") as kotlinx.serialization.json.JsonObject
+        org.junit.Assert.assertEquals(kotlinx.serialization.json.JsonPrimitive("X_API_KEY"), valueAt(root, listOf("providers", "x", "apiKeyEnv")))
+        org.junit.Assert.assertEquals(null, valueAt(root, listOf("providers", "y", "apiKeyEnv")))
+    }
 }

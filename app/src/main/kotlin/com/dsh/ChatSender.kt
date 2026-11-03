@@ -159,16 +159,20 @@ class ChatSender(
         if (sid == null) {
             suspend fun createOnce(): String? = repository.createSession(
                 ui.activeHostId,
-                outgoing.text.take(24),
+                sessionTitleFrom(outgoing.text),
                 "/workspace/${runtimeUi.activeWorkspaceName}",
                 (ui.pendingAgentPreset ?: ui.currentAppSettings.transcriptView).takeIf { it.isNotBlank() },
             ).getOrNull()?.sessionId
             sid = createOnce()
             if (sid == null) {
-                // Host мог упасть или ещё не готов: один перезапуск и повтор.
+                // Host мог уснуть по простою, упасть или ещё просыпаться: запустить (start ждёт порт и токен)
+                // и повторять, пока клиент не подключится, — до ~30 с, а не одну попытку через 10 с.
                 runtimeManager.start(workspaceRoot().absolutePath)
-                kotlinx.coroutines.delay(10000)
-                sid = createOnce()
+                for (attempt in 0 until SESSION_CREATE_RETRIES) {
+                    sid = createOnce()
+                    if (sid != null) break
+                    kotlinx.coroutines.delay(SESSION_CREATE_RETRY_MS)
+                }
             }
             if (sid == null) return context.getString(R.string.session_create_failed)
             // mkdir Host под proot может вернуть ENOENT — папку сессии создаёт приложение.
@@ -222,9 +226,7 @@ class ChatSender(
         kotlinx.coroutines.withTimeoutOrNull(SNAPSHOT_WAIT_MS) { job.join() }
     }
 
-    private fun toast(text: String, long: Boolean = false) = android.widget.Toast.makeText(
-        context, text, if (long) android.widget.Toast.LENGTH_LONG else android.widget.Toast.LENGTH_SHORT,
-    ).show()
+    private fun toast(text: String, long: Boolean = false) = com.dsh.core.designsystem.kit.DshToast.show(text)
 }
 
 private const val SNAPSHOT_WAIT_MS = 2_000L
@@ -237,3 +239,23 @@ private fun imageTypeOf(name: String): String? = when (name.substringAfterLast('
     "gif" -> "image/gif"
     else -> null
 }
+
+private const val SESSION_CREATE_RETRIES = 15
+private const val SESSION_CREATE_RETRY_MS = 2_000L
+
+/**
+ * Название новой сессии из первого сообщения: первая непустая строка без ссылок-вложений,
+ * до 40 символов по границе слова с «…». Раньше — жёсткие 24 символа посреди слова
+ * («Reply with one short sen»).
+ */
+internal fun sessionTitleFrom(text: String): String {
+    val line = text.lineSequence().map { it.trim() }
+        .firstOrNull { it.isNotEmpty() && !it.startsWith("@") } ?: text.trim()
+    if (line.length <= SESSION_TITLE_MAX) return line
+    val cut = line.take(SESSION_TITLE_MAX)
+    val space = cut.lastIndexOf(' ')
+    val head = if (space >= SESSION_TITLE_MAX / 2) cut.substring(0, space) else cut
+    return head.trimEnd(' ', ',', '.', ':', ';', '-') + "…"
+}
+
+private const val SESSION_TITLE_MAX = 40

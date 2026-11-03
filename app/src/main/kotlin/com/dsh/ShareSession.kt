@@ -47,7 +47,7 @@ internal fun ColumnScope.ShareSessionSheet(
         onCopy = { text ->
             (context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
                 .setPrimaryClip(android.content.ClipData.newPlainText(title, text))
-            android.widget.Toast.makeText(context, context.getString(com.dsh.feature.chat.R.string.sh_copied), android.widget.Toast.LENGTH_SHORT).show()
+            com.dsh.core.designsystem.kit.DshToast.show(context.getString(com.dsh.feature.chat.R.string.sh_copied))
             onClose()
         },
         onShare = { text, name -> onClose(); shareMarkdown(context, title, text, name) },
@@ -67,5 +67,5 @@ internal fun shareMarkdown(context: Context, title: String, text: String, name: 
         send.setType("text/markdown").putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     runCatching { context.startActivity(Intent.createChooser(send, title).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        .onFailure { android.widget.Toast.makeText(context, context.getString(R.string.share_failed), android.widget.Toast.LENGTH_LONG).show() }
+        .onFailure { com.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.share_failed)) }
 }

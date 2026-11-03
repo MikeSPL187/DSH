@@ -38,7 +38,11 @@ object HostPermissionPreset {
         reader = { scope.launch { load(repository, hostId) } }
         writer = { value ->
             scope.launch {
-                runCatching { mutate(repository, hostId, value) }
+                // Отказ Host — сообщение, а не тихий «успех» (выбор просто не отмечался бы).
+                val ok = runCatching { mutate(repository, hostId, value) }.getOrDefault(false)
+                if (!ok) com.dsh.core.designsystem.kit.DshToast.show(
+                    com.dsh.core.model.Tr.t("Host did not save the mode — try again after restarting it", "Host не сохранил режим — попробуйте после перезапуска Host"),
+                )
                 load(repository, hostId)
             }
         }
@@ -56,11 +60,13 @@ object HostPermissionPreset {
         val doc = runCatching { settings.namespace(hostId, NS) }.getOrNull()
         doc?.revision?.let { revision = it }
         if (parsedOptions.isNotEmpty()) options = parsedOptions
+        // Пока пользователь режим не менял, в настройках его нет — действующий берётся из каталога Host.
         current = (doc?.value?.get("defaultPreset") as? JsonPrimitive)?.contentOrNull
+            ?: runCatching { settings.permissionPresetDefault(hostId) }.getOrNull()
     }
 
-    private suspend fun mutate(repository: DshRepository, hostId: String, value: String) {
-        repository.hostSettings.setSettings(hostId, NS, listOf(listOf("defaultPreset") to JsonPrimitive(value)), revision)
+    private suspend fun mutate(repository: DshRepository, hostId: String, value: String): Boolean {
+        return repository.hostSettings.setSettings(hostId, NS, listOf(listOf("defaultPreset") to JsonPrimitive(value)), revision)
     }
 
     private const val NS = "permission"

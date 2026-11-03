@@ -1,5 +1,7 @@
 package com.dsh.feature.settings.ui
 
+import androidx.compose.ui.semantics.editableText
+import androidx.compose.ui.semantics.password
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -228,7 +230,12 @@ internal fun ColumnScope.McpSheet(row: McpRow, a: SettingsActions, toast: ToastS
             },
             Modifier.weight(1f), kind = BtnKind.Ghost, ink = c.danger, height = 52.dp, radius = 16.dp, fontSize = 16.sp, horizontal = 10.dp, enabled = !busy, busy = busy,
         )
-        KBtn(stringResource(R.string.st_done), close, Modifier.weight(1.35f), kind = BtnKind.Primary, height = 52.dp, radius = 16.dp, fontSize = 16.sp)
+        // QA F017: пока удаление ждёт второго нажатия, рядом не «Готово» (казалось, что удаление подтверждено),
+        // а «Отмена» — снимает ожидание и лист не закрывает.
+        KBtn(
+            stringResource(if (armed) R.string.st_cancel else R.string.st_done), { if (armed) armed = false else close() },
+            Modifier.weight(1.35f), kind = BtnKind.Primary, height = 52.dp, radius = 16.dp, fontSize = 16.sp,
+        )
     }
 }
 
@@ -366,7 +373,13 @@ internal fun ObField(
                     value, onChange, singleLine = true, textStyle = style, cursorBrush = SolidColor(c.accent),
                     visualTransformation = if (secret) PasswordVisualTransformation('•') else VisualTransformation.None,
                     keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = false),
-                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = label }.onFocusChanged { focused = it.isFocused },
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = label }.onFocusChanged { focused = it.isFocused }.then(
+                        // QA F004: «Показать» открывает секрет только глазам; службам специальных возможностей — точки.
+                        if (secret || keyboard == KeyboardType.Password) Modifier.semantics {
+                            password()
+                            editableText = androidx.compose.ui.text.AnnotatedString("•".repeat(value.length))
+                        } else Modifier,
+                    ),
                 )
             }
             trailing?.invoke()

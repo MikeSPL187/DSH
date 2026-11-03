@@ -133,4 +133,5 @@
     <string name="mem_card_label_project_saved">Project memory %1$s</string>
     <string name="mem_card_auto_done">Remembered</string>
     <string name="mem_card_undo">Undo</string>
+    <string name="ck_work_done_plain">Done</string>
 </resources>

@@ -177,7 +177,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
     }
 
     // Место на телефоне.
-    var storage by remember { mutableStateOf<StorageUsage?>(null) }
+    var storage by remember { mutableStateOf<StorageUsage?>(StorageScanner.last) }
     LaunchedEffect(tick) { storage = withContext(Dispatchers.IO) { StorageScanner.scan(context, d.layout.rootfsDir, d.workspace, d.layout.logsDir, java.io.File(d.layout.runtimeMetaDir, "checkpoints")) } }
 
     // Рабочая папка и тема — живые значения, без перезапуска экрана.
@@ -194,7 +194,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
                     sharedWs = true
                     d.onWorkspaceChanged()
                 } else {
-                    android.widget.Toast.makeText(context, context.getString(R.string.shared_access_missing), android.widget.Toast.LENGTH_LONG).show()
+                    com.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.shared_access_missing))
                 }
             }
         }
@@ -274,9 +274,9 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         keyLast4 = ApiKeyVault.last4(DEEPSEEK_VAULT_REF),
         keyAdded = ApiKeyVault.addedAt(DEEPSEEK_VAULT_REF)?.let { shortDate(it) },
         balance = balance?.let { money(it.first) },
-        today = ledger?.let { money(it.today) },
-        monthSpent = ledger?.let { money(it.month) },
-        monthSpentFraction = ledger?.let { l -> balance?.first?.let { b -> (l.month / (l.month + b)).toFloat() } } ?: 0f,
+        today = ledger?.today?.let { money(it) },
+        monthSpent = ledger?.month?.let { money(it) },
+        monthSpentFraction = ledger?.month?.let { m -> balance?.first?.let { b -> (m / (m + b)).toFloat() } } ?: 0f,
         balanceDays = ledger?.daysLeft,
         customProviders = custom.map { p ->
             val last4 = ApiKeyVault.last4(p.keyRef)
@@ -296,6 +296,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         pluginsOn = d.pluginsOn,
         automationsOn = d.automationsOn,
         autoApprove = approveState(),
+        fullAccess = HostPermissionPreset.current?.contains("danger") == true,
         clipboard = clipboard,
         thirdPartyPlugins = thirdPartyPlugins,
         networkFull = networkFull,
@@ -549,9 +550,12 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
 
         override suspend fun restartHost(): Boolean {
             val restart = com.dsh.runtime.host.HostRuntimeHolder.restartHost
-            val ok = if (restart != null) restart().isSuccess else {
-                runCatching { d.runtimeManager.stop() }
-                d.runtimeManager.start(d.workspace.absolutePath).isSuccess
+            // Перезапуск доводится до конца, даже если страницу закрыли посередине (QA F016).
+            val ok = withContext(kotlinx.coroutines.NonCancellable) {
+                if (restart != null) restart().isSuccess else {
+                    runCatching { d.runtimeManager.stop() }
+                    d.runtimeManager.start(d.workspace.absolutePath).isSuccess
+                }
             }
             runningSince = System.currentTimeMillis()
             return ok
@@ -633,7 +637,9 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
 private fun approveState(): Boolean? {
     val current = HostPermissionPreset.current ?: return null
     if (HostPermissionPreset.options.isEmpty()) return null
-    return "workspace" in current || ("write" in current && "danger" !in current)
+    // Полный доступ — ни «спрашивать», ни «сам в папке»: ничего не отмечено, под вариантами — подпись.
+    if ("danger" in current) return null
+    return "workspace" in current || "write" in current
 }
 
 private fun shortDate(millis: Long): String {
@@ -665,9 +671,7 @@ private suspend fun fetchDeepSeekBalance(key: String): Pair<KeyState, Pair<Doubl
             when (c.responseCode) {
                 401, 403 -> KeyState.Bad to null
                 in 200..299 -> {
-                    val info = org.json.JSONObject(c.inputStream.bufferedReader().readText()).getJSONArray("balance_infos").getJSONObject(0)
-                    val sign = when (info.optString("currency")) { "USD" -> "$"; "CNY" -> "¥"; else -> info.optString("currency") }
-                    KeyState.Ok to (info.getString("total_balance").toDouble() to sign)
+                    KeyState.Ok to pickBalance(c.inputStream.bufferedReader().readText())
                 }
                 else -> KeyState.Offline to null
             }

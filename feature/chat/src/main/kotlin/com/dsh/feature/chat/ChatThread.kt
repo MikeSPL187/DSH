@@ -498,6 +498,11 @@ internal fun WorkBlock(
     val running = tools.lastOrNull { it.status == "running" }
     val label = when {
         approval != null && !done -> stringResource(R.string.ck_h_wait)
+        // Длительность неизвестна (история перечитана после перезапуска — у всех событий одно время):
+        // без «· 0 с», которое выглядело бы как настоящее время работы.
+        done && durationMs < MIN_KNOWN_DURATION_MS && tools.isNotEmpty() ->
+            stringResource(R.string.ck_work_done_short, androidx.compose.ui.res.pluralStringResource(R.plurals.ck_steps, tools.size, tools.size))
+        done && durationMs < MIN_KNOWN_DURATION_MS -> stringResource(R.string.ck_work_done_plain)
         done && tools.isNotEmpty() -> stringResource(R.string.ck_work_done, androidx.compose.ui.res.pluralStringResource(R.plurals.ck_steps, tools.size, tools.size), ckDuration(durationMs))
         done -> stringResource(R.string.ck_work_done_short, ckDuration(durationMs))
         else -> ckHeadLabel(running?.name)
@@ -686,8 +691,8 @@ internal fun MessageFeedbackActions(
 ) {
     val c = Dsh.colors
     var noteOpen by remember { mutableStateOf(false) }
-    ChatIconBtn(DshGlyphs.Check, stringResource(R.string.feedback_helpful), tint = if (current?.rating == "positive") c.accent else c.t3, iconSize = 18.dp) { onRating("positive") }
-    ChatIconBtn(DshGlyphs.X, stringResource(R.string.feedback_not_helpful), tint = if (current?.rating == "negative") c.danger else c.t3, iconSize = 18.dp) { onRating("negative") }
+    ChatIconBtn(DshGlyphs.ThumbUp, stringResource(R.string.feedback_helpful), tint = if (current?.rating == "positive") c.accent else c.t3, iconSize = 18.dp) { onRating("positive") }
+    ChatIconBtn(DshGlyphs.ThumbDown, stringResource(R.string.feedback_not_helpful), tint = if (current?.rating == "negative") c.danger else c.t3, iconSize = 18.dp) { onRating("negative") }
     if (current != null) ChatIconBtn(DshGlyphs.Pencil, stringResource(if (current.note.isNullOrBlank()) R.string.feedback_add_note else R.string.feedback_edit_note), tint = c.t3, iconSize = 18.dp) { noteOpen = !noteOpen }
     if (noteOpen) {
         var draft by remember(current?.note) { mutableStateOf(current?.note.orEmpty()) }
@@ -715,3 +720,6 @@ internal fun MessageFeedbackActions(
 
 /** Аргументы инструмента в листе деталей — с отступами; разбор с пределом глубины (`parseHostJson`). */
 private val PrettyArgsJson = kotlinx.serialization.json.Json { prettyPrint = true }
+
+/** Короче этого длительность хода считается неизвестной. */
+private const val MIN_KNOWN_DURATION_MS = 500L

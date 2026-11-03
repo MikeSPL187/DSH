@@ -229,4 +229,8 @@
     <string name="fs_hunk_revert">Отменить</string>
     <string name="fs_hunk_done">Фрагмент отменён</string>
     <string name="fs_hunk_stale">Файл изменился — обновите изменения и попробуйте снова</string>
+    <string name="fs_empty_file">Файл пуст</string>
+    <string name="fs_empty_file_hint">Нажмите «Спросить», чтобы агент его наполнил</string>
+    <string name="fs_added_list">Добавлено: %1$s</string>
+    <string name="fs_deleted_list">Удалено: %1$s</string>
 </resources>

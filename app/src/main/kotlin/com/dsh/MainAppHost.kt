@@ -549,11 +549,7 @@ fun MainAppHost(
                 }
                 runtimeUi.workspaceRevision += 1
                 result.skipped.forEach { name ->
-                    android.widget.Toast.makeText(
-                        context,
-                        context.getString(R.string.attachment_copy_failed, name),
-                        android.widget.Toast.LENGTH_SHORT,
-                    ).show()
+                    com.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.attachment_copy_failed, name))
                 }
             }
         }
@@ -595,9 +591,7 @@ fun MainAppHost(
                     importAttachments(inc.files.map { android.net.Uri.fromFile(it) }) { inc.files.forEach { it.delete() } }
                 }
                 if (!inc.text.isNullOrBlank()) ui.pendingComposerText = inc.text
-                if (inc.skipped.isNotEmpty()) android.widget.Toast.makeText(
-                    context, context.resources.getQuantityString(R.plurals.share_skipped, inc.skipped.size, inc.skipped.size), android.widget.Toast.LENGTH_LONG,
-                ).show()
+                if (inc.skipped.isNotEmpty()) com.dsh.core.designsystem.kit.DshToast.show(context.resources.getQuantityString(R.plurals.share_skipped, inc.skipped.size, inc.skipped.size))
             }
         }
     }
@@ -753,21 +747,13 @@ fun MainAppHost(
                 runtimeUi.filesRevision += 1
                 runtimeUi.workspaceRevision += 1
                 if (result.added.isNotEmpty()) {
-                    android.widget.Toast.makeText(
-                        context,
-                        context.getString(
+                    com.dsh.core.designsystem.kit.DshToast.show(context.getString(
                             com.dsh.feature.files.R.string.files_imported,
                             result.added.size,
-                        ),
-                        android.widget.Toast.LENGTH_SHORT,
-                    ).show()
+                        ))
                 }
                 result.skipped.forEach { name ->
-                    android.widget.Toast.makeText(
-                        context,
-                        context.getString(R.string.attachment_copy_failed, name),
-                        android.widget.Toast.LENGTH_SHORT,
-                    ).show()
+                    com.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.attachment_copy_failed, name))
                 }
             }
         }
@@ -825,13 +811,13 @@ fun MainAppHost(
                 ui.activePage = ActivePage.CHAT
             },
             onShare = { f ->
-                if (!shareWorkspaceFile(context, f)) android.widget.Toast.makeText(context, context.getString(R.string.share_failed), android.widget.Toast.LENGTH_LONG).show()
+                if (!shareWorkspaceFile(context, f)) com.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.share_failed))
             },
             onImport = { dir ->
                 ui.filesDir = dir
                 filesImportLauncher.launch(arrayOf("*/*"))
             },
-            onToast = { text -> android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_SHORT).show() },
+            onToast = { text -> com.dsh.core.designsystem.kit.DshToast.show(text) },
             markdown = { text -> com.dsh.feature.chat.MarkdownMessageText(text) },
             onOpenInBrowser = { f ->
                 BrowserUrls.workspaceUrl(projectDir, f)?.let { url -> ui.browser = BrowserTarget(url, projectDir) }
@@ -1143,7 +1129,7 @@ fun MainAppHost(
                                         // Камера есть, а приложение камеры отключено — ActivityNotFoundException, раньше падение.
                                         runCatching { cameraLauncher.launch(uri) }.onFailure {
                                             cameraUri = null
-                                            android.widget.Toast.makeText(context, context.getString(R.string.camera_unavailable), android.widget.Toast.LENGTH_LONG).show()
+                                            com.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.camera_unavailable))
                                         }
                                     }) else null,
                                     onOpenTerminal = if (terminalSupported) ({ ui.activePage = ActivePage.TERMINAL }) else null,

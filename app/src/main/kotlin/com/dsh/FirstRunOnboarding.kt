@@ -202,6 +202,10 @@ internal fun friendlyLinuxInstall(s: LinuxInstall, getString: (Int) -> String): 
 private fun installErrorText(raw: String): Int {
     val t = raw.lowercase()
     return when {
+        // QA F010: сбой самого Host (выход процесса, ошибка Node, таймаут запуска) — не «нет интернета»,
+        // хотя в тексте бывают «timed out» и «connect».
+        "host" in t && ("exit" in t || "timed out" in t || "timeout" in t || "crash" in t) ||
+            "node:" in t || "require" in t || "econnrefused" in t || "signal " in t -> com.dsh.feature.runtime.R.string.ob_err_host
         "cert" in t || "ssl" in t || "tls" in t || "handshake" in t -> com.dsh.feature.runtime.R.string.ob_err_tls
         "unknownhost" in t || "unable to resolve" in t || "timeout" in t || "timed out" in t ||
             "network" in t || "connect" in t || "offline" in t || "нет сети" in t -> com.dsh.feature.runtime.R.string.ob_err_offline
@@ -281,7 +285,7 @@ internal suspend fun checkApiKey(provider: OnboardingProvider, baseUrl: String, 
             keyClient.newCall(request).execute().use { response ->
                 when {
                     response.code == 401 || response.code == 403 -> KeyCheck.Bad
-                    !response.isSuccessful -> if (response.code >= 500) KeyCheck.Offline else KeyCheck.Bad
+                    !response.isSuccessful -> keyCheckFailure(provider, response.code)
                     else -> {
                         val body = response.body?.string().orEmpty()
                         when (provider) {
@@ -296,17 +300,28 @@ internal suspend fun checkApiKey(provider: OnboardingProvider, baseUrl: String, 
         }
     }
 
-/** `balance_infos[0]` → «12,40 $» / «85,00 ¥» в формате текущего языка. */
-internal fun parseBalance(body: String): String? = runCatching {
-    val info = JSONObject(body).getJSONArray("balance_infos").getJSONObject(0)
-    val amount = info.getString("total_balance").toDouble()
-    val sign = when (info.optString("currency")) {
+/**
+ * Баланс из `balance_infos`: (сумма, знак валюты). У аккаунта может быть несколько валют
+ * (например, CNY 91,52 и USD 0,00) в любом порядке — берётся та, где больше денег, а не первая:
+ * раньше при пополненных юанях показывалось «на балансе 0,00 $».
+ */
+internal fun pickBalance(body: String): Pair<Double, String>? = runCatching {
+    val infos = JSONObject(body).getJSONArray("balance_infos")
+    val all = (0 until infos.length()).map { infos.getJSONObject(it) }
+        .map { it.getString("total_balance").toDouble() to it.optString("currency") }
+    val best = all.maxByOrNull { it.first } ?: return@runCatching null
+    val sign = when (best.second) {
         "USD" -> "$"
         "CNY" -> "¥"
-        else -> info.optString("currency")
+        else -> best.second
     }
-    String.format(java.util.Locale.getDefault(), "%.2f %s", amount, sign)
+    best.first to sign
 }.getOrNull()
+
+/** Баланс → «12,40 $» / «85,00 ¥» в формате текущего языка. */
+internal fun parseBalance(body: String): String? = pickBalance(body)?.let { (amount, sign) ->
+    String.format(java.util.Locale.getDefault(), "%.2f %s", amount, sign)
+}
 
 /** Список моделей OpenAI-совместимого `/models`. */
 internal fun parseModels(body: String): List<String> = runCatching {
@@ -340,13 +355,24 @@ private suspend fun applyKey(
         )
     }
     if (provider == null) {
-        android.widget.Toast.makeText(context, context.getString(R.string.onboarding_key_failed), android.widget.Toast.LENGTH_LONG).show()
+        com.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.onboarding_key_failed))
         return
     }
     val baseUrl = if (key.provider == OnboardingProvider.CUSTOM) key.baseUrl else ""
     if (!modelProviders.save(hostId, provider, key.key, baseUrl, key.models)) {
-        android.widget.Toast.makeText(context, context.getString(R.string.onboarding_key_failed), android.widget.Toast.LENGTH_LONG).show()
+        com.dsh.core.designsystem.kit.DshToast.show(context.getString(R.string.onboarding_key_failed))
         return
     }
     if (key.provider == OnboardingProvider.DEEPSEEK) oauthManager.signInWithApiKey(key.key)
+}
+
+/**
+ * Неуспешный ответ при проверке ключа (кроме 401/403). QA F003: раньше любой 4xx значил «ключ не подошёл» —
+ * в том числе 429 (проверка идёт на каждой паузе в наборе) и 408, а у своего провайдера без `/models` (404/405)
+ * отклонялся рабочий ключ. Такие ответы — «не удалось проверить», как без сети.
+ */
+internal fun keyCheckFailure(provider: OnboardingProvider, code: Int): KeyCheck = when {
+    code >= 500 || code == 429 || code == 408 -> KeyCheck.Offline
+    provider == OnboardingProvider.CUSTOM && (code == 404 || code == 405) -> KeyCheck.Offline
+    else -> KeyCheck.Bad
 }

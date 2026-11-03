@@ -1,5 +1,7 @@
 package com.dsh.feature.runtime
 
+import androidx.compose.ui.semantics.editableText
+import androidx.compose.ui.semantics.password
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
@@ -28,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -193,6 +196,17 @@ fun OnboardingScreen(
     var provider by rememberSaveable { mutableStateOf(OnboardingProvider.DEEPSEEK) }
     var baseUrl by rememberSaveable { mutableStateOf("") }
     var key by remember { mutableStateOf("") }
+    // QA F006: ключ не сохраняется вместе с шагом. Если система выгрузила приложение, пока был открыт
+    // выбор файла или системные настройки доступа, шаг восстановится, а ключ — нет: онбординг молча
+    // завершился бы без ключа. Пропущенный ключ отличаем от потерянного и возвращаем на шаг 1.
+    var keySkipped by rememberSaveable { mutableStateOf(false) }
+    val keyLostText = stringResource(R.string.ob_key_lost)
+    LaunchedEffect(Unit) {
+        if (step >= 2 && key.isBlank() && !keySkipped) {
+            step = 1
+            com.dsh.core.designsystem.kit.DshToast.show(keyLostText)
+        }
+    }
     var check by remember { mutableStateOf<KeyCheck?>(null) }
     var checking by remember { mutableStateOf(false) }
     var shared by rememberSaveable { mutableStateOf(false) }
@@ -299,6 +313,7 @@ fun OnboardingScreen(
                         check = check,
                         onWhereKey = onWhereKey,
                         dir = dir,
+                        onKeyDone = { if (keyAccepted) go(2) },
                     )
                     2 -> WorkspaceStep(shared, { shared = it; waitingShared = false }, sharedAccessGranted, dir)
                     else -> LinuxStep(install, notify, onNotifyChange, dir, onCopyReport)
@@ -312,9 +327,22 @@ fun OnboardingScreen(
             altText = when (step) {
                 0 -> if (onRestoreBackup != null) stringResource(R.string.ob_restore) else null
                 1 -> stringResource(R.string.ob_skip_key)
+                // Linux установлен, Host не запустился: не держать человека на «Повторить».
+                3 -> if (install.hostFailed) stringResource(R.string.ob_open_without_agent) else null
                 else -> null
             },
-            onAlt = { if (step == 0) onRestoreBackup?.invoke() else { key = ""; go(2) } },
+            onAlt = {
+                when (step) {
+                    0 -> onRestoreBackup?.invoke()
+                    1 -> { key = ""; keySkipped = true; go(2) }
+                    // Ключ сохраняется, приложение открывается; Host запустится с экрана запуска.
+                    else -> onFinish(
+                        key.trim().takeIf { it.isNotEmpty() && keyAccepted }?.let {
+                            OnboardingKey(provider, baseUrl.trim(), it, (check as? KeyCheck.Ok)?.models.orEmpty())
+                        },
+                    )
+                }
+            },
         )
     }
 }
@@ -425,7 +453,8 @@ private fun Bottom(primaryText: String, primaryEnabled: Boolean, onPrimary: () -
             pulse.animateTo(1f, DshMotion.lively())
         }
     }
-    Column(Modifier.fillMaxWidth().padding(start = 22.dp, end = 22.dp, top = 10.dp).navigationBarsPadding().padding(bottom = 16.dp)) {
+    // Над клавиатурой: с открытой клавиатурой «Продолжить» не прячется под ней.
+    Column(Modifier.fillMaxWidth().padding(start = 22.dp, end = 22.dp, top = 10.dp).navigationBarsPadding().imePadding().padding(bottom = 16.dp)) {
         DshButton(
             primaryText,
             onPrimary,
@@ -588,6 +617,8 @@ private fun ModelStep(
     check: KeyCheck?,
     onWhereKey: () -> Unit,
     dir: Int,
+    /** «Готово» на клавиатуре в поле ключа: проверенный ключ — сразу следующий шаг. */
+    onKeyDone: () -> Unit = {},
 ) {
     val c = Dsh.colors
     val clipboard = LocalClipboardManager.current
@@ -651,6 +682,7 @@ private fun ModelStep(
             secret = true,
             ok = check is KeyCheck.Ok,
             keyboard = KeyboardType.Password,
+            onImeDone = onKeyDone,
             onPaste = {
                 // Вставленный ключ не остаётся в буфере обмена: его читают клавиатура и другие приложения.
                 clipboard.getText()?.text?.trim()?.takeIf { it.isNotEmpty() }?.let { onKey(it); clipboard.setText(androidx.compose.ui.text.AnnotatedString("")) }
@@ -719,6 +751,8 @@ private fun Field(
     keyboard: KeyboardType,
     onPaste: (() -> Unit)? = null,
     onCommit: (() -> Unit)? = null,
+    /** Только кнопка «Готово» клавиатуры (не потеря фокуса). */
+    onImeDone: (() -> Unit)? = null,
 ) {
     val c = Dsh.colors
     var focused by remember { mutableStateOf(false) }
@@ -758,11 +792,18 @@ private fun Field(
                     cursorBrush = SolidColor(c.accent),
                     visualTransformation = if (secret && !shown) PasswordVisualTransformation('•') else VisualTransformation.None,
                     keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = false, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { onCommit?.invoke(); defaultKeyboardAction(ImeAction.Done) }),
+                    keyboardActions = KeyboardActions(onDone = { onCommit?.invoke(); defaultKeyboardAction(ImeAction.Done); onImeDone?.invoke() }),
                     modifier = Modifier.fillMaxWidth().onFocusChanged {
                         if (focused && !it.isFocused) onCommit?.invoke()
                         focused = it.isFocused
-                    },
+                    }.then(
+                        // QA F004: «Показать» открывает ключ только глазам; службам специальных возможностей
+                        // (и всему, что читает экран через них) — по-прежнему точки и признак «пароль».
+                        if (secret) Modifier.semantics {
+                            password()
+                            editableText = androidx.compose.ui.text.AnnotatedString("•".repeat(value.length))
+                        } else Modifier,
+                    ),
                 )
             }
             if (secret) {
@@ -1032,6 +1073,8 @@ private fun InstallCard(install: LinuxInstall, modifier: Modifier, onCopyReport:
 private fun InstallError(install: LinuxInstall, onCopyReport: (() -> Unit)?) {
     val c = Dsh.colors
     var more by remember { mutableStateOf(false) }
+    // QA F007: «Назад» при раскрытых «Подробностях» сначала сворачивает их, а не уводит на шаг 2.
+    BackHandler(enabled = more) { more = false }
     Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background(c.dangerSoft), contentAlignment = Alignment.Center) {
             Icon(com.dsh.core.designsystem.DshGlyphs.Alert, null, tint = c.danger, modifier = Modifier.size(18.dp))

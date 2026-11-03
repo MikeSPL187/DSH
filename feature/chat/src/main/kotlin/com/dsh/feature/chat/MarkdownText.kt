@@ -149,7 +149,7 @@ private fun CodeBlock(code: String, lang: String = "") {
             ChatIconBtn(com.dsh.core.designsystem.DshGlyphs.Copy, stringResource(R.string.markdown_copy), tint = c.t2, iconSize = 18.dp) {
                 (ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
                     .setPrimaryClip(android.content.ClipData.newPlainText("code", code))
-                android.widget.Toast.makeText(ctx, copied, android.widget.Toast.LENGTH_SHORT).show()
+                com.dsh.core.designsystem.kit.DshToast.show(copied)
             }
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(c.line))
@@ -298,7 +298,9 @@ internal fun parseMarkdownBlocks(text: String): List<MarkdownBlock> {
             }
             trimmed.isEmpty() -> flushParagraph()
             else -> {
-                if (paragraph.isNotEmpty()) paragraph.append(' ')
+                // Перенос строки внутри абзаца сохраняется, как в ChatGPT и Claude: «по одному на строку»
+                // не склеивается в одну строку.
+                if (paragraph.isNotEmpty()) paragraph.append('\n')
                 paragraph.append(trimmed)
             }
         }

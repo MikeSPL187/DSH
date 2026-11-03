@@ -141,6 +141,10 @@ class HostSettingsRepository internal constructor(
                 value to (obj.str("name") ?: value)
             }.orEmpty()
 
+    /** Действующий режим доступа по умолчанию из `permissionPresets/catalog` (когда в настройках его нет). */
+    suspend fun permissionPresetDefault(hostId: String): String? =
+        (calls.value(hostId, "permissionPresets/catalog") as? JsonObject)?.str("defaultPreset")
+
     /**
      * Язык текстов Host (описания команд, расписания, страницы плагинов). Host знает
      * только zh и en, приложение — ru и en, поэтому Host всегда на английском.

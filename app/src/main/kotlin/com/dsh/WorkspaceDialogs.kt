@@ -29,7 +29,7 @@ internal fun WorkspaceDialogs(
     // Отказ — видимое сообщение с причиной, а не молча закрытое окно (G-28).
     fun report(error: Throwable) {
         val problem = (error as? WorkspaceOpException)?.problem
-        android.widget.Toast.makeText(context, context.getString(workspaceProblemText(problem)), android.widget.Toast.LENGTH_LONG).show()
+        com.dsh.core.designsystem.kit.DshToast.show(context.getString(workspaceProblemText(problem)))
     }
     if (runtimeUi.showAddWorkspaceDialog) {
         val close = { runtimeUi.showAddWorkspaceDialog = false }

@@ -70,4 +70,14 @@ class HostStartupFailureTest {
         }
         assertEquals(RuntimeR.string.ob_err_offline, requestedString)
     }
+
+    @Test
+    fun `host failure reported as an install error is not offline either`() {
+        // QA F010: сбой Host попал в ошибку установки — раньше «timed out» превращалось в «нет интернета».
+        var requested = 0
+        friendlyLinuxInstall(LinuxInstall(error = "Host startup timed out (no port or token within 90 s)")) { requested = it; "x" }
+        assertEquals(RuntimeR.string.ob_err_host, requested)
+        friendlyLinuxInstall(LinuxInstall(error = "Error: Dynamic require of \"node:assert\" is not supported")) { requested = it; "x" }
+        assertEquals(RuntimeR.string.ob_err_host, requested)
+    }
 }
