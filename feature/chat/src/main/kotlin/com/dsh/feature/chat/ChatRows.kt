@@ -14,7 +14,14 @@ internal sealed interface ChatRow {
     data class Single(val message: ChatMessage) : ChatRow
 
     /** Ход работы одного запроса: шаги, готово ли, сколько длилось. */
-    data class Work(val key: String, val items: List<ChatMessage>, val done: Boolean, val durationMs: Long) : ChatRow
+    data class Work(
+        val key: String,
+        val items: List<ChatMessage>,
+        val done: Boolean,
+        val durationMs: Long,
+        /** Начало хода (время вопроса) — по нему «Стоп» относится к своему ходу. */
+        val startedAt: Long = 0L,
+    ) : ChatRow
 }
 
 /**
@@ -66,6 +73,7 @@ internal fun buildChatRows(messages: List<ChatMessage>, isThinking: Boolean): Li
                     items = process.toList(),
                     done = closed || user == null,
                     durationMs = (lastCreated - start).coerceAtLeast(0L),
+                    startedAt = start,
                 ),
             )
         }
@@ -85,6 +93,20 @@ internal fun buildChatRows(messages: List<ChatMessage>, isThinking: Boolean): Li
         index = end
     }
     return rows
+}
+
+/**
+ * Ходы, прерванные кнопкой «Стоп»: нажатие относится к ходу, который начался до него и после
+ * которого до нажатия не начался следующий. По времени, а не по id: id вопроса меняется, когда
+ * локальный пузырь заменяется эхом Host, а строки хода в момент нажатия может ещё не быть.
+ */
+internal fun stoppedWorkKeys(rows: List<ChatRow>, stopTimes: List<Long>): Set<String> {
+    if (stopTimes.isEmpty()) return emptySet()
+    val works = rows.filterIsInstance<ChatRow.Work>()
+    return works.mapIndexedNotNull { i, w ->
+        val next = works.getOrNull(i + 1)?.startedAt ?: Long.MAX_VALUE
+        w.key.takeIf { w.done && stopTimes.any { it >= w.startedAt && it < next } }
+    }.toSet()
 }
 
 /** Подробности вызова инструмента для листа «Подробнее». */

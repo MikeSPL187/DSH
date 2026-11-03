@@ -318,7 +318,8 @@ internal fun parseMarkdownBlocks(text: String): List<MarkdownBlock> {
 private val inlineRegex = Regex(
     "\\*\\*([^*]+)\\*\\*" +
         "|`([^`]+)`" +
-        "|\\[([^\\]]+)]\\(([^)\\s]+)\\)" +
+        // Адрес может содержать сбалансированные скобки (CommonMark): `[a](f.py#print("hi"))`.
+        "|\\[([^\\]]+)]\\(((?:[^()\\s]|\\([^()\\s]*\\))+)\\)" +
         "|(?<!\\*)\\*([^*]+)\\*(?!\\*)",
 )
 

@@ -430,6 +430,10 @@ fun ModernChatScreen(
         a.callId?.let { decided[it] = allowed to (a.tier == ApprovalTier.DESTRUCTIVE) }
         dangerOpen = false
     }
+    // Нажатия «Стоп» в этом экране: Host не помечает прерванный ход иначе, чем законченный.
+    // Свои для каждой сессии: «Стоп» в одной не должен пометить ход другой, шедший в то же время.
+    val stopTimes = remember(messages.firstOrNull()?.sessionId) { androidx.compose.runtime.mutableStateListOf<Long>() }
+    val stoppedTurns = remember(chatRows, stopTimes.size) { stoppedWorkKeys(chatRows, stopTimes) }
     val runningWorkKey = chatRows.lastOrNull { it is ChatRow.Work && !it.done }?.let { (it as ChatRow.Work).key }
     // Последний ответ агента после последнего хода работы — к нему приставляется итог изменений.
     val finalAnswerId = remember(chatRows) {
@@ -520,7 +524,10 @@ fun ModernChatScreen(
                 },
                 onSend = {
                     when {
-                        isThinking && !canSend -> onStopClick()
+                        isThinking && !canSend -> {
+                            stopTimes += System.currentTimeMillis()
+                            onStopClick()
+                        }
                         canSend -> send()
                         voiceEnabled -> onVoiceStart()
                     }
@@ -948,6 +955,7 @@ fun ModernChatScreen(
                             decided = decided,
                             onDecided = ::decide,
                             onOpenDanger = { dangerOpen = true },
+                            stoppedByUser = row.key in stoppedTurns,
                         )
                         is ChatRow.Single -> {
                             val m = row.message

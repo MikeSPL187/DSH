@@ -24,6 +24,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -155,17 +159,26 @@ fun ModernTopAppBar(
             if (hostJobs.isNotEmpty()) {
                 val liveCount = hostJobs.count { it.status == "running" || it.status == "stopping" }
                 val label = if (liveCount > 0) stringResource(R.string.header_jobs_running, liveCount) else stringResource(R.string.header_jobs_idle, hostJobs.size)
+                // Компактно — значок терминала, точка «идёт» и число: полная подпись («Фоновых задач
+                // выполняется: 1») на 360 dp сжимала название сессии до «Run sl…». Подпись — для TalkBack.
                 Box(
-                    Modifier.height(44.dp).clip(CircleShape).clickable { jobsPanelOpen = !jobsPanelOpen },
+                    Modifier.height(44.dp).clip(CircleShape)
+                        .semantics(mergeDescendants = true) { contentDescription = label; role = Role.Button }
+                        .clickable { jobsPanelOpen = !jobsPanelOpen },
                     contentAlignment = Alignment.Center,
                 ) {
                     Row(
                         Modifier.height(32.dp).clip(CircleShape).background(c.s2).padding(horizontal = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
                     ) {
+                        Icon(com.dsh.core.designsystem.DshGlyphs.Term, null, Modifier.size(15.dp), tint = c.t2)
                         if (liveCount > 0) Box(Modifier.size(6.dp).clip(CircleShape).background(c.accent))
-                        Text(label, style = com.dsh.feature.chat.ckBody(12.5.sp), color = c.t1, maxLines = 1)
+                        Text(
+                            (if (liveCount > 0) liveCount else hostJobs.size).toString(),
+                            style = com.dsh.feature.chat.ckBody(12.5.sp).copy(fontFeatureSettings = "tnum"),
+                            color = c.t1, maxLines = 1,
+                        )
                     }
                 }
             }

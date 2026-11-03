@@ -28,6 +28,13 @@ class MarkdownInlineTest {
     }
 
     @Test
+    fun linkWithParenthesesInAddressLeavesNoStrayBracket() {
+        // Настоящий ответ агента на эмуляторе: раньше разбор обрывался на первой «)», и в тексте оставалась «)».
+        val s = parse("Created [hello.py](hello.py#print(\"hi\")) and ran it")
+        assertEquals("Created hello.py and ran it", s.text)
+    }
+
+    @Test
     fun longReplyIsParsedInOnePass() {
         val text = "слово *курсив* `код` **жирный** ".repeat(20_000)
         val started = System.nanoTime()

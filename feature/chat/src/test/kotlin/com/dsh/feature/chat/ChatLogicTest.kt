@@ -126,3 +126,26 @@ class ChatLogicTest {
         assertEquals(listOf(MarkdownBlock.Code("partial")), parseMarkdownBlocks("```\npartial"))
     }
 }
+
+/** «Остановлено вами»: нажатие «Стоп» относится к своему ходу по времени, а не по id вопроса. */
+class StoppedWorkKeysTest {
+    private fun work(key: String, at: Long, done: Boolean = true) =
+        ChatRow.Work(key = key, items = emptyList(), done = done, durationMs = 0, startedAt = at)
+
+    @org.junit.Test
+    fun stopMarksOnlyTheTurnItHappenedIn() {
+        val rows = listOf(work("a", 1_000), work("b", 5_000), work("c", 9_000))
+        org.junit.Assert.assertEquals(setOf("b"), stoppedWorkKeys(rows, listOf(6_000)))
+    }
+
+    @org.junit.Test
+    fun stillRunningTurnIsNotMarkedYet() {
+        val rows = listOf(work("a", 1_000), work("b", 5_000, done = false))
+        org.junit.Assert.assertEquals(emptySet<String>(), stoppedWorkKeys(rows, listOf(6_000)))
+    }
+
+    @org.junit.Test
+    fun noStopsNoMarks() {
+        org.junit.Assert.assertEquals(emptySet<String>(), stoppedWorkKeys(listOf(work("a", 1)), emptyList()))
+    }
+}

@@ -104,15 +104,18 @@ private fun Modifier.topLine(): Modifier {
     return drawBehind { drawRect(line, size = Size(size.width, 1.dp.toPx())) }
 }
 
-/** `.stat`: «+n −m» моноширинным, плюс зелёным, минус красным. */
+/**
+ * `.stat`: «+n −m» моноширинным, плюс зелёным, минус красным. Нулевая сторона не пишется
+ * (как плашка файла в прототипе: `c.m ? " −" + c.m : ""`): новый файл — «+1», а не «+1 −0».
+ */
 @Composable
 private fun Stat(added: Int, deleted: Int) {
     val c = Dsh.colors
     Text(
         buildAnnotatedString {
-            withStyle(SpanStyle(color = c.ok)) { append("+$added") }
-            append(" ")
-            withStyle(SpanStyle(color = c.danger)) { append("−$deleted") }
+            if (added > 0 || deleted == 0) withStyle(SpanStyle(color = c.ok)) { append("+$added") }
+            if (added > 0 && deleted > 0) append(" ")
+            if (deleted > 0) withStyle(SpanStyle(color = c.danger)) { append("−$deleted") }
         },
         style = ckMono(12.5.sp, 16.sp),
     )

@@ -46,6 +46,9 @@
     <string name="ck_t_sub">Delegates to a helper</string>
     <string name="ck_t_todo">Updates the plan</string>
     <string name="ck_t_generic">Calls a tool</string>
+    <string name="ck_t_job_wait">Waits for a background job</string>
+    <string name="ck_t_job_kill">Stops a background job</string>
+    <string name="ck_h_job_wait">Waiting for a background job</string>
     <string name="ck_question">Question</string>
     <string name="ck_changes">Changes</string>
     <string name="ck_loading">Loading…</string>
@@ -134,4 +137,5 @@
     <string name="mem_card_auto_done">Remembered</string>
     <string name="mem_card_undo">Undo</string>
     <string name="ck_work_done_plain">Done</string>
+    <string name="ck_work_stopped">Stopped by you</string>
 </resources>

@@ -431,6 +431,9 @@ internal fun ckToolTitle(name: String): String {
     val n = name.lowercase()
     return stringResource(
         when {
+            // Фоновые задачи Host (`job_output` ждёт вывод, `job_kill` останавливает) — раньше «Вызывает инструмент».
+            n == "job_output" -> R.string.ck_t_job_wait
+            n == "job_kill" -> R.string.ck_t_job_kill
             n.contains("bash") || n.contains("shell") || n.contains("exec") || n.contains("command") -> R.string.ck_t_cmd
             n.contains("ask_user_question") -> R.string.ck_t_ask
             n.contains("goal") -> R.string.ck_t_goal
@@ -452,6 +455,7 @@ internal fun ckHeadLabel(runningTool: String?): String {
     val n = runningTool?.lowercase() ?: return stringResource(R.string.ck_h_thinking)
     return stringResource(
         when {
+            n == "job_output" -> R.string.ck_h_job_wait
             n.contains("bash") || n.contains("shell") || n.contains("exec") || n.contains("command") -> R.string.ck_h_cmd
             n.contains("ask_user_question") -> R.string.ck_h_ask
             n.contains("edit") || n.contains("write") || n.contains("patch") -> R.string.ck_h_edit
@@ -493,11 +497,14 @@ internal fun WorkBlock(
     onDecided: (ChatApproval, Boolean) -> Unit = { _, _ -> },
     onOpenDanger: () -> Unit = {},
     onLongPress: (() -> Unit)? = null,
+    /** Ход прерван кнопкой «Стоп» (как в прототипе: «Остановлено вами»), а не закончен агентом. */
+    stoppedByUser: Boolean = false,
 ) {
     val tools = remember(items) { items.mapNotNull { parseTool(it) } }
     val running = tools.lastOrNull { it.status == "running" }
     val label = when {
         approval != null && !done -> stringResource(R.string.ck_h_wait)
+        done && stoppedByUser -> stringResource(R.string.ck_work_stopped)
         // Длительность неизвестна (история перечитана после перезапуска — у всех событий одно время):
         // без «· 0 с», которое выглядело бы как настоящее время работы.
         done && durationMs < MIN_KNOWN_DURATION_MS && tools.isNotEmpty() ->
@@ -508,7 +515,7 @@ internal fun WorkBlock(
         else -> ckHeadLabel(running?.name)
     }
     Column(Modifier.fillMaxWidth().padding(top = 2.dp, bottom = 18.dp)) {
-        WorkHead(if (done) WorkState.Done else WorkState.Running, label, collapsed = !expanded, onToggle = onToggle, onLongPress = onLongPress)
+        WorkHead(if (done && stoppedByUser) WorkState.Stopped else if (done) WorkState.Done else WorkState.Running, label, collapsed = !expanded, onToggle = onToggle, onLongPress = onLongPress)
         AnimatedVisibility(expanded, enter = expandVertically(DshMotion.smooth()) + fadeIn(), exit = shrinkVertically(DshMotion.snappy()) + fadeOut()) {
             val steps = mutableListOf<Pair<StepState, @Composable () -> Unit>>()
             items.forEach { m ->

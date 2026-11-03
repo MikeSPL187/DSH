@@ -104,7 +104,7 @@ class ChatSender(
             Triple(file, mediaType, attachment.displayName)
         }
         attachments.clear()
-        dispatch(Outgoing(text, prompt, images, model, ui.pendingPermissionPreset.takeIf { ui.selectedSessionId == null }))
+        dispatch(Outgoing(text, prompt, images, model, newSessionPermission(ui.pendingPermissionPreset).takeIf { ui.selectedSessionId == null }))
     }
 
     /** «Повторить» у неотправленного сообщения. */

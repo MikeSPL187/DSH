@@ -46,6 +46,9 @@
     <string name="ck_t_sub">Поручает помощнику</string>
     <string name="ck_t_todo">Обновляет план</string>
     <string name="ck_t_generic">Вызывает инструмент</string>
+    <string name="ck_t_job_wait">Ждёт фоновую задачу</string>
+    <string name="ck_t_job_kill">Останавливает фоновую задачу</string>
+    <string name="ck_h_job_wait">Жду фоновую задачу</string>
     <string name="ck_question">Вопрос</string>
     <string name="ck_changes">Изменения</string>
     <string name="ck_loading">Загрузка…</string>
@@ -136,4 +139,5 @@
     <string name="mem_card_auto_done">Запомнено</string>
     <string name="mem_card_undo">Отменить</string>
     <string name="ck_work_done_plain">Готово</string>
+    <string name="ck_work_stopped">Остановлено вами</string>
 </resources>

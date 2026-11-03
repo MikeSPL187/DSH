@@ -293,7 +293,7 @@ internal fun ChatRoute(d: ChatDeps) {
                 }
             }
         },
-        selectedPermission = permissionPresetOf(d.activeSession?.permissionPreset ?: ui.pendingPermissionPreset.takeIf { sessionId == null }),
+        selectedPermission = permissionPresetOf(d.activeSession?.permissionPreset ?: newSessionPermission(ui.pendingPermissionPreset).takeIf { sessionId == null }),
         onPermissionSelected = { preset ->
             // Сессии ещё нет — права применятся к новой сессии с первым сообщением (G-23).
             if (ui.selectedSessionId == null) ui.pendingPermissionPreset = preset.hostId()
@@ -410,6 +410,16 @@ private fun permissionPresetOf(hostId: String?): PermissionPreset = when (hostId
     "auto", "auto-review" -> PermissionPreset.AUTO_REVIEW
     else -> PermissionPreset.WORKSPACE_WRITE
 }
+
+/**
+ * Режим доступа новой сессии: выбранный на чипе до первого сообщения, иначе действующий режим Host
+ * по умолчанию (`Настройки → Агент`), а пока он не прочитан — «Запись в папку».
+ *
+ * Чип показывает именно его, и с первым сообщением он передаётся Host явно: раньше чип без выбора
+ * показывал «Запись в папку», а сессия получала режим Host по умолчанию — полный доступ.
+ */
+internal fun newSessionPermission(pending: String?): String =
+    pending ?: com.dsh.feature.settings.HostPermissionPreset.current ?: "workspace-write"
 
 /** Имя пресета для команды Host `/permission` — как в каталоге Host (`permissionPresets/catalog`). */
 private fun PermissionPreset.hostId(): String = when (this) {
