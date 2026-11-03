@@ -51,7 +51,7 @@
     <string name="ob_env_lead_failed">Tap “Retry”. Without Linux the agent cannot run commands.</string>
     <string name="ob_err_download">Download failed</string>
     <string name="ob_err_unpack">Unpacking failed</string>
-    <string name="ob_err_check">Check failed</string>
+    <string name="ob_err_check">The agent did not start</string>
     <string name="ob_more">Details</string>
     <string name="ob_less">Hide details</string>
     <string name="ob_eta_s">≈ %1$d s</string>

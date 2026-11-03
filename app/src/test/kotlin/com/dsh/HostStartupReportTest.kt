@@ -13,7 +13,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import org.robolectric.shadows.ShadowToast
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -50,6 +49,8 @@ class HostStartupReportTest {
         assertEquals(hostStartupReport(status), copied)
         assertTrue(copied.contains("REDACTED"))
         assertFalse(copied.contains("private123"))
-        assertEquals(context.getString(R.string.host_startup_copied), ShadowToast.getTextOfLatestToast())
+        // Тост системы (DshToast) вместо системного Toast Android.
+        org.robolectric.shadows.ShadowLooper.idleMainLooper()
+        assertEquals(context.getString(R.string.host_startup_copied), com.dsh.core.designsystem.kit.DshToast.state.message)
     }
 }

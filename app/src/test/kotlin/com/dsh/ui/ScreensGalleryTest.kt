@@ -433,7 +433,7 @@ class ScreensGalleryTest {
         renderOb(name, dark = dark, install = hostFailed, onCopyReport = { copied = true }) {
             keyOk(); tap("Продолжить"); tap("Продолжить")
             onNodeWithText("Linux не запустился").assertExists()
-            onNodeWithText("Запуск").assertExists()
+            onNodeWithText("Запуск агента").assertExists()
             onNodeWithText("SHA-256").assertDoesNotExist()
             ScreenShots.capture(this, "${name}_collapsed", activity)
             onNodeWithText("Подробности").performScrollTo().performClick()
@@ -458,7 +458,7 @@ class ScreensGalleryTest {
                 )
             }
             mainClock.advanceTimeBy(1_200)
-            onNodeWithText("Проверка").assertIsDisplayed()
+            onNodeWithText("Запуск агента").assertIsDisplayed()
             onNodeWithText("Повторить").assertIsDisplayed()
         }
     }
