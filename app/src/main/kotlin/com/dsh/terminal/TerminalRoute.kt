@@ -147,7 +147,12 @@ fun DshTerminalRoute(
                             if (state() == "exited") closed[t.id] = true
                             if (!model.setupSent && looksIdle(text("screen").orEmpty())) conn.write(model.setupLine())
                         }
-                        "output" -> model.feed(text("data").orEmpty())
+                        "output" -> {
+                            val data = text("data").orEmpty()
+                            model.feed(data)
+                            // Снимок пришёл до приглашения (оболочка ещё стартовала) — настройка по первому приглашению.
+                            if (!model.setupSent && data.isNotBlank() && looksIdle(data)) conn.write(model.setupLine())
+                        }
                         "state" -> {
                             writable[t.id] = frame["writable"]?.toString() == "true"
                             if (state() == "exited") { closed[t.id] = true; model.closed() }
@@ -268,6 +273,12 @@ fun DshTerminalRoute(
 
 /** Оболочка ждёт команду (а не занята программой) — можно тихо настроить метки. */
 internal fun looksIdle(screen: String): Boolean {
-    val last = screen.lines().lastOrNull { it.isNotBlank() }?.trimEnd() ?: return true
+    // Без escape-последовательностей: bash печатает `ESC[?2004h` (bracketed paste) вокруг приглашения,
+    // и строка «…# ESC[?2004h» не считалась ожиданием — настройка меток не уходила, у блоков не было кода.
+    val plain = screen.replace(ANSI_CSI, "").replace(ANSI_OSC, "").replace("\r", "")
+    val last = plain.lines().lastOrNull { it.isNotBlank() }?.trimEnd() ?: return true
     return last.endsWith("$") || last.endsWith("#") || last.endsWith(">") || last.endsWith("%")
 }
+
+private val ANSI_CSI = Regex("\u001B\\[[0-?]*[ -/]*[@-~]")
+private val ANSI_OSC = Regex("\u001B\\][^\u0007\u001B]*(?:\u0007|\u001B\\\\)")

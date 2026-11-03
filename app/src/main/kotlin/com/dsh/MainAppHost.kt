@@ -931,6 +931,16 @@ fun MainAppHost(
             // У чата полная шапка; у страниц со своим заголовком второй шапки нет.
             // Вложенные страницы «Плагинов», «Автоматизации» и «Настроек» закрывает их собственный стек.
             BackHandler(enabled = ui.activePage != ActivePage.CHAT) { ui.activePage = ActivePage.CHAT }
+            // Смена страницы — без чужой клавиатуры: открытая от поля чата, она оставалась на «Плагинах»
+            // и забирала фокус в поиск (Android 8–12).
+            val pageFocus = androidx.compose.ui.platform.LocalFocusManager.current
+            val pageKeyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+            LaunchedEffect(ui.activePage) {
+                // В чат — не трогать: туда возвращаются и с намеренным фокусом поля («Создать плагин с агентом»).
+                if (ui.activePage == ActivePage.CHAT) return@LaunchedEffect
+                pageFocus.clearFocus(force = true)
+                pageKeyboard?.hide()
+            }
             // Шапка чата живёт внутри экрана чата: под листами она уменьшается вместе с ним.
             val chatTopBar: @Composable (Boolean, com.dsh.feature.chat.ChatContextChip?) -> Unit = { scrolled, contextChip ->
                 androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxWidth()) {

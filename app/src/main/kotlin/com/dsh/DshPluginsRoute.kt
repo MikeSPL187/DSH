@@ -514,5 +514,9 @@ internal fun pluginDisplayName(title: String?, packageName: String): String {
     val base = (t.ifEmpty { last }).substringAfterLast('/')
         .removePrefix("dsh-").removeSuffix("-plugin").removeSuffix("-bundle").removeSuffix("-profile")
         .replace('-', ' ').replace('_', ' ').trim()
-    return base.replaceFirstChar { it.uppercase() }.ifEmpty { last }
+    // Аббревиатуры — заглавными: «ACP app», «SDK minimal», «MCP», а не «Acp app».
+    val words = base.split(' ').filter { it.isNotEmpty() }.map { w -> if (w.lowercase() in PLUGIN_ACRONYMS) w.uppercase() else w }
+    return words.joinToString(" ").replaceFirstChar { it.uppercase() }.ifEmpty { last }
 }
+
+private val PLUGIN_ACRONYMS = setOf("acp", "sdk", "mcp", "api", "ui", "cli", "lsp", "ai", "pr", "ci", "ssh", "http", "url", "json", "yaml", "sql")

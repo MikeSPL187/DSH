@@ -10,5 +10,7 @@ class PluginDisplayNameTest {
         assertEquals("Web app", pluginDisplayName("web-app", "@deepseek-ai/dsh-web-app"))
         assertEquals("Mobile bridge", pluginDisplayName("", "dsh-mobile-bridge-plugin"))
         assertEquals("Agent Teams", pluginDisplayName("Agent Teams", "@deepseek-ai/dsh-experimental-agent-team-profile"))
+        assertEquals("ACP app", pluginDisplayName("acp-app", "@deepseek-ai/dsh-acp-app"))
+        assertEquals("SDK minimal", pluginDisplayName("sdk-minimal", "@deepseek-ai/dsh-sdk-minimal"))
     }
 }
