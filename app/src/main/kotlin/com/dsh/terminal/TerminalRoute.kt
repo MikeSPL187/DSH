@@ -151,7 +151,9 @@ fun DshTerminalRoute(
                             val data = text("data").orEmpty()
                             model.feed(data)
                             // Снимок пришёл до приглашения (оболочка ещё стартовала) — настройка по первому приглашению.
-                            if (!model.setupSent && data.isNotBlank() && looksIdle(data)) conn.write(model.setupLine())
+                            // Строже, чем looksIdle: только приглашение bash и только до первой команды вкладки,
+                            // чтобы строка настройки не ушла во ввод работающей программы («Загрузка 45%»).
+                            if (!model.setupSent && model.blocks.isEmpty() && looksLikeShellPrompt(data)) conn.write(model.setupLine())
                         }
                         "state" -> {
                             writable[t.id] = frame["writable"]?.toString() == "true"
@@ -278,6 +280,13 @@ internal fun looksIdle(screen: String): Boolean {
     val plain = screen.replace(ANSI_CSI, "").replace(ANSI_OSC, "").replace("\r", "")
     val last = plain.lines().lastOrNull { it.isNotBlank() }?.trimEnd() ?: return true
     return last.endsWith("$") || last.endsWith("#") || last.endsWith(">") || last.endsWith("%")
+}
+
+/** Вывод кончается приглашением bash/sh: «…$ » или «…# » (с пробелом после знака). */
+internal fun looksLikeShellPrompt(output: String): Boolean {
+    val plain = output.replace(ANSI_CSI, "").replace(ANSI_OSC, "").replace("\r", "")
+    val last = plain.substringAfterLast('\n')
+    return last.endsWith("$ ") || last.endsWith("# ")
 }
 
 private val ANSI_CSI = Regex("\u001B\\[[0-?]*[ -/]*[@-~]")

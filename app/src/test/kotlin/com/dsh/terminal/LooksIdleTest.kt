@@ -13,7 +13,11 @@ class LooksIdleTest {
     }
 
     @Test
-    fun runningProgramIsNotIdle() {
-        assertFalse(looksIdle("Downloading 45%\r\n"))
+    fun onlyABashPromptStartsSetupFromOutput() {
+        assertTrue(looksLikeShellPrompt("\u001B[?2004hroot@vm:/workspace/Default# "))
+        assertTrue(looksLikeShellPrompt("user@host:~\$ "))
+        assertFalse(looksLikeShellPrompt("Downloading 45%\r\n"))
+        assertFalse(looksLikeShellPrompt("Downloading 45%"))
+        assertFalse(looksLikeShellPrompt("total 12\r\n"))
     }
 }
