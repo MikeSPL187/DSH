@@ -20,7 +20,9 @@ fun codeLangExt(lang: String): String = when (lang.lowercase()) {
  * Общая для «Файлов», правки и блоков кода в чате. [ext] — расширение файла или язык блока (`kt`, `sh`, `md`…).
  */
 fun highlightCode(lines: List<String>, ext: String, c: DshColors): AnnotatedString = buildAnnotatedString {
-    val token = Regex("(\"[^\"]*\"|'[^']*')|\\b(package|import|class|object|interface|override|fun|val|var|set|if|else|then|fi|for|while|return|echo|mkdir|tar|true|false|null|def|from|const|let|function|export)\\b|^(\\[[\\w.-]+\\])")
+    // Ключевые слова — по языку: общий список красил «override» и «set» в Python как ключевые слова.
+    val words = KEYWORDS[ext.lowercase()] ?: DEFAULT_KEYWORDS
+    val token = Regex("(\"[^\"]*\"|'[^']*')|\\b($words)\\b|^(\\[[\\w.-]+\\])")
     lines.forEachIndexed { i, line ->
         if (i > 0) append("\n")
         val comment = Regex("^\\s*(#|//)").containsMatchIn(line) && !(ext == "md" && line.startsWith("#"))
@@ -40,3 +42,15 @@ fun highlightCode(lines: List<String>, ext: String, c: DshColors): AnnotatedStri
         }
     }
 }
+
+private const val DEFAULT_KEYWORDS =
+    "package|import|class|object|interface|override|fun|val|var|set|if|else|then|fi|for|while|return|echo|mkdir|tar|true|false|null|def|from|const|let|function|export"
+
+private val KEYWORDS = mapOf(
+    "py" to "def|class|import|from|as|return|if|elif|else|for|while|in|not|and|or|is|None|True|False|with|try|except|finally|raise|lambda|yield|pass|break|continue|global|async|await",
+    "kt" to "package|import|class|object|interface|override|fun|val|var|if|else|when|for|while|return|true|false|null|private|internal|data|sealed|suspend",
+    "kts" to "package|import|class|object|interface|override|fun|val|var|if|else|when|for|while|return|true|false|null|plugins|dependencies",
+    "sh" to "if|then|else|elif|fi|for|while|do|done|case|esac|in|function|return|export|local|echo|cd|mkdir|tar",
+    "js" to "const|let|var|function|return|if|else|for|while|class|import|export|from|true|false|null|undefined|new|async|await",
+    "ts" to "const|let|var|function|return|if|else|for|while|class|interface|type|import|export|from|true|false|null|undefined|new|async|await",
+)

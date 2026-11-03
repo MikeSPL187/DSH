@@ -45,6 +45,9 @@ class ChatLogicTest {
         assertFalse((buildChatRows(listOf(user("q"), tool("t", "running")), isThinking = false)[1] as ChatRow.Work).done)
         val answered = buildChatRows(listOf(user("q"), tool("t", "running"), assistant("a", "Here")), isThinking = true)
         assertTrue((answered[1] as ChatRow.Work).done)
+        // Реплика посреди работы, за ней новый шаг: агент ещё работает — не «Готово».
+        val midway = buildChatRows(listOf(user("q"), assistant("a1", "Creating files"), tool("t", "running")), isThinking = true)
+        assertFalse((midway[1] as ChatRow.Work).done)
     }
 
     @Test

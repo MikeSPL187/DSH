@@ -965,7 +965,11 @@ fun MainAppHost(
                                 title = if (messages.isEmpty()) {
                                     ""
                                 } else {
-                                    sessions.find { it.sessionId == ui.selectedSessionId }?.title
+                                    // Пока Host не дал названия (развилка-вариант, новая сессия) — первая строка вопроса,
+                                    // а не имя приложения («DSH Тест» в шапке выглядело как сбой).
+                                    sessions.find { it.sessionId == ui.selectedSessionId }?.title?.takeIf { it.isNotBlank() }
+                                        ?: messages.firstOrNull { it.role == com.dsh.core.model.MessageRole.USER }?.content
+                                            ?.lineSequence()?.firstOrNull { it.isNotBlank() }?.trim()?.take(60)
                                         ?: stringResource(R.string.app_name)
                                 },
                                 onToggleRightPane = if (rightPanePluginTabs.isNotEmpty() || rightPaneGuideEntries.isNotEmpty()) ({ pluginPanesOpen = true }) else null,

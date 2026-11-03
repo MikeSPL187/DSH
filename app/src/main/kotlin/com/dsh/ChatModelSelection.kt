@@ -106,7 +106,16 @@ internal fun rememberChatModelSelection(
     val groups = catalog.groups.ifEmpty { cachedGroups }
     val group = groups.firstOrNull { g -> g.models.any { it.name == current } }
     val meta: ModelItem? = group?.models?.firstOrNull { it.name == current }
-    val efforts = meta?.reasoningEfforts?.map { ReasoningOption(it.id, it.name, it.description) }.orEmpty()
+    // Host присылает уровни по-английски; известные — на языке приложения (в русском интерфейсе было «Off / Low…»).
+    val effortText = LocalContext.current
+    val efforts = meta?.reasoningEfforts?.map { e ->
+        val res = EFFORT_TEXT[e.id.lowercase()]
+        ReasoningOption(
+            e.id,
+            res?.let { effortText.getString(it.first) } ?: e.name,
+            res?.let { effortText.getString(it.second) } ?: e.description,
+        )
+    }.orEmpty()
     val defaultEffort = meta?.defaultReasoningEffort ?: efforts.firstOrNull()?.id.orEmpty()
 
     val reasoning = remember(current) { mutableStateOf(defaultEffort) }
@@ -125,3 +134,13 @@ internal fun rememberChatModelSelection(
         available = available,
     )
 }
+
+/** Известные уровни рассуждения Host → (название, описание) на языке приложения. */
+private val EFFORT_TEXT = mapOf(
+    "off" to (R.string.effort_off to R.string.effort_off_desc),
+    "none" to (R.string.effort_off to R.string.effort_off_desc),
+    "low" to (R.string.effort_low to R.string.effort_low_desc),
+    "medium" to (R.string.effort_medium to R.string.effort_medium_desc),
+    "high" to (R.string.effort_high to R.string.effort_high_desc),
+    "max" to (R.string.effort_max to R.string.effort_max_desc),
+)

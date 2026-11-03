@@ -53,6 +53,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
@@ -445,6 +446,12 @@ fun ModernChatScreen(
     // Вклады в слоты (fast-mode и др.) меняют модель и уровень сессии через тот же вход.
     com.dsh.plugin.nativehost.NativeHost.modelSelectHandler = onNativeModelSelect
 
+    // Своё сообщение отправлено — сразу вниз, без анимации: анимированная прокрутка перезапускается при каждом
+    // изменении ленты и на длинном раскрытом ходе не доезжала — казалось, что сообщение не ушло (живой Host).
+    var sentTick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(sentTick) {
+        if (sentTick > 0) listState.scrollToItem(listState.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1, Int.MAX_VALUE / 2)
+    }
     // chatRows делит рассуждения и инструменты на строки, индексы не совпадают с messages — прокрутка по числу строк.
     LaunchedEffect(chatRows.size, isThinking, approval?.eventId) {
         if (chatRows.isNotEmpty()) {
@@ -491,6 +498,7 @@ fun ModernChatScreen(
         inputText = ""
         activeCommandToken = null
         onSendMessage(text)
+        sentTick++
     }
     val composerBlock: @Composable () -> Unit = {
         if (planMode) PlanModeBar(onExit = { onPlanModeChange(false) })
@@ -717,7 +725,9 @@ fun ModernChatScreen(
                         // «Экспорт» — журнал целиком для переноса или отладки; значок «скачать», чтобы не путать с «Поделиться».
                         add(PlusCommand(com.dsh.core.designsystem.DshGlyphs.Down, stringResource(R.string.cmd_export), stringResource(R.string.cmd_export_desc)) { command("export") })
                         sheetSkills.value.forEach { sk -> add(PlusCommand(com.dsh.core.designsystem.DshGlyphs.Spark, "/${sk.name}", sk.description.ifBlank { null }) { commandSheetOpen = false; append("/${sk.name} ") }) }
-                        hostCommands.forEach { hc -> add(PlusCommand(com.dsh.core.designsystem.DshGlyphs.Slash, "/${hc.name}", hc.description.ifBlank { null }) { command(hc.name) }) }
+                        // Команды, у которых уже есть своя кнопка выше (по-русски), второй раз не показываются:
+                        // раньше «Экспорт» и «/export», «Отзыв» и «/feedback», «План» и «/plan» шли подряд.
+                        hostCommands.filter { it.name.lowercase() !in PLUS_BUILTIN_COMMANDS }.forEach { hc -> add(PlusCommand(com.dsh.core.designsystem.DshGlyphs.Slash, "/${hc.name}", hc.description.ifBlank { null }) { command(hc.name) }) }
                     },
                 )
             }
@@ -984,7 +994,8 @@ fun ModernChatScreen(
                                             Spacer(Modifier.height(18.dp))
                                         } else {
                                             AiAnswer(answer)
-                                            if (memory.on) memProposals[m.messageId]?.forEach { p -> MemoryProposalCard(m.messageId, p, memProject, onOpenMemory) }
+                                            // По id сообщения Host: у ответа с рассуждением id строки ленты с суффиксом — карточка «Запомнить?» не находилась.
+                                            if (memory.on) memProposals[hostMessageIdOf(m.messageId)]?.forEach { p -> MemoryProposalCard(m.messageId, p, memProject, onOpenMemory) }
                                             // conversation.chat.assistant-actions: действия плагинов под ответом.
                                             com.dsh.plugin.nativehost.NativeSlot(
                                                 slot = com.deepseek.dsh.plugin.nativesdk.slots.NativeSlot.MESSAGE_ACTION,
@@ -1023,7 +1034,8 @@ fun ModernChatScreen(
                                                 )
                                             }
                                             // Варианты ответа — под последним ответом сессии-варианта.
-                                            if (m.messageId == messages.lastOrNull { it.role == MessageRole.ASSISTANT }?.messageId) {
+                                            // Сравнение по id Host: раньше у ответа с рассуждением («…_a») панель вариантов не показывалась никогда.
+                                            if (hostMessageIdOf(m.messageId) == messages.lastOrNull { it.role == MessageRole.ASSISTANT }?.messageId) {
                                                 services.variantsInfo()?.let { info -> VariantsBar(info, { variantsOpen = true }) }
                                             }
                                         }
@@ -1279,8 +1291,5 @@ private fun VoiceBar(seconds: Int, level: Float, busy: Boolean, onCancel: () -> 
  * значки меню и стрелки 14dp, нажатие — заливкой, без ряби Material.
  */
 
-
-
-
-
-
+/** Команды Host, которые лист «+» уже показывает своими кнопками. */
+private val PLUS_BUILTIN_COMMANDS = setOf("model", "permission", "permissions", "feedback", "export", "goal", "plan", "compact")

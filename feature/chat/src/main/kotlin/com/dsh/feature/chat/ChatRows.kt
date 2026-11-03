@@ -97,7 +97,11 @@ internal fun buildChatRows(messages: List<ChatMessage>, isThinking: Boolean): Li
         val turn = messages.subList(index + 1, end)
         val running = turn.any { parseTool(it)?.status == "running" }
         val answered = turn.any { it.role == MessageRole.ASSISTANT && it.content.isNotBlank() }
-        val closed = user != null && (end < messages.size || answered || (!isThinking && !running))
+        // Ход закрывает только ответ ПОСЛЕ последнего инструмента: промежуточная реплика («Сейчас создам
+        // файлы…»), за которой шли новые шаги, давала «Готово · 3 шага», пока агент ещё работал (живой Host).
+        val lastTool = turn.indexOfLast { it.role == MessageRole.TOOL }
+        val answeredLast = turn.withIndex().any { (i, m) -> i > lastTool && m.role == MessageRole.ASSISTANT && m.content.isNotBlank() }
+        val closed = user != null && (end < messages.size || (answered && (answeredLast || !isThinking)) || (!isThinking && !running))
         appendTurn(user, turn, closed)
         index = end
     }

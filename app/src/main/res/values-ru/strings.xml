@@ -241,4 +241,14 @@
     <string name="share_label">Спросить DSH</string>
     <plurals name="share_skipped"><item quantity="one">%d файл не добавлен: больше 100 МБ или не читается</item><item quantity="few">%d файла не добавлены: больше 100 МБ или не читаются</item><item quantity="many">%d файлов не добавлены: больше 100 МБ или не читаются</item><item quantity="other">%d файла не добавлены: больше 100 МБ или не читаются</item></plurals>
     <string name="st_mode_unavailable">В Host нет такого режима — обновите Host или выберите другой</string>
+    <string name="effort_off">Выкл.</string>
+    <string name="effort_off_desc">Для простых задач, где рассуждать не нужно.</string>
+    <string name="effort_low">Низкое</string>
+    <string name="effort_low_desc">Для рутинных задач и когда важна скорость.</string>
+    <string name="effort_medium">Среднее</string>
+    <string name="effort_medium_desc">Баланс скорости и качества.</string>
+    <string name="effort_high">Высокое</string>
+    <string name="effort_high_desc">Обычный баланс для большинства задач.</string>
+    <string name="effort_max">Максимум</string>
+    <string name="effort_max_desc">Для самых трудных задач, где важнее качество.</string>
 </resources>

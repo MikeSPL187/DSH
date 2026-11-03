@@ -262,9 +262,14 @@ internal fun parseMarkdownBlocks(text: String): List<MarkdownBlock> {
             fence != null -> {
                 flushParagraph()
                 val code = StringBuilder()
+                // Ограда с отступом (код внутри пункта списка): отступ ограды — не часть кода (CommonMark),
+                // раньше строки «   cd to-do» сдвигались вправо.
+                val fenceIndent = line.length - line.trimStart().length
                 index += 1
                 while (index < lines.size && !lines[index].trim().startsWith("```")) {
-                    code.appendLine(lines[index])
+                    val l = lines[index]
+                    val strip = minOf(fenceIndent, l.length - l.trimStart(' ').length)
+                    code.appendLine(l.substring(strip))
                     index += 1
                 }
                 blocks += MarkdownBlock.Code(code.toString().trimEnd(), fence.groupValues[1].trim().substringBefore(' ').lowercase())
@@ -369,7 +374,10 @@ internal fun inlineMarkdownOf(
         append(source, last, m.range.first)
         val g = m.groups
         when {
-            g[1] != null -> withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(g[1]!!.value) }
+            // Внутри жирного — та же разметка (ссылка, код): «**Тесты в [t.py](t.py)**» выводился сырым.
+            g[1] != null -> withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
+                append(inlineMarkdownOf(g[1]!!.value, accent, muted, codeBg, onLink))
+            }
             // `.msg-ai code`: моноширинный 13,5 на фоне кода.
             g[2] != null -> withStyle(
                 SpanStyle(fontFamily = com.dsh.core.designsystem.DshFonts.mono, fontSize = 13.5.sp, background = codeBg),

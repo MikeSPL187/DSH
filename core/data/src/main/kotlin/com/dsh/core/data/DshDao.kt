@@ -41,13 +41,14 @@ interface DshDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveAppSettings(settings: AppSettingsEntity)
 
-    // Порядок — по времени: у сообщений, записанных приложением, seq=0, у ответов —
-    // seq события Host; сортировка по seq поставила бы все сообщения пользователя перед ответами.
-    // createdAt — общая шкала, seq лишь упорядочивает записи одной миллисекунды.
+    // Порядок — по seq события Host: он растёт по всем событиям сессии. createdAt — время получения на телефоне;
+    // после перечитывания истории оно перемешано, и лента рассыпалась (живой Host: шаги хода над вопросом,
+    // план в начале сессии). Своих записей с seq=0 приложение больше не делает (сообщение приходит эхом Host);
+    // у события без seq — время получения, то есть «в конец». createdAt — только для равных seq.
     /** Последний ответ агента в каждой сессии Host — подпись строки в меню. */
     @Query(
         "SELECT m.sessionId AS sessionId, m.contentJson AS content FROM messages m WHERE m.hostId = :hostId AND m.role = 'ASSISTANT' " +
-            "AND m.createdAt = (SELECT MAX(x.createdAt) FROM messages x WHERE x.hostId = m.hostId AND x.sessionId = m.sessionId AND x.role = 'ASSISTANT')",
+            "AND m.seq = (SELECT MAX(x.seq) FROM messages x WHERE x.hostId = m.hostId AND x.sessionId = m.sessionId AND x.role = 'ASSISTANT')",
     )
     fun lastAssistantMessages(hostId: String): Flow<List<SessionPreviewRow>>
 
@@ -57,7 +58,7 @@ interface DshDao {
      */
     @Query(
         "SELECT * FROM (SELECT * FROM messages WHERE hostId = :hostId AND sessionId = :sessionId " +
-            "ORDER BY createdAt DESC, seq DESC, messageId DESC LIMIT :limit) ORDER BY createdAt ASC, seq ASC, messageId ASC",
+            "ORDER BY seq DESC, createdAt DESC, messageId DESC LIMIT :limit) ORDER BY seq ASC, createdAt ASC, messageId ASC",
     )
     fun getMessages(hostId: String, sessionId: String, limit: Int = MESSAGE_WINDOW): Flow<List<MessageEntity>>
 
@@ -68,7 +69,7 @@ interface DshDao {
     /** Всё, кроме последних [keep] сообщений сессии: локальный кэш, история остаётся у Host. */
     @Query(
         "DELETE FROM messages WHERE hostId = :hostId AND sessionId = :sessionId AND messageId NOT IN " +
-            "(SELECT messageId FROM messages WHERE hostId = :hostId AND sessionId = :sessionId ORDER BY createdAt DESC, seq DESC LIMIT :keep)",
+            "(SELECT messageId FROM messages WHERE hostId = :hostId AND sessionId = :sessionId ORDER BY seq DESC, createdAt DESC LIMIT :keep)",
     )
     suspend fun trimSessionMessages(hostId: String, sessionId: String, keep: Int): Int
 

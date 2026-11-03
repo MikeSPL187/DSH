@@ -54,6 +54,24 @@ class TermEngineTest {
     }
 
     @Test
+    fun pastedLinesRunOneByOneEachInItsOwnBlock() {
+        // Метки уже работают (как после настройки): вставка из трёх строк.
+        model.setupLine()
+        model.feed("\u001b]133;D;0;/w;/root\u0007")
+        val sent = mutableListOf<String>()
+        model.sendNext = { sent += it }
+        model.submit("echo a")
+        model.enqueue(listOf("echo b", "false"))
+        model.feed("echo a\r\na\r\n\u001b]133;D;0;/w;/root\u0007")
+        assertEquals(listOf("echo b"), sent)
+        model.feed("echo b\r\nb\r\n\u001b]133;D;0;/w;/root\u0007")
+        model.feed("false\r\n\u001b]133;D;1;/w;/root\u0007")
+        assertEquals(listOf("echo a", "echo b", "false"), model.blocks.map { it.cmd })
+        assertEquals("b", model.blocks[1].out.plain())
+        assertEquals(1, model.blocks[2].code)
+    }
+
+    @Test
     fun colorsMapToTones() {
         replay()
         val ls = model.blocks[1].out.lines

@@ -237,11 +237,23 @@ fun DshTerminalRoute(
             val c = conn ?: return@TerminalScreen
             TermHistory.add(context, cmd)
             if (cmd == "clear") { m.clearLocal(true); c.write("clear\r"); return@TerminalScreen }
+            // Несколько строк при работающих метках — по одной, у каждой свой блок с кодом и выводом.
+            val lines = cmd.lines().map { it.trim() }.filter { it.isNotEmpty() }
+            if (m.integrated && lines.size > 1) {
+                m.sendNext = { line -> c.write(line + "\r") }
+                m.submit(lines.first())
+                c.write(lines.first() + "\r")
+                m.enqueue(lines.drop(1))
+                return@TerminalScreen
+            }
             m.submit(cmd)
             c.write(cmd + "\r")
         },
         onStdin = { text -> conn?.write(text + "\r") },
-        onRaw = { raw -> conn?.write(raw) },
+        onRaw = { raw ->
+            if ('\u0003' in raw) model?.dropQueue()
+            conn?.write(raw)
+        },
         onExplain = { b ->
             val e = Explain()
             b.explain = e

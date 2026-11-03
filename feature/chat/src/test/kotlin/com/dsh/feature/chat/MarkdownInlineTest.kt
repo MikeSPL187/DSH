@@ -35,6 +35,18 @@ class MarkdownInlineTest {
     }
 
     @Test
+    fun linkInsideBoldIsParsed() {
+        // Настоящий план агента: «**Add unit tests in [test_todo.py](to-do/test_todo.py)**» выводился сырым.
+        assertEquals("Add unit tests in test_todo.py", parse("**Add unit tests in [test_todo.py](to-do/test_todo.py)**").text)
+    }
+
+    @Test
+    fun fenceInsideListItemLosesItsIndent() {
+        val code = parseMarkdownBlocks("1. Run\n   ```bash\n   cd to-do\n   python3 -m unittest\n   ```").filterIsInstance<MarkdownBlock.Code>().single()
+        assertEquals("cd to-do\npython3 -m unittest", code.code)
+    }
+
+    @Test
     fun longReplyIsParsedInOnePass() {
         val text = "слово *курсив* `код` **жирный** ".repeat(20_000)
         val started = System.nanoTime()

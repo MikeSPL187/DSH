@@ -177,6 +177,26 @@ class TermModel(val id: String, private val clock: () -> Long = System::currentT
 
     val live: TermBlock? get() = blocks.lastOrNull()?.takeIf { it.state == BlockState.Live }
 
+    /**
+     * Вставка из нескольких строк выполняется по одной: следующая уходит после метки конца предыдущей.
+     * Раньше все строки уходили сразу одним блоком — после первой метки блок закрывался, и вывод
+     * остальных строк пропадал. [sendNext] пишет строку в оболочку (задаёт экран терминала).
+     */
+    private val queued = ArrayDeque<String>()
+    var sendNext: ((String) -> Unit)? = null
+
+    /** Строки вставки после первой; первая уже отправлена через [submit]. */
+    fun enqueue(lines: List<String>) { queued.addAll(lines) }
+
+    /** Ctrl+C, очистка, закрытие вкладки — оставшиеся строки вставки не выполняются. */
+    fun dropQueue() = queued.clear()
+
+    private fun runQueued() {
+        val next = queued.removeFirstOrNull() ?: return
+        submit(next)
+        sendNext?.invoke(next)
+    }
+
     /** Строка настройки, которую приложение отправляет один раз (с пробелом в начале — мимо истории). */
     fun setupLine(): String {
         setupSent = true
@@ -204,6 +224,7 @@ class TermModel(val id: String, private val clock: () -> Long = System::currentT
 
     /** `clear`: блоки исчезают, а сама команда и её вывод не показываются. */
     fun clearLocal(sentToShell: Boolean) {
+        dropQueue()
         blocks.clear()
         if (sentToShell && integrated) discarding = true
     }
@@ -270,7 +291,7 @@ class TermModel(val id: String, private val clock: () -> Long = System::currentT
     }
 
     /** Оболочка закрылась: живой блок завершается без кода. */
-    fun closed() { live?.let { finish(it, null) } }
+    fun closed() { dropQueue(); live?.let { finish(it, null) } }
 
     private fun finish(b: TermBlock, code: Int?) {
         b.durationMs = clock() - b.startedAt
@@ -298,6 +319,7 @@ class TermModel(val id: String, private val clock: () -> Long = System::currentT
                 if (discarding) { discarding = false; echoPending = false; return }
                 live?.let { finish(it, code) }
                 echoPending = false
+                runQueued()
             }
             return
         }

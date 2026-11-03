@@ -249,4 +249,14 @@
     <string name="share_label">Ask DSH</string>
     <plurals name="share_skipped"><item quantity="one">%d file not added: over 100 MB or unreadable</item><item quantity="other">%d files not added: over 100 MB or unreadable</item></plurals>
     <string name="st_mode_unavailable">Host has no such mode — update Host or choose another</string>
+    <string name="effort_off">Off</string>
+    <string name="effort_off_desc">For simple tasks that need no reasoning.</string>
+    <string name="effort_low">Low</string>
+    <string name="effort_low_desc">For routine tasks or when speed matters.</string>
+    <string name="effort_medium">Medium</string>
+    <string name="effort_medium_desc">A balance of speed and quality.</string>
+    <string name="effort_high">High</string>
+    <string name="effort_high_desc">The default balance for most tasks.</string>
+    <string name="effort_max">Max</string>
+    <string name="effort_max_desc">For the hardest tasks where quality comes first.</string>
 </resources>
