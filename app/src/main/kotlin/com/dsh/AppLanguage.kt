@@ -20,6 +20,8 @@ import android.os.LocaleList
 object AppLanguage {
     private const val PREFS = "app_locale"
     private const val KEY = "selection"
+    /** Хватает, чтобы закрылось меню или лист выбора языка (анимация выхода Compose короче). */
+    private const val LEGACY_RECREATE_DELAY_MS = 250L
     private val SUPPORTED = setOf("system", "en", "ru")
 
     /** Выбор пользователя: `system` / `en` / `ru`. */
@@ -83,6 +85,12 @@ object AppLanguage {
         while (current is android.content.ContextWrapper && current !is android.app.Activity) {
             current = current.baseContext
         }
-        (current as? android.app.Activity)?.recreate()
+        // QA F021: recreate() прямо из нажатия в меню языка пересоздавал Activity, пока окно меню
+        // (Popup) ещё открыто: окно «утекало», забирало фокус, и экран переставал отвечать на касания.
+        // Сначала меню/лист закрываются (следующий кадр Compose), потом — пересоздание.
+        val activity = current as? android.app.Activity ?: return
+        activity.window.decorView.postDelayed({
+            if (!activity.isFinishing && !activity.isDestroyed) activity.recreate()
+        }, LEGACY_RECREATE_DELAY_MS)
     }
 }
