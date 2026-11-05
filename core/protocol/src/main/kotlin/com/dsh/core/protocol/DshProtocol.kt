@@ -43,8 +43,8 @@ sealed interface RemoteEvent {
     data class Ready(val hostId: String, val generation: Long) : RemoteEvent
 
     @Serializable
-    data class MessageDelta(val sessionId: String, val delta: String) : RemoteEvent
-    data class ReasoningDelta(val sessionId: String, val delta: String) : RemoteEvent
+    data class MessageDelta(val sessionId: String, val delta: String, val baseline: Boolean = false) : RemoteEvent
+    data class ReasoningDelta(val sessionId: String, val delta: String, val baseline: Boolean = false) : RemoteEvent
     /** Изменение запуска workflow (каждое событие несёт полный снимок). */
     data class WorkflowRunUpdated(
         val sessionId: String,
@@ -72,7 +72,11 @@ sealed interface RemoteEvent {
 
     @Serializable
     data class SessionUpdated(val session: SessionInfo) : RemoteEvent
-    data class SessionRunning(val sessionId: String, val running: Boolean) : RemoteEvent
+    data class SessionRunning(val sessionId: String, val running: Boolean, val seq: Long = 0, val at: Long = 0) : RemoteEvent
+    data class TurnCompleted(val sessionId: String, val state: com.dsh.core.model.RunState) : RemoteEvent
+    data class SessionCatalog(val running: Set<String>) : RemoteEvent
+    data class SessionSnapshot(val sessionId: String) : RemoteEvent
+    data class UsageReported(val sessionId: String, val seq: Long, val at: Long, val data: kotlinx.serialization.json.JsonObject) : RemoteEvent
 
     @Serializable
     data class Error(val code: String, val message: String) : RemoteEvent

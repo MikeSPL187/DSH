@@ -38,4 +38,15 @@ class ToolApprovalPolicyTest {
         ToolPolicy.set("bash", "auto")
         assertNull(toolApprovalPolicy(ask("bash", """{"command":"rm -rf /workspace/src"}""")))
     }
+    @Test
+    fun androidExecutionConsentCannotBeAutoApprovedByToolPreference() {
+        ToolPolicy.init(ApplicationProvider.getApplicationContext())
+        ToolPolicy.set("bash", "auto")
+        val request = ask("bash").copy(request = buildJsonObject {
+            put("toolName", "bash")
+            put("reason", "[android-consent-required] bash: python3 fib.py")
+        })
+        assertNull(toolApprovalPolicy(request))
+    }
+
 }

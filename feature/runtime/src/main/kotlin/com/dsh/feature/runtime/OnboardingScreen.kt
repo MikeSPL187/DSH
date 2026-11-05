@@ -1,5 +1,7 @@
 package com.dsh.feature.runtime
 
+import androidx.compose.foundation.layout.imePadding
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
@@ -271,7 +273,7 @@ fun OnboardingScreen(
         }
     }
 
-    Column(modifier.fillMaxSize().background(c.bg).statusBarsPadding()) {
+    Column(modifier.fillMaxSize().background(c.bg).statusBarsPadding().imePadding()) {
         TopBar(step, language, onLanguage, onBack = { go(step - 1) })
         AnimatedContent(
             targetState = step,
@@ -750,13 +752,13 @@ private fun Field(
             Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                 val style = TextStyle(fontFamily = DshFonts.mono, fontSize = 15.sp, color = c.t1)
                 if (value.isEmpty()) Text(placeholder, style = style.copy(color = c.t3), maxLines = 1)
-                BasicTextField(
+                com.dsh.core.designsystem.ProtectedTextField(
                     value = value,
                     onValueChange = { onValue(it.replace("\n", "").replace(" ", "")) },
                     singleLine = true,
                     textStyle = style,
                     cursorBrush = SolidColor(c.accent),
-                    visualTransformation = if (secret && !shown) PasswordVisualTransformation('•') else VisualTransformation.None,
+                    secret = secret, revealed = shown, label = placeholder,
                     keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = false, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { onCommit?.invoke(); defaultKeyboardAction(ImeAction.Done) }),
                     modifier = Modifier.fillMaxWidth().onFocusChanged {
@@ -1032,6 +1034,7 @@ private fun InstallCard(install: LinuxInstall, modifier: Modifier, onCopyReport:
 private fun InstallError(install: LinuxInstall, onCopyReport: (() -> Unit)?) {
     val c = Dsh.colors
     var more by remember { mutableStateOf(false) }
+    BackHandler(enabled = more) { more = false }
     Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background(c.dangerSoft), contentAlignment = Alignment.Center) {
             Icon(com.dsh.core.designsystem.DshGlyphs.Alert, null, tint = c.danger, modifier = Modifier.size(18.dp))

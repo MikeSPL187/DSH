@@ -2,6 +2,16 @@
 
 This file records changes to the DSH Mobile Android app. The bridge plugin and rootfs image have their own release lines; see [RELEASING.md](RELEASING.md) for the release order.
 
+## 1.1.4 — unreleased
+
+- Protect revealed API keys and MCP tokens from accessibility text; remove persisted MCP token suffixes.
+- Preserve outgoing chat requests and partial replies across process death, with explicit interruption and retry; keep rapid sends in one conversation.
+- Apply themes offline, restore settings navigation, follow the theme in system bars, and open the terminal instead of redirecting to chat.
+- Settle automation runs from durable outcomes, fail clearly without a read-only sandbox, and require consent for potentially destructive workspace commands.
+- Reconcile MCP configuration after restart; record provider token usage instead of treating account balance as spending.
+- Improve accessibility labels, Markdown newlines, keyboard/landscape insets, automation validation and model persistence.
+- See [QA round 2 implementation and remaining device checks](docs/qa/QA_ROUND2_1.1.4.ru.md).
+
 ## 1.0.6 — 2026-10-23
 
 ### Fixed

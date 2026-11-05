@@ -55,8 +55,8 @@
     </plurals>
     <string name="st_host_running">работает</string>
     <string name="st_host_stopped">остановлен</string>
-    <string name="st_theme_light">Фарфор</string>
-    <string name="st_theme_dark">Графит</string>
+    <string name="st_theme_light">Фарфор · Светлая</string>
+    <string name="st_theme_dark">Графит · Тёмная</string>
     <string name="st_theme_system">Как в системе</string>
     <string name="st_appr_ask_short">Спрашивать</string>
     <string name="st_appr_auto_short">Сам в папке</string>
@@ -341,7 +341,7 @@
     <string name="st_report_sub">С журналом, без ключей и файлов</string>
     <string name="st_whats_new">Что нового</string>
     <string name="st_licenses">Лицензии</string>
-    <string name="st_about_note">Основано на deepseek-harness-mobile 1.0.6. Работает с DeepSeek Harness.</string>
+    <string name="st_about_note">Основано на deepseek-harness-mobile. Работает с DeepSeek Harness.</string>
     <string name="st_model_default">Модель по умолчанию</string>
     <string name="st_models_empty">Host ещё не прислал список моделей</string>
     <!-- MCP-серверы -->
@@ -474,4 +474,9 @@
     <string name="st_mem_all">Для всех проектов</string>
     <string name="st_mem_project">Проект %1$s</string>
     <string name="st_mem_other">Другие проекты</string>
+    <string name="st_mcp_token_saved">Сохранён безопасно</string>
+    <string name="st_usage_note">Использование в DSH. Без проверенного тарифа модели денежный расход недоступен; баланс аккаунта показан отдельно.</string>
+    <string name="st_mcp_starting">Запускается…</string>
+    <string name="st_mcp_stopped">Host остановлен</string>
+    <string name="st_source_revision">Ревизия исходников</string>
 </resources>

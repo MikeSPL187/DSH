@@ -37,7 +37,7 @@
     <string name="au_then">далее %1$s</string>
     <string name="au_turned_on">%1$s: включена</string>
     <string name="au_turned_off">%1$s: выключена</string>
-    <string name="au_enable">Включить %1$s</string>
+    <string name="au_enable">%1$s</string>
     <string name="au_deleted">«%1$s» удалена</string>
     <string name="au_copy_suffix">" (копия)"</string>
     <string name="au_name_ph">Название</string>
@@ -138,4 +138,5 @@
         <item>Проверь зависимости на известные уязвимости и устаревшие версии.</item>
         <item></item>
     </string-array>
+    <string name="au_required_fields">Укажите название и задачу — после этого станет доступна кнопка «Готово».</string>
 </resources>

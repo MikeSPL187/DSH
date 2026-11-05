@@ -23,4 +23,5 @@
     <string name="au_sched_daily">Every day at %1$s</string>
     <string name="au_sched_weekly">On set weekdays at %1$s</string>
     <string name="au_sched_cron">On schedule %1$s</string>
+    <string name="au_run_no_model">The selected model is unavailable. Choose a model in automation settings.</string>
 </resources>

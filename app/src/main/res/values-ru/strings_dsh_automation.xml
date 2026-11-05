@@ -23,4 +23,5 @@
     <string name="au_sched_daily">Каждый день в %1$s</string>
     <string name="au_sched_weekly">По дням недели в %1$s</string>
     <string name="au_sched_cron">По расписанию %1$s</string>
+    <string name="au_run_no_model">Выбранная модель недоступна. Выберите модель в настройках автоматизации.</string>
 </resources>

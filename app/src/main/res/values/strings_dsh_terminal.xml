@@ -45,4 +45,8 @@ Start with help or ls.</string>
     <string name="tm_paste_more">and %1$d more lines</string>
     <string name="tm_paste_cancel">Cancel</string>
     <string name="tm_paste_run">Run all</string>
+    <string name="terminal_title">Terminal</string>
+    <string name="terminal_enable_description">The terminal plugin is disabled. Enable it to open a shell in this project.</string>
+    <string name="terminal_enable">Enable terminal</string>
+    <string name="terminal_enable_failed">Could not enable the terminal. Check Host status and try again.</string>
 </resources>

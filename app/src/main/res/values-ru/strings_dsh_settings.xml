@@ -16,4 +16,6 @@
     <string name="settings_key_dots">Ключ ••••%1$s</string>
     <string name="settings_uptime_hm">%1$d ч %2$d мин</string>
     <string name="settings_uptime_m">%1$d мин</string>
+    <string name="theme_sync_pending">Тема применена на телефоне. Синхронизация с Host ожидает подключения.</string>
+    <string name="usage_tokens">%1$d токенов</string>
 </resources>

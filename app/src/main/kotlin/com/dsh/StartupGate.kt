@@ -18,8 +18,8 @@ import java.io.File
 /**
  * Ворота запуска приложения. Пока что-то не готово, показывает свой экран и возвращает false:
  * проверка Linux, установка или обязательная переустановка, доступ к папке проектов,
- * ожидание Host (до 90 с, при ошибке — причина и «Повторить»), загрузка аккаунта и плагинов
- * (до 6 с). Первый запуск (онбординг) ворота пропускают — у него свои шаги.
+ * Host запускается в фоне, чтобы сохранённые чаты и настройки были доступны сразу.
+ * Первый запуск (онбординг) ворота пропускают — у него свои шаги.
  *
  * @param pluginsReady снимок плагинов от Host уже получен.
  */
@@ -209,37 +209,8 @@ internal fun StartupGate(
             }
         }
     }
-    if (!runtimeUi.showOnboarding && runtimeUi.rootfsReady == true && !runtimeUi.hostProgressReady) {
-        val failed = runtimeUi.hostStartupError
-        val failDetail = runtimeUi.hostStartupDetail ?: if (failed) status.lastError else null
-        com.dsh.feature.runtime.HostStartScreen(
-            status = stringResource(R.string.host_starting),
-            failed = failed,
-            // Причина и последний вывод — здесь: это единственный вход, без них нечего исправить и некуда отправить.
-            detail = failDetail,
-            logTail = if (failed) status.logTail else emptyList(),
-            onCopyReport = {
-                copyHostStartupReport(context, status, failDetail)
-            },
-            onRetry = {
-                runtimeUi.hostStartupError = false
-                runtimeUi.hostStartupDetail = null
-                runtimeUi.hostRetryKey += 1
-                scope.launch {
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        runCatching { runtimeManager.start(activeWorkspace.absolutePath) }
-                    }
-                }
-            },
-            // Даже если Host не запустился, войти можно: в «Настройки → Linux» полный журнал
-            // и выгрузка диагностики без секретов.
-            onContinue = {
-                runtimeUi.hostProgressReady = true
-                StartupGateMemory.passed = true
-            },
-        )
-        return false
-    }
+    // Subsequent starts expose cached chats and settings while the Host warms up.
+    if (!runtimeUi.showOnboarding && !runtimeUi.hostProgressReady) return true
 
     // Порт готов — не значит данные готовы: аккаунт и каталог плагинов — ещё по RPC. Первый
     // экран ждёт на загрузке до 6 секунд, пока не придут аккаунт и снимок плагинов, —

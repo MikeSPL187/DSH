@@ -1,5 +1,13 @@
 package com.dsh.feature.chat
 
+import androidx.compose.ui.layout.onSizeChanged
+
+import androidx.compose.foundation.layout.systemBars
+
+import androidx.compose.foundation.layout.only
+
+import androidx.compose.foundation.layout.WindowInsetsSides
+
 import com.dsh.core.designsystem.kit.MemoryFactSheet
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -605,7 +613,13 @@ fun ModernChatScreen(
     val netShift by androidx.compose.animation.core.animateDpAsState(if (net != null) 60.dp else 0.dp, com.dsh.core.designsystem.DshMotion.smooth(), label = "net")
     val THREAD_TOP = maxOf(112.dp, statusTop + 70.dp) + netShift + if (subagentView != null) (if (net != null) 86.dp else 64.dp) else 0.dp
     var composerTop by remember { mutableStateOf(0) }
-    val threadBottom = with(density) { composerTop.toDp() } + 84.dp
+    val bottomInset = maxOf(WindowInsets.ime.getBottom(density), WindowInsets.navigationBars.getBottom(density))
+    val threadBottom = with(density) { composerTop.toDp() } + 16.dp
+    LaunchedEffect(bottomInset, composerTop) {
+        if (chatRows.isNotEmpty() && !listState.isScrollInProgress && (composerFocused || !listState.canScrollForward)) {
+            listState.scrollToItem(chatRows.lastIndex, Int.MAX_VALUE / 2)
+        }
+    }
     val homeScroll = rememberScrollState()
     val scrolled by remember { derivedStateOf { homeScroll.value > 8 || listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 8 } }
     var lastScroll by remember { mutableStateOf(0) }
@@ -874,6 +888,7 @@ fun ModernChatScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(com.dsh.core.designsystem.Dsh.colors.bg)
+            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
     ) {
         // conversation.view: плагины могут дополнять вид сессии целиком (по умолчанию пусто).
         com.dsh.plugin.nativehost.OfficialSlot(
@@ -961,7 +976,8 @@ fun ModernChatScreen(
                                         UserBubble(
                                             m.content,
                                             Modifier.padding(top = 6.dp, bottom = 22.dp),
-                                            onRetry = if (m.failed) { { onRetryMessage(m.messageId) } } else null,
+                                            onRetry = if (m.failed) { { onRetryMessage(m.retryMessageId ?: m.messageId) } } else null,
+                                            failureReason = m.failureReason,
                                         )
                                     }
                                     MessageRole.ASSISTANT -> {
@@ -972,6 +988,9 @@ fun ModernChatScreen(
                                         val answer = m.content.substringAfter('\u0001')
                                         if (answer.trimStart().startsWith("⚠️")) {
                                             RunErrorCard(answer.trimStart().removePrefix("⚠️").trim())
+                                            androidx.compose.material3.TextButton(onClick = {
+                                                messages.lastOrNull { it.role == MessageRole.USER && it.createdAt <= m.createdAt }?.let { variantFor = it }
+                                            }) { Text(stringResource(R.string.chat_retry_send)) }
                                             Spacer(Modifier.height(18.dp))
                                         } else {
                                             AiAnswer(answer)
@@ -1090,7 +1109,8 @@ fun ModernChatScreen(
         ChatFade(Modifier.align(Alignment.BottomCenter))
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars)),
+                .onSizeChanged { composerTop = it.height }
+                .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars).only(WindowInsetsSides.Vertical)),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // `.jump` и `.tts`: над доком (и над панелью цели) — справа «К последнему», слева «Читаю вслух».
@@ -1148,8 +1168,7 @@ fun ModernChatScreen(
                 )
             }
             Box(
-                Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, bottom = 10.dp)
-                    .onGloballyPositioned { composerTop = (it.parentLayoutCoordinates?.size?.height ?: 0) - it.positionInParent().y.toInt() },
+                Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
             ) {
                 // Пока агент ждёт решения об удалении, вместо поля ввода — панель решения `.decide`.
                 androidx.compose.animation.AnimatedContent(

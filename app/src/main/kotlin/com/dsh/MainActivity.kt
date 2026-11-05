@@ -1,5 +1,6 @@
 package com.dsh
 
+import androidx.compose.ui.graphics.toArgb
 import android.os.Build
 
 
@@ -131,7 +132,13 @@ class MainActivity : ComponentActivity() {
                         (if (com.dsh.feature.settings.logic.DshUserPrefs.haptics) androidx.compose.ui.platform.LocalHapticFeedback.current else SilentHaptics),
                 ) {
                     // Значки системных панелей — по теме приложения: тёмному экрану нужны светлые.
+                    val barBackground = com.dsh.core.designsystem.Dsh.colors.bg.toArgb()
                     androidx.compose.runtime.SideEffect {
+                        @Suppress("DEPRECATION")
+                        window.statusBarColor = android.graphics.Color.TRANSPARENT
+                        @Suppress("DEPRECATION")
+                        window.navigationBarColor = barBackground
+                        if (Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
                         androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
                             isAppearanceLightStatusBars = !effectiveDark
                             isAppearanceLightNavigationBars = !effectiveDark

@@ -453,6 +453,9 @@ private fun AutoEdit(
     val doneMsg = stringResource(R.string.au_deleted, x.name)
     val copySuffix = stringResource(R.string.au_copy_suffix)
     FsView {
+        if (isNew && (x.name.isBlank() || x.prompt.isBlank())) {
+            Text(stringResource(R.string.au_required_fields), style = small(), color = c.t2, modifier = Modifier.padding(bottom = 12.dp))
+        }
         if (isNew) {
             Input(x.name, { onChange(x.copy(name = it.take(40))) }, stringResource(R.string.au_name_ph), single = true, Modifier.padding(bottom = 0.dp))
         }

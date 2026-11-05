@@ -167,7 +167,6 @@ fun MainAppHost(
     val repoSessions by dshRepository.getSessions(ui.activeHostId).collectAsState(initial = emptyList())
     val sessions = repoSessions
 
-    val pendingMessages = remember { androidx.compose.runtime.mutableStateListOf<ChatMessage>() }
 
     // Режим плана не сбрасывается по id сессии: первый prompt создаёт сессию и меняет
     // ui.selectedSessionId — сброс по id выключал бы план сразу после первой отправки.
@@ -195,7 +194,16 @@ fun MainAppHost(
 
     LaunchedEffect(sessions, liveSessionIds) {
         // При открытии приложения — последняя обновлённая сессия, а не пустая новая.
+        if (!runtimeUi.didInitialResume) {
+            val draft = (context.applicationContext as DshApplication).chatRunJournal.records.value.lastOrNull { it.hostId == ui.activeHostId && it.sessionId == null }
+            if (draft != null && draft.createdAt >= (sessions.maxOfOrNull { it.updatedAt } ?: 0L)) {
+                ui.pendingChatId = draft.conversationId
+                runtimeUi.didInitialResume = true
+                return@LaunchedEffect
+            }
+        }
         if (!runtimeUi.didInitialResume && sessions.isNotEmpty()) {
+            if (ui.selectedSessionId != null) { runtimeUi.didInitialResume = true; return@LaunchedEffect }
             runtimeUi.didInitialResume = true
             val candidates = sessions.filter { !it.archived }.ifEmpty { sessions }
             ui.selectedSessionId = (
@@ -209,21 +217,32 @@ fun MainAppHost(
 
     val repoMessages by dshRepository.getMessages(ui.activeHostId, ui.selectedSessionId ?: "")
         .collectAsState(initial = emptyList())
-    val messages = remember(repoMessages, pendingMessages.toList(), ui.selectedSessionId) {
-        // Эхо user/message от Host и мгновенный пузырь могут быть одновременно:
-        // дубли по содержимому убираются.
-        val echoed = repoMessages.filter { it.role == MessageRole.USER }.takeLast(16)
-        val openSession = ui.selectedSessionId ?: PENDING_SESSION
-        repoMessages + pendingMessages.filter { pending ->
-            // Неотправленное сообщение видно только в своей сессии.
-            pending.sessionId == openSession &&
-            // Эхом считается тот же текст в пределах 60 с — повторную отправку
-            // того же текста пользователем не глотаем. Неотправленное эхом не считается.
-            (pending.failed || echoed.none { real ->
-                real.content.trim() == pending.content.trim() &&
-                    kotlin.math.abs(real.createdAt - pending.createdAt) < 60_000
-            })
+    val savedPrompts by (context.applicationContext as DshApplication).chatRunJournal.records.collectAsState()
+    val recoveryStatus by runner.statusFlow.collectAsState()
+    LaunchedEffect(ui.activeHostId, recoveryStatus.phase, savedPrompts.map { it.sessionId }.distinct()) {
+        if (runner.statusFlow.value.phase == RuntimePhase.RUNNING) {
+            savedPrompts.filter { it.hostId == ui.activeHostId }.mapNotNull { it.sessionId }.distinct().forEach { dshRepository.watchSession(ui.activeHostId, it) }
+            dshRepository.refreshSessions(ui.activeHostId)
         }
+    }
+    val messages = remember(repoMessages, savedPrompts, ui.selectedSessionId, ui.activeHostId, ui.pendingChatId) {
+        val requests = savedPrompts.filter { it.hostId == ui.activeHostId && (it.sessionId ?: PENDING_SESSION) == (ui.selectedSessionId ?: PENDING_SESSION) && (it.sessionId != null || it.conversationId == ui.pendingChatId) }
+        val echoed = mutableSetOf<String>()
+        val history = repoMessages.map { message ->
+            val request = requests.firstOrNull { message.role == MessageRole.USER && it.id !in echoed && (message.content == it.prompt || message.content == it.text) && kotlin.math.abs(message.createdAt - it.createdAt) < 60_000 }
+            if (request != null) {
+                echoed += request.id
+                message.copy(failed = request.status !in ChatRunJournal.ACTIVE, failureReason = request.error, retryMessageId = request.id)
+            } else message
+        }
+        val pending = requests.filter { it.id !in echoed }.map { request ->
+            ChatMessage(request.hostId, request.sessionId ?: PENDING_SESSION, request.id, MessageRole.USER, request.text,
+                createdAt = request.createdAt, failed = request.status !in ChatRunJournal.ACTIVE, failureReason = request.error)
+        }
+        val partial = requests.filter { it.status !in ChatRunJournal.ACTIVE && it.partial.isNotBlank() }.map { request ->
+            ChatMessage(request.hostId, request.sessionId ?: PENDING_SESSION, "partial_${request.id}", MessageRole.ASSISTANT, request.partial, createdAt = request.createdAt + 1)
+        }
+        (history + pending + partial).sortedBy { it.createdAt }
     }
 
 
@@ -518,7 +537,7 @@ fun MainAppHost(
     val currentWorkspace = androidx.compose.runtime.rememberUpdatedState(activeWorkspace)
     val chatSender = remember(dshRepository, runtimeManager) {
         ChatSender(
-            context, scope, dshRepository, ui, runtimeUi, runtimeManager, pendingMessages, chatAttachments, { currentWorkspace.value },
+            context, (context.applicationContext as DshApplication).applicationScope, dshRepository, ui, runtimeUi, runtimeManager, chatAttachments, { currentWorkspace.value },
             checkpoints = { ProjectCheckpoints.of(java.io.File(currentWorkspace.value, runtimeUi.activeWorkspaceName), layout) },
         )
     }
@@ -859,7 +878,8 @@ fun MainAppHost(
         com.dsh.terminal.DshTerminalRoute(
             repository = dshRepository,
             hostId = ui.activeHostId,
-            sessionId = ui.selectedSessionId ?: sessions.firstOrNull()?.sessionId,
+            sessionId = ui.selectedSessionId,
+            workspacePath = "/workspace/${runtimeUi.activeWorkspaceName}",
             distro = terminalDistro,
             onBack = if (page) ({ ui.activePage = ActivePage.CHAT }) else null,
             prefill = terminalPrefill,
@@ -901,9 +921,6 @@ fun MainAppHost(
         bridgePluginCatalog.bundles.any { bundle ->
             bundle.name == "@deepseek-ai/dsh-experimental-terminal-bundle" && bundle.enabled
         }
-    }
-    LaunchedEffect(terminalSupported, ui.activePage) {
-        if (!terminalSupported && ui.activePage == ActivePage.TERMINAL) ui.activePage = ActivePage.CHAT
     }
 
     val chatServices = remember(dshRepository) {
@@ -1228,7 +1245,10 @@ fun MainAppHost(
                             onClose = { ui.activePage = ActivePage.CHAT },
                         )
 
-                        ActivePage.TERMINAL -> terminalRoute(true)
+                        ActivePage.TERMINAL -> if (terminalSupported) terminalRoute(true) else TerminalUnavailableScreen(
+                            onBack = { ui.activePage = ActivePage.SETTINGS; ui.settingsInitialSection = com.dsh.feature.settings.ui.StPage.Host },
+                            onEnable = { bundleToggle.toggle("@deepseek-ai/dsh-experimental-terminal-bundle", true) },
+                        )
 
                         ActivePage.SETTINGS -> DshSettingsRoute(
                             SettingsDeps(

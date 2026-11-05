@@ -24,7 +24,14 @@ class AppUiState(
     // Навигация и выбор сессии
     var activePage by mutableStateOf(ActivePage.CHAT)
     var activeHostId by mutableStateOf("local-host")
-    var selectedSessionId by mutableStateOf<String?>(null)
+    var pendingChatId by mutableStateOf(java.util.UUID.randomUUID().toString())
+    private var sessionIdState by mutableStateOf<String?>(null)
+    var selectedSessionId: String?
+        get() = sessionIdState
+        set(value) {
+            if (value == null) pendingChatId = java.util.UUID.randomUUID().toString()
+            sessionIdState = value
+        }
     var currentAppSettings by mutableStateOf(initialSettings)
     var settingsInitialSection by mutableStateOf<com.dsh.feature.settings.ui.StPage?>(null)
     var hasAllFilesAccess by mutableStateOf(initialAllFilesAccess)
@@ -67,4 +74,16 @@ fun rememberAppUiState(
     initialSettings: AppSettings,
     initialWorkspace: java.io.File,
     initialAllFilesAccess: Boolean,
-): AppUiState = remember { AppUiState(initialSettings, initialWorkspace, initialAllFilesAccess) }
+): AppUiState = androidx.compose.runtime.saveable.rememberSaveable(
+    saver = androidx.compose.runtime.saveable.listSaver(
+        save = { state: AppUiState -> listOf(state.activePage.name, state.activeHostId, state.selectedSessionId.orEmpty(), state.settingsInitialSection?.name.orEmpty(), state.filesDir.absolutePath, state.pendingChatId) },
+        restore = { saved -> AppUiState(initialSettings, initialWorkspace, initialAllFilesAccess).apply {
+            activePage = runCatching { ActivePage.valueOf(saved[0]) }.getOrDefault(ActivePage.CHAT)
+            activeHostId = saved[1]
+            selectedSessionId = saved[2].ifBlank { null }
+            settingsInitialSection = runCatching { com.dsh.feature.settings.ui.StPage.valueOf(saved[3]) }.getOrNull()
+            filesDir = java.io.File(saved[4])
+            saved.getOrNull(5)?.let { pendingChatId = it }
+        } },
+    ),
+) { AppUiState(initialSettings, initialWorkspace, initialAllFilesAccess) }

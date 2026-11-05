@@ -122,6 +122,7 @@ data class SettingsUi(
     val hostVersion: String? = null,
     val sdkVersion: String? = null,
     val distro: String? = null,
+    val sourceRevision: String? = null,
     val androidVersion: String = "",
     // Профиль и ключ
     val accountName: String? = null,
@@ -349,7 +350,10 @@ fun SettingsHomeScreen(
     /** Рендерер Markdown для «Вида» инструкций; null — простой текст. */
     markdown: (@Composable (String) -> Unit)? = null,
 ) {
-    val stack = remember { PageStack(StPage.Root).also { if (initialPage != StPage.Root) it.push(initialPage) } }
+    val stack = rememberSaveable(saver = androidx.compose.runtime.saveable.listSaver<PageStack<StPage>, String>(
+        save = { it.entries.map { page -> page.name } },
+        restore = { names -> PageStack(StPage.valueOf(names.first())).also { stack -> names.drop(1).forEach { stack.push(StPage.valueOf(it)) } } },
+    )) { PageStack(StPage.Root).also { if (initialPage != StPage.Root) it.push(initialPage) } }
     val editor = remember { InstructionEditor() }
     val scope = rememberCoroutineScope()
     val savedMsg = stringResource(R.string.st_inst_saved)
@@ -582,7 +586,8 @@ private fun ModelsPage(ui: SettingsUi, a: SettingsActions, toast: ToastState, on
             if (ui.monthSpent != null) {
                 Spacer(Modifier.height(14.dp))
                 val month = stringArrayResource(R.array.st_month_spent)[java.time.LocalDate.now().monthValue - 1]
-                Meter(month, ui.monthSpent, ui.monthSpentFraction)
+                KvRow(month, ui.monthSpent)
+                SubNote(stringResource(R.string.st_usage_note))
             }
         }
         GLabel(stringResource(R.string.st_providers))
@@ -737,11 +742,11 @@ internal fun Field(
     ) {
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
             if (value.isEmpty()) Text(placeholder, style = body(15.sp), color = c.t3, maxLines = 1)
-            BasicTextField(
+            com.dsh.core.designsystem.ProtectedTextField(
                 value, onChange, singleLine = true,
                 textStyle = (if (secret || keyboard == KeyboardType.Password) mono(14.sp, FontWeight.Normal) else body(15.sp)).copy(color = c.t1),
                 cursorBrush = SolidColor(c.accent),
-                visualTransformation = if (secret) PasswordVisualTransformation('•') else VisualTransformation.None,
+                secret = secret || keyboard == KeyboardType.Password, revealed = !secret && keyboard == KeyboardType.Password, label = placeholder,
                 keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = false, imeAction = if (onCommit != null) ImeAction.Done else ImeAction.Default),
                 keyboardActions = KeyboardActions(onDone = { onCommit?.invoke(); defaultKeyboardAction(ImeAction.Done) }),
                 modifier = Modifier.fillMaxWidth().semantics { contentDescription = placeholder }.onFocusChanged {
@@ -842,7 +847,7 @@ private fun ThemeCard(kind: String, label: String, on: Boolean, modifier: Modifi
             Box(Modifier.offset(8.dp, 24.dp).width(w * 0.55f - 8.dp).height(7.dp).clip(CircleShape).background(bar2))
             Box(Modifier.offset(w * 0.4f, 40.dp).width(w * 0.6f - 8.dp).height(7.dp).clip(CircleShape).background(Color(0xFF5A4CF0)))
         }
-        Text(label, style = body(13.5.sp, 17.sp, FontWeight.Medium), color = if (on) c.t1 else c.t2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(label, style = body(13.5.sp, 17.sp, FontWeight.Medium), color = if (on) c.t1 else c.t2, minLines = 2, maxLines = 2, textAlign = TextAlign.Center, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -1193,6 +1198,9 @@ private fun AboutPage(ui: SettingsUi, a: SettingsActions, toast: ToastState) {
                 contentAlignment = Alignment.Center,
             ) { Icon(DshGlyphs.get("dsh"), null, tint = Color.White, modifier = Modifier.size(30.dp)) }
             VersionFooter(ui, build = true, top = 12)
+            ui.sourceRevision?.let { revision ->
+                Text(stringResource(R.string.st_source_revision) + ": " + revision, style = small(11.5.sp), color = Dsh.colors.t3, textAlign = TextAlign.Center)
+            }
         }
         Spacer(Modifier.height(10.dp))
         Gl {

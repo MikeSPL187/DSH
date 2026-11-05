@@ -45,6 +45,9 @@ data class Automation(
     val prompt: String = "",
     val history: List<AutoRun> = emptyList(),
     val createdAt: Long = System.currentTimeMillis(),
+    val providerId: String? = null,
+    val modelId: String? = null,
+    val reasoningEffort: String? = null,
 )
 
 /** Хранилище автоматизаций (SharedPreferences, JSON) и расчёт времени следующего запуска. */
@@ -64,6 +67,10 @@ object AutomationStore {
         val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         items = runCatching { decode(JSONArray(p.getString("items", "[]"))) }.getOrDefault(emptyList())
         defaultModel = (p.getString("model", "") ?: "") to p.getInt("reasoning", 0)
+        items = items.map { a -> a.copy(history = a.history.map { run ->
+            if (run.status == "run") run.copy(status = "err", result = com.dsh.core.model.Tr.t("Interrupted when the app stopped.", "Запуск прерван при остановке приложения.")) else run
+        }) }
+        save()
     }
 
     fun setDefaultModel(model: String, reasoning: Int) {
@@ -71,16 +78,16 @@ object AutomationStore {
         app?.getSharedPreferences(PREFS, Context.MODE_PRIVATE)?.edit()?.putString("model", model)?.putInt("reasoning", reasoning)?.apply()
     }
 
-    fun get(id: String): Automation? = items.firstOrNull { it.id == id }
+    @Synchronized fun get(id: String): Automation? = items.firstOrNull { it.id == id }
 
-    fun upsert(a: Automation) {
+    @Synchronized fun upsert(a: Automation) {
         items = if (items.any { it.id == a.id }) items.map { if (it.id == a.id) a else it } else listOf(a) + items
         save()
     }
 
-    fun delete(id: String) { items = items.filterNot { it.id == id }; save() }
+    @Synchronized fun delete(id: String) { items = items.filterNot { it.id == id }; save() }
 
-    fun addRun(id: String, run: AutoRun) {
+    @Synchronized fun addRun(id: String, run: AutoRun) {
         val a = get(id) ?: return
         val rest = a.history.filterNot { it.status == "run" && run.status != "run" }
         upsert(a.copy(history = (listOf(run) + rest).take(30)))
@@ -116,6 +123,7 @@ object AutomationStore {
                     .put("freq", a.freq.name).put("time", a.time).put("days", JSONArray(a.days)).put("charge", a.charge).put("wifi", a.wifi)
                     .put("perm", a.perm).put("notify", a.notify).put("project", a.project).put("model", a.model).put("reasoning", a.reasoning)
                     .put("prompt", a.prompt).put("createdAt", a.createdAt)
+                    .put("providerId", a.providerId).put("modelId", a.modelId).put("reasoningEffort", a.reasoningEffort)
                     .put("history", JSONArray().apply { a.history.forEach { r -> put(JSONObject().put("at", r.at).put("s", r.status).put("d", r.durationMs ?: -1).put("r", r.result).put("sid", r.sessionId ?: "")) } }),
             )
         }
@@ -136,6 +144,9 @@ object AutomationStore {
             charge = o.optBoolean("charge"), wifi = o.optBoolean("wifi"), perm = o.optString("perm", "read"), notify = o.optString("notify", "err"),
             project = o.optString("project"), model = o.optString("model"), reasoning = o.optInt("reasoning"), prompt = o.optString("prompt"),
             history = hist, createdAt = o.optLong("createdAt", 0L),
+            providerId = o.optString("providerId").takeUnless { it.isBlank() || it == "null" },
+            modelId = o.optString("modelId").takeUnless { it.isBlank() || it == "null" },
+            reasoningEffort = o.optString("reasoningEffort").takeUnless { it.isBlank() || it == "null" },
         )
     }
 }

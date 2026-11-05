@@ -107,6 +107,8 @@ object AutomationRunner {
 
     /** Автоматизации, которые сейчас идут в этом процессе. */
     private val active = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private val activeSessions = java.util.concurrent.ConcurrentHashMap<String, String>()
+    internal fun ownsSession(sessionId: String?): Boolean = sessionId != null && activeSessions.containsValue(sessionId)
 
     /**
      * Занять запуск [id]; false — он уже идёт. Запись «run» в истории без живого запуска осталась от убитого
@@ -129,6 +131,7 @@ object AutomationRunner {
         try {
             runClaimed(app, id, a, plannedAt)
         } finally {
+            activeSessions.remove(id)
             release(id)
         }
     }
@@ -139,7 +142,10 @@ object AutomationRunner {
             AutomationStore.addRun(id, AutoRun(plannedAt, "skip", null, app.getString(R.string.au_run_postponed, conditionsText(app, a))))
         }
         AutomationStore.addRun(id, AutoRun(started, "run", null, app.getString(R.string.au_run_working)))
-        val outcome = runCatching { execute(app, a) }.getOrElse { Outcome(false, it.message ?: app.getString(R.string.au_run_failed), null, false) }
+        val outcome = try { execute(app, a) } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            AutomationStore.addRun(id, AutoRun(started, "err", System.currentTimeMillis() - started, app.getString(R.string.au_run_interrupted)))
+            throw cancelled
+        } catch (error: Exception) { Outcome(false, error.message ?: app.getString(R.string.au_run_failed), null, false) }
         val finished = System.currentTimeMillis()
         AutomationStore.addRun(id, AutoRun(started, if (outcome.ok) "ok" else "err", finished - started, outcome.summary, outcome.sessionId))
         notifyIfNeeded(app, a, outcome)
@@ -155,7 +161,7 @@ object AutomationRunner {
         val status = app.runtimeManager.getStatus().takeIf { it.phase == RuntimePhase.RUNNING && it.port != null }
             ?: app.runtimeManager.start(workspace).getOrNull()
             ?: return@withContext Outcome(false, app.getString(R.string.au_run_no_host), null, false)
-        if (app.localHostPort <= 1 && status.port != null && !app.bindLocalHost(status.port!!, status.token)) {
+        if (status.port != null && !app.bindLocalHost(status.port!!, status.token)) {
             return@withContext Outcome(false, app.getString(R.string.au_run_no_host), null, false)
         }
         repo.subscribeRemoteEvents(LOCAL_HOST)
@@ -164,13 +170,18 @@ object AutomationRunner {
             return@withContext Outcome(false, app.getString(R.string.au_run_no_session, it.message ?: ""), null, false)
         }
         val sid = session.sessionId
+        activeSessions[a.id] = sid
         // Права — до промпта, и без запасного пути: не удалось — сессия не запускается. Иначе автоматизация
         // «только читать» в фоне, без пользователя, работала бы с правами сессии по умолчанию (вплоть до полного доступа).
         val preset = presetFor(a.perm)
         if (runCatching { repo.selectPermissionPreset(LOCAL_HOST, sid, preset) }.getOrDefault(false) != true) {
             return@withContext Outcome(false, app.getString(R.string.au_run_no_perm), sid, false)
         }
-        modelFor(app, a)?.let { (model, provider, effort) -> runCatching { repo.selectModel(LOCAL_HOST, sid, model, provider, effort) } }
+        repo.hostSettings.refreshModelCatalog(LOCAL_HOST)
+        val selection = modelFor(app, a) ?: return@withContext Outcome(false, app.getString(R.string.au_run_no_model), sid, false)
+        if (repo.selectModel(LOCAL_HOST, sid, selection.first, selection.second, selection.third).isFailure) {
+            return@withContext Outcome(false, app.getString(R.string.au_run_no_model), sid, false)
+        }
 
         val prompt = buildString {
             append(a.prompt.trim())
@@ -179,10 +190,15 @@ object AutomationRunner {
         repo.sendMessage(LOCAL_HOST, sid, prompt).onFailure {
             return@withContext Outcome(false, app.getString(R.string.au_run_send_failed, it.message.orEmpty()), sid, false)
         }
-        // Ход начался — и закончился.
-        withTimeoutOrNull(90_000) { repo.runningSessionIdsFlow.first { sid in it } }
-        val done = withTimeoutOrNull(TURN_TIMEOUT_MS) { repo.runningSessionIdsFlow.first { sid !in it } } != null
-        if (!done) runCatching { repo.cancelSession(LOCAL_HOST, sid) }
+        val key = com.dsh.core.data.SessionKey(LOCAL_HOST, sid)
+        val settled = withTimeoutOrNull(TURN_TIMEOUT_MS) {
+            repo.runStatesFlow.first { it[key]?.terminal == true }[key]
+        }
+        val done = settled != null
+        if (!done || settled?.status != com.dsh.core.model.RunStatus.SUCCEEDED) runCatching { repo.cancelSession(LOCAL_HOST, sid) }
+        if (settled != null && settled.status != com.dsh.core.model.RunStatus.SUCCEEDED) {
+            return@withContext Outcome(false, settled.message ?: app.getString(R.string.au_run_failed), sid, false)
+        }
         val messages = withTimeoutOrNull(10_000) { repo.getMessages(LOCAL_HOST, sid).first { list -> list.any { it.role == MessageRole.ASSISTANT } } }.orEmpty()
         val answer = messages.lastOrNull { it.role == MessageRole.ASSISTANT }?.content.orEmpty().substringAfterLast('\u0001')
         val changed = messages.any { m -> m.role == MessageRole.TOOL && Regex("\u0002(?:write|edit|apply_patch|patch|create)[^\u0002]*\u0002ok", RegexOption.IGNORE_CASE).containsMatchIn(m.content) }
@@ -204,11 +220,12 @@ object AutomationRunner {
 
     /** Модель по названию из каталога Host: (id, провайдер, уровень рассуждения). */
     private fun modelFor(app: DshApplication, a: Automation): Triple<String, String?, String?>? {
-        val name = a.model.substringBefore(" · ").trim().ifBlank { return null }
+        val name = a.model.substringBefore(" · ").trim().ifBlank { AutomationStore.defaultModel.first.substringBefore(" · ").trim() }
         val catalog = app.dshRepository.hostSettings.modelCatalogFlow.value
         for (g in catalog.groups) {
-            val m = g.models.firstOrNull { it.name == name || it.id == name } ?: continue
-            val effort = m.reasoningEfforts.getOrNull(a.reasoning)?.id ?: m.defaultReasoningEffort
+            if (a.providerId != null && a.providerId != g.id) continue
+            val m = g.models.firstOrNull { if (a.modelId != null) it.id == a.modelId else it.name == name || it.id == name || name.isBlank() } ?: continue
+            val effort = a.reasoningEffort ?: m.reasoningEfforts.getOrNull(a.reasoning)?.id ?: m.defaultReasoningEffort
             return Triple(m.id, g.id, effort)
         }
         return null
@@ -250,11 +267,23 @@ internal fun DshAutomationRoute(
     val toast = com.dsh.core.designsystem.kit.rememberToast()
     val reasoning = com.dsh.feature.chat.ReasoningLevel.entries.map { context.getString(it.labelResId) }
     androidx.compose.runtime.LaunchedEffect(Unit) { HostSchedules.refresh?.invoke() }
+    androidx.compose.runtime.LaunchedEffect(models, AutomationStore.defaultModel) {
+        val default = AutomationStore.defaultModel.first.ifBlank { models.firstOrNull().orEmpty() }
+        if (default.isNotBlank()) AutomationStore.items.filter { it.model.isBlank() }.forEach { AutomationStore.upsert(it.copy(model = default)) }
+    }
     val actions = object : com.dsh.feature.settings.ui.AutomationActions {
         override fun save(a: Automation) {
             val withLabel = if (a.model.isNotBlank() && " · " !in a.model && reasoning.isNotEmpty()) a.copy(model = a.model + " · " + reasoning.getOrElse(a.reasoning) { reasoning.first() }) else a
-            AutomationStore.upsert(withLabel)
-            AutomationScheduler.schedule(context, withLabel)
+            val catalog = app.dshRepository.hostSettings.modelCatalogFlow.value
+            val chosenName = withLabel.model.substringBefore(" · ").ifBlank { AutomationStore.defaultModel.first.ifBlank { models.firstOrNull().orEmpty() }.substringBefore(" · ") }
+            val selected = catalog.groups.firstNotNullOfOrNull { group ->
+                group.models.firstOrNull { it.name == chosenName || it.id == chosenName }?.let { model ->
+                    withLabel.copy(model = model.name + " · " + reasoning.getOrElse(withLabel.reasoning) { "" }, providerId = group.id, modelId = model.id,
+                        reasoningEffort = model.reasoningEfforts.getOrNull(withLabel.reasoning)?.id ?: model.defaultReasoningEffort)
+                }
+            } ?: withLabel.copy(model = withLabel.model.ifBlank { chosenName })
+            AutomationStore.upsert(selected)
+            AutomationScheduler.schedule(context, selected)
         }
         override fun delete(id: String) { AutomationScheduler.cancel(context, id); AutomationStore.delete(id) }
         override fun runNow(id: String) {
@@ -270,7 +299,7 @@ internal fun DshAutomationRoute(
     com.dsh.feature.settings.ui.AutomationHomeScreen(
         items = AutomationStore.items, onClose = onClose, actions = actions, agentTasks = tasks, projects = projects,
         models = models.map { it.substringBefore(" · ") }.distinct(), reasoningLevels = reasoning,
-        defaultModel = AutomationStore.defaultModel, toast = toast,
+        defaultModel = AutomationStore.defaultModel.let { (name, effort) -> name.ifBlank { models.firstOrNull().orEmpty() } to effort }, toast = toast,
     )
 }
 

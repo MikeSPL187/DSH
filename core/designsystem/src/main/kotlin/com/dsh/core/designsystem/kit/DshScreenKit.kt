@@ -471,7 +471,7 @@ fun Gr(
     // значение — всё остальное, у правого края, с многоточием.
     val titleMax = maxWidth * 0.6f
     Row(
-        Modifier.fillMaxWidth().heightIn(min = minHeight).rowClick(onClick = onClick).padding(padding),
+        Modifier.fillMaxWidth().heightIn(min = minHeight).semantics(mergeDescendants = true) { if (title != null) contentDescription = title }.rowClick(onClick = onClick).padding(padding),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -516,7 +516,7 @@ fun StRow(
     BoxWithConstraints(modifier.fillMaxWidth()) {
         val maxVal = maxWidth * 0.46f
         Row(
-            Modifier.fillMaxWidth().heightIn(min = 52.dp).rowClick(onClick = onClick).padding(start = 14.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+            Modifier.fillMaxWidth().heightIn(min = 52.dp).semantics(mergeDescendants = true) { contentDescription = title }.rowClick(onClick = onClick).padding(start = 14.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {

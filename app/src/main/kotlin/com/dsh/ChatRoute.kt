@@ -331,11 +331,10 @@ internal fun ChatRoute(d: ChatDeps) {
             scope.launch { d.settingsRepository.updateSettings { it.copy(defaultReasoningLevel = level.name) } }
         },
         stats = stats,
-        // Трата за сегодня — из журнала баланса, который ведут «Настройки»; сети здесь не нужно.
+        // Provider usage is recorded from durable events, independently of opening Settings.
         spentToday = remember(sessionId, stats) {
-            com.dsh.feature.settings.logic.BalanceLedger.peek(context)?.let { (summary, currency) ->
-                String.format(java.util.Locale.getDefault(), "%.2f %s", summary.today, currency.orEmpty()).trim()
-            }
+            val usage = com.dsh.feature.settings.logic.UsageLedger.peek(context)
+            context.getString(R.string.usage_tokens, usage.today)
         },
         onOpenSpending = {
             ui.settingsInitialSection = com.dsh.feature.settings.ui.StPage.Models

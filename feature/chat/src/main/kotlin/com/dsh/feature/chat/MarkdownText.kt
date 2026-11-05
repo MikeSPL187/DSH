@@ -298,7 +298,7 @@ internal fun parseMarkdownBlocks(text: String): List<MarkdownBlock> {
             }
             trimmed.isEmpty() -> flushParagraph()
             else -> {
-                if (paragraph.isNotEmpty()) paragraph.append(' ')
+                if (paragraph.isNotEmpty()) paragraph.append('\n')
                 paragraph.append(trimmed)
             }
         }

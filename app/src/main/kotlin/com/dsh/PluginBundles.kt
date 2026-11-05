@@ -90,8 +90,8 @@ internal class BundleToggle(
         val restart = HostRuntimeHolder.restartHost?.invoke() ?: return false
         if (restart.isFailure) return false
         val finished = withTimeoutOrNull(90_000) {
-            runner.statusFlow.first { it.phase != RuntimePhase.RUNNING }
-            runner.statusFlow.first { it.phase == RuntimePhase.RUNNING }
+            runner.statusFlow.first { it.phase == RuntimePhase.RUNNING || it.phase == RuntimePhase.ERROR }
+            if (runner.statusFlow.value.phase == RuntimePhase.ERROR) return@withTimeoutOrNull false
             true
         } ?: false
         repository.plugins.refreshAll(ui.activeHostId)

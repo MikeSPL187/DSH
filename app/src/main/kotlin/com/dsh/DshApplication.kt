@@ -45,6 +45,7 @@ class DshApplication : Application() {
     }
 
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    val chatRunJournal by lazy { ChatRunJournal(java.io.File(filesDir, "chat-outbox-v1.json")) }
 
     lateinit var runtimeLayout: RuntimeLayout
         private set
@@ -158,6 +159,7 @@ class DshApplication : Application() {
         com.dsh.runtime.host.HostStrings.init(this)
         com.dsh.feature.settings.logic.ApiKeyVault.init(this)
         com.dsh.feature.settings.logic.DshUserPrefs.init(this)
+        com.dsh.feature.settings.HostTheme.init(this)
         com.dsh.feature.settings.logic.ToolCallLog.init(this)
         com.dsh.feature.settings.logic.ToolPolicy.init(this)
         com.dsh.runtime.host.AgentNetworkPolicy.init(this)
@@ -182,6 +184,16 @@ class DshApplication : Application() {
         // и ради JobScheduler в фоне, где foreground-служба запрещена (Android 12+), — proot и Node работали бы без
         // службы и уведомления. Миграция папки Default — там же, перед прогревом. Автоматизации запускают Host сами.
         applicationScope.launch(Dispatchers.IO) { dshRepository.pruneMessageCache() }
+        applicationScope.launch(Dispatchers.IO) {
+            dshRepository.sessionEvents.collect { (host, event) ->
+                chatRunJournal.onEvent(host, event)
+                if (event is com.dsh.core.protocol.RemoteEvent.UsageReported) {
+                    com.dsh.feature.settings.logic.UsageLedger.parse(host, event.sessionId, event.at, event.data)?.let {
+                        com.dsh.feature.settings.logic.UsageLedger.record(this@DshApplication, it)
+                    }
+                }
+            }
+        }
         // Память агента: факты — в личных файлах, для агента — блок в ~/.agents/AGENTS.md (если Linux уже установлен).
         applicationScope.launch(Dispatchers.IO) {
             com.dsh.core.data.AgentMemory.init(java.io.File(filesDir, "agent-memory.json"), java.io.File(runtimeLayout.agentsHomeDir, "AGENTS.md"))
