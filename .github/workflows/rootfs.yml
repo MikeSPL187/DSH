@@ -47,11 +47,18 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+
       - name: Bridge-плагин (проверка contentSha256 из APK)
         run: sh infra/rootfs/prepare-bridge.sh
 
       - name: Тесты Android-файлов APK
-        run: node infra/rootfs/tests/fs-search-quote.test.mjs
+        run: |
+          node infra/rootfs/tests/fs-search-quote.test.mjs
+          node infra/rootfs/tests/android-owner.test.mjs
+          node --experimental-transform-types infra/rootfs/tests/android-server-cancel.test.mjs
 
       - name: Сборка образа
         run: |

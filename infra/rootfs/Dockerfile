@@ -103,9 +103,12 @@ ENV PATH=$PNPM_HOME/bin:$PATH
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     git \
+    curl \
     ca-certificates \
     patch \
   && rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man /usr/share/info /usr/share/lintian
+
+RUN test -s /var/lib/dpkg/status && test -z "$(dpkg --audit)" && curl --version
 
 # 2. Агент (с патчами и bundle) и pnpm из проверенного tarball.
 COPY --from=agent /usr/local/lib/node_modules/@deepseek-ai/dsh /usr/local/lib/node_modules/@deepseek-ai/dsh

@@ -166,3 +166,7 @@ These limits define when the provider is a poor fit or needs special operational
 None.
 
 </details>
+
+## Android process cancellation
+
+Under Android/proot, ordinary subprocesses cannot create a detached process group. The local provider observes descendants, retains their PID/start-time identities after parent exit, and applies TERM followed by the caller’s grace and KILL to those identities. Cancellation waits for the observed descendants to exit. This protects against PID reuse; it does not provide kernel containment for a child that forks and escapes between process-table scans.

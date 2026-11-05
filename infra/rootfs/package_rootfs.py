@@ -56,6 +56,7 @@ def main():
             f"dsh-mobile-bridge-plugin@{bridge_version}",
             "python3",
             "git",
+            "curl",
         ],
         "downloadUrls": {
             "x86_64": f"{base}/rootfs-x86_64.bin",

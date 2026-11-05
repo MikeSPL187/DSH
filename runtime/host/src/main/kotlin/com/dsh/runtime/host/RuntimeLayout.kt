@@ -185,14 +185,12 @@ data class RuntimeLayout(
         passwdOverlay.parentFile?.mkdirs()
         val uid = android.os.Process.myUid()
         val gid = runCatching { android.system.Os.getgid() }.getOrDefault(uid)
-        val passwd = """
-            root:x:0:0:root:/root:/bin/sh
-            dsh:x:$uid:$gid:dsh:/root:/bin/sh
-        """.trimIndent() + "\n"
-        val group = """
-            root:x:0:
-            dsh:x:$gid:
-        """.trimIndent() + "\n"
+        // Keep Debian service accounts: replacing the file with root/dsh breaks apt's
+        // _apt sandbox and package scripts resolving system users and groups.
+        val passwd = identityOverlay(File(rootfsDir, "etc/passwd").takeIf { it.isFile }?.readText()
+            ?: "root:x:0:0:root:/root:/bin/sh\n", "dsh:x:$uid:$gid:dsh:/root:/bin/sh")
+        val group = identityOverlay(File(rootfsDir, "etc/group").takeIf { it.isFile }?.readText()
+            ?: "root:x:0:\n", "dsh:x:$gid:")
         if (!passwdOverlay.isFile || passwdOverlay.readText() != passwd) {
             passwdOverlay.writeText(passwd)
         }
@@ -226,3 +224,7 @@ data class RuntimeLayout(
 }
 
 
+
+/** Add the Android identity without deleting the distro's package/service accounts. */
+internal fun identityOverlay(base: String, androidEntry: String): String =
+    (base.lineSequence().filter { it.isNotBlank() && it.substringBefore(':') != "dsh" }.toList() + androidEntry).joinToString("\n", postfix = "\n")
