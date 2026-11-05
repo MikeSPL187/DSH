@@ -77,7 +77,11 @@ object AutomationScheduler {
             ?: return com.dsh.core.model.Tr.t("Not scheduled", "Не запланировано")
         val at = job.extras.getLong(EXTRA_AT)
         val time = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT).format(java.util.Date(at))
-        return if (System.currentTimeMillis() < at) com.dsh.core.model.Tr.t("Scheduled: ", "Запланировано: ") + time
+        return if (System.currentTimeMillis() < at) {
+            val prefix = if (prefs(context).getBoolean("clock/${a.id}", false)) com.dsh.core.model.Tr.t("Clock changed; next run: ", "Время изменено; следующий запуск: ")
+                else com.dsh.core.model.Tr.t("Scheduled: ", "Запланировано: ")
+            prefix + time
+        }
         else waitingReason(context, a) ?: com.dsh.core.model.Tr.t("Waiting for Android", "Ожидает разрешения Android")
     }
 
@@ -110,10 +114,11 @@ object AutomationScheduler {
         saveOccurrences(context, id, occurrences(context, id).filterNot { it.substringAfter(':').toLongOrNull() == at } + "done:$at")
     }
 
-    fun schedule(context: Context, a: Automation, preservePending: Boolean = false) {
+    fun schedule(context: Context, a: Automation, preservePending: Boolean = false, clockChanged: Boolean = false) {
         val js = context.getSystemService(JobScheduler::class.java)
         if (js == null) { prefs(context).edit().putBoolean("error/${a.id}", true).apply(); return }
         if (preservePending && jobsOf(js, a.id).isNotEmpty()) return
+        prefs(context).edit().putBoolean("clock/${a.id}", clockChanged).apply()
         jobsOf(js, a.id).forEach(js::cancel)
         val at = AutomationStore.nextRun(a) ?: return
         val jobId = freeJobId(js, a.id) ?: run { prefs(context).edit().putBoolean("error/${a.id}", true).apply(); return }
@@ -179,7 +184,7 @@ class AutomationJobService : JobService() {
 /** The persisted jobs survive reboot; wall-clock/time-zone changes need a fresh calculation. */
 class AutomationTimeReceiver : android.content.BroadcastReceiver() {
     override fun onReceive(context: Context, intent: android.content.Intent) {
-        AutomationStore.items.forEach { AutomationScheduler.schedule(context, it) }
+        AutomationStore.items.forEach { AutomationScheduler.schedule(context, it, clockChanged = true) }
     }
 }
 
@@ -222,7 +227,7 @@ object AutomationRunner {
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             val sid = activeSessions[id]
             val stopped = sid == null || withContext(kotlinx.coroutines.NonCancellable + Dispatchers.IO) {
-                runCatching { app.dshRepository.cancelSession(LOCAL_HOST, sid) }.getOrDefault(false)
+                runCatching { app.dshRepository.cancelSession(LOCAL_HOST, sid, AutomationStore.get(id)?.history?.firstOrNull()?.at) }.getOrDefault(false)
             }
             if (stopped && plannedAt > 0) AutomationScheduler.releaseOccurrence(app, id, plannedAt)
             throw cancelled
@@ -315,7 +320,9 @@ object AutomationRunner {
 
     /** Модель по названию из каталога Host: (id, провайдер, уровень рассуждения). */
     private fun modelFor(app: DshApplication, a: Automation): Triple<String, String?, String?>? {
-        val resolved = resolveAutomationModel(a, app.dshRepository.hostSettings.modelCatalogFlow.value, AutomationStore.defaultModel) ?: return null
+        val catalog = app.dshRepository.hostSettings.modelCatalogFlow.value
+        val resolved = resolveAutomationModel(a, catalog, automationDefault(AutomationStore.defaultModel, app.settingsRepository.settingsFlow.value, catalog)) ?: return null
+        if (resolved != a) AutomationStore.upsert(resolved)
         return Triple(resolved.modelId!!, resolved.providerId, resolved.reasoningEffort)
     }
 
@@ -356,9 +363,11 @@ internal fun DshAutomationRoute(
     val reasoning = com.dsh.feature.chat.ReasoningLevel.entries.map { context.getString(it.labelResId) }
     androidx.compose.runtime.LaunchedEffect(Unit) { HostSchedules.refresh?.invoke() }
     val modelCatalog by app.dshRepository.hostSettings.modelCatalogFlow.collectAsState()
-    androidx.compose.runtime.LaunchedEffect(modelCatalog, AutomationStore.defaultModel) {
+    val appSettings by app.settingsRepository.settingsFlow.collectAsState()
+    val default = automationDefault(AutomationStore.defaultModel, appSettings, modelCatalog)
+    androidx.compose.runtime.LaunchedEffect(modelCatalog, default) {
         AutomationStore.items.filter { it.model.isBlank() }.forEach { legacy ->
-            resolveAutomationModel(legacy, modelCatalog, AutomationStore.defaultModel)?.let(AutomationStore::upsert)
+            resolveAutomationModel(legacy, modelCatalog, default)?.let(AutomationStore::upsert)
         }
     }
     var scheduleTick by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
@@ -368,13 +377,22 @@ internal fun DshAutomationRoute(
             @Suppress("UNUSED_VARIABLE") val tick = scheduleTick
             return AutomationStore.get(id)?.let { AutomationScheduler.status(context, it) }.orEmpty()
         }
-        override fun save(a: Automation) {
-            val selected = resolveAutomationModel(a, modelCatalog, AutomationStore.defaultModel) ?: a
+        override fun save(a: Automation): Boolean {
+            val selected = resolveAutomationModel(a, modelCatalog, default) ?: run {
+                toast.show(context.getString(R.string.au_run_no_model))
+                return false
+            }
             AutomationStore.upsert(selected)
             AutomationScheduler.schedule(context, selected)
+            return true
         }
         override fun delete(id: String) { AutomationScheduler.cancel(context, id); AutomationStore.delete(id) }
         override fun runNow(id: String) {
+            val a = AutomationStore.get(id) ?: return
+            val selected = resolveAutomationModel(a, modelCatalog, default) ?: run {
+                toast.show(context.getString(R.string.au_run_no_model)); return
+            }
+            AutomationStore.upsert(selected)
             AutomationStore.get(id)?.let { toast.show(context.getString(R.string.au_run_started, it.name)) }
             app.applicationScope.launch { AutomationRunner.run(app, id, 0) }
         }
@@ -385,9 +403,13 @@ internal fun DshAutomationRoute(
         com.dsh.feature.settings.ui.AgentTask(s.id, s.title.ifBlank { s.prompt.take(60) }, scheduleText(context, s), s.sessionId.ifBlank { null })
     }
     com.dsh.feature.settings.ui.AutomationHomeScreen(
-        items = AutomationStore.items, onClose = onClose, actions = actions, agentTasks = tasks, projects = projects,
-        models = models.map { it.substringBefore(" · ") }.distinct(), reasoningLevels = reasoning,
-        defaultModel = AutomationStore.defaultModel, toast = toast,
+        items = AutomationStore.items.map { a ->
+            val group = modelCatalog.groups.find { it.id == a.providerId }
+            val model = group?.models?.find { it.id == a.modelId }
+            if (group != null && model != null) a.copy(model = automationModelLabel(modelCatalog, group, model)) else a
+        }, onClose = onClose, actions = actions, agentTasks = tasks, projects = projects,
+        models = modelCatalog.groups.flatMap { group -> group.models.map { automationModelLabel(modelCatalog, group, it) } }, reasoningLevels = reasoning,
+        defaultModel = default, toast = toast,
     )
 }
 

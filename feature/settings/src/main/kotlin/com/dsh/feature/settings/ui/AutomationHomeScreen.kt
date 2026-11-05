@@ -76,7 +76,7 @@ import java.time.ZoneId
 /** Действия «Автоматизации». */
 interface AutomationActions {
     fun scheduleStatus(id: String): String = ""
-    fun save(a: Automation) {}
+    fun save(a: Automation): Boolean = true
     fun delete(id: String) {}
     fun runNow(id: String) {}
     fun openSession(sessionId: String) {}
@@ -156,7 +156,8 @@ fun AutomationHomeScreen(
                         KBtn(
                             stringResource(R.string.au_done), {
                                 val d = draft ?: return@KBtn
-                                actions.save(d); fresh = d.id; draft = null
+                                if (!actions.save(d)) return@KBtn
+                                fresh = d.id; draft = null
                                 stack.resetTo(AuPage.List)
                                 toast.show(savedMsg.format(d.name, whenFmt(d).lowercase()))
                             },
@@ -171,7 +172,7 @@ fun AutomationHomeScreen(
             ToastHost(toast)
             KSheet(sheet == "model", onDismiss = { sheet = null }) {
                 val a = current()
-                if (a != null) ModelPickSheet(stringResource(R.string.au_model), models, a.model, reasoningLevels, a.reasoning) { m, r -> update(a.copy(model = m, reasoning = r)); sheet = null }
+                if (a != null) ModelPickSheet(stringResource(R.string.au_model), models, a.model, reasoningLevels, a.reasoning) { m, r -> update(a.copy(model = m, reasoning = r, modelId = null, providerId = null, reasoningEffort = null)); sheet = null }
             }
             KSheet(sheet == "project", onDismiss = { sheet = null }) {
                 val a = current()

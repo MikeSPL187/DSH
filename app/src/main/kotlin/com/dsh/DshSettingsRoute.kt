@@ -313,7 +313,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         models = d.availableModels,
         reasoningLevels = reasoningLabels,
         reasoningIndex = reasoningIndex,
-        autoModelName = d.automationModel.first.ifBlank { d.availableModels.firstOrNull().orEmpty() },
+        autoModelName = automationDefault(d.automationModel, settings, d.repository.hostSettings.modelCatalogFlow.value).first,
         autoReasoningIndex = d.automationModel.second,
         pluginsOn = d.pluginsOn,
         automationsOn = d.automationsOn,
@@ -354,6 +354,13 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         codeSize = DshUserPrefs.codeSize,
         haptics = DshUserPrefs.haptics,
         hostRunning = running,
+        hostStopReason = when (status?.stopReason) {
+            com.dsh.runtime.host.HostStopReason.IDLE -> com.dsh.core.model.Tr.t("Sleeping after inactivity", "Спит после простоя")
+            com.dsh.runtime.host.HostStopReason.UI_CLOSED -> com.dsh.core.model.Tr.t("Stopped after closing the app", "Остановлен после закрытия приложения")
+            com.dsh.runtime.host.HostStopReason.TASKS_FINISHED -> com.dsh.core.model.Tr.t("Background tasks finished", "Фоновые задачи завершены")
+            com.dsh.runtime.host.HostStopReason.USER -> com.dsh.core.model.Tr.t("Stopped by you", "Остановлен вами")
+            else -> null
+        },
         hostUptime = if (running && runningSince > 0) uptime(context, now - runningSince) else null,
         hostMemory = mem?.let { com.dsh.feature.settings.ui.formatBytes(it, context.resources.getStringArray(com.dsh.feature.settings.R.array.st_units)) },
         hostMemoryFraction = mem?.let { (it.toDouble() / totalRam).toFloat() } ?: 0f,

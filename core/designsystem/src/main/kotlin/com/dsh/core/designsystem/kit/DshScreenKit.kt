@@ -830,7 +830,7 @@ fun KSheet(visible: Boolean, onDismiss: () -> Unit, content: @Composable ColumnS
         }
         AnimatedVisibility(
             visible,
-            modifier = Modifier.align(Alignment.BottomCenter),
+            modifier = Modifier.align(Alignment.BottomCenter).imePadding().statusBarsPadding(),
             enter = slideInVertically(DshMotion.smooth()) { it + it / 20 },
             exit = slideOutVertically(DshMotion.smooth()) { it + it / 20 },
         ) {

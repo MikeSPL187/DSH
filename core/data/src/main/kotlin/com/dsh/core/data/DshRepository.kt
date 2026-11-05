@@ -237,9 +237,10 @@ class DshRepository(
      * Остановить ход. Сессия перестаёт считаться идущей только после согласия Host: при сбое
      * агент продолжает работать, и «Агент работает» не должен пропасть.
      */
-    suspend fun cancelSession(hostId: String, sessionId: String): Boolean {
+    suspend fun cancelSession(hostId: String, sessionId: String, stopJobsSince: Long? = null): Boolean {
         val stopped = client.cancelSession(hostId, sessionId)
         if (stopped) runningSessionIdsFlow.update { it - sessionId }
+        if (stopped && stopJobsSince != null) return tasks.cancelRunJobs(hostId, sessionId, stopJobsSince)
         return stopped
     }
 

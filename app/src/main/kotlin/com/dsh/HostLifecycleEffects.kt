@@ -10,6 +10,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.dsh.runtime.host.HostProcessRunner
 import com.dsh.runtime.host.HostRuntimeManager
+import com.dsh.runtime.host.RuntimePhase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -61,13 +62,12 @@ internal fun IdleHostStopEffect(
     val isBusy by rememberUpdatedState(busy)
     val notify by rememberUpdatedState(notificationsEnabled)
     val currentWorkspace by rememberUpdatedState(workspace)
-    var stoppedForIdle by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         var warnedFor = -1L
         while (true) {
             delay(30_000)
             val last = UserActivity.lastInteraction.value
-            val now = System.currentTimeMillis()
+            val now = android.os.SystemClock.elapsedRealtime()
             val phase = runner.statusFlow.value.phase
             if (notify && warnedFor != last && idleWarningDue(minutes, phase, isBusy, last, now)) {
                 warnedFor = last
@@ -75,17 +75,20 @@ internal fun IdleHostStopEffect(
             }
             if (shouldIdleStopHost(minutes, phase, isBusy, last, now)) {
                 DshNotifications.cancelIdleWarning(context)
-                stoppedForIdle = true
-                withContext(Dispatchers.IO) { runCatching { runtimeManager.stop() } }
+                UserActivity.stoppedForIdle = true
+                withContext(Dispatchers.IO) { runCatching { runtimeManager.stop(com.dsh.runtime.host.HostStopReason.IDLE) } }
+                if (UserActivity.lastInteraction.value != last) UserActivity.touch()
             }
         }
     }
     LaunchedEffect(Unit) {
         UserActivity.lastInteraction.collect {
             DshNotifications.cancelIdleWarning(context)
-            if (stoppedForIdle) {
-                stoppedForIdle = false
-                withContext(Dispatchers.IO) { runCatching { runtimeManager.start(currentWorkspace.absolutePath) } }
+            val status = runner.statusFlow.value
+            if (UserActivity.stoppedForIdle && status.phase == RuntimePhase.STOPPED) {
+                UserActivity.stoppedForIdle = false
+                if (status.stopReason == com.dsh.runtime.host.HostStopReason.IDLE)
+                    withContext(Dispatchers.IO) { runCatching { runtimeManager.start(currentWorkspace.absolutePath) } }
             }
         }
     }

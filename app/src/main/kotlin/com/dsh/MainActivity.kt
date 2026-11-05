@@ -188,7 +188,7 @@ class MainActivity : ComponentActivity() {
             } else {
                 Thread {
                     kotlinx.coroutines.runBlocking {
-                        runCatching { app.runtimeManager.stop() }
+                        if (!UserActivity.isForeground) runCatching { app.runtimeManager.stop(com.dsh.runtime.host.HostStopReason.UI_CLOSED) }
                     }
                 }.start()
             }

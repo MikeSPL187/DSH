@@ -71,6 +71,7 @@ import com.dsh.core.designsystem.Dsh
 import com.dsh.core.designsystem.DshGlyphs
 import com.dsh.feature.settings.R
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.ensureActive
 import com.dsh.core.designsystem.kit.DeviceSignInSheetBody
 
 /** Страницы «Настроек» (как `PAGES` в прототипе). */
@@ -177,6 +178,7 @@ data class SettingsUi(
     val haptics: Boolean = true,
     // Host
     val hostRunning: Boolean = false,
+    val hostStopReason: String? = null,
     val hostUptime: String? = null,
     val hostMemory: String? = null,
     val hostMemoryFraction: Float = 0f,
@@ -638,6 +640,8 @@ private fun ModelsPage(ui: SettingsUi, a: SettingsActions, toast: ToastState, on
 @Composable
 private fun KeySheet(custom: Boolean, a: SettingsActions, toast: ToastState, close: () -> Unit) {
     val scope = rememberCoroutineScope()
+    val focus = androidx.compose.ui.platform.LocalFocusManager.current
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val clipboard = LocalClipboardManager.current
     var name by rememberSaveable { mutableStateOf("") }
     var url by rememberSaveable { mutableStateOf("https://") }
@@ -645,16 +649,25 @@ private fun KeySheet(custom: Boolean, a: SettingsActions, toast: ToastState, clo
     var shown by remember { mutableStateOf(false) }
     var state by remember { mutableStateOf<KeyState?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var checked by remember { mutableStateOf<Pair<String?, String>?>(null) }
     // Адрес своего API, введённый до конца (поле потеряло фокус или нажато «Готово»): ключ уходит только на него —
     // пауза в наборе `https://openai.co…` отправила бы ключ на чужой домен.
     var committedUrl by rememberSaveable { mutableStateOf("") }
     LaunchedEffect(key, url, committedUrl) {
         state = null
+        checked = null
+        busy = false
         if (key.isBlank()) return@LaunchedEffect
         if (custom && url.trim() != committedUrl) return@LaunchedEffect
         kotlinx.coroutines.delay(400)
         busy = true
-        state = a.checkKey(if (custom) committedUrl else null, key.trim())
+        val input = (if (custom) committedUrl else null) to key.trim()
+        val result = try { a.checkKey(input.first, input.second) }
+            catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (_: Exception) { KeyState.Offline }
+        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        checked = input
+        state = result
         busy = false
     }
     SheetTitle(stringResource(if (custom) R.string.st_custom else R.string.st_key_replace))
@@ -667,6 +680,7 @@ private fun KeySheet(custom: Boolean, a: SettingsActions, toast: ToastState, clo
     }
     Field(
         key, { key = it }, stringResource(R.string.st_key_field), secret = !shown, keyboard = KeyboardType.Password,
+        onCommit = { keyboard?.hide() },
         trailing = {
             IconBtn(DshGlyphs.Eye, stringResource(if (shown) R.string.st_key_hide else R.string.st_key_show), size = 40.dp, iconSize = 18.dp, tint = Dsh.colors.t3) { shown = !shown }
             KBtn(stringResource(R.string.st_key_paste), {
@@ -686,7 +700,9 @@ private fun KeySheet(custom: Boolean, a: SettingsActions, toast: ToastState, clo
         if (busy) Spinner(color, 13.dp) else Icon(if (state == KeyState.Ok) DshGlyphs.Check else if (state == KeyState.Bad) DshGlyphs.Alert else DshGlyphs.Lock, null, tint = color, modifier = Modifier.size(15.dp))
         Text(msg, style = small(12.5.sp, 17.sp), color = color)
     }
-    val okToSave = !busy && key.isNotBlank() && state != KeyState.Bad && (!custom || (name.isNotBlank() && url.startsWith("https://") && url.length > 9))
+    fun accepted(): Boolean = !busy && checked == ((if (custom) url.trim() else null) to key.trim()) &&
+        (state == KeyState.Ok || (state == KeyState.Offline && key.trim().length >= 16)) &&
+        (!custom || (name.isNotBlank() && committedUrl == url.trim() && url.startsWith("https://") && url.length > 9))
     val saved = stringResource(R.string.st_key_saved)
     val failed = stringResource(R.string.st_key_save_failed)
     var saving by remember { mutableStateOf(false) }
@@ -694,14 +710,23 @@ private fun KeySheet(custom: Boolean, a: SettingsActions, toast: ToastState, clo
         KBtn(stringResource(R.string.st_cancel), close, Modifier.weight(1f))
         KBtn(
             stringResource(R.string.st_save), {
+                focus.clearFocus()
+                keyboard?.hide()
+                if (saving || !accepted()) return@KBtn
+                val savedKey = key.trim()
+                val savedUrl = url.trim()
+                val savedName = name.trim()
                 saving = true
                 scope.launch {
-                    val ok = if (custom) a.addProvider(name.trim(), url.trim(), key.trim()) else a.saveKey(key.trim())
-                    saving = false
+                    val ok = try {
+                        if (custom) a.addProvider(savedName, savedUrl, savedKey) else a.saveKey(savedKey)
+                    } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                      catch (_: Exception) { false }
+                      finally { saving = false }
                     if (ok) { key = ""; toast.show(saved); close() } else toast.show(failed)
                 }
             },
-            Modifier.weight(1f), kind = BtnKind.Primary, enabled = okToSave, busy = saving,
+            Modifier.weight(1f), kind = BtnKind.Primary, enabled = accepted() && !saving, busy = saving,
         )
     }
 }
@@ -986,7 +1011,7 @@ private fun HostPage(ui: SettingsUi, a: SettingsActions, toast: ToastState) {
                     Text(stringResource(R.string.st_host_local), style = display(18.sp, 23.sp), color = Dsh.colors.t1)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                         LiveDot(ui.hostRunning)
-                        val t = if (ui.hostRunning) listOfNotNull(stringResource(R.string.st_host_works), ui.hostUptime).joinToString(" · ") else stringResource(R.string.st_host_off)
+                        val t = if (ui.hostRunning) listOfNotNull(stringResource(R.string.st_host_works), ui.hostUptime).joinToString(" · ") else ui.hostStopReason ?: stringResource(R.string.st_host_off)
                         Text(t, style = small(13.sp, 17.sp), color = if (ui.hostRunning) Dsh.colors.ok else Dsh.colors.t3)
                     }
                 }

@@ -4,6 +4,8 @@ This file records changes to the DSH Mobile Android app. The bridge plugin and r
 
 ## 1.1.4 — unreleased
 
+- QA round 4: protect Replace key from IME overlap and stale validation, inherit the automation model, keep Host tasks through UI recreation, distinguish Host authorization from offline errors, preserve Debian accounts and cancel Android subprocess descendants by identity. New rootfs candidates include curl.
+
 - QA round 3: commit IME input before Continue, retain Settings when returning from Plugins, preserve backup preparation across Activity recreation and grant the recipient access to the ZIP.
 - Show scheduled automation waiting/failure reasons, match real Wi-Fi transport, cancel stopped jobs, prevent duplicate occurrences and retain pending jobs across application starts.
 - Resolve automation models consistently by provider/model IDs; reject ambiguous names and remove silent first-model fallback. See [round 3 verification](docs/qa/QA_ROUND3_1.1.4.ru.md).

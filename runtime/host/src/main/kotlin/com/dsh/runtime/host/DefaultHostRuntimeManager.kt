@@ -1111,11 +1111,15 @@ class DefaultHostRuntimeManager(
 
     override suspend fun stop(): Result<Unit> = lifecycle.stopping { stopLocked() }
 
-    private suspend fun stopLocked(): Result<Unit> = withContext(Dispatchers.IO) {
+    override suspend fun stop(reason: HostStopReason): Result<Unit> = lifecycle.stopping { stopLocked(reason) }
+
+    private suspend fun stopLocked(reason: HostStopReason = HostStopReason.USER): Result<Unit> = withContext(Dispatchers.IO) {
+        if (reason in setOf(HostStopReason.UI_CLOSED, HostStopReason.TASKS_FINISHED) &&
+            HostRuntimeHolder.isUiVisible?.invoke() == true) return@withContext Result.success(Unit)
         bridgeServer?.stop()
         bridgeServer = null
 
-        val result = runner.terminate()
+        val result = runner.terminate(reason)
         val serviceIntent = Intent(context, HostService::class.java).apply {
             action = HostService.ACTION_STOP
         }

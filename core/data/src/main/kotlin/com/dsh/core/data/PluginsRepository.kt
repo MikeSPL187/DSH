@@ -248,7 +248,7 @@ class PluginsRepository internal constructor(
 
     /**
      * Перечитать каталог плагинов из моста. Ошибка — не исключение: каталог становится
-     * `source = NONE`, причина — в [bridgeWarningsFlow]. Пока мост не привязан (Host
+     * последним подтверждённым снимком, причина — в [bridgeWarningsFlow]. Пока мост не привязан (Host
      * запускается), замечаний нет: «ещё не готово» — не проблема для пользователя.
      */
     suspend fun refreshBridgePluginCatalog(iconSize: Int = BridgePluginCatalog.DEFAULT_ICON_SIZE) {
@@ -259,7 +259,8 @@ class PluginsRepository internal constructor(
             return
         }
         val result = BridgePluginCatalog.load(registry, iconSize, Locale.getDefault().toLanguageTag())
-        _bridgePluginCatalogFlow.value = result.catalog
+        // A failed poll must not replace the last confirmed inventory with an empty one.
+        if (result.catalog.source != BridgePluginCatalogSource.NONE) _bridgePluginCatalogFlow.value = result.catalog
         _bridgeWarningsFlow.value = result.warnings
     }
 

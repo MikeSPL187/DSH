@@ -117,7 +117,7 @@ class ChatSender(
             submissionOrder = submission.order,
             conversationId = outgoing.conversationId.ifBlank { ui.pendingChatId },
         )
-        scope.launch {
+        (context.applicationContext as DshApplication).applicationScope.launch {
             runtimeUi.isSending = true
             try {
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
@@ -144,6 +144,12 @@ class ChatSender(
 
     /** Отправить; null — Host принял prompt, иначе причина отказа. */
     private suspend fun deliver(outgoing: SavedPrompt, localId: String): String? {
+        val connectivity = context.getSystemService(android.net.ConnectivityManager::class.java)
+        val network = connectivity?.activeNetwork
+        if (network == null || connectivity.getNetworkCapabilities(network)
+                ?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) != true) {
+            return com.dsh.core.model.Tr.t("No network connection. Connect and retry.", "Нет подключения к сети. Подключитесь и повторите.")
+        }
         var sid = outgoing.sessionId ?: journal.sessionForConversation(outgoing.hostId, outgoing.conversationId)
         var createdSession = false
         // Открытая сессия используется всегда. liveSessionIds значит только

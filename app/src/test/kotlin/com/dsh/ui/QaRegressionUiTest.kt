@@ -3,6 +3,8 @@ package com.dsh.ui
 import android.app.Application
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.SemanticsActions
@@ -208,6 +210,62 @@ class QaRegressionUiTest {
         compose.runOnIdle { assertEquals("demo" + fixture.drop(3), value) }
         compose.onNode(hasSetTextAction()).performSemanticsAction(SemanticsActions.SetText) { it(androidx.compose.ui.text.AnnotatedString("external")) }
         compose.runOnIdle { assertEquals("external", value) }
+    }
+
+    @Test fun replaceKeySaveCommitsOnlyTheValidatedValueAndKeepsSecretsMasked() {
+        val key = "qa-only-replacement-123456789"
+        var validated = ""
+        var saved: String? = null
+        val ctx = compose.activity
+        compose.setContent {
+            DshTheme {
+                com.dsh.feature.settings.ui.SettingsHomeScreen(
+                    com.dsh.feature.settings.ui.SettingsUi(), {}, initialSheet = "key",
+                    actions = object : com.dsh.feature.settings.ui.SettingsActions {
+                        override suspend fun checkKey(baseUrl: String?, key: String): com.dsh.feature.settings.ui.KeyState {
+                            validated = key
+                            return com.dsh.feature.settings.ui.KeyState.Ok
+                        }
+                        override suspend fun saveKey(key: String): Boolean { saved = key; return true }
+                    },
+                )
+            }
+        }
+        settle()
+        compose.onNode(hasSetTextAction() and androidx.compose.ui.test.hasContentDescription(compose.activity.getString(com.dsh.feature.settings.R.string.st_key_field))).performTextInput(key)
+        settle()
+        compose.onNode(hasSetTextAction() and androidx.compose.ui.test.hasContentDescription(compose.activity.getString(com.dsh.feature.settings.R.string.st_key_field))).performImeAction()
+        settle()
+        compose.onNodeWithText(ctx.getString(com.dsh.feature.settings.R.string.st_save)).performScrollTo().performClick()
+        settle()
+        compose.runOnIdle { assertEquals(key, validated); assertEquals(key, saved) }
+    }
+
+    @Test fun replaceKeyCannotSaveBeforeTheCurrentValidationFinishes() {
+        val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+        var saved: String? = null
+        compose.setContent {
+            DshTheme {
+                com.dsh.feature.settings.ui.SettingsHomeScreen(
+                    com.dsh.feature.settings.ui.SettingsUi(), {}, initialSheet = "key",
+                    actions = object : com.dsh.feature.settings.ui.SettingsActions {
+                        override suspend fun checkKey(baseUrl: String?, key: String): com.dsh.feature.settings.ui.KeyState {
+                            release.await(); return com.dsh.feature.settings.ui.KeyState.Ok
+                        }
+                        override suspend fun saveKey(key: String): Boolean { saved = key; return true }
+                    },
+                )
+            }
+        }
+        settle()
+        compose.onNode(hasSetTextAction() and androidx.compose.ui.test.hasContentDescription(compose.activity.getString(com.dsh.feature.settings.R.string.st_key_field))).performTextInput("qa-pending-replacement-123456")
+        settle()
+        compose.onNodeWithText(compose.activity.getString(com.dsh.feature.settings.R.string.st_save))
+            .assertIsNotEnabled()
+        compose.runOnIdle { assertEquals(null, saved); release.complete(Unit) }
+        settle()
+        compose.onNodeWithText(compose.activity.getString(com.dsh.feature.settings.R.string.st_save))
+            .assertIsEnabled()
     }
 
 }

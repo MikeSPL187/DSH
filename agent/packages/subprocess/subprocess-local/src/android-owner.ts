@@ -13,7 +13,6 @@ import type { ProcessIdentity, ProcessInspector } from './process-inspector.ts'
 export function androidProcessOwner(pid: number, inspector: ProcessInspector): BoundProcessOwner {
   const owned = new Map<number, ProcessIdentity>()
   let stopped = false
-  let observation: Promise<void> | undefined
   const scan = (): ProcessIdentity[] => {
     if (stopped) return []
     const snapshot = inspector.snapshot()
@@ -27,11 +26,14 @@ export function androidProcessOwner(pid: number, inspector: ProcessInspector): B
     for (const identity of scan()) inspector.signalProcess(identity, value)
   }
   scan()
+  // Observe while the leader still exists; waiting only after direct exit loses reparented children.
+  const observation = (async () => {
+    while (scan().length > 0) await sleep(15)
+  })()
+  void observation.catch((_error: unknown) => { /* waitForExit reports observation failure to the owner. */ })
   return {
     signal,
-    waitForExit: () => observation ??= (async () => {
-      while (scan().length > 0) await sleep(15)
-    })(),
+    waitForExit: () => observation,
     terminateForHostExit: () => { signal('SIGKILL') },
   }
 }

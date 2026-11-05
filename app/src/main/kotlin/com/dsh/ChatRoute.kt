@@ -256,7 +256,10 @@ internal fun ChatRoute(d: ChatDeps) {
                 if (repository.context.stopSubagent(hostId, view.parentSessionId, view.childSessionId).isFailure) toast(context.getString(R.string.stop_failed), long = true)
             } else withSession {
                 // Host не подтвердил остановку — агент продолжает работать: сказать, а не прятать индикатор.
-                if (!repository.cancelSession(hostId, it)) toast(context.getString(R.string.stop_failed), long = true)
+                val since = (context.applicationContext as DshApplication).chatRunJournal.records.value
+                    .filter { request -> request.hostId == hostId && request.sessionId == it && request.status in ChatRunJournal.ACTIVE }
+                    .minOfOrNull { request -> request.createdAt }
+                if (!repository.cancelSession(hostId, it, since)) toast(context.getString(R.string.stop_failed), long = true)
             }
         },
         selectedModel = model.name,

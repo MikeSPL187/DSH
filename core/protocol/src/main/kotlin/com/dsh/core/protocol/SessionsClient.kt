@@ -424,9 +424,17 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
             client.newCall(request).execute().use { response ->
                 val body = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
+                    if (response.code == 401 || response.code == 403) {
+                        val renewed = conn.renewAuthentication()
+                        return@withContext RemoteResult.Failure(
+                            "dsh/auth/expired",
+                            if (renewed) com.dsh.core.model.Tr.t("Host connection renewed. Retry your message.", "Подключение к Host восстановлено. Повторите сообщение.")
+                            else com.dsh.core.model.Tr.t("Host authorization expired. Reconnect to the Host and retry.", "Авторизация Host истекла. Переподключитесь к Host и повторите."),
+                        )
+                    }
                     return@withContext RemoteResult.Failure(
                         "dsh/remote/error",
-                        "Send message failed, HTTP ${response.code}"
+                        com.dsh.core.model.Tr.t("Host rejected the message (HTTP ${response.code}). You can retry.", "Host отклонил сообщение (HTTP ${response.code}). Можно повторить.")
                     )
                 }
                 if (confirmedResult(body) == null) {

@@ -41,6 +41,10 @@ import java.io.File
  */
 internal class BundleSelection(context: Context) {
     private val prefs = context.getSharedPreferences(PLUGIN_SELECTION_PREFS, Context.MODE_PRIVATE)
+    init {
+        if (!prefs.contains(PLUGIN_SELECTION_KEY)) prefs.edit().putStringSet(PLUGIN_SELECTION_KEY,
+            setOf("@deepseek-ai/dsh-experimental-terminal-bundle")).apply()
+    }
 
     fun set(name: String, enabled: Boolean) {
         val current = enabled().toMutableSet()
@@ -208,7 +212,7 @@ internal fun PluginPollingEffect(ui: AppUiState, repository: DshRepository, runn
             ticks += 1
             // Одна ошибка (Host перезапускается, мост не ответил) не должна остановить цикл навсегда.
             runCatching {
-                if (ticks % 4 == 0) {
+                if (ticks % 4 == 1) {
                     plugins.refreshBridgePluginCatalog()
                     val catalog = plugins.bridgePluginCatalogFlow.value
                     val missing = selection.enabled().filter { name ->

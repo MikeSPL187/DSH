@@ -1,6 +1,8 @@
 package com.dsh
 
 import com.dsh.runtime.host.RuntimePhase
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -9,16 +11,19 @@ import kotlinx.coroutines.flow.StateFlow
  * Обновляется из [MainActivity.onUserInteraction].
  */
 internal object UserActivity {
-    private val _lastInteraction = MutableStateFlow(System.currentTimeMillis())
+    private val _lastInteraction = MutableStateFlow(android.os.SystemClock.elapsedRealtime())
     val lastInteraction: StateFlow<Long> = _lastInteraction
 
-    fun touch(now: Long = System.currentTimeMillis()) {
+    fun touch(now: Long = android.os.SystemClock.elapsedRealtime()) {
         _lastInteraction.value = now
     }
 
     /** Видна ли сейчас Activity (между onResume и onPause). */
     @Volatile
     var isForeground: Boolean = false
+
+    /** Owned by the application, so Activity recreation cannot forget how to wake the Host. */
+    var stoppedForIdle by androidx.compose.runtime.mutableStateOf(false)
 }
 
 /**

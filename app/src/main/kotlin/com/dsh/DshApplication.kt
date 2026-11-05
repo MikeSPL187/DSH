@@ -180,7 +180,14 @@ class DshApplication : Application() {
             runner = hostRunner
         )
         HostRuntimeHolder.manager = runtimeManager
-        HostRuntimeHolder.hasRunningTasks = { dshRepository.runningSessionIdsFlow.value.isNotEmpty() }
+        HostRuntimeHolder.hasRunningTasks = {
+            dshRepository.runningSessionIdsFlow.value.isNotEmpty() ||
+                chatRunJournal.records.value.any { it.status in ChatRunJournal.ACTIVE } ||
+                dshRepository.tasks.jobsFlow.value.any { it.finishedAt == null } ||
+                dshRepository.approvals.pendingQuestionsFlow.value.isNotEmpty() ||
+                com.dsh.terminal.TerminalHub.anyLive()
+        }
+        HostRuntimeHolder.isUiVisible = { UserActivity.isForeground }
         // Host прогревается при открытии интерфейса (MainAppHost, StartupGate), а не здесь (G-39): процесс поднимается
         // и ради JobScheduler в фоне, где foreground-служба запрещена (Android 12+), — proot и Node работали бы без
         // службы и уведомления. Миграция папки Default — там же, перед прогревом. Автоматизации запускают Host сами.
