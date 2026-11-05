@@ -193,4 +193,21 @@ class QaRegressionUiTest {
         }
     }
 
+    @Test fun rapidInputBeforeRecompositionKeepsEveryCharacterAndSelection() {
+        val fixture = "qa-burst-0123456789"
+        var value by mutableStateOf("")
+        compose.setContent {
+            DshTheme { com.dsh.core.designsystem.ProtectedTextField(value, { value = it }, label = "API key") }
+        }
+        compose.onNode(hasSetTextAction()).performSemanticsAction(SemanticsActions.InsertTextAtCursor) { insert ->
+            fixture.forEach { insert(androidx.compose.ui.text.AnnotatedString(it.toString())) }
+        }
+        compose.runOnIdle { assertEquals(fixture, value) }
+        compose.onNode(hasSetTextAction()).performSemanticsAction(SemanticsActions.SetSelection) { it(0, 3, false) }
+        compose.onNode(hasSetTextAction()).performSemanticsAction(SemanticsActions.InsertTextAtCursor) { it(androidx.compose.ui.text.AnnotatedString("demo")) }
+        compose.runOnIdle { assertEquals("demo" + fixture.drop(3), value) }
+        compose.onNode(hasSetTextAction()).performSemanticsAction(SemanticsActions.SetText) { it(androidx.compose.ui.text.AnnotatedString("external")) }
+        compose.runOnIdle { assertEquals("external", value) }
+    }
+
 }

@@ -41,7 +41,14 @@ fun ProtectedTextField(
     keyboardActions: KeyboardActions = KeyboardActions.Default,
 ) {
     var field by remember { mutableStateOf(TextFieldValue(value)) }
-    val current = if (field.text == value) field else TextFieldValue(value, TextRange(field.selection.end.coerceIn(0, value.length)))
+    // Match BasicTextField(String)'s bridge in Compose 1.7.8: never discard IME composition
+    // and compare callbacks with the last emitted text, rather than a captured parent value.
+    val current = field.copy(text = value)
+    SideEffect {
+        if (current.selection != field.selection || current.composition != field.composition) field = current
+    }
+    var lastText by remember(value) { mutableStateOf(value) }
+    fun editableValue(): TextFieldValue = if (field.text == lastText) field else current
     val focus = remember { FocusRequester() }
     var hasFocus by remember { mutableStateOf(false) }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -62,19 +69,23 @@ fun ProtectedTextField(
         editableText = AnnotatedString("•".repeat(value.length))
         textSelectionRange = current.selection
         focused = hasFocus
-        setText { field = TextFieldValue(it.text, TextRange(it.length)); onValueChange(it.text); true }
+        setText { field = TextFieldValue(it.text, TextRange(it.length)); lastText = it.text; onValueChange(it.text); true }
         insertTextAtCursor {
-            val next = value.replaceRange(current.selection.min, current.selection.max, it.text)
-            field = TextFieldValue(next, TextRange(current.selection.min + it.length))
+            val base = editableValue()
+            val next = base.text.replaceRange(base.selection.min, base.selection.max, it.text)
+            field = TextFieldValue(next, TextRange(base.selection.min + it.length))
+            lastText = next
             onValueChange(next)
             true
         }
         setSelection { start, end, _ ->
-            field = current.copy(selection = TextRange(start.coerceIn(0, value.length), end.coerceIn(0, value.length)))
+            val base = editableValue()
+            field = base.copy(selection = TextRange(start.coerceIn(0, base.text.length), end.coerceIn(0, base.text.length)))
+            lastText = base.text
             true
         }
         onImeAction(keyboardOptions.imeAction) {
-            field = current.copy(composition = null)
+            field = editableValue().copy(composition = null)
             val callback = when (keyboardOptions.imeAction) {
                 ImeAction.Done -> keyboardActions.onDone
                 ImeAction.Go -> keyboardActions.onGo
@@ -91,7 +102,12 @@ fun ProtectedTextField(
         onClick { focus.requestFocus(); keyboard?.show(); true }
     }
     BasicTextField(
-        current, { field = it; if (it.text != value) onValueChange(it.text) },
+        current, {
+            field = it
+            val changed = lastText != it.text
+            lastText = it.text
+            if (changed) onValueChange(it.text)
+        },
         modifier.then(protected).focusRequester(focus).onFocusChanged { hasFocus = it.isFocused; if (!it.isFocused) field = field.copy(composition = null) },
         singleLine = singleLine,
         textStyle = if (secret && revealed) textStyle.copy(color = Color.Transparent) else textStyle,
