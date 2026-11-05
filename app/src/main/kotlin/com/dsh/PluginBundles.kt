@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
@@ -198,11 +199,13 @@ internal fun HostRestartBridgeEffect(hostId: String, repository: DshRepository, 
 @Composable
 internal fun PluginPollingEffect(ui: AppUiState, repository: DshRepository, runner: HostProcessRunner, selection: BundleSelection) {
     val context = LocalContext.current
-    val restored = remember { mutableSetOf<String>() }
     val sessionId by rememberUpdatedState(ui.selectedSessionId)
     val hostId by rememberUpdatedState(ui.activeHostId)
+    val localStatus by runner.statusFlow.collectAsState()
     val plugins = repository.plugins
-    LaunchedEffect(Unit) {
+    LaunchedEffect(hostId, localStatus.pid, localStatus.phase == RuntimePhase.RUNNING) {
+        // The profile can reset on every Host start, not just on Activity creation.
+        val restored = mutableSetOf<String>()
         var ticks = 0
         while (true) {
             delay(4_000)
