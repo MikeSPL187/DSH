@@ -410,7 +410,10 @@ data class PluginInstallProgressInfo(
 /** Слот моста для нативной страницы настроек. */
 private const val SETTINGS_PAGE_SLOT = "settings.page"
 
+/** Preserve the Host error category across the Result-based repository API. */
+class HostRequestException(val code: String, message: String) : IllegalStateException(message)
+
 internal fun <T> RemoteResult<T>.toResult(): Result<T> = when (this) {
     is RemoteResult.Success -> Result.success(data)
-    is RemoteResult.Failure -> Result.failure(IllegalStateException(message))
+    is RemoteResult.Failure -> Result.failure(HostRequestException(code, message))
 }

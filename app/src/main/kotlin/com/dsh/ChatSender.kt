@@ -128,7 +128,7 @@ class ChatSender(
                 val error = deliver(request, request.id)
                 if (error != null) {
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        journal.update(request.id) { it.copy(status = com.dsh.core.model.RunStatus.FAILED, error = friendlySendError(error)) }
+                        journal.update(request.id) { it.copy(status = com.dsh.core.model.RunStatus.FAILED, error = error) }
                     }
                 }
             } catch (cancelled: CancellationException) {
@@ -205,7 +205,7 @@ class ChatSender(
         }
         snapshotBefore(sid, outgoing.prompt)
         return repository.sendMessage(outgoing.hostId, sid, outgoing.prompt, encodedImages)
-            .exceptionOrNull()?.let { it.message.orEmpty() }
+            .exceptionOrNull()?.let { friendlySendError(it.message.orEmpty(), (it as? com.dsh.core.data.HostRequestException)?.code) }
     }
 
     /**
@@ -243,6 +243,7 @@ internal fun sessionTitle(text: String): String {
     return line.take(if (boundary > 0) boundary else 80).trimEnd() + "…"
 }
 
-internal fun friendlySendError(raw: String): String = if (Regex("transport|network|connect|timeout|socket", RegexOption.IGNORE_CASE).containsMatchIn(raw))
+internal fun friendlySendError(raw: String, code: String? = null): String = if (code?.startsWith("dsh/auth/") == true) raw
+else if (Regex("transport|network|connect|timeout|socket", RegexOption.IGNORE_CASE).containsMatchIn(raw))
     com.dsh.core.model.Tr.t("Could not reach the Host or model. Check the connection and retry.", "Нет связи с Host или моделью. Проверьте соединение и повторите.")
 else raw.ifBlank { com.dsh.core.model.Tr.t("The request was not sent. You can retry it.", "Запрос не отправлен. Его можно повторить.") }

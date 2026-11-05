@@ -59,4 +59,9 @@ class Round4BehaviorTest {
             HostRuntimeHolder.hasRunningTasks = null
         }
     }
+    @Test fun hostAuthorizationFailureDoesNotBecomeAGenericNetworkError() {
+        val message = "Host authorization expired. Reconnect to the Host and retry."
+        assertEquals(message, friendlySendError(message, "dsh/auth/expired"))
+    }
+
 }
