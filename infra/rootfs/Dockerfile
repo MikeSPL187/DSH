@@ -70,17 +70,18 @@ RUN set -eu; \
     cp /tmp/agent/package.json /tmp/agent/package-lock.json "$AGENT_DIR/"; \
     cd "$AGENT_DIR"; \
     npm ci --no-audit --no-fund; \
+    node -e 'const fs = require("node:fs"); fs.copyFileSync(require.resolve("@esbuild/linux-" + process.arch + "/bin/esbuild"), "/tmp/esbuild"); fs.chmodSync("/tmp/esbuild", 0o755)'; \
+    npm prune --omit=dev --no-audit --no-fund; \
     node /tmp/overlay-agent.mjs install "$AGENT_DIR" /out/packs /tmp/agent-source-files.json; \
     rm -rf /out
 WORKDIR /usr/local/lib/node_modules/@deepseek-ai/dsh/lib
 # CommonJS внутри ESM (в том числе undici) требует require с опорой на bundle.
-RUN ../node_modules/.bin/esbuild bin.js --bundle --platform=node --format=esm --target=node24 \
+RUN /tmp/esbuild bin.js --bundle --platform=node --format=esm --target=node24 \
       --banner:js='/* dsh-host-bundle-require-v1 */ import { createRequire as __dshHostCreateRequire } from "node:module"; var require = __dshHostCreateRequire(import.meta.url);' \
       --outfile=host.bundle.mjs --external:*.node --external:node:* --log-level=warning \
   && ls -lh host.bundle.mjs
-# В образ — без dev-зависимостей (esbuild и прочее только для сборки).
-RUN cd .. && npm prune --omit=dev --no-audit --no-fund \
-  && node /tmp/overlay-agent.mjs verify /usr/local/lib/node_modules/@deepseek-ai/dsh /tmp/agent-source-files.json
+# Npm reconciliation finishes before overlays: the audit covers exactly the production tree.
+RUN node /tmp/overlay-agent.mjs verify /usr/local/lib/node_modules/@deepseek-ai/dsh /tmp/agent-source-files.json
 
 FROM ${NODE_IMAGE}
 ARG DSH_VERSION
