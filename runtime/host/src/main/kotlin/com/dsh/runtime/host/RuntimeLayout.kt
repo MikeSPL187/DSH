@@ -188,9 +188,9 @@ data class RuntimeLayout(
         // Keep Debian service accounts: replacing the file with root/dsh breaks apt's
         // _apt sandbox and package scripts resolving system users and groups.
         val passwd = identityOverlay(File(rootfsDir, "etc/passwd").takeIf { it.isFile }?.readText()
-            ?: "root:x:0:0:root:/root:/bin/sh\n", "dsh:x:$uid:$gid:dsh:/root:/bin/sh")
+            ?: "root:x:0:0:root:/root:/bin/sh\n", "dsh:x:$uid:$gid:dsh:/root:/bin/sh", passwdOverlay.takeIf { it.isFile }?.readText())
         val group = identityOverlay(File(rootfsDir, "etc/group").takeIf { it.isFile }?.readText()
-            ?: "root:x:0:\n", "dsh:x:$gid:")
+            ?: "root:x:0:\n", "dsh:x:$gid:", groupOverlay.takeIf { it.isFile }?.readText())
         if (!passwdOverlay.isFile || passwdOverlay.readText() != passwd) {
             passwdOverlay.writeText(passwd)
         }
@@ -226,5 +226,10 @@ data class RuntimeLayout(
 
 
 /** Add the Android identity without deleting the distro's package/service accounts. */
-internal fun identityOverlay(base: String, androidEntry: String): String =
-    (base.lineSequence().filter { it.isNotBlank() && it.substringBefore(':') != "dsh" }.toList() + androidEntry).joinToString("\n", postfix = "\n")
+internal fun identityOverlay(base: String, androidEntry: String, previous: String? = null): String {
+    val entries = base.lineSequence().filter { it.isNotBlank() && it.substringBefore(':') != "dsh" }.associateByTo(linkedMapOf()) { it.substringBefore(':') }
+    previous?.lineSequence()?.filter { it.isNotBlank() && it.substringBefore(':') != "dsh" }?.forEach { line ->
+        entries.putIfAbsent(line.substringBefore(':'), line)
+    }
+    return (entries.values + androidEntry).joinToString("\n", postfix = "\n")
+}
