@@ -230,7 +230,9 @@ fun OnboardingScreen(
         check = result
         checking = false
     }
-    val keyAccepted = checkedInput == Triple(provider, baseUrl.trim(), key.trim()) && !checking && (check is KeyCheck.Ok || (check == KeyCheck.Offline && key.trim().length >= 16))
+    fun acceptsCurrentKey(): Boolean = checkedInput == Triple(provider, baseUrl.trim(), key.trim()) &&
+        !checking && (check is KeyCheck.Ok || (check == KeyCheck.Offline && key.trim().length >= 16))
+    val keyAccepted = acceptsCurrentKey()
 
     // Доступ ко всем файлам выдаётся в системных настройках: вернулись с ним — идём дальше.
     LaunchedEffect(sharedAccessGranted, waitingShared) {
@@ -247,7 +249,7 @@ fun OnboardingScreen(
     val onPrimary: () -> Unit
     when (step) {
         0 -> { primaryText = stringResource(R.string.ob_start); primaryEnabled = true; onPrimary = { go(1) } }
-        1 -> { primaryText = stringResource(R.string.ob_continue); primaryEnabled = keyAccepted; onPrimary = { go(2) } }
+        1 -> { primaryText = stringResource(R.string.ob_continue); primaryEnabled = keyAccepted; onPrimary = { if (acceptsCurrentKey()) go(2) } }
         2 -> {
             val ask = shared && !sharedAccessGranted
             primaryText = stringResource(if (ask) R.string.ob_allow else R.string.ob_continue)
@@ -273,7 +275,7 @@ fun OnboardingScreen(
                 if (install.error != null) {
                     onRetryInstall()
                 } else {
-                    val saved = key.trim().takeIf { it.isNotEmpty() && keyAccepted }?.let {
+                    val saved = key.trim().takeIf { it.isNotEmpty() && acceptsCurrentKey() }?.let {
                         OnboardingKey(provider, baseUrl.trim(), it, (check as? KeyCheck.Ok)?.models.orEmpty())
                     }
                     onFinish(saved)
