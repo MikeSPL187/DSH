@@ -1,7 +1,7 @@
 {
   "rootfsName": "dsh-rootfs",
-  "runtimeVersion": "2.0.0-dsh0.2.1-rc.2-bridge2.0.7",
-  "releaseTag": "rootfs-v2.0.0",
+  "runtimeVersion": "2.0.2-dsh0.2.1-rc.2-bridge2.0.7",
+  "releaseTag": "rootfs-v2.0.2",
   "bridgeVersion": "2.0.7",
   "baseDistro": "debian-13-slim",
   "libc": "glibc",
@@ -13,17 +13,18 @@
     "@deepseek-ai/dsh@0.2.1-rc.2",
     "dsh-mobile-bridge-plugin@2.0.7",
     "python3",
-    "git"
+    "git",
+    "curl"
   ],
   "downloadUrls": {
-    "x86_64": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.0/rootfs-x86_64.bin",
-    "arm64-v8a": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.0/rootfs-arm64-v8a.bin"
+    "x86_64": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.2/rootfs-x86_64.bin",
+    "arm64-v8a": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.2/rootfs-arm64-v8a.bin"
   },
   "downloadSha256": {
-    "x86_64": "9A8BDE2A63DE7BF90596805CFF4F4FFF20E3B8B3AF29C6B8DC75A5F18734578A",
-    "arm64-v8a": "819EC29356943718568171C6A4383B25776F2C47E68629A9169C689EC4C352D6"
+    "x86_64": "11B5D4813C8F607C67CF39DF7EDBCEFEDC251489B479859351487F1874C5B59C",
+    "arm64-v8a": "73A0F75ECC98DAA79B1254FF10C7571424AE49956FA92522A889FAC64827C42A"
   },
-  "archiveSizeBytes": 299021794,
+  "archiveSizeBytes": 299902300,
   "prootLibrary": "libproot.so",
   "androidPatched": true
 }
