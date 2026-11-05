@@ -31,12 +31,21 @@ class SnapshotRecoveryTest {
     }
 
     @Test fun historySettlesBeforeCurrentStreamAndBaselineReplacesPartial() {
-        val events = replay("""[{"type":"event","event":{"type":"turn/end","seq":2,"time":100,"data":{"kind":"completed"}}}]""",
+        val events = replay("""[{"type":"event","event":{"type":"turn/end","seq":2,"time":100,"data":{"reason":{"kind":"completed"}}}}]""",
             """{"stream":[{"chunk":{"type":"text-delta","text":"current"}}]}""")
         val baseline = events.filterIsInstance<RemoteEvent.MessageDelta>().single()
         assertTrue(baseline.baseline)
         assertEquals("current", baseline.delta)
         assertTrue(events.indexOf(baseline) > events.indexOfFirst { it is RemoteEvent.SessionRunning && !it.running })
+    }
+
+    @Test fun transportFailureHasAnActionableRunState() {
+        val events = replay("""[{"type":"event","event":{"type":"turn/end","seq":2,"time":100,"data":{"reason":{"kind":"error","error":{"code":"TRANSPORT","message":"DeepSeek Messages transport failed"}}}}}]""")
+        val failure = events.filterIsInstance<RemoteEvent.TurnCompleted>().single().state
+        assertEquals(com.dsh.core.model.RunStatus.FAILED, failure.status)
+        assertFalse(failure.message.orEmpty().contains("TRANSPORT"))
+        assertFalse(failure.message.orEmpty().contains("transport failed"))
+        assertFalse(failure.message.isNullOrBlank())
     }
 
     @Test fun structuredSandboxErrorAndConsentDenialHaveDistinctFailures() {

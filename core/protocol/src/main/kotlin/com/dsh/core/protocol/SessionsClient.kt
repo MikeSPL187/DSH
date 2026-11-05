@@ -905,7 +905,7 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                     else -> com.dsh.core.model.RunStatus.FAILED
                 }
                 eventBus.tryEmit(RemoteEvent.TurnCompleted(sessionId, com.dsh.core.model.RunState(
-                    status, seq, event["time"]?.toString()?.toLongOrNull() ?: 0, code, message,
+                    status, seq, event["time"]?.toString()?.toLongOrNull() ?: 0, code, message?.let { friendlyRunError(code, it) },
                 )))
                 if (!message.isNullOrBlank()) {
                     // Полная ошибка: весь message + code (без обрезки), построчно в пузыре.
