@@ -62,6 +62,7 @@ RUN pnpm install --frozen-lockfile \
 # модулей при запуске сводятся к одному.
 FROM ${NODE_IMAGE} AS agent
 ARG AGENT_DIR=/usr/local/lib/node_modules/@deepseek-ai/dsh
+COPY overlay-agent.mjs /tmp/overlay-agent.mjs
 COPY --from=agent-build /out/packs /out/packs
 COPY agent/package.json agent/package-lock.json /tmp/agent/
 RUN set -eu; \
@@ -69,19 +70,7 @@ RUN set -eu; \
     cp /tmp/agent/package.json /tmp/agent/package-lock.json "$AGENT_DIR/"; \
     cd "$AGENT_DIR"; \
     npm ci --no-audit --no-fund; \
-    overlay() { \
-      pack="/out/packs/$(node -p 'const p = require(process.argv[1]); p.name.slice(1).replace("/", "-") + "-" + p.version + ".tgz"' "$1/package.json")"; \
-      [ -f "$pack" ] || { echo "no source build: $pack" >&2; exit 1; }; \
-      find "$1" -mindepth 1 -maxdepth 1 ! -name node_modules ! -name package.json ! -name package-lock.json -exec rm -rf {} +; \
-      tar -xzf "$pack" -C "$1" --strip-components=1 --no-same-owner --exclude=package/package.json; \
-    }; \
-    overlay "$AGENT_DIR"; \
-    count=1; \
-    for installed in $(find node_modules -type d -path '*/node_modules/@deepseek-ai/*' -prune); do \
-      case "$(basename "$installed")" in libreoffice-kit*|node-addon-system-*) continue ;; esac; \
-      overlay "$installed"; count=$((count + 1)); \
-    done; \
-    echo "replaced $count @deepseek-ai packages with the source build"; \
+    node /tmp/overlay-agent.mjs install "$AGENT_DIR" /out/packs /tmp/agent-source-files.json; \
     rm -rf /out
 WORKDIR /usr/local/lib/node_modules/@deepseek-ai/dsh/lib
 # CommonJS внутри ESM (в том числе undici) требует require с опорой на bundle.
@@ -90,7 +79,8 @@ RUN ../node_modules/.bin/esbuild bin.js --bundle --platform=node --format=esm --
       --outfile=host.bundle.mjs --external:*.node --external:node:* --log-level=warning \
   && ls -lh host.bundle.mjs
 # В образ — без dev-зависимостей (esbuild и прочее только для сборки).
-RUN cd .. && npm prune --omit=dev --no-audit --no-fund
+RUN cd .. && npm prune --omit=dev --no-audit --no-fund \
+  && node /tmp/overlay-agent.mjs verify /usr/local/lib/node_modules/@deepseek-ai/dsh /tmp/agent-source-files.json
 
 FROM ${NODE_IMAGE}
 ARG DSH_VERSION
@@ -112,6 +102,7 @@ RUN test -s /var/lib/dpkg/status && test -z "$(dpkg --audit)" && curl --version
 
 # 2. Агент (с патчами и bundle) и pnpm из проверенного tarball.
 COPY --from=agent /usr/local/lib/node_modules/@deepseek-ai/dsh /usr/local/lib/node_modules/@deepseek-ai/dsh
+COPY --from=agent /tmp/agent-source-files.json /opt/dsh/sbom/agent-source-files.json
 COPY --from=fetch /fetch/pnpm.tgz /tmp/pnpm.tgz
 RUN ln -s ../lib/node_modules/@deepseek-ai/dsh/lib/bin.js /usr/local/bin/dsh \
   && npm install -g --no-audit --no-fund --ignore-scripts /tmp/pnpm.tgz \

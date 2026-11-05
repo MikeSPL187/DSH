@@ -59,6 +59,7 @@ jobs:
           node infra/rootfs/tests/fs-search-quote.test.mjs
           node infra/rootfs/tests/android-owner.test.mjs
           node --experimental-transform-types infra/rootfs/tests/android-server-cancel.test.mjs
+          node --test infra/rootfs/tests/overlay-agent.test.mjs
 
       - name: Сборка образа
         run: |
@@ -71,6 +72,15 @@ jobs:
           docker cp rootfs:/opt/dsh/sbom output/sbom-${{ matrix.arch }}
           docker rm rootfs
           sha256sum output/rootfs-${{ matrix.arch }}.tar
+
+      - name: PRoot — установка и удаление Debian-пакета
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends proot
+          mkdir qa-rootfs
+          tar -xf output/rootfs-${{ matrix.arch }}.tar --no-same-owner -C qa-rootfs
+          sh infra/rootfs/tests/proot-packages.sh qa-rootfs
+          rm -rf qa-rootfs
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
