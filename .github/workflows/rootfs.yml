@@ -63,7 +63,7 @@ jobs:
       - name: Сборка образа
         run: |
           BRIDGE_VERSION=$(python3 -I -c 'import json; print(json.load(open("app/src/main/assets/bridge-plugin.json"))["version"])')
-          docker build --pull --build-context agent-src=agent --build-arg DSH_VERSION="$DSH_VERSION" --build-arg BRIDGE_VERSION="$BRIDGE_VERSION" \
+          docker build --pull --build-context agent-src=agent --build-arg DSH_SOURCE_COMMIT="$GITHUB_SHA" --build-arg DSH_VERSION="$DSH_VERSION" --build-arg BRIDGE_VERSION="$BRIDGE_VERSION" \
             -t dsh-rootfs:${{ matrix.arch }} infra/rootfs
           docker create --name rootfs dsh-rootfs:${{ matrix.arch }}
           mkdir -p output
@@ -77,6 +77,35 @@ jobs:
           name: rootfs-${{ matrix.arch }}
           path: output/
           retention-days: 3
+
+  candidate:
+    if: github.event_name == 'push' || inputs.rootfs_version == ''
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: tars
+          merge-multiple: true
+      - name: Кандидат rootfs без публикации
+        run: |
+          BRIDGE_VERSION=$(python3 -I -c 'import json; print(json.load(open("app/src/main/assets/bridge-plugin.json"))["version"])')
+          python3 -I infra/rootfs/package_rootfs.py "$DSH_VERSION" 2.0.2 "$BRIDGE_VERSION" \
+            tars/rootfs-x86_64.tar tars/rootfs-arm64.tar "$GITHUB_REPOSITORY" dist
+          for arch in x86_64 arm64; do
+            tar -czf "dist/sbom-$arch.tar.gz" -C tars "sbom-$arch"
+          done
+          printf '%s\n' "$GITHUB_SHA" > dist/source-revision.txt
+          printf '%s\n' 'QA candidate only. No release/tag was published. Manifest URLs become installable only after an explicit release.' > dist/CANDIDATE.txt
+          (cd dist && sha256sum * > SHA256SUMS)
+          cat dist/rootfs-manifest.json dist/SHA256SUMS
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rootfs-2.0.2-candidate
+          path: dist/
+          retention-days: 14
 
   release:
     if: github.event_name == 'workflow_dispatch' && inputs.rootfs_version != ''
