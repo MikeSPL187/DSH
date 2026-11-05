@@ -81,17 +81,33 @@ object AutomationScheduler {
         else waitingReason(context, a) ?: com.dsh.core.model.Tr.t("Waiting for Android", "Ожидает разрешения Android")
     }
 
+    private fun occurrences(context: Context, id: String): List<String> {
+        val p = prefs(context)
+        val raw = p.getString("occurrences/$id", null)
+        if (raw != null) {
+            val rows = org.json.JSONArray(raw)
+            return (0 until rows.length()).map { rows.getString(it) }
+        }
+        // Read markers from earlier development builds without losing an uncertain run.
+        return listOfNotNull(
+            (p.all["started/$id"] as? Long)?.let { "pending:$it" },
+            (p.all["completed/$id"] as? Long)?.let { "done:$it" },
+        )
+    }
+    private fun saveOccurrences(context: Context, id: String, rows: List<String>): Boolean = prefs(context).edit()
+        .putString("occurrences/$id", org.json.JSONArray(rows.takeLast(128)).toString())
+        .remove("started/$id").remove("completed/$id").commit()
+
     @Synchronized internal fun claimOccurrence(context: Context, id: String, at: Long): Boolean {
-        val p = prefs(context)
-        if (maxOf(p.getLong("completed/$id", Long.MIN_VALUE), p.getLong("started/$id", Long.MIN_VALUE)) >= at) return false
-        return p.edit().putLong("started/$id", at).commit()
+        val rows = occurrences(context, id)
+        if (rows.any { it.substringAfter(':').toLongOrNull() == at }) return false
+        return saveOccurrences(context, id, rows + "pending:$at")
     }
-    internal fun releaseOccurrence(context: Context, id: String, at: Long) {
-        val p = prefs(context)
-        if (p.getLong("started/$id", Long.MIN_VALUE) == at) p.edit().remove("started/$id").commit()
+    @Synchronized internal fun releaseOccurrence(context: Context, id: String, at: Long) {
+        saveOccurrences(context, id, occurrences(context, id).filterNot { it == "pending:$at" })
     }
-    internal fun completeOccurrence(context: Context, id: String, at: Long) {
-        prefs(context).edit().putLong("completed/$id", at).apply()
+    @Synchronized internal fun completeOccurrence(context: Context, id: String, at: Long) {
+        saveOccurrences(context, id, occurrences(context, id).filterNot { it.substringAfter(':').toLongOrNull() == at } + "done:$at")
     }
 
     fun schedule(context: Context, a: Automation, preservePending: Boolean = false) {

@@ -19,6 +19,12 @@ import java.time.*
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], application = Application::class)
 class Round3BehaviorTest {
+    @org.junit.Before @org.junit.After fun resetProviderCache() {
+        // Robolectric replaces Application directories between tests; AndroidX keeps this static cache.
+        val cache = org.robolectric.util.ReflectionHelpers.getStaticField<MutableMap<String, Any>>(
+            androidx.core.content.FileProvider::class.java, "sCache")
+        synchronized(cache) { cache.clear() }
+    }
     private val app get() = ApplicationProvider.getApplicationContext<Application>()
 
     @Test fun pluginReturnPreservesOriginAndSession() {
@@ -53,6 +59,9 @@ class Round3BehaviorTest {
         assertTrue(AutomationScheduler.claimOccurrence(app, "once", 100))
         AutomationScheduler.completeOccurrence(app, "once", 100)
         AutomationScheduler.releaseOccurrence(app, "once", 100)
+        assertFalse(AutomationScheduler.claimOccurrence(app, "once", 100))
+        assertTrue(AutomationScheduler.claimOccurrence(app, "once", 50))
+        AutomationScheduler.completeOccurrence(app, "once", 50)
         assertFalse(AutomationScheduler.claimOccurrence(app, "once", 100))
         assertTrue(AutomationScheduler.claimOccurrence(app, "once", 200))
     }
