@@ -76,10 +76,15 @@ jobs:
       - name: PRoot — установка и удаление Debian-пакета
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends proot
+          sudo apt-get install -y --no-install-recommends libtalloc-dev
+          # Ubuntu 24.04 ships PRoot 5.1.0, which crashes against this arm64 glibc.
+          # Pin the test tool too; the Android APK's Termux PRoot is unchanged.
+          git clone --no-checkout https://github.com/proot-me/proot.git "$RUNNER_TEMP/qa-proot"
+          git -C "$RUNNER_TEMP/qa-proot" checkout --detach d4b49e2243dee34e41c13dfeca6a3d07e9cf0f00
+          make -C "$RUNNER_TEMP/qa-proot/src" -j2 proot
           mkdir qa-rootfs
           tar -xf output/rootfs-${{ matrix.arch }}.tar --no-same-owner -C qa-rootfs
-          sh infra/rootfs/tests/proot-packages.sh qa-rootfs
+          DSH_QA_PROOT="$RUNNER_TEMP/qa-proot/src/proot" sh infra/rootfs/tests/proot-packages.sh qa-rootfs
           rm -rf qa-rootfs
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
