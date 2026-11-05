@@ -36,6 +36,7 @@ class ReplaceKeyImeTest {
             }
         }
         val field = hasSetTextAction() and hasContentDescription(context.getString(com.dsh.feature.settings.R.string.st_key_field))
+        compose.waitUntil(60_000) { compose.activity.hasWindowFocus() }
         compose.onNode(field).performClick()
         compose.waitUntil(60_000) { ViewCompat.getRootWindowInsets(compose.activity.window.decorView)?.isVisible(WindowInsetsCompat.Type.ime()) == true }
         instrumentation.sendStringSync(fixture)
@@ -46,13 +47,17 @@ class ReplaceKeyImeTest {
         val view = compose.activity.window.decorView
         val ime = ViewCompat.getRootWindowInsets(view)!!.getInsets(WindowInsetsCompat.Type.ime())
         assertTrue("Save overlaps IME", bounds.bottom <= view.height - ime.bottom)
-        val root = instrumentation.uiAutomation.rootInActiveWindow
+        var root: android.view.accessibility.AccessibilityNodeInfo? = null
+        compose.waitUntil(30_000) {
+            root = instrumentation.uiAutomation.rootInActiveWindow
+            root != null
+        }
         fun inspect(node: android.view.accessibility.AccessibilityNodeInfo) {
             assertFalse("Key exposed in accessibility", node.text?.contains(fixture) == true)
             for (i in 0 until node.childCount) node.getChild(i)?.let(::inspect)
         }
-        inspect(root)
-        val image = instrumentation.uiAutomation.takeScreenshot()
+        inspect(requireNotNull(root))
+        val image = requireNotNull(instrumentation.uiAutomation.takeScreenshot()) { "Screenshot unavailable" }
         File(context.cacheDir, "round4-ime-save.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
         val down = SystemClock.uptimeMillis()
         val location = IntArray(2); view.getLocationOnScreen(location)
