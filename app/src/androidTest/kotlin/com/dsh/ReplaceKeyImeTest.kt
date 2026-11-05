@@ -71,7 +71,9 @@ class ReplaceKeyImeTest {
         val x = bounds.center.x + location[0]; val y = bounds.center.y + location[1]
         for (action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
             val event = MotionEvent.obtain(down, SystemClock.uptimeMillis(), action, x, y, 0)
-            instrumentation.uiAutomation.injectInputEvent(event, true); event.recycle()
+            event.source = android.view.InputDevice.SOURCE_TOUCHSCREEN
+            assertTrue("Touch injection rejected", automation.injectInputEvent(event, true))
+            event.recycle()
         }
         compose.waitUntil(60_000) { saved != null }
         assertEquals(fixture, saved)
