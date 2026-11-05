@@ -26,6 +26,10 @@ class ReplaceKeyImeTest {
         var saved: String? = null
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
+        val automation = instrumentation.uiAutomation
+        automation.serviceInfo = requireNotNull(automation.serviceInfo).apply {
+            flags = flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+        }
         compose.activityRule.scenario.onActivity { androidx.core.view.WindowCompat.setDecorFitsSystemWindows(it.window, false) }
         compose.setContent {
             DshTheme {
@@ -47,17 +51,20 @@ class ReplaceKeyImeTest {
         val view = compose.activity.window.decorView
         val ime = ViewCompat.getRootWindowInsets(view)!!.getInsets(WindowInsetsCompat.Type.ime())
         assertTrue("Save overlaps IME", bounds.bottom <= view.height - ime.bottom)
-        var root: android.view.accessibility.AccessibilityNodeInfo? = null
+        var roots: List<android.view.accessibility.AccessibilityNodeInfo> = emptyList()
         compose.waitUntil(30_000) {
-            root = instrumentation.uiAutomation.rootInActiveWindow
-            root != null
+            roots = automation.windows.mapNotNull { it.root }.filter { it.packageName?.toString() == context.packageName }
+            roots.isNotEmpty()
         }
+        var passwordFieldObserved = false
         fun inspect(node: android.view.accessibility.AccessibilityNodeInfo) {
             assertFalse("Key exposed in accessibility", node.text?.contains(fixture) == true)
+            if (node.isEditable && node.isPassword) passwordFieldObserved = true
             for (i in 0 until node.childCount) node.getChild(i)?.let(::inspect)
         }
-        inspect(requireNotNull(root))
-        val image = requireNotNull(instrumentation.uiAutomation.takeScreenshot()) { "Screenshot unavailable" }
+        roots.forEach(::inspect)
+        assertTrue("Password field absent from accessibility observation", passwordFieldObserved)
+        val image = requireNotNull(automation.takeScreenshot()) { "Screenshot unavailable" }
         File(context.cacheDir, "round4-ime-save.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
         val down = SystemClock.uptimeMillis()
         val location = IntArray(2); view.getLocationOnScreen(location)
