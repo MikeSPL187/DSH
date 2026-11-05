@@ -39,6 +39,8 @@ object AppLanguage {
 
     /** Применить выбор: язык приложения и сохранение. */
     fun apply(context: Context, selection: String) {
+        require(selection in SUPPORTED)
+        if (selection == selection(context) && (Build.VERSION.SDK_INT < 33 || context.getSystemService(LocaleManager::class.java)?.applicationLocales == (if (selection == "system") LocaleList.getEmptyLocaleList() else LocaleList.forLanguageTags(selection)))) return
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit().putString(KEY, selection).apply()
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {

@@ -117,6 +117,7 @@ data class StorageUsage(
 /** Всё, что показывают «Настройки». Значения уже отформатированы там, где это зависит от данных приложения. */
 @Immutable
 data class SettingsUi(
+    val exportBusy: Boolean = false,
     val appVersion: String = "",
     val appBuild: Long = 0,
     val hostVersion: String? = null,
@@ -1089,7 +1090,7 @@ private fun StoragePage(ui: SettingsUi, a: SettingsActions, toast: ToastState) {
         }
         GLabel(stringResource(R.string.st_backup))
         Gl {
-            row { StRow(stringResource(R.string.st_export), icon = DshGlyphs.Share, tile = Si.c3, sub = stringResource(R.string.st_export_sub), chevron = true, onClick = a::exportSessions) }
+            row { StRow(if (ui.exportBusy) stringResource(R.string.st_export_preparing) else stringResource(R.string.st_export), icon = DshGlyphs.Share, tile = Si.c3, sub = stringResource(R.string.st_export_sub), chevron = !ui.exportBusy, onClick = { if (!ui.exportBusy) a.exportSessions() }) }
             row { StRow(stringResource(R.string.st_restore), icon = DshGlyphs.Down, tile = Si.c6, chevron = true, onClick = a::restoreBackup) }
         }
     }

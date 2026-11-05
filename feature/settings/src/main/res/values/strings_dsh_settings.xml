@@ -467,4 +467,5 @@
     <string name="st_mcp_starting">Starting…</string>
     <string name="st_mcp_stopped">Host is stopped</string>
     <string name="st_source_revision">Source revision</string>
+<string name="st_export_preparing">Preparing archive…</string>
 </resources>

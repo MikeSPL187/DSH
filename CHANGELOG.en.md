@@ -4,6 +4,10 @@ This file records changes to the DSH Mobile Android app. The bridge plugin and r
 
 ## 1.1.4 — unreleased
 
+- QA round 3: commit IME input before Continue, retain Settings when returning from Plugins, preserve backup preparation across Activity recreation and grant the recipient access to the ZIP.
+- Show scheduled automation waiting/failure reasons, match real Wi-Fi transport, cancel stopped jobs, prevent duplicate occurrences and retain pending jobs across application starts.
+- Resolve automation models consistently by provider/model IDs; reject ambiguous names and remove silent first-model fallback. See [round 3 verification](docs/qa/QA_ROUND3_1.1.4.ru.md).
+
 - Protect revealed API keys and MCP tokens from accessibility text; remove persisted MCP token suffixes.
 - Preserve outgoing chat requests and partial replies across process death, with explicit interruption and retry; keep rapid sends in one conversation.
 - Apply themes offline, restore settings navigation, follow the theme in system bars, and open the terminal instead of redirecting to chat.

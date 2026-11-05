@@ -20,6 +20,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextInput
 import com.dsh.core.designsystem.DshTheme
 import com.dsh.feature.chat.ModernChatScreen
@@ -147,6 +148,49 @@ class QaRegressionUiTest {
         assertEquals("dark", theme.preference)
         ScreenShots.capture(compose, "qa-round2-appearance-dark", compose.activity)
         compose.runOnIdle { theme.setPreference("system") }
+    }
+
+    @Test fun continueAfterImeDoneKeepsExactlyTheValidatedKey() {
+        val key = "qa-only-secret-123456789"
+        var validated = ""
+        var finished: String? = null
+        val ctx = compose.activity
+        fun label(id: Int) = ctx.getString(id)
+        compose.setContent {
+            DshTheme {
+                com.dsh.feature.runtime.OnboardingScreen(
+                    install = com.dsh.feature.runtime.LinuxInstall(done = true), sharedAccessGranted = true,
+                    checkKey = { _, _, value -> validated = value; com.dsh.feature.runtime.KeyCheck.Ok() },
+                    onWhereKey = {}, onChoosePrivate = {}, onRequestShared = {}, onRetryInstall = {},
+                    notify = false, onNotifyChange = {}, language = "ru", onLanguage = {},
+                    onFinish = { finished = it?.key },
+                )
+            }
+        }
+        settle()
+        compose.onNodeWithText(label(com.dsh.feature.runtime.R.string.ob_start)).performClick()
+        settle()
+        compose.onNode(hasSetTextAction()).performTextInput(key)
+        settle()
+        compose.onNode(hasSetTextAction()).performImeAction()
+        settle()
+        compose.onNodeWithText(label(com.dsh.feature.runtime.R.string.ob_continue)).performClick()
+        settle()
+        compose.onNodeWithText(label(com.dsh.feature.runtime.R.string.ob_continue)).performClick()
+        settle()
+        compose.onNodeWithText(label(com.dsh.feature.runtime.R.string.ob_begin)).performClick()
+        compose.runOnIdle { assertEquals(key, validated); assertEquals(key, finished) }
+    }
+
+    @Test fun settingsActionsHaveAccessibleNames() {
+        compose.setContent { DshTheme { com.dsh.feature.settings.ui.SettingsHomeScreen(com.dsh.feature.settings.ui.SettingsUi(), {}) } }
+        settle()
+        compose.onAllNodes(androidx.compose.ui.test.hasClickAction()).fetchSemanticsNodes().forEach { node ->
+            val c = node.config
+            val description = c.getOrElse(SemanticsProperties.ContentDescription) { emptyList() }.joinToString()
+            val text = c.getOrElse(SemanticsProperties.Text) { emptyList() }.joinToString()
+            org.junit.Assert.assertTrue("Unnamed action: ${node.id}", description.isNotBlank() || text.isNotBlank())
+        }
     }
 
 }

@@ -97,6 +97,20 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
     val hostId = d.ui.activeHostId
     var tick by remember { mutableIntStateOf(0) }
 
+    val exportController = (context.applicationContext as DshApplication).backupExport
+    val exportState by exportController.state.collectAsState()
+    val exportLifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    val exportLifecycleState by exportLifecycle.currentStateFlow.collectAsState()
+    LaunchedEffect(exportState, exportLifecycleState) {
+        if (exportLifecycleState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
+            exportController.consume()?.let { result ->
+                shareArchive(context, result, context.getString(R.string.share_backup_title), context.getString(R.string.backup_failed))
+            }
+        }
+    }
+    LaunchedEffect(exportState.busy) {
+        if (exportState.busy) toast.show(context.getString(com.dsh.feature.settings.R.string.st_export_preparing))
+    }
     // Ключ, баланс и расход.
     var keyState by remember { mutableStateOf(if (ApiKeyVault.has(DEEPSEEK_VAULT_REF)) KeyState.Unknown else KeyState.None) }
     var balance by remember { mutableStateOf<Pair<Double, String>?>(null) }
@@ -269,6 +283,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         }
     }
     val ui = SettingsUi(
+        exportBusy = exportState.busy,
         appVersion = currentVersion,
         appBuild = remember { runCatching { androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(context.packageManager.getPackageInfo(context.packageName, 0)) }.getOrDefault(0L) },
         hostVersion = rootfs?.dsh,
@@ -585,9 +600,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         }
 
         override fun exportSessions() {
-            scope.launch {
-                shareArchive(context, d.backup.createUserDataBackup(), context.getString(R.string.share_backup_title), context.getString(R.string.backup_failed))
-            }
+            exportController.start { d.backup.createUserDataBackup() }
         }
 
         override fun restoreBackup() { restoreLauncher.launch(arrayOf("application/zip", "application/octet-stream")) }

@@ -164,6 +164,7 @@ fun MainAppHost(
         }
     com.dsh.plugin.nativehost.NativeHost.rpcHandler = slotPluginRpc
 
+    val pageState = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
     val repoSessions by dshRepository.getSessions(ui.activeHostId).collectAsState(initial = emptyList())
     val sessions = repoSessions
 
@@ -961,7 +962,7 @@ fun MainAppHost(
         ) {
             // У чата полная шапка; у страниц со своим заголовком второй шапки нет.
             // Вложенные страницы «Плагинов», «Автоматизации» и «Настроек» закрывает их собственный стек.
-            BackHandler(enabled = ui.activePage != ActivePage.CHAT) { ui.activePage = ActivePage.CHAT }
+            BackHandler(enabled = ui.activePage != ActivePage.CHAT) { if (ui.activePage == ActivePage.PLUGINS) ui.closePlugins() else ui.activePage = ActivePage.CHAT }
             // Шапка чата живёт внутри экрана чата: под листами она уменьшается вместе с ним.
             val chatTopBar: @Composable (Boolean, com.dsh.feature.chat.ChatContextChip?) -> Unit = { scrolled, contextChip ->
                 androidx.compose.foundation.layout.Box(modifier = Modifier.fillMaxWidth()) {
@@ -1115,6 +1116,7 @@ fun MainAppHost(
                             )
                         }
                         Box(modifier = Modifier.weight(1f)) {
+                    pageState.SaveableStateProvider(ui.activePage.name) {
                     when (ui.activePage) {
                         ActivePage.CHAT -> PageContentSlot {
                             ChatRoute(
@@ -1232,7 +1234,7 @@ fun MainAppHost(
                                     prepare = { providerId, source -> dshRepository.speech.speechPrepare(ui.activeHostId, providerId, source) },
                                     cancelPrepare = { providerId -> dshRepository.speech.speechCancelPrepare(ui.activeHostId, providerId) },
                                 ),
-                                onClose = { ui.activePage = ActivePage.CHAT },
+                                onClose = ui::closePlugins,
                             ),
                         )
 
@@ -1280,6 +1282,7 @@ fun MainAppHost(
                             initialPage = ui.settingsInitialSection,
                         )
 
+                    }
                     }
                         }
                     }

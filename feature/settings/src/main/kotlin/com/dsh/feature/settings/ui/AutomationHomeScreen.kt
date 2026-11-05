@@ -75,6 +75,7 @@ import java.time.ZoneId
 
 /** Действия «Автоматизации». */
 interface AutomationActions {
+    fun scheduleStatus(id: String): String = ""
     fun save(a: Automation) {}
     fun delete(id: String) {}
     fun runNow(id: String) {}
@@ -411,6 +412,7 @@ private fun AutoRow(x: Automation, now: Long, fresh: Boolean, a: AutomationActio
         AutoIc(x.icon, x.tone, off = !x.on)
         Column(Modifier.weight(1f)) {
             Text(x.name, style = body(15.sp, 19.5.sp, FontWeight.Medium), color = c.t1, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            a.scheduleStatus(x.id).takeIf { it.isNotBlank() }?.let { Text(it, style = small(12.5.sp, 16.sp), color = c.t2) }
             val cs = conds(x, short = true)
             Text(whenShort(x) + if (cs.isNotEmpty()) " · $cs" else "", style = small(12.5.sp, 16.sp), color = c.t3)
             val nextText = if (next != null) stringResource(R.string.au_then, nextLabel(next, now, short = true)) else stringResource(R.string.au_off_lc)
@@ -500,6 +502,7 @@ private fun AutoEdit(
                 TimePill(x.time) { onChange(x.copy(time = it)) }
             }
         }
+        if (!isNew) a.scheduleStatus(x.id).takeIf { it.isNotBlank() }?.let { Text(it, style = small(13.sp, 18.sp), color = c.t2) }
         val cs = conds(x, short = false)
         Text(
             buildAnnotatedString {
@@ -524,7 +527,7 @@ private fun AutoEdit(
         GLabel(stringResource(R.string.au_where))
         Gl {
             row { Gr(stringResource(R.string.au_project), leading = { Gic(DshGlyphs.Folder) }, value = projects.firstOrNull { it.path == x.project }?.name ?: x.project.substringAfterLast('/').ifBlank { "—" }, chevron = true, onClick = { onSheet("project") }) }
-            row { Gr(stringResource(R.string.au_model), leading = { Gic(DshGlyphs.Cpu) }, value = x.model.ifBlank { "—" }, chevron = true, onClick = { onSheet("model") }) }
+            row { Gr(stringResource(R.string.au_model), leading = { Gic(DshGlyphs.Cpu) }, value = x.model.ifBlank { stringResource(R.string.au_model_unset) }, chevron = true, onClick = { onSheet("model") }) }
         }
         if (!isNew) {
             KBtn(

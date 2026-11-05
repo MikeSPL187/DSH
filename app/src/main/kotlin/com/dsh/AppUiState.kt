@@ -22,7 +22,15 @@ class AppUiState(
     initialAllFilesAccess: Boolean,
 ) {
     // Навигация и выбор сессии
-    var activePage by mutableStateOf(ActivePage.CHAT)
+    var pluginsReturnPage by mutableStateOf(ActivePage.CHAT)
+    private var page by mutableStateOf(ActivePage.CHAT)
+    var activePage: ActivePage
+        get() = page
+        set(value) {
+            if (value == ActivePage.PLUGINS && page != value) pluginsReturnPage = page
+            page = value
+        }
+    fun closePlugins() { activePage = pluginsReturnPage }
     var activeHostId by mutableStateOf("local-host")
     var pendingChatId by mutableStateOf(java.util.UUID.randomUUID().toString())
     private var sessionIdState by mutableStateOf<String?>(null)
@@ -76,7 +84,7 @@ fun rememberAppUiState(
     initialAllFilesAccess: Boolean,
 ): AppUiState = androidx.compose.runtime.saveable.rememberSaveable(
     saver = androidx.compose.runtime.saveable.listSaver(
-        save = { state: AppUiState -> listOf(state.activePage.name, state.activeHostId, state.selectedSessionId.orEmpty(), state.settingsInitialSection?.name.orEmpty(), state.filesDir.absolutePath, state.pendingChatId) },
+        save = { state: AppUiState -> listOf(state.activePage.name, state.activeHostId, state.selectedSessionId.orEmpty(), state.settingsInitialSection?.name.orEmpty(), state.filesDir.absolutePath, state.pendingChatId, state.pluginsReturnPage.name) },
         restore = { saved -> AppUiState(initialSettings, initialWorkspace, initialAllFilesAccess).apply {
             activePage = runCatching { ActivePage.valueOf(saved[0]) }.getOrDefault(ActivePage.CHAT)
             activeHostId = saved[1]
@@ -84,6 +92,7 @@ fun rememberAppUiState(
             settingsInitialSection = runCatching { com.dsh.feature.settings.ui.StPage.valueOf(saved[3]) }.getOrNull()
             filesDir = java.io.File(saved[4])
             saved.getOrNull(5)?.let { pendingChatId = it }
+            saved.getOrNull(6)?.let { pluginsReturnPage = ActivePage.valueOf(it) }
         } },
     ),
 ) { AppUiState(initialSettings, initialWorkspace, initialAllFilesAccess) }

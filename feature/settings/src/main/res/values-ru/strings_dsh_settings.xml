@@ -479,4 +479,5 @@
     <string name="st_mcp_starting">Запускается…</string>
     <string name="st_mcp_stopped">Host остановлен</string>
     <string name="st_source_revision">Ревизия исходников</string>
+<string name="st_export_preparing">Подготовка архива…</string>
 </resources>

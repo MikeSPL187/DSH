@@ -137,4 +137,5 @@
         <item></item>
     </string-array>
     <string name="au_required_fields">Enter a name and instructions to enable Done.</string>
+<string name="au_model_unset">Choose a model</string>
 </resources>

@@ -139,4 +139,5 @@
         <item></item>
     </string-array>
     <string name="au_required_fields">Укажите название и задачу — после этого станет доступна кнопка «Готово».</string>
+<string name="au_model_unset">Выберите модель</string>
 </resources>

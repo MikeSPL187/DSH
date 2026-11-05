@@ -1,5 +1,7 @@
 package com.dsh.feature.runtime
 
+import kotlinx.coroutines.ensureActive
+
 import androidx.compose.foundation.layout.imePadding
 
 import androidx.activity.compose.BackHandler
@@ -197,6 +199,7 @@ fun OnboardingScreen(
     var key by remember { mutableStateOf("") }
     var check by remember { mutableStateOf<KeyCheck?>(null) }
     var checking by remember { mutableStateOf(false) }
+    var checkedInput by remember { mutableStateOf<Triple<OnboardingProvider, String, String>?>(null) }
     var shared by rememberSaveable { mutableStateOf(false) }
     var waitingShared by rememberSaveable { mutableStateOf(false) }
 
@@ -213,15 +216,21 @@ fun OnboardingScreen(
     val checkFn by rememberUpdatedState(checkKey)
     LaunchedEffect(provider, baseUrl, committedUrl, key) {
         check = null
+        checkedInput = null
         checking = false
         if (key.isBlank() || !urlOk || (provider == OnboardingProvider.CUSTOM && baseUrl.isBlank())) return@LaunchedEffect
         if (provider == OnboardingProvider.CUSTOM && baseUrl.trim() != committedUrl) return@LaunchedEffect
         delay(400)
         checking = true
-        check = runCatching { checkFn(provider, baseUrl.trim(), key.trim()) }.getOrDefault(KeyCheck.Offline)
+        val candidate = key.trim()
+        val candidateInput = Triple(provider, baseUrl.trim(), candidate)
+        val result = try { checkFn(provider, baseUrl.trim(), candidate) } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled } catch (_: Exception) { KeyCheck.Offline }
+        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        checkedInput = candidateInput
+        check = result
         checking = false
     }
-    val keyAccepted = !checking && (check is KeyCheck.Ok || (check == KeyCheck.Offline && key.trim().length >= 16))
+    val keyAccepted = checkedInput == Triple(provider, baseUrl.trim(), key.trim()) && !checking && (check is KeyCheck.Ok || (check == KeyCheck.Offline && key.trim().length >= 16))
 
     // Доступ ко всем файлам выдаётся в системных настройках: вернулись с ним — идём дальше.
     LaunchedEffect(sharedAccessGranted, waitingShared) {
@@ -416,6 +425,8 @@ private fun LanguagePill(language: String, onLanguage: (String) -> Unit) {
 @Composable
 private fun Bottom(primaryText: String, primaryEnabled: Boolean, onPrimary: () -> Unit, altText: String?, onAlt: () -> Unit) {
     val c = Dsh.colors
+    val focus = androidx.compose.ui.platform.LocalFocusManager.current
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     // Текст второй кнопки запоминаем, чтобы он не пропадал раньше, чем погаснет.
     var lastAlt by remember { mutableStateOf(altText.orEmpty()) }
     if (altText != null) lastAlt = altText
@@ -430,7 +441,7 @@ private fun Bottom(primaryText: String, primaryEnabled: Boolean, onPrimary: () -
     Column(Modifier.fillMaxWidth().padding(start = 22.dp, end = 22.dp, top = 10.dp).navigationBarsPadding().padding(bottom = 16.dp)) {
         DshButton(
             primaryText,
-            onPrimary,
+            { focus.clearFocus(force = true); keyboard?.hide(); onPrimary() },
             Modifier.fillMaxWidth().graphicsLayer { scaleX = pulse.value; scaleY = pulse.value },
             enabled = primaryEnabled,
             big = true,
@@ -758,7 +769,7 @@ private fun Field(
                     singleLine = true,
                     textStyle = style,
                     cursorBrush = SolidColor(c.accent),
-                    secret = secret, revealed = shown, label = placeholder,
+                    secret = secret, revealed = shown, label = if (secret) stringResource(R.string.ob_key_label) else placeholder,
                     keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = false, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { onCommit?.invoke(); defaultKeyboardAction(ImeAction.Done) }),
                     modifier = Modifier.fillMaxWidth().onFocusChanged {
