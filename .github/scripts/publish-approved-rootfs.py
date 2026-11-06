@@ -54,7 +54,12 @@ def api(path, data=None, allow_missing=False):
             except (ValueError, AttributeError):
                 pass
         (ROOT / 'last-gh-error.txt').write_bytes(result.stderr)
-        raise RuntimeError('GitHub API failed: ' + path)
+        try:
+            error = json.loads(result.stdout)
+            detail = {k: error[k] for k in ('message', 'status', 'errors') if k in error}
+        except ValueError:
+            detail = {'message': 'non-JSON API failure'}
+        raise RuntimeError('GitHub API failed: ' + path + ' ' + json.dumps(detail))
     return json.loads(result.stdout)
 
 
