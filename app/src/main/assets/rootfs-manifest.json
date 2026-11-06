@@ -1,7 +1,7 @@
 {
   "rootfsName": "dsh-rootfs",
-  "runtimeVersion": "2.0.2-dsh0.2.1-rc.2-bridge2.0.7",
-  "releaseTag": "rootfs-v2.0.2",
+  "runtimeVersion": "2.0.3-dsh0.2.1-rc.2-bridge2.0.7",
+  "releaseTag": "rootfs-v2.0.3",
   "bridgeVersion": "2.0.7",
   "baseDistro": "debian-13-slim",
   "libc": "glibc",
@@ -17,14 +17,14 @@
     "curl"
   ],
   "downloadUrls": {
-    "x86_64": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.2/rootfs-x86_64.bin",
-    "arm64-v8a": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.2/rootfs-arm64-v8a.bin"
+    "x86_64": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.3/rootfs-x86_64.bin",
+    "arm64-v8a": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.3/rootfs-arm64-v8a.bin"
   },
   "downloadSha256": {
-    "x86_64": "0F7BD5236B0A29A93AF9E99EDBF4B3831059FEED37C43101A4659410D1E2D082",
-    "arm64-v8a": "C60321AB63B3ECD27D63EB2B8ABF8504B561C7ED55AC14F903F29761FCBBCB64"
+    "x86_64": "C7022C8692C02928302D047182DF10E9421C05C78F7CAD2E121882B9AE84C886",
+    "arm64-v8a": "4F27BE41B3AC58E09145FF0752E3CFE6FE70A1D89611693D5F4DAD8365FEBBB8"
   },
-  "archiveSizeBytes": 299918138,
+  "archiveSizeBytes": 299916757,
   "prootLibrary": "libproot.so",
   "androidPatched": true
 }

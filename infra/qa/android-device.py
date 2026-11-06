@@ -13,6 +13,7 @@ import subprocess
 import threading
 import time
 import xml.etree.ElementTree as ET
+from mcp_fixture import server as mcp_server
 
 PACKAGE = 'app.dsh.mobile.debug'
 
@@ -20,6 +21,7 @@ PACKAGE = 'app.dsh.mobile.debug'
 class Device:
     def __init__(self, output):
         self.output, self.serial, self.checks = output, 0, {}
+        self.a11y = {}
 
     def adb(self, *args, timeout=60, stdin=None, check=True):
         return subprocess.run([str(Path(os.environ['ANDROID_HOME']) / 'platform-tools/adb'), '-s', 'emulator-5554', *args], stdin=stdin,
@@ -95,6 +97,14 @@ class Device:
                     self.adb('shell', 'input', 'swipe', '360', str(y1), '360', str(y2), '300')
         raise AssertionError('Action unavailable: ' + label + '; visible: ' + repr([self.label(n) for n in nodes if self.label(n)]))
 
+    def audit_actions(self, screen):
+        nodes = self.dump()
+        actions = [n for n in nodes if n.get('package') == PACKAGE and n.get('clickable') == 'true' and n.get('enabled') == 'true']
+        missing = [n.attrib for n in actions if not self.label(n).strip()]
+        self.a11y[screen] = [{'label': self.label(n), 'checked': n.get('checked'), 'bounds': n.get('bounds')} for n in actions]
+        (self.output / 'accessibility-actions.json').write_text(json.dumps(self.a11y, ensure_ascii=False, indent=2) + '\n')
+        assert not missing, 'Unnamed native actions on ' + screen + ': ' + repr(missing)
+
     def check(self, name):
         self.checks[name] = 'PASS'
         (self.output / 'checks.json').write_text(json.dumps(self.checks, indent=2) + '\n')
@@ -109,7 +119,78 @@ class Device:
         text = self.shell('dumpsys activity activities')
         return any(re.search(r'\b(?:mResumedActivity|topResumedActivity)\s*[:=]', line) and PACKAGE + '/com.dsh.MainActivity' in line for line in text.splitlines())
 
-    def production(self, image):
+    def open_settings(self):
+        self.adb('shell', 'am', 'start', '-f', '0x20000000', '-a', 'app.dsh.action.NEW_CHAT', '-n', PACKAGE + '/com.dsh.MainActivity')
+        nodes = self.wait(lambda n: any(re.search(r'menu|drawer', self.label(x), re.I) for x in n))
+        self.tap(next(x for x in nodes if re.search(r'menu|drawer', self.label(x), re.I)))
+        self.click('Settings')
+        for _ in range(3):
+            if self.has('Settings', self.dump()):
+                return
+            self.adb('shell', 'input', 'keyevent', '4')
+        raise AssertionError('Settings root did not reopen')
+
+    def mcp_lifecycle(self, methods):
+        self.open_settings()
+        self.click('MCP servers', scroll=True)
+        self.click('Add server', scroll=True)
+        for label, value in [('Name', 'qa_lifecycle'), ('Address', 'http://127.0.0.1:38889/mcp')]:
+            nodes = self.wait(lambda n: any(x.get('class') == 'android.widget.EditText' and x.get('content-desc') == label for x in n))
+            self.tap(next(x for x in nodes if x.get('class') == 'android.widget.EditText' and x.get('content-desc') == label))
+            self.shell('input text ' + shlex.quote(value))
+        self.adb('shell', 'input', 'keyevent', '4')
+        self.click('Add', scroll=True)
+        self.wait(lambda n: self.has('Restart', n) or any('qa_lifecycle, running' in x.get('content-desc', '') for x in n))
+        if self.has('Restart', self.dump()):
+            self.click('Restart')
+        self.wait(lambda n: any('qa_lifecycle, running' in x.get('content-desc', '') for x in n), seconds=120)
+        assert methods.count('initialize') >= 1 and 'tools/list' in methods, 'MCP was marked running without negotiation'
+        self.screenshot('mcp-connected')
+        self.check('native-mcp-add-restart-connects-real-peer')
+        self.open_settings()
+        self.click('Host', scroll=True)
+        previous_proxy = self.shell('settings get global http_proxy').strip()
+        try:
+            self.shell('settings put global http_proxy 127.0.0.1:9')
+            self.click('Stop', scroll=True)
+            self.wait(lambda n: self.has('Start', n))
+            self.click('Start')
+            self.wait(lambda n: self.has('Stop', n), seconds=120)
+        finally:
+            if previous_proxy in ('', 'null'):
+                self.shell('settings delete global http_proxy')
+            else:
+                self.shell('settings put global http_proxy ' + shlex.quote(previous_proxy))
+        self.check('native-host-stop-start-with-user-proxy')
+        self.open_settings()
+        self.click('MCP servers', scroll=True)
+        self.wait(lambda n: any('qa_lifecycle, running' in x.get('content-desc', '') for x in n), seconds=120)
+        assert methods.count('initialize') >= 2, 'MCP peer did not reconnect after Host restart'
+        assert not any('qa_lifecycle, after restart' in x.get('content-desc', '') for x in self.dump()), 'MCP remained pending after reconnect'
+        self.check('native-mcp-reconnect-settles-after-host-stop-start')
+        self.tap(next(x for x in self.dump() if x.get('content-desc', '').startswith('qa_lifecycle,')))
+        self.click('Delete')
+        self.click('Tap again to delete')
+        self.wait(lambda n: self.has('No servers yet', n))
+        self.check('native-mcp-two-tap-delete')
+
+    def cold_starts(self):
+        samples = []
+        for iteration in range(5):
+            self.adb('shell', 'am', 'force-stop', PACKAGE)
+            started = time.monotonic()
+            launch = self.shell('am start -W -n ' + PACKAGE + '/com.dsh.MainActivity', timeout=90)
+            self.wait(lambda n: any(re.search(r'menu|drawer', self.label(x), re.I) for x in n) or self.has('Settings', n), seconds=90)
+            usable_ms = round((time.monotonic() - started) * 1000)
+            assert self.foreground(), 'Cold start dropped to launcher'
+            assert usable_ms < 20_000, 'Cold start blocked navigation for ' + str(usable_ms) + ' ms'
+            total = re.search(r'TotalTime:\s*(\d+)', launch)
+            samples.append({'iteration': iteration + 1, 'amTotalTimeMs': int(total.group(1)) if total else None,
+                            'usableWithUiAutomatorOverheadMs': usable_ms})
+        (self.output / 'cold-starts.json').write_text(json.dumps(samples, indent=2) + '\n')
+        self.check('native-five-cold-starts-allow-navigation-without-host-gate')
+
+    def production(self, image, methods):
         self.upload(image, 'files/cache/rootfs-local.tar.gz')
         digest = self.private('sha256sum files/cache/rootfs-local.tar.gz').split()[0]
         assert digest == hashlib.sha256(image.read_bytes()).hexdigest()
@@ -133,6 +214,7 @@ class Device:
         self.tap(next(x for x in nodes if re.search(r'menu|меню|drawer', self.label(x), re.I)))
         self.wait(lambda n: self.has('Settings', n))
         self.click('Settings')
+        self.audit_actions('settings-root')
         self.click('Appearance', scroll=True)
         self.wait(lambda n: self.has('Graphite · Dark', n))
         self.click('Graphite · Dark')
@@ -173,6 +255,7 @@ class Device:
             if not self.dark_pixels(): break
             time.sleep(.5)
         else: raise AssertionError('System day theme did not become light')
+        self.audit_actions('appearance-en')
         self.check('porcelain-and-system-day-night')
         self.click('Graphite · Dark')
         for cycle in range(2):
@@ -181,11 +264,13 @@ class Device:
             self.wait(lambda n: self.has('Оформление', n))
             assert self.foreground(), 'MainActivity lost foreground after Russian locale'
             self.screenshot('appearance-ru-' + str(cycle))
+            self.audit_actions('appearance-ru-' + str(cycle))
             self.wait(lambda n: self.has('English', n))
             self.click('English')
             self.wait(lambda n: self.has('Appearance', n) and self.has('Graphite · Dark', n))
             assert self.foreground(), 'MainActivity lost foreground after English locale'
         self.check('appearance-retained-through-two-locale-cycles')
+        self.check('native-settings-and-appearance-actions-have-accessible-names')
         self.shell('settings put system accelerometer_rotation 0')
         self.shell('settings put system user_rotation 1')
 
@@ -215,6 +300,7 @@ class Device:
         self.upload(Path('infra/qa/native-packages.sh'), 'files/rootfs/root/dsh-native-packages.sh')
         self.upload(Path('infra/qa/native-cancel.mjs'), 'files/rootfs/root/dsh-native-cancel.mjs')
         self.upload(Path('infra/qa/native-fileops.mjs'), 'files/rootfs/root/dsh-native-fileops.mjs')
+        self.upload(Path('infra/qa/native-title.mjs'), 'files/rootfs/root/dsh-native-title.mjs')
         self.tap(next(x for x in nodes if x.get('class') == 'android.widget.EditText' and x.get('enabled') == 'true'))
         self.shell('input text ' + shlex.quote('sh%s/root/dsh-native-packages.sh'))
         self.adb('shell', 'input', 'keyevent', '66')
@@ -230,11 +316,15 @@ class Device:
             raise AssertionError('Terminal package/cancellation probe did not complete')
         self.screenshot('terminal-packages')
         self.check('native-dpkg-build-install-upgrade-purge-and-curl')
+        assert 'PASS' in self.private('cat files/rootfs/root/dsh-native-title.result')
+        self.check('native-host-title-uses-complete-words-from-the-shipped-image')
         assert 'PASS' in self.private('cat files/rootfs/root/dsh-native-fileops.result')
         self.check('native-node-file-publication-retains-source-without-overwriting-target')
         cancelled = json.loads(self.private('cat files/rootfs/root/dsh-native-cancel.result'))
         assert cancelled == {'portFreed': True, 'unrelatedListenerPreserved': True}
         self.check('native-android-cancel-frees-server-and-preserves-other-listener')
+        self.mcp_lifecycle(methods)
+        self.cold_starts()
 
 
 def main():
@@ -311,7 +401,13 @@ def main():
         device.check('native-skip-with-ime-and-installer-details-back')
         device.check('native-backup-restore-cancel-corrupt-and-share-receiver')
         (args.output / 'ime-save.png').write_bytes(device.adb('exec-out', 'run-as', PACKAGE, 'cat', 'cache/round4-ime-save.png'))
-        device.production(image)
+        with mcp_server() as (port, methods):
+            device.adb('reverse', 'tcp:38889', 'tcp:' + str(port))
+            try:
+                device.production(image, methods)
+            finally:
+                device.adb('reverse', '--remove', 'tcp:38889', check=False)
+                (args.output / 'mcp-methods.json').write_text(json.dumps(methods, indent=2) + '\n')
         (args.output / 'meminfo.txt').write_text(device.shell('dumpsys meminfo ' + PACKAGE))
         (args.output / 'gfxinfo.txt').write_text(device.shell('dumpsys gfxinfo ' + PACKAGE))
         (args.output / 'source-revision.txt').write_text(subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode())

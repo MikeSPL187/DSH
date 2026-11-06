@@ -15,6 +15,7 @@ test -r /opt/dsh/lib/libdsh-android-compat.so
 grep -Fx /opt/dsh/lib/libdsh-android-compat.so /etc/ld.so.preload
 sha256sum -c /opt/dsh/sbom/android-compat.sha256
 node --require /root/.dsh/patches/fs-link-fallback.cjs /root/dsh-native-fileops.mjs
+node /root/dsh-native-title.mjs
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT HUP INT TERM
 mkdir -p "$work/package/DEBIAN" "$work/package/usr/share/dsh-native-qa"

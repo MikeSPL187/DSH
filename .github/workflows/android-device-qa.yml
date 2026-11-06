@@ -32,10 +32,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
       - name: Validate native fixtures
         run: |
-          python3 -m py_compile infra/qa/android-device.py
+          python3 -m py_compile infra/qa/android-device.py infra/qa/mcp_fixture.py
           sh -n infra/qa/native-packages.sh
           node --check infra/qa/native-cancel.mjs
           node --check infra/qa/native-fileops.mjs
+          node --check infra/qa/native-title.mjs
           node --test infra/qa/fs-link-preload.test.mjs
       # These APKs were built in this repository before the fixture-only change.
       # Reuse requires an exact match of every tracked Android build input below.
@@ -100,8 +101,8 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         if: steps.rootfs.outputs.published != 'true'
         with:
-          name: rootfs-2.0.2-candidate
-          run-id: 42145348410
+          name: rootfs-2.0.3-candidate
+          run-id: 42257899221
           github-token: ${{ github.token }}
           path: qa-rootfs
       - name: Require hardware acceleration
