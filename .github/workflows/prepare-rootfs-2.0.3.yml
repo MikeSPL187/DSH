@@ -1,0 +1,45 @@
+name: Prepare private rootfs 2.0.3 candidate
+on:
+  push:
+    branches: ['prepare/rootfs-v2.0.3']
+    paths:
+      - '.github/workflows/prepare-rootfs-2.0.3.yml'
+      - '.github/scripts/prepare-rootfs-2.0.3.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: prepare-rootfs-v2.0.3
+  cancel-in-progress: false
+jobs:
+  draft:
+    if: github.repository == 'MikeSPL187/DSH' && github.ref == 'refs/heads/prepare/rootfs-v2.0.3'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ROOTFS_RELEASE_DIR: candidate-release
+      ROOTFS_ARTIFACT_DIR: candidate-artifact
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: rootfs-2.0.3-candidate
+          run-id: 42257899221
+          github-token: ${{ github.token }}
+          path: ${{ env.ROOTFS_ARTIFACT_DIR }}
+      - name: Verify immutable files, source and tested APK pins
+        run: python3 .github/scripts/prepare-rootfs-2.0.3.py prepare
+      - name: Upload private draft and verify every remote digest
+        run: python3 .github/scripts/prepare-rootfs-2.0.3.py draft
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: rootfs-2.0.3-draft-verification
+          path: candidate-release/publication.json
+          if-no-files-found: error
+          retention-days: 30
