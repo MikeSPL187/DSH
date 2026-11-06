@@ -1,0 +1,74 @@
+name: Inspect signed QA APK
+on:
+  push:
+    branches: ['prepare/rootfs-v2.0.3']
+    paths: ['.github/workflows/inspect-qa-apk.yml']
+  workflow_dispatch:
+    inputs:
+      apk_run:
+        description: Successful manual APK build run
+        type: string
+        required: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: dsh-mobile-release-1.1.4
+          run-id: ${{ inputs.apk_run }}
+          github-token: ${{ github.token }}
+          path: apk
+      - name: Verify signature, version, source and Linux pins
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APK_RUN: ${{ inputs.apk_run }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, hashlib, json, os, re, subprocess, zipfile
+          repo = 'MikeSPL187/DSH'
+          run_id = os.environ['APK_RUN']
+          assert run_id.isdecimal()
+          def api(path):
+              return json.loads(subprocess.check_output(['gh', 'api', 'repos/' + repo + '/' + path]))
+          run = api('actions/runs/' + run_id)
+          assert run['event'] == 'workflow_dispatch' and run['conclusion'] == 'success'
+          source = run['head_sha']
+          assert re.fullmatch('[0-9a-f]{40}', source)
+          apk = Path('apk/dsh-mobile-1.1.4-release.apk')
+          tools = Path(os.environ['ANDROID_HOME']) / 'build-tools/35.0.0'
+          signature = subprocess.check_output([str(tools / 'apksigner'), 'verify', '--verbose', '--print-certs', str(apk)], text=True)
+          badging = subprocess.check_output([str(tools / 'aapt2'), 'dump', 'badging', str(apk)], text=True)
+          assert "name='app.dsh.mobile'" in badging and "versionCode='114'" in badging and "versionName='1.1.4'" in badging
+          with zipfile.ZipFile(apk) as z:
+              manifest = json.loads(z.read('assets/rootfs-manifest.json'))
+              assert any(source.encode() in z.read(n) for n in z.namelist() if re.fullmatch(r'classes\d*\.dex', n)), 'Build source missing from About code'
+          pinned = json.loads(base64.b64decode(api('contents/app/src/main/assets/rootfs-manifest.json?ref=' + source)['content']))
+          assert manifest == pinned and manifest['releaseTag'] == 'rootfs-v2.0.3'
+          assert manifest['downloadSha256'] == {
+              'x86_64': 'C7022C8692C02928302D047182DF10E9421C05C78F7CAD2E121882B9AE84C886',
+              'arm64-v8a': '4F27BE41B3AC58E09145FF0752E3CFE6FE70A1D89611693D5F4DAD8365FEBBB8'}
+          result = {'source': source, 'apkRun': int(run_id), 'sha256': hashlib.sha256(apk.read_bytes()).hexdigest(),
+                    'size': apk.stat().st_size, 'package': 'app.dsh.mobile', 'versionName': '1.1.4', 'versionCode': 114,
+                    'signatureVerified': True, 'sourceEmbedded': True, 'rootfsManifestMatchesSource': True,
+                    'rootfsManifest': manifest}
+          Path('apk-verification.json').write_text(json.dumps(result, indent=2) + '\n')
+          Path('signature-verification.txt').write_text(signature)
+          print(json.dumps(result, indent=2))
+          print(signature)
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qa-apk-verification
+          path: |
+            apk-verification.json
+            signature-verification.txt
+          if-no-files-found: error
+          retention-days: 30
