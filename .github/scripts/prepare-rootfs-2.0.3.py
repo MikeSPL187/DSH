@@ -59,6 +59,15 @@ def api(path, data=None, allow_missing=False):
     return json.loads(result.stdout)
 
 
+def existing_release():
+    # Unpublished tags may not resolve through releases/tags, even for a draft.
+    # This candidate is the newest release; authenticated contents:write lists drafts.
+    releases = api('releases?per_page=100')
+    matches = [release for release in releases if release['tag_name'] == TAG]
+    assert len(matches) <= 1, 'Multiple drafts for this tag; resolve explicitly'
+    return matches[0] if matches else None
+
+
 def digest(path):
     h = hashlib.sha256()
     with path.open('rb') as f:
@@ -72,7 +81,7 @@ def save_state(state):
 
 
 def prepare():
-    existing = api('releases/tags/' + TAG, allow_missing=True)
+    existing = existing_release()
     if existing is not None:
         assert existing['draft'] and existing['prerelease'], 'Release already public; do not alter it'
         assert existing['target_commitish'] == SOURCE
@@ -145,7 +154,7 @@ def validate_assets(release, state):
 def draft():
     state = json.loads((ROOT / 'publication.json').read_text())
     assert state['status'] == 'verified-before-publication'
-    release = api('releases/tags/' + TAG, allow_missing=True)
+    release = existing_release()
     if release is None:
         release = api('releases', {
             'tag_name': TAG, 'target_commitish': SOURCE, 'draft': True, 'prerelease': True, 'make_latest': 'false',
@@ -155,6 +164,7 @@ def draft():
     assert release['draft'] and release['tag_name'] == TAG
     assert release['target_commitish'] == SOURCE
     state['release_id'] = release['id']
+    state['draft_review_url'] = 'https://github.com/' + REPO + '/releases/edit/' + str(release['id'])
     state['status'] = 'draft-created'
     save_state(state)
     existing = {a['name']: a for a in release['assets']}
