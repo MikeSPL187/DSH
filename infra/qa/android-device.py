@@ -191,19 +191,21 @@ class Device:
         self.check('native-five-cold-starts-allow-navigation-without-host-gate')
 
     def automation(self, methods):
-        result = self.shell('am instrument -w -r -e class com.dsh.NativeAutomationTest ' + PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner', timeout=480)
+        result = self.shell('am instrument -w -r -e class com.dsh.NativeAutomationTest ' + PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner', timeout=600)
         (self.output / 'automation-instrumentation.log').write_text(result)
-        for name in ('automation.json', 'provider-error.json', 'chat-layout.json', 'integration-state.txt',
+        for name in ('automation.json', 'provider-error.json', 'chat-layout.json', 'offline.json', 'integration-state.txt',
                      'integration-failure.png', 'chat-ime-font13.png', 'chat-landscape-font13.png'):
             path = 'cache/qa-native-' + name
             if self.private('test -f ' + shlex.quote(path) + ' && echo present', check=False).strip() == 'present':
                 (self.output / ('native-' + name)).write_bytes(self.adb('exec-out', 'run-as', PACKAGE, 'cat', path))
-        assert 'OK (3 tests)' in result, 'Native scheduled automation / chat integration failed'
+        assert 'OK (4 tests)' in result, 'Native scheduled automation / chat integration failed'
         outcome = json.loads(self.private('cat cache/qa-native-automation.json'))
-        assert outcome == {'scheduled': 'ok', 'historyCount': 1, 'model': 'qa-model'}
+        assert outcome == {'scheduled': 'ok', 'historyCount': 1, 'model': 'qa-model', 'idleHost': 'running'}
         assert json.loads(self.private('cat cache/qa-native-provider-error.json')) == {'providerFailure': 'err'}
         assert json.loads(self.private('cat cache/qa-native-chat-layout.json')) == {
             'imeAboveComposer': True, 'fontScale': 1.3, 'landscapeDraftRetained': True}
+        assert json.loads(self.private('cat cache/qa-native-offline.json')) == {
+            'reason': 'offline', 'createdSessionWhileOffline': False, 'retry': 'ok'}
         assert 'llm/qa-model' in methods and 'llm/qa-fail' in methods and 'llm/auth-ok' in methods
         assert 'llm/auth-bad' not in methods, 'Host did not forward the exact synthetic saved key'
         self.check('native-provider-save-vault-host-and-http-credential-roundtrip')
@@ -211,6 +213,8 @@ class Device:
         self.check('native-automation-inherits-default-model-and-records-provider-error')
         self.check('native-real-chat-last-reply-above-ime-at-font13')
         self.check('native-real-chat-landscape-preserves-draft-at-font13')
+        self.check('native-idle-settings-preserves-host-before-scheduled-fire')
+        self.check('native-offline-send-records-reason-and-retries-after-network-restored')
 
     def production(self, image, methods):
         self.upload(image, 'files/cache/rootfs-local.tar.gz')

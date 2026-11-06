@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.os.ParcelFileDescriptor
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.runtime.mutableStateListOf
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.test.platform.app.InstrumentationRegistry
@@ -13,6 +14,9 @@ import com.dsh.feature.settings.ModelProviderUi
 import com.dsh.feature.settings.logic.ApiKeyVault
 import com.dsh.feature.settings.logic.Automation
 import com.dsh.feature.settings.logic.AutomationStore
+import com.dsh.core.model.AppSettings
+import com.dsh.core.model.RunStatus
+import com.dsh.runtime.host.RuntimePhase
 import kotlinx.coroutines.*
 import org.junit.Assert.*
 import org.junit.Rule
@@ -46,7 +50,7 @@ class NativeAutomationTest {
             assertEquals(fixture, ApiKeyVault.use(ref) { it })
             block()
         } catch (error: Throwable) {
-            screenshot("qa-native-integration-failure.png")
+            runCatching { screenshot("qa-native-integration-failure.png") }
             File(app.cacheDir, "qa-native-integration-state.txt").writeText(ids.joinToString("\n") { id ->
                 AutomationStore.get(id)?.let { "$id: ${AutomationScheduler.status(app, it)}; history=${it.history}" } ?: "$id: absent"
             })
@@ -76,8 +80,13 @@ class NativeAutomationTest {
                 AutomationStore.upsert(a)
                 AutomationScheduler.schedule(app, a)
             }
+            compose.onNodeWithContentDescription(app.getString(com.dsh.feature.chat.R.string.ck_menu)).performClick()
+            compose.onNodeWithText("Settings").performClick()
             withTimeout(240_000) {
-                while (AutomationStore.get(a.id)?.history?.firstOrNull()?.status !in setOf("ok", "err")) delay(250)
+                while (AutomationStore.get(a.id)?.history?.firstOrNull()?.status !in setOf("ok", "err")) {
+                    assertEquals("Host stopped while Settings remained visible", RuntimePhase.RUNNING, app.runtimeManager.getStatus().phase)
+                    delay(250)
+                }
             }
             val completed = requireNotNull(AutomationStore.get(a.id))
             assertEquals("Scheduled run: " + completed.history.first().result, "ok", completed.history.first().status)
@@ -85,7 +94,7 @@ class NativeAutomationTest {
             assertEquals("qa-runtime", completed.providerId)
             delay(1500)
             assertEquals("Scheduled occurrence was duplicated", 1, AutomationStore.get(a.id)!!.history.size)
-            report("automation", """{"scheduled":"ok","historyCount":1,"model":"qa-model"}""")
+            report("automation", """{"scheduled":"ok","historyCount":1,"model":"qa-model","idleHost":"running"}""")
         }
     }
 
@@ -104,7 +113,7 @@ class NativeAutomationTest {
 
     @Test fun realChatLastReplyStaysAboveImeAndRetainsDraftOnRotation(): Unit = runBlocking {
         withProvider {
-            val prompt = "Reply ping. " + "Check rotation and the right edge. ".repeat(4)
+            val prompt = ("Reply ping. " + "Check rotation and the right edge. ".repeat(4)).trim()
             val a = Automation(ids[2], "Native chat layout", project = workspace, model = "qa-model",
                 modelId = "qa-model", providerId = "qa-runtime", prompt = prompt)
             withContext(Dispatchers.Main) { AutomationStore.upsert(a) }
@@ -146,6 +155,39 @@ class NativeAutomationTest {
             } finally {
                 shell("settings put system font_scale $oldScale")
                 compose.runOnUiThread { compose.activity.requestedOrientation = oldOrientation }
+            }
+        }
+    }
+
+    @Test fun offlineSendKeepsTheReasonAndRetriesAfterNetworkReturns(): Unit = runBlocking {
+        withProvider {
+            val cm = app.getSystemService(android.net.ConnectivityManager::class.java)
+            fun connected(): Boolean = cm.activeNetwork?.let { cm.getNetworkCapabilities(it) }
+                ?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+            val originalWifi = shell("settings get global wifi_on").trim()
+            val originalData = shell("settings get global mobile_data").trim()
+            val text = "Native offline request with an explicit reason"
+            try {
+                shell("svc wifi disable")
+                shell("svc data disable")
+                withTimeout(30_000) { while (connected()) delay(100) }
+                val sender = ChatSender(app, app.applicationScope, app.dshRepository,
+                    AppUiState(AppSettings(), app.filesDir, true), AppRuntimeUiState(false, 0f to ""),
+                    app.runtimeManager, mutableStateListOf(), { StorageAccess.workspaceRoot(app) })
+                withContext(Dispatchers.Main) { sender.send(text, ModelChoice("qa-model", "qa-runtime")) }
+                withTimeout(30_000) { while (app.chatRunJournal.records.value.none { it.text == text && it.status == RunStatus.FAILED }) delay(100) }
+                val failed = app.chatRunJournal.records.value.single { it.text == text }
+                assertEquals("No network connection. Connect and retry.", failed.error)
+                assertNull("An offline request should not create a Host session", failed.sessionId)
+                if (originalWifi != "0") shell("svc wifi enable")
+                if (originalData == "1") shell("svc data enable")
+                withTimeout(30_000) { while (!connected()) delay(100) }
+                withContext(Dispatchers.Main) { sender.retry(failed.id) }
+                withTimeout(120_000) { while (app.chatRunJournal.records.value.any { it.text == text }) delay(100) }
+                report("offline", """{"reason":"offline","createdSessionWhileOffline":false,"retry":"ok"}""")
+            } finally {
+                shell("svc wifi " + if (originalWifi == "0") "disable" else "enable")
+                shell("svc data " + if (originalData == "1") "enable" else "disable")
             }
         }
     }

@@ -75,6 +75,14 @@ class ChatRunJournal(private val file: File) {
         commit(mutable.value.map { if (it.id == id) change(it) else it })
     }
 
+    /** A later queued request may finish model setup after the first request failed. */
+    @Synchronized fun modelSelected(host: String, session: String) {
+        commit(mutable.value.map {
+            if (it.hostId == host && it.sessionId == session && it.requiresModelSelection)
+                it.copy(requiresModelSelection = false) else it
+        })
+    }
+
     @Synchronized fun remove(id: String) { recovering.remove(id); commit(mutable.value.filterNot { it.id == id }) }
 
     @Synchronized fun onEvent(host: String, event: RemoteEvent) {

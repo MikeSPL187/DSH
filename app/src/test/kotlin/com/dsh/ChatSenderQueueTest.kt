@@ -121,4 +121,41 @@ class ChatSenderQueueTest {
         } finally { scope.cancel() }
     }
 
+    @Test fun queuedMessageRetriesFailedInitialModelSelectionBeforeSending() = runBlocking {
+        val app = ApplicationProvider.getApplicationContext<DshApplication>()
+        val connectivity = app.getSystemService(android.net.ConnectivityManager::class.java)
+        val shadow = org.robolectric.Shadows.shadowOf(connectivity)
+        shadow.setActiveNetworkInfo(org.robolectric.shadows.ShadowNetworkInfo.newInstance(
+            android.net.NetworkInfo.DetailedState.CONNECTED, android.net.ConnectivityManager.TYPE_WIFI, 0, true, true))
+        val caps = org.robolectric.shadows.ShadowNetworkCapabilities.newInstance()
+        org.robolectric.Shadows.shadowOf(caps).addCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        shadow.setNetworkCapabilities(connectivity.activeNetwork, caps)
+        val selected = AtomicInteger()
+        val sent = CopyOnWriteArrayList<String>()
+        val client = Proxy.newProxyInstance(DshClientProtocol::class.java.classLoader, arrayOf(DshClientProtocol::class.java)) { _, method, args ->
+            when (method.name) {
+                "createSession" -> RemoteResult.Success(SessionInfo("local-host", "queued-model", "Chat", null, "idle", System.currentTimeMillis()))
+                "selectModel" -> if (selected.incrementAndGet() < 3) RemoteResult.Failure("qa/rejected", "selection rejected") else RemoteResult.Success(true)
+                "sendMessage" -> {
+                    assertEquals("A queued prompt reached the Host before its model was selected", 3, selected.get())
+                    sent += args[2] as String
+                    RemoteResult.Success(ChatMessage("local-host", "queued-model", "echo", MessageRole.USER, args[2] as String))
+                }
+                else -> error("Unexpected call ${method.name}")
+            }
+        } as DshClientProtocol
+        val dao = Proxy.newProxyInstance(DshDao::class.java.classLoader, arrayOf(DshDao::class.java)) { _, _, _ -> Unit } as DshDao
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val sender = ChatSender(app, scope, DshRepository(dao, client, scope), AppUiState(AppSettings(), app.filesDir, true), AppRuntimeUiState(false, 0f to ""), app.runtimeManager, mutableStateListOf(), { app.filesDir })
+            listOf("first", "second", "third").forEach { sender.send(it, ModelChoice("chosen", "provider")) }
+            pumpUntil { sent.isNotEmpty() }
+            assertEquals(3, selected.get())
+            assertEquals(listOf("third"), sent.toList())
+            val failed = app.chatRunJournal.records.value.filter { it.status == RunStatus.FAILED }
+            assertEquals(listOf("first", "second"), failed.map { it.text })
+            assertTrue("Successful session setup must also clear failed requests' stale setup flags", failed.none { it.requiresModelSelection })
+        } finally { scope.cancel() }
+    }
+
 }
