@@ -1,6 +1,7 @@
 package com.dsh.feature.chat
 
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.testTag
 
 import androidx.compose.foundation.layout.systemBars
 
@@ -930,7 +931,7 @@ fun ModernChatScreen(
             }
             LazyColumn(
                 state = listState,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().testTag("chat-thread"),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 20.dp, end = 20.dp, top = THREAD_TOP, bottom = threadBottom),
                 verticalArrangement = Arrangement.Top
             ) {
@@ -1109,6 +1110,7 @@ fun ModernChatScreen(
         ChatFade(Modifier.align(Alignment.BottomCenter))
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                .testTag("chat-composer")
                 .onSizeChanged { composerTop = it.height }
                 .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars).only(WindowInsetsSides.Vertical)),
             horizontalAlignment = Alignment.CenterHorizontally,

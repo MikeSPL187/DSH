@@ -190,6 +190,28 @@ class Device:
         (self.output / 'cold-starts.json').write_text(json.dumps(samples, indent=2) + '\n')
         self.check('native-five-cold-starts-allow-navigation-without-host-gate')
 
+    def automation(self, methods):
+        result = self.shell('am instrument -w -r -e class com.dsh.NativeAutomationTest ' + PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner', timeout=480)
+        (self.output / 'automation-instrumentation.log').write_text(result)
+        for name in ('automation.json', 'provider-error.json', 'chat-layout.json', 'integration-state.txt',
+                     'integration-failure.png', 'chat-ime-font13.png', 'chat-landscape-font13.png'):
+            path = 'cache/qa-native-' + name
+            if self.private('test -f ' + shlex.quote(path) + ' && echo present', check=False).strip() == 'present':
+                (self.output / ('native-' + name)).write_bytes(self.adb('exec-out', 'run-as', PACKAGE, 'cat', path))
+        assert 'OK (3 tests)' in result, 'Native scheduled automation / chat integration failed'
+        outcome = json.loads(self.private('cat cache/qa-native-automation.json'))
+        assert outcome == {'scheduled': 'ok', 'historyCount': 1, 'model': 'qa-model'}
+        assert json.loads(self.private('cat cache/qa-native-provider-error.json')) == {'providerFailure': 'err'}
+        assert json.loads(self.private('cat cache/qa-native-chat-layout.json')) == {
+            'imeAboveComposer': True, 'fontScale': 1.3, 'landscapeDraftRetained': True}
+        assert 'llm/qa-model' in methods and 'llm/qa-fail' in methods and 'llm/auth-ok' in methods
+        assert 'llm/auth-bad' not in methods, 'Host did not forward the exact synthetic saved key'
+        self.check('native-provider-save-vault-host-and-http-credential-roundtrip')
+        self.check('native-jobscheduler-fires-on-real-time-without-run-now')
+        self.check('native-automation-inherits-default-model-and-records-provider-error')
+        self.check('native-real-chat-last-reply-above-ime-at-font13')
+        self.check('native-real-chat-landscape-preserves-draft-at-font13')
+
     def production(self, image, methods):
         self.upload(image, 'files/cache/rootfs-local.tar.gz')
         digest = self.private('sha256sum files/cache/rootfs-local.tar.gz').split()[0]
@@ -405,6 +427,7 @@ def main():
             device.adb('reverse', 'tcp:38889', 'tcp:' + str(port))
             try:
                 device.production(image, methods)
+                device.automation(methods)
             finally:
                 device.adb('reverse', '--remove', 'tcp:38889', check=False)
                 (args.output / 'mcp-methods.json').write_text(json.dumps(methods, indent=2) + '\n')

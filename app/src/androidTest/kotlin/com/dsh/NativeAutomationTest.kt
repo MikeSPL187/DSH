@@ -1,0 +1,162 @@
+package com.dsh
+
+import android.content.pm.ActivityInfo
+import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.os.ParcelFileDescriptor
+import androidx.compose.ui.test.*
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.test.platform.app.InstrumentationRegistry
+import com.dsh.feature.settings.ModelProviderUi
+import com.dsh.feature.settings.logic.ApiKeyVault
+import com.dsh.feature.settings.logic.Automation
+import com.dsh.feature.settings.logic.AutomationStore
+import kotlinx.coroutines.*
+import org.junit.Assert.*
+import org.junit.Rule
+import org.junit.Test
+import java.io.File
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
+/** Actual installed Linux/Host, Android Keystore, HTTP model and JobScheduler; no real API key. */
+class NativeAutomationTest {
+    @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+    private val instrumentation get() = InstrumentationRegistry.getInstrumentation()
+    private val app get() = instrumentation.targetContext.applicationContext as DshApplication
+    private val workspace get() = StorageAccess.workspaceRoot(app).absolutePath
+    private val ids = listOf("qa-native-scheduled", "qa-native-failed", "qa-native-layout")
+
+    private suspend fun withProvider(block: suspend () -> Unit) {
+        val manager = ModelProviders(app.dshRepository)
+        val ref = "QA_RUNTIME_API_KEY"
+        val fixture = "qa-runtime-synthetic-secret"
+        val provider = ModelProviderUi("qa-runtime", "QA runtime", listOf("qa-model", "qa-fail"), ref, false,
+            settingsNs = "llm-pi-ai", settingsPath = listOf("providers", "qa-runtime"),
+            baseUrl = "http://127.0.0.1:38889/v1", declared = false, configured = false)
+        val originalDefault = AutomationStore.defaultModel
+        try {
+            val status = withContext(Dispatchers.IO) { app.runtimeManager.start(workspace).getOrThrow() }
+            assertTrue(app.bindLocalHost(requireNotNull(status.port), status.token))
+            assertTrue("Host/Vault rejected synthetic provider", withContext(Dispatchers.Main) {
+                manager.save("local-host", provider, fixture, provider.baseUrl, provider.models)
+            })
+            assertEquals(fixture, ApiKeyVault.use(ref) { it })
+            block()
+        } catch (error: Throwable) {
+            screenshot("qa-native-integration-failure.png")
+            File(app.cacheDir, "qa-native-integration-state.txt").writeText(ids.joinToString("\n") { id ->
+                AutomationStore.get(id)?.let { "$id: ${AutomationScheduler.status(app, it)}; history=${it.history}" } ?: "$id: absent"
+            })
+            throw error
+        } finally {
+            withContext(NonCancellable + Dispatchers.Main) {
+                for (id in ids) {
+                    AutomationStore.get(id)?.let { AutomationStore.upsert(it.copy(on = false)) }
+                    AutomationScheduler.cancel(app, id)
+                    AutomationStore.delete(id)
+                }
+                AutomationStore.setDefaultModel(originalDefault.first, originalDefault.second)
+                manager.remove("local-host", provider)
+                ApiKeyVault.delete(ref)
+            }
+        }
+    }
+
+    @Test fun scheduledFireInheritsDefaultModel(): Unit = runBlocking {
+        withProvider {
+            // Wait for a real future wall-clock occurrence. No Run now, forced job or clock jump.
+            val next = LocalDateTime.now().plusMinutes(2).withSecond(0).withNano(0)
+            val a = Automation(ids[0], "Native scheduled ping", time = next.format(DateTimeFormatter.ofPattern("HH:mm")),
+                project = workspace, prompt = "Reply ping.")
+            withContext(Dispatchers.Main) {
+                AutomationStore.setDefaultModel("qa-model", 0)
+                AutomationStore.upsert(a)
+                AutomationScheduler.schedule(app, a)
+            }
+            withTimeout(240_000) {
+                while (AutomationStore.get(a.id)?.history?.firstOrNull()?.status !in setOf("ok", "err")) delay(250)
+            }
+            val completed = requireNotNull(AutomationStore.get(a.id))
+            assertEquals("Scheduled run: " + completed.history.first().result, "ok", completed.history.first().status)
+            assertEquals("qa-model", completed.modelId)
+            assertEquals("qa-runtime", completed.providerId)
+            delay(1500)
+            assertEquals("Scheduled occurrence was duplicated", 1, AutomationStore.get(a.id)!!.history.size)
+            report("automation", """{"scheduled":"ok","historyCount":1,"model":"qa-model"}""")
+        }
+    }
+
+    @Test fun providerFailureReachesTerminalHistory(): Unit = runBlocking {
+        withProvider {
+            val fail = Automation(ids[1], "Native refused model", project = workspace, model = "qa-fail",
+                modelId = "qa-fail", providerId = "qa-runtime", prompt = "Return a controlled error.")
+            withContext(Dispatchers.Main) { AutomationStore.upsert(fail) }
+            assertTrue(withTimeout(120_000) { AutomationRunner.run(app, fail.id) })
+            val run = AutomationStore.get(fail.id)!!.history.first()
+            assertEquals("Error left automation running: " + run.result, "err", run.status)
+            assertTrue("Error explanation absent", run.result.isNotBlank())
+            report("provider-error", """{"providerFailure":"err"}""")
+        }
+    }
+
+    @Test fun realChatLastReplyStaysAboveImeAndRetainsDraftOnRotation(): Unit = runBlocking {
+        withProvider {
+            val prompt = "Reply ping. " + "Check rotation and the right edge. ".repeat(4)
+            val a = Automation(ids[2], "Native chat layout", project = workspace, model = "qa-model",
+                modelId = "qa-model", providerId = "qa-runtime", prompt = prompt)
+            withContext(Dispatchers.Main) { AutomationStore.upsert(a) }
+            assertTrue(withTimeout(120_000) { AutomationRunner.run(app, a.id) })
+            val run = AutomationStore.get(a.id)!!.history.first()
+            assertEquals("Chat fixture: " + run.result, "ok", run.status)
+            assertNotNull(run.sessionId)
+            compose.waitUntil(60_000) { compose.onAllNodesWithContentDescription(app.getString(com.dsh.feature.chat.R.string.ck_menu)).fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithContentDescription(app.getString(com.dsh.feature.chat.R.string.ck_menu)).performClick()
+            compose.onNodeWithText(app.getString(com.dsh.feature.sessions.R.string.dw_automation)).performClick()
+            compose.onNodeWithText(a.name).performScrollTo().performClick()
+            val history = hasClickAction() and hasText(run.result, substring = true) and hasText("Today", substring = true)
+            compose.onNode(history).performScrollTo().performClick()
+            compose.waitUntil(60_000) { compose.onAllNodesWithTag("chat-thread").fetchSemanticsNodes().isNotEmpty() }
+            val answer = hasText("ping") and hasAnyAncestor(hasTestTag("chat-thread"))
+            compose.waitUntil(60_000) { compose.onAllNodes(answer).fetchSemanticsNodes().isNotEmpty() }
+            val oldScale = shell("settings get system font_scale").trim().takeIf { it.toFloatOrNull() != null } ?: "1.0"
+            val oldOrientation = compose.activity.requestedOrientation
+            try {
+                shell("settings put system font_scale 1.3")
+                compose.waitUntil(30_000) { compose.activity.resources.configuration.fontScale > 1.29f }
+                val editor = hasSetTextAction() and hasAnyAncestor(hasTestTag("chat-composer"))
+                val draft = "Keep this draft through portrait and landscape."
+                compose.onNode(editor).performClick().performTextInput(draft)
+                compose.waitUntil(30_000) { ViewCompat.getRootWindowInsets(compose.activity.window.decorView)?.isVisible(WindowInsetsCompat.Type.ime()) == true }
+                compose.waitUntil(30_000) {
+                    val bottom = compose.onNode(answer).fetchSemanticsNode().boundsInRoot.bottom
+                    val top = compose.onNodeWithTag("chat-composer").fetchSemanticsNode().boundsInRoot.top
+                    bottom > 0 && bottom <= top
+                }
+                screenshot("qa-native-chat-ime-font13.png")
+                shell("input keyevent 4")
+                compose.runOnUiThread { compose.activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE }
+                compose.waitUntil(30_000) { compose.activity.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE }
+                compose.onNode(editor).assertTextContains(draft)
+                compose.onNode(hasText(prompt) and hasAnyAncestor(hasTestTag("chat-thread"))).performScrollTo().assertIsDisplayed()
+                screenshot("qa-native-chat-landscape-font13.png")
+                report("chat-layout", """{"imeAboveComposer":true,"fontScale":1.3,"landscapeDraftRetained":true}""")
+            } finally {
+                shell("settings put system font_scale $oldScale")
+                compose.runOnUiThread { compose.activity.requestedOrientation = oldOrientation }
+            }
+        }
+    }
+
+    private fun report(name: String, json: String) = File(app.cacheDir, "qa-native-$name.json").writeText(json)
+    private fun screenshot(name: String) {
+        instrumentation.uiAutomation.takeScreenshot()?.let { bitmap ->
+            File(app.cacheDir, name).outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        }
+    }
+    private fun shell(command: String): String = instrumentation.uiAutomation.executeShellCommand(command).use { descriptor ->
+        ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { it.readBytes().decodeToString() }
+    }
+}
