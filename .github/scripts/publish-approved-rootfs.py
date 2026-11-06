@@ -77,7 +77,12 @@ def save_state(state):
 
 def prepare():
     assert api('releases/tags/' + TAG, allow_missing=True) is None, 'Release already exists'
-    assert api('git/ref/tags/' + TAG, allow_missing=True) is None, 'Tag already exists'
+    tag = api('git/ref/tags/' + TAG, allow_missing=True)
+    if tag is not None:
+        obj = tag['object']
+        while obj['type'] == 'tag':
+            obj = api('git/tags/' + obj['sha'])['object']
+        assert obj['type'] == 'commit' and obj['sha'] == SOURCE, 'Existing tag targets another revision'
     run = api('actions/runs/' + str(RUN))
     assert run['head_sha'] == SOURCE and run['conclusion'] == 'success'
     native = api('actions/runs/42149123847')
