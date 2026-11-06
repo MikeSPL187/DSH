@@ -156,15 +156,15 @@ class Device:
         self.screenshot('graphite')
         self.check('theme-and-system-bars-apply-locally')
         for cycle in range(2):
-            self.click('Language', scroll=True)
             self.wait(lambda n: self.has('Русский', n))
             self.click('Русский')
             self.wait(lambda n: self.has('Оформление', n))
+            assert self.foreground(), 'MainActivity lost foreground after Russian locale'
             self.screenshot('appearance-ru-' + str(cycle))
-            self.click('Язык', scroll=True)
             self.wait(lambda n: self.has('English', n))
             self.click('English')
             self.wait(lambda n: self.has('Appearance', n) and self.has('Graphite · Dark', n))
+            assert self.foreground(), 'MainActivity lost foreground after English locale'
         self.check('appearance-retained-through-two-locale-cycles')
         self.shell('settings put system accelerometer_rotation 0')
         self.shell('settings put system user_rotation 1')
