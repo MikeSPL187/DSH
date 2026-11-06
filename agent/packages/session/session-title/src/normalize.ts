@@ -50,14 +50,22 @@ export function truncateTitleUtf8(input: string, maxBytes: number): string {
   return output
 }
 
+/** Keep complete trailing words when the byte limit cuts a later word. */
+function boundedTitle(input: string, maxBytes: number): string {
+  const prefix = truncateTitleUtf8(input, maxBytes).trimEnd()
+  if (prefix.length === input.length || input[prefix.length] === ' ') return prefix
+  const boundary = prefix.lastIndexOf(' ')
+  return boundary > 0 ? prefix.slice(0, boundary) : prefix
+}
+
 /**
  * Normalize one accepted session title and enforce its UTF-8 byte budget.
  * @param input - untrusted title text.
  * @param maxBytes - positive maximum encoded size.
- * @returns a terminal-safe one-line title, possibly empty after sanitization.
+ * @returns terminal-safe complete leading words, or a UTF-8-safe prefix of an oversized first word; possibly empty after sanitization.
  */
 export function normalizeSessionTitle(input: string, maxBytes: number): string {
-  return truncateTitleUtf8(cleanTitleText(input), maxBytes).trimEnd()
+  return boundedTitle(cleanTitleText(input), maxBytes)
 }
 
 /**
@@ -65,10 +73,10 @@ export function normalizeSessionTitle(input: string, maxBytes: number): string {
  * @param input - text from the first eligible human message.
  * @param maxWords - positive whitespace-delimited word cap.
  * @param maxBytes - positive UTF-8 byte cap.
- * @returns the normalized leading words within both limits.
+ * @returns complete leading words within both limits; an oversized first word uses a UTF-8-safe prefix.
  */
 export function fallbackSessionTitle(input: string, maxWords: number, maxBytes: number): string {
   assertPositiveInteger('maxWords', maxWords)
   const words = cleanTitleText(input).split(' ').filter(Boolean).slice(0, maxWords)
-  return truncateTitleUtf8(words.join(' '), maxBytes).trimEnd()
+  return boundedTitle(words.join(' '), maxBytes)
 }
