@@ -76,7 +76,9 @@ def save_state(state):
 
 
 def prepare():
-    assert api('releases/tags/' + TAG, allow_missing=True) is None, 'Release already exists'
+    approved = api('releases/436416651')
+    assert approved['tag_name'] == TAG and approved['target_commitish'] == SOURCE
+    assert approved['draft'] and approved['prerelease'], 'Approved draft is no longer pending'
     tag = api('git/ref/tags/' + TAG, allow_missing=True)
     if tag is not None:
         obj = tag['object']
@@ -146,16 +148,22 @@ def validate_assets(release, state):
 def draft():
     state = json.loads((ROOT / 'publication.json').read_text())
     assert state['status'] == 'verified-before-publication'
-    assert api('releases/tags/' + TAG, allow_missing=True) is None
-    notes = Path('.github/scripts/rootfs-v2.0.2-notes.md').read_text()
-    release = api('releases', {'tag_name': TAG, 'target_commitish': SOURCE,
-                             'name': 'Linux 2.0.2 для DSH Mobile 1.1.4', 'body': notes,
-                             'draft': True, 'prerelease': True, 'make_latest': 'false'})
+    release = api('releases/436416651')
+    assert release['draft'] and release['tag_name'] == TAG
+    assert release['target_commitish'] == SOURCE
     state['release_id'] = release['id']
     state['status'] = 'draft-created'
     save_state(state)
-    gh('release', 'upload', TAG, '--repo', REPO,
-       *[str(ROOT / 'release-assets' / name) for name in sorted(ASSETS)])
+    existing = {a['name']: a for a in release['assets']}
+    assert set(existing) <= ASSETS
+    for name, asset in existing.items():
+        assert asset['state'] == 'uploaded'
+        assert asset['size'] == state['assets'][name]['size']
+        assert asset['digest'] == 'sha256:' + state['assets'][name]['sha256']
+    missing = ASSETS - set(existing)
+    if missing:
+        gh('release', 'upload', TAG, '--repo', REPO,
+           *[str(ROOT / 'release-assets' / name) for name in sorted(missing)])
     release = api('releases/' + str(release['id']))
     assert release['draft']
     validate_assets(release, state)
