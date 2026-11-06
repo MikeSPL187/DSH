@@ -1,0 +1,84 @@
+name: Android device QA
+
+on:
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'feature/**'
+      - 'core/**'
+      - 'runtime/**'
+      - 'infra/qa/**'
+      - '.github/workflows/android-device-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: android-device-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  devices:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
+      - name: Validate native fixtures
+        run: |
+          python3 -m py_compile infra/qa/android-device.py
+          sh -n infra/qa/native-packages.sh
+          node --check infra/qa/native-cancel.mjs
+      - name: Build before starting any emulator
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --max-workers=2 -Pkotlin.compiler.execution.strategy=in-process
+      - name: Prefer published pinned rootfs
+        id: rootfs
+        run: |
+          mkdir -p qa-rootfs
+          python3 - <<'PY'
+          import json, urllib.request, urllib.error, pathlib, hashlib, os
+          m = json.load(open('app/src/main/assets/rootfs-manifest.json'))
+          p = pathlib.Path('qa-rootfs/rootfs-x86_64.bin')
+          try:
+              urllib.request.urlretrieve(m['downloadUrls']['x86_64'], p)
+              assert hashlib.sha256(p.read_bytes()).hexdigest().upper() == m['downloadSha256']['x86_64']
+              published = True
+          except urllib.error.HTTPError as e:
+              if e.code != 404: raise
+              published = False
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f: f.write('published=' + str(published).lower() + '\n')
+          PY
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        if: steps.rootfs.outputs.published != 'true'
+        with:
+          name: rootfs-2.0.2-candidate
+          run-id: 42131494409
+          github-token: ${{ github.token }}
+          path: qa-rootfs
+      - name: Require hardware acceleration
+        run: |
+          test -c /dev/kvm
+          sudo chmod 666 /dev/kvm
+      - name: Android 11 and 13, one capped emulator at a time
+        run: |
+          status=0
+          for api in 30 33; do
+            if ! python3 infra/qa/android-device.py --api "$api" --rootfs qa-rootfs/rootfs-x86_64.bin --output "device-evidence/api-$api"; then
+              status=1
+            fi
+          done
+          exit "$status"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: android-device-qa
+          path: device-evidence/
+          retention-days: 14
