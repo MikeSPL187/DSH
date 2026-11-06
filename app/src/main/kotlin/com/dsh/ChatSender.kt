@@ -182,15 +182,20 @@ class ChatSender(
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { journal.bindConversation(outgoing.hostId, outgoing.conversationId, created) }
         }
         val targetSession = sid
-        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { journal.update(localId) { it.copy(sessionId = targetSession) } }
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            journal.update(localId) { it.copy(sessionId = targetSession, requiresModelSelection = createdSession || outgoing.requiresModelSelection) }
+        }
         // Выбор модели в modelSelection пишется только для новой сессии;
         // у существующей не перезаписывается (раньше провайдер каждый раз брался
         // из аккаунта, у Kimi и моделей подписки он ломался, и ответ был пустым).
-        if (createdSession) {
+        if (createdSession || outgoing.requiresModelSelection) {
             // Модель, уровень рассуждений и права, выбранные до первого сообщения (G-23): раньше выбор без
             // сессии молча пропадал, и новая сессия шла с правами по умолчанию. Отказ — видимое сообщение.
             val selected = repository.selectModel(outgoing.hostId, sid, outgoing.model.modelId, outgoing.model.providerId, outgoing.model.reasoningEffort)
             if (selected.isFailure) return context.getString(R.string.model_switch_failed, selected.exceptionOrNull()?.message.orEmpty())
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                journal.update(localId) { it.copy(requiresModelSelection = false) }
+            }
         }
         // Права не применились — prompt не уходит: иначе агент работал бы с правами по умолчанию.
         outgoing.permission?.let { preset ->

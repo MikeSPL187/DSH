@@ -87,4 +87,38 @@ class ChatSenderQueueTest {
         } finally { scope.cancel() }
     }
 
+    @Test fun retryAfterModelSelectionFailureReappliesTheModelBeforeSending() = runBlocking {
+        val app = ApplicationProvider.getApplicationContext<DshApplication>()
+        val connectivity = app.getSystemService(android.net.ConnectivityManager::class.java)
+        val shadow = org.robolectric.Shadows.shadowOf(connectivity)
+        shadow.setActiveNetworkInfo(org.robolectric.shadows.ShadowNetworkInfo.newInstance(
+            android.net.NetworkInfo.DetailedState.CONNECTED, android.net.ConnectivityManager.TYPE_WIFI, 0, true, true))
+        val caps = org.robolectric.shadows.ShadowNetworkCapabilities.newInstance()
+        org.robolectric.Shadows.shadowOf(caps).addCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        shadow.setNetworkCapabilities(connectivity.activeNetwork, caps)
+        val selected = AtomicInteger()
+        val sent = AtomicInteger()
+        val client = Proxy.newProxyInstance(DshClientProtocol::class.java.classLoader, arrayOf(DshClientProtocol::class.java)) { _, method, _ ->
+            when (method.name) {
+                "createSession" -> RemoteResult.Success(SessionInfo("local-host", "retry-model", "Chat", null, "idle", System.currentTimeMillis()))
+                "selectModel" -> if (selected.incrementAndGet() == 1) RemoteResult.Failure("qa/rejected", "selection rejected") else RemoteResult.Success(true)
+                "sendMessage" -> { sent.incrementAndGet(); RemoteResult.Success(ChatMessage("local-host", "retry-model", "echo", MessageRole.USER, "retry fixture")) }
+                else -> error("Unexpected call ${method.name}")
+            }
+        } as DshClientProtocol
+        val dao = Proxy.newProxyInstance(DshDao::class.java.classLoader, arrayOf(DshDao::class.java)) { _, _, _ -> Unit } as DshDao
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val sender = ChatSender(app, scope, DshRepository(dao, client, scope), AppUiState(AppSettings(), app.filesDir, true), AppRuntimeUiState(false, 0f to ""), app.runtimeManager, mutableStateListOf(), { app.filesDir })
+            sender.send("retry fixture", ModelChoice("chosen", "provider"))
+            pumpUntil { app.chatRunJournal.records.value.any { it.text == "retry fixture" && it.status == RunStatus.FAILED } }
+            val failed = app.chatRunJournal.records.value.single { it.text == "retry fixture" }
+            assertTrue(failed.requiresModelSelection)
+            assertEquals(0, sent.get())
+            sender.retry(failed.id)
+            pumpUntil { sent.get() == 1 }
+            assertEquals(2, selected.get())
+        } finally { scope.cancel() }
+    }
+
 }

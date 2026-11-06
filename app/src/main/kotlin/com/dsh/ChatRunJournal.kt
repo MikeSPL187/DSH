@@ -34,6 +34,7 @@ data class SavedPrompt(
     val startedSeq: Long = 0,
     val conversationId: String = "",
     val submissionOrder: Long = 0,
+    val requiresModelSelection: Boolean = false,
 )
 
 /** Atomic private journal: persistence is committed before a prompt can reach the Host. */
