@@ -2,6 +2,7 @@
 """Real APK/native-image QA. Disposable devices only; no provider credentials."""
 import argparse
 import hashlib
+import http.client
 import json
 import os
 from pathlib import Path
@@ -193,12 +194,12 @@ class Device:
     def automation(self, methods):
         result = self.shell('am instrument -w -r -e class com.dsh.NativeAutomationTest ' + PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner', timeout=600)
         (self.output / 'automation-instrumentation.log').write_text(result)
-        for name in ('automation.json', 'provider-error.json', 'chat-layout.json', 'offline.json', 'integration-state.txt',
+        for name in ('automation.json', 'provider-error.json', 'chat-layout.json', 'offline.json', 'readonly.json', 'integration-state.txt',
                      'integration-failure.png', 'chat-ime-font13.png', 'chat-landscape-font13.png'):
             path = 'cache/qa-native-' + name
             if self.private('test -f ' + shlex.quote(path) + ' && echo present', check=False).strip() == 'present':
                 (self.output / ('native-' + name)).write_bytes(self.adb('exec-out', 'run-as', PACKAGE, 'cat', path))
-        assert 'OK (4 tests)' in result, 'Native scheduled automation / chat integration failed'
+        assert 'OK (5 tests)' in result, 'Native scheduled automation / chat integration failed'
         outcome = json.loads(self.private('cat cache/qa-native-automation.json'))
         assert outcome == {'scheduled': 'ok', 'historyCount': 1, 'model': 'qa-model', 'idleHost': 'running'}
         assert json.loads(self.private('cat cache/qa-native-provider-error.json')) == {'providerFailure': 'err'}
@@ -206,6 +207,9 @@ class Device:
             'imeAboveComposer': True, 'fontScale': 1.3, 'landscapeDraftRetained': True}
         assert json.loads(self.private('cat cache/qa-native-offline.json')) == {
             'reason': 'offline', 'createdSessionWhileOffline': False, 'retry': 'ok'}
+        assert json.loads(self.private('cat cache/qa-native-readonly.json')) == {'shellDenied': True, 'terminalHistory': True}
+        assert 'llm/readonly-shell-requested' in methods and 'llm/readonly-denied' in methods
+        assert 'llm/readonly-unexpected-result' not in methods
         assert 'llm/qa-model' in methods and 'llm/qa-fail' in methods and 'llm/auth-ok' in methods
         assert 'llm/auth-bad' not in methods, 'Host did not forward the exact synthetic saved key'
         self.check('native-provider-save-vault-host-and-http-credential-roundtrip')
@@ -215,6 +219,56 @@ class Device:
         self.check('native-real-chat-landscape-preserves-draft-at-font13')
         self.check('native-idle-settings-preserves-host-before-scheduled-fire')
         self.check('native-offline-send-records-reason-and-retries-after-network-restored')
+        self.check('native-readonly-shell-denial-finishes-with-explicit-report')
+
+    def recovery(self, port, methods):
+        component = PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner'
+        command = 'am instrument -w -r -e class com.dsh.NativeChatRecoveryTest#startInterruptedRequest ' + component
+        path = self.output / 'recovery-start-instrumentation.log'
+        with path.open('wb') as log:
+            runner = subprocess.Popen([str(Path(os.environ['ANDROID_HOME']) / 'platform-tools/adb'), '-s', 'emulator-5554', 'shell', command],
+                                      stdout=log, stderr=subprocess.STDOUT)
+            try:
+                deadline = time.monotonic() + 150
+                while time.monotonic() < deadline:
+                    if self.private('cat cache/qa-native-recovery-ready.txt', check=False).strip():
+                        break
+                    assert runner.poll() is None, 'Recovery preparation exited before receiving a partial answer'
+                    time.sleep(.25)
+                else:
+                    raise AssertionError('No persisted partial response before force-stop')
+                records = json.loads(self.private('cat files/chat-outbox-v1.json'))
+                record = next(x for x in records if x['model']['modelId'] == 'qa-recovery')
+                assert 'Native partial response' in record['partial'], 'Partial answer was not durably checkpointed'
+                (self.output / 'recovery-before-kill.json').write_text(json.dumps({k: record[k] for k in ('id', 'sessionId', 'status', 'partial')}, indent=2) + '\n')
+                self.adb('shell', 'am', 'force-stop', PACKAGE)
+                assert not self.shell('pidof ' + PACKAGE, check=False).strip(), 'Application process survived force-stop'
+            finally:
+                self.adb('shell', 'am', 'force-stop', PACKAGE, check=False)
+                try:
+                    runner.wait(timeout=15)
+                except subprocess.TimeoutExpired:
+                    runner.kill()
+                    runner.wait(timeout=15)
+        peer = http.client.HTTPConnection('127.0.0.1', port, timeout=10)
+        try:
+            peer.request('POST', '/qa/recovery-resume', '{}', {'Content-Type': 'application/json'})
+            response = peer.getresponse()
+            assert response.status == 200 and json.loads(response.read()) == {'ready': True}
+        finally:
+            peer.close()
+        result = self.shell('am instrument -w -r -e class com.dsh.NativeChatRecoveryTest#recoverInterruptedRequestAndRetryFromChat ' + component, timeout=300)
+        (self.output / 'recovery-instrumentation.log').write_text(result)
+        for name in ('recovery.json', 'interrupted-chat.png'):
+            file = 'cache/qa-native-' + name
+            if self.private('test -f ' + shlex.quote(file) + ' && echo present', check=False).strip() == 'present':
+                (self.output / ('native-' + name)).write_bytes(self.adb('exec-out', 'run-as', PACKAGE, 'cat', file))
+        assert 'OK (1 test)' in result, 'Process-death recovery or UI Retry failed'
+        assert 'llm/recovery-partial' in methods
+        assert json.loads(self.private('cat cache/qa-native-recovery.json')) == {
+            'forceStop': True, 'partialRetained': True, 'interruptionVisible': True, 'retry': 'ok'}
+        self.check('native-force-stop-retains-durable-partial-and-visible-interruption')
+        self.check('native-interrupted-chat-retry-completes-through-real-host')
 
     def production(self, image, methods):
         self.upload(image, 'files/cache/rootfs-local.tar.gz')
@@ -432,6 +486,7 @@ def main():
             try:
                 device.production(image, methods)
                 device.automation(methods)
+                device.recovery(port, methods)
             finally:
                 device.adb('reverse', '--remove', 'tcp:38889', check=False)
                 (args.output / 'mcp-methods.json').write_text(json.dumps(methods, indent=2) + '\n')

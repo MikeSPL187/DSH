@@ -31,13 +31,13 @@ class NativeAutomationTest {
     private val instrumentation get() = InstrumentationRegistry.getInstrumentation()
     private val app get() = instrumentation.targetContext.applicationContext as DshApplication
     private val workspace get() = StorageAccess.workspaceRoot(app).absolutePath
-    private val ids = listOf("qa-native-scheduled", "qa-native-failed", "qa-native-layout")
+    private val ids = listOf("qa-native-scheduled", "qa-native-failed", "qa-native-layout", "qa-native-readonly")
 
     private suspend fun withProvider(block: suspend () -> Unit) {
         val manager = ModelProviders(app.dshRepository)
         val ref = "QA_RUNTIME_API_KEY"
         val fixture = "qa-runtime-synthetic-secret"
-        val provider = ModelProviderUi("qa-runtime", "QA runtime", listOf("qa-model", "qa-fail"), ref, false,
+        val provider = ModelProviderUi("qa-runtime", "QA runtime", listOf("qa-model", "qa-fail", "qa-readonly"), ref, false,
             settingsNs = "llm-pi-ai", settingsPath = listOf("providers", "qa-runtime"),
             baseUrl = "http://127.0.0.1:38889/v1", declared = false, configured = false)
         val originalDefault = AutomationStore.defaultModel
@@ -189,6 +189,20 @@ class NativeAutomationTest {
                 shell("svc wifi " + if (originalWifi == "0") "disable" else "enable")
                 shell("svc data " + if (originalData == "1") "enable" else "disable")
             }
+        }
+    }
+
+    @Test fun readOnlyShellDenialFinishesAutomationWithAnExplanation(): Unit = runBlocking {
+        withProvider {
+            val a = Automation(ids[3], "Native read-only shell", project = workspace, model = "qa-readonly",
+                modelId = "qa-readonly", providerId = "qa-runtime", perm = "read", prompt = "Read kernel information and report; do not change files.")
+            withContext(Dispatchers.Main) { AutomationStore.upsert(a) }
+            assertTrue(withTimeout(120_000) { AutomationRunner.run(app, a.id) })
+            val run = AutomationStore.get(a.id)!!.history.first()
+            assertTrue("Read-only shell left automation running", run.status in setOf("ok", "err"))
+            assertTrue("No explicit read-only denial: " + run.result,
+                Regex("sandbox|denied|not permitted", RegexOption.IGNORE_CASE).containsMatchIn(run.result))
+            report("readonly", """{"shellDenied":true,"terminalHistory":true}""")
         }
     }
 

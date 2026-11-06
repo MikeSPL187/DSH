@@ -2,12 +2,14 @@
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import re
 import threading
 
 
 @contextmanager
 def server():
     methods = []
+    recovered = threading.Event()
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_):
@@ -33,6 +35,10 @@ def server():
 
         def do_POST(self):
             request = json.loads(self.rfile.read(int(self.headers.get('Content-Length', '0'))))
+            if self.path == '/qa/recovery-resume':
+                recovered.set()
+                self.reply(200, {'ready': True})
+                return
             if self.path.endswith('/chat/completions'):
                 model = request.get('model')
                 methods.append('llm/' + str(model))
@@ -50,8 +56,44 @@ def server():
                                      'choices': [{'index': 0, 'message': {'role': 'assistant', 'content': 'ping'}, 'finish_reason': 'stop'}], 'usage': usage})
                     return
                 base = {'id': 'qa', 'object': 'chat.completion.chunk', 'created': 0, 'model': model}
+                if model == 'qa-recovery' and not recovered.is_set():
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'text/event-stream')
+                    self.end_headers()
+                    partial = dict(base, choices=[{'index': 0, 'delta': {'role': 'assistant', 'content': 'Native partial response'}, 'finish_reason': None}])
+                    self.wfile.write(('data: ' + json.dumps(partial) + '\n\n').encode())
+                    self.wfile.flush()
+                    methods.append('llm/recovery-partial')
+                    recovered.wait(180)
+                    try:
+                        self.wfile.write(b'data: [DONE]\n\n')
+                    except (BrokenPipeError, ConnectionResetError):
+                        pass
+                    return
                 events = [dict(base, choices=[{'index': 0, 'delta': {'role': 'assistant', 'content': 'ping'}, 'finish_reason': None}]),
                           dict(base, choices=[{'index': 0, 'delta': {}, 'finish_reason': 'stop'}], usage=usage)]
+                if model == 'qa-readonly':
+                    results = [m.get('content', '') for m in request.get('messages', []) if m.get('role') == 'tool']
+                    if not results:
+                        tools = [t['function'] for t in request.get('tools', []) if re.search(r'(?:^|[._])(?:bash|shell)$', t['function']['name'])]
+                        if len(tools) != 1:
+                            self.reply(400, {'error': {'message': 'QA expected one shell tool, observed: ' + ', '.join(t['function']['name'] for t in request.get('tools', []))}})
+                            return
+                        tool = tools[0]
+                        fields = tool.get('parameters', {}).get('properties', {})
+                        args = {'command' if 'command' in fields else 'cmd': 'uname -a'}
+                        if 'description' in fields:
+                            args['description'] = 'Read kernel identity without modifying files'
+                        call = {'index': 0, 'id': 'qa_readonly_call', 'type': 'function',
+                                'function': {'name': tool['name'], 'arguments': json.dumps(args)}}
+                        events = [dict(base, choices=[{'index': 0, 'delta': {'role': 'assistant', 'tool_calls': [call]}, 'finish_reason': None}]),
+                                  dict(base, choices=[{'index': 0, 'delta': {}, 'finish_reason': 'tool_calls'}], usage=usage)]
+                        methods.append('llm/readonly-shell-requested')
+                    else:
+                        detail = ' '.join(v if isinstance(v, str) else json.dumps(v) for v in results)
+                        denied = bool(re.search(r'sandbox|denied|not permitted', detail, re.I))
+                        methods.append('llm/readonly-denied' if denied else 'llm/readonly-unexpected-result')
+                        events[0]['choices'][0]['delta']['content'] = 'Read-only shell report: ' + detail[:800]
                 body = (''.join('data: ' + json.dumps(e) + '\n\n' for e in events) + 'data: [DONE]\n\n').encode()
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/event-stream')
@@ -85,6 +127,7 @@ def server():
     try:
         yield http.server_port, methods
     finally:
+        recovered.set()
         http.shutdown()
         http.server_close()
         worker.join(timeout=5)
