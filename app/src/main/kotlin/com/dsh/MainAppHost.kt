@@ -1258,7 +1258,7 @@ fun MainAppHost(
                                 runtimeManager = runtimeManager, layout = layout, backup = backupAndDiag, oauthManager = oauthManager,
                                 officialNamespaces = officialModelNamespaces, modelProviders = modelProviders, workspace = activeWorkspace, availableModels = availableModelNames,
                                 remotes = availableHosts,
-                                pluginsOn = bridgePluginCatalog.bundles.count { it.enabled } +
+                                pluginsOn = if (bridgePluginCatalog.source == com.dsh.core.bridge.BridgePluginCatalogSource.NONE) null else bridgePluginCatalog.bundles.count { it.enabled } +
                                     runtimeUi.nativePluginItems.count { it.statusLabel == context.getString(R.string.plugin_status_installed) },
                                 trustedNative = runtimeUi.nativePluginItems.filter { it.signatureFingerprint != null }.map { item ->
                                     com.dsh.feature.settings.ui.TrustedPluginRow(

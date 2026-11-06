@@ -150,7 +150,7 @@ data class SettingsUi(
     val autoModelName: String = "",
     val autoReasoningIndex: Int = 0,
     // Работа
-    val pluginsOn: Int = 0,
+    val pluginsOn: Int? = null,
     val automationsOn: Int = 0,
     /** true — «Сам в рабочей папке», false — «Спрашивать», null — Host не отдал пресеты. */
     val autoApprove: Boolean? = false,
@@ -505,7 +505,7 @@ private fun RootPage(ui: SettingsUi, a: SettingsActions, go: (StPage) -> Unit) {
             row { StRow(pageTitle(StPage.GitHub), icon = DshGlyphs.get("git"), tile = Si.c6, value = ui.github.login?.let { if (it.isEmpty()) stringResource(R.string.st_gh_on) else "@$it" } ?: stringResource(R.string.st_gh_off), chevron = true, onClick = { go(StPage.GitHub) }) }
             row { PageRow(StPage.Memory, pageTitle(StPage.Memory), memoryValue(ui.memory)) { go(StPage.Memory) } }
             row { PageRow(StPage.Mcp, pageTitle(StPage.Mcp), mcpCount(ui.mcp)) { go(StPage.Mcp) } }
-            row { StRow(stringResource(R.string.st_plugins), icon = DshGlyphs.Puzzle, tile = Si.c8, value = pluralStringResource(R.plurals.st_plugins_on, ui.pluginsOn, ui.pluginsOn), chevron = true, onClick = a::openPlugins) }
+            row { StRow(stringResource(R.string.st_plugins), icon = DshGlyphs.Puzzle, tile = Si.c8, value = ui.pluginsOn?.let { pluralStringResource(R.plurals.st_plugins_on, it, it) } ?: "—", chevron = true, onClick = a::openPlugins) }
             row { StRow(stringResource(R.string.st_automation), icon = DshGlyphs.Clock, tile = Si.c7, value = pluralStringResource(R.plurals.st_auto_on, ui.automationsOn, ui.automationsOn), chevron = true, onClick = a::openAutomation) }
         }
         GLabel(stringResource(R.string.st_g_device), Modifier.rise(5))

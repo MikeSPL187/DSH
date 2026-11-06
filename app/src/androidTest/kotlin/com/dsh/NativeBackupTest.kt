@@ -17,27 +17,6 @@ import org.junit.Test
 import java.io.File
 import java.util.zip.ZipInputStream
 
-/** Runs in the test APK's independent process/UID, not the target instrumentation process. */
-class QaArchiveReceiver : Activity() {
-    override fun onCreate(state: Bundle?) {
-        super.onCreate(state)
-        val passed = runCatching {
-            @Suppress("DEPRECATION") val uri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)!!
-            check(uri.scheme == "content")
-            check(intent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0)
-            ZipInputStream(contentResolver.openInputStream(uri)!!).use { zip ->
-                var found = false
-                while (true) {
-                    val entry = zip.nextEntry ?: break
-                    if (entry.name == "dsh_home/qa.txt") found = zip.readBytes().decodeToString() == "backup-fixture"
-                }
-                check(found)
-            }
-        }.isSuccess
-        setContentView(TextView(this).apply { text = if (passed) "QA archive read PASS" else "QA archive read FAIL"; textSize = 20f })
-    }
-}
-
 class NativeBackupTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     @Test fun restoreCancelCorruptArchiveAndRealShareReceiver() = runBlocking {

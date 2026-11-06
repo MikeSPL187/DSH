@@ -67,7 +67,7 @@ internal class SettingsDeps(
     val workspace: java.io.File,
     val availableModels: List<String>,
     val remotes: List<HostDescriptor>,
-    val pluginsOn: Int,
+    val pluginsOn: Int?,
     val trustedNative: List<TrustedPluginRow>,
     val openAllFilesSettings: () -> Unit,
     val onWorkspaceChanged: () -> Unit,
