@@ -56,6 +56,7 @@ jobs:
 
       - name: Тесты Android-файлов APK
         run: |
+          sh infra/rootfs/tests/android-creat.sh
           node infra/rootfs/tests/fs-search-quote.test.mjs
           node infra/rootfs/tests/android-owner.test.mjs
           node --experimental-transform-types infra/rootfs/tests/android-server-cancel.test.mjs

@@ -32,6 +32,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
       - name: Validate native fixtures
         run: |
+          cc -Wall -Wextra -Werror -shared -fPIC infra/rootfs/android-compat.c -o qa-compat.so
           python3 -m py_compile infra/qa/android-device.py
           sh -n infra/qa/native-packages.sh
           node --check infra/qa/native-cancel.mjs
@@ -108,7 +109,7 @@ jobs:
         run: |
           status=0
           for api in 30 33; do
-            if ! python3 infra/qa/android-device.py --api "$api" --rootfs qa-rootfs/rootfs-x86_64.bin --output "device-evidence/api-$api"; then
+            if ! python3 infra/qa/android-device.py --compat-probe --api "$api" --rootfs qa-rootfs/rootfs-x86_64.bin --output "device-evidence/api-$api"; then
               status=1
             fi
           done

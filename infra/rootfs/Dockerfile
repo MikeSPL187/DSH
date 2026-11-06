@@ -51,6 +51,13 @@ RUN pnpm install --frozen-lockfile \
        exec sh -c 'pnpm pack --pack-destination /out/packs >/dev/null' \
   && ls /out/packs | wc -l
 
+# libc compatibility for Android's syscall allowlist; no runtime compiler needed.
+FROM agent-build AS android-compat
+COPY android-compat.c /tmp/android-compat.c
+RUN mkdir -p /out/compat \
+  && cc -Wall -Wextra -Werror -shared -fPIC -Wl,-z,relro,-z,now \
+       /tmp/android-compat.c -o /out/compat/libdsh-android-compat.so
+
 # Агент в образе: сторонние зависимости — `npm ci` по нашему package-lock, затем каждый пакет
 # `@deepseek-ai/*` и сам `@deepseek-ai/dsh` заменяются содержимым нашего архива той же версии (пакета без
 # нашего архива быть не может — сборка падает), опубликованные package.json и вложенные node_modules
@@ -98,6 +105,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     patch \
   && rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man /usr/share/info /usr/share/lintian
+
+# glibc creat uses a legacy syscall rejected by Android; openat is equivalent.
+COPY --from=android-compat /out/compat/libdsh-android-compat.so /opt/dsh/lib/libdsh-android-compat.so
+COPY android-compat.c /opt/dsh/sbom/android-compat.c
+RUN printf '/opt/dsh/lib/libdsh-android-compat.so\n' > /etc/ld.so.preload \
+  && sha256sum /opt/dsh/lib/libdsh-android-compat.so > /opt/dsh/sbom/android-compat.sha256
 
 RUN test -s /var/lib/dpkg/status && test -z "$(dpkg --audit)" && curl --version
 
