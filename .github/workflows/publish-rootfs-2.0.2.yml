@@ -1,0 +1,54 @@
+name: Publish approved rootfs 2.0.2
+
+on:
+  push:
+    branches: ['publish/rootfs-v2.0.2']
+    paths:
+      - '.github/workflows/publish-rootfs-2.0.2.yml'
+      - '.github/scripts/publish-approved-rootfs.py'
+      - '.github/scripts/rootfs-v2.0.2-notes.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: publish-rootfs-v2.0.2
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'MikeSPL187/DSH' && github.ref == 'refs/heads/publish/rootfs-v2.0.2'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ROOTFS_RELEASE_DIR: ${{ runner.temp }}/approved-rootfs-release
+      ROOTFS_ARTIFACT_DIR: ${{ runner.temp }}/approved-rootfs-artifact
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: rootfs-2.0.2-candidate
+          run-id: 42145348410
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/approved-rootfs-artifact
+      - name: Verify approved artifact, source revision and tested APK pins
+        run: python3 .github/scripts/publish-approved-rootfs.py prepare
+      - name: Create draft and verify uploaded asset digests
+        run: python3 .github/scripts/publish-approved-rootfs.py draft
+      - name: Publish explicitly approved prerelease
+        run: python3 .github/scripts/publish-approved-rootfs.py publish
+      - name: Verify every public download URL against SHA-256
+        run: python3 .github/scripts/publish-approved-rootfs.py verify
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: rootfs-2.0.2-publication-verification
+          path: ${{ runner.temp }}/approved-rootfs-release/publication.json
+          if-no-files-found: ignore
+          retention-days: 30
