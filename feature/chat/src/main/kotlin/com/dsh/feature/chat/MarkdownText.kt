@@ -314,7 +314,8 @@ internal fun parseMarkdownBlocks(text: String): List<MarkdownBlock> {
  * жирный, код, ссылка, курсив (как раньше).
  */
 private val inlineRegex = Regex(
-    "\\*\\*([^*]+)\\*\\*" +
+    "(\\$\\$[^$]*\\$\\$|\\\\\\([^\\n]*?\\\\\\)|\\\\\\[[^\\n]*?\\\\\\]|\\$[^$\\n]+\\$)" +
+        "|\\*\\*([^*]+)\\*\\*" +
         "|`([^`]+)`" +
         "|\\[([^\\]]+)]\\(([^)\\s]+)\\)" +
         "|(?<!\\*)\\*([^*]+)\\*(?!\\*)",
@@ -346,14 +347,15 @@ internal fun inlineMarkdownOf(
         append(source, last, m.range.first)
         val g = m.groups
         when {
-            g[1] != null -> withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(g[1]!!.value) }
+            g[1] != null -> append(g[1]!!.value) // Literal TeX until a math renderer is available.
+            g[2] != null -> withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append(g[2]!!.value) }
             // `.msg-ai code`: моноширинный 13,5 на фоне кода.
-            g[2] != null -> withStyle(
+            g[3] != null -> withStyle(
                 SpanStyle(fontFamily = com.dsh.core.designsystem.DshFonts.mono, fontSize = 13.5.sp, background = codeBg),
-            ) { append("\u2009" + g[2]!!.value + "\u2009") }
-            g[3] != null -> {
-                val label = g[3]!!.value
-                val url = g[4]!!.value
+            ) { append("\u2009" + g[3]!!.value + "\u2009") }
+            g[4] != null -> {
+                val label = g[4]!!.value
+                val url = g[5]!!.value
                 val host = webLinkHost(url)
                 if (host == null) {
                     withStyle(SpanStyle(color = accent)) { append(label) }
@@ -368,7 +370,7 @@ internal fun inlineMarkdownOf(
                     if (!label.contains(host, ignoreCase = true)) withStyle(SpanStyle(color = muted)) { append(" ($host)") }
                 }
             }
-            else -> withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(g[5]!!.value) }
+            else -> withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(g[6]!!.value) }
         }
         last = m.range.last + 1
     }

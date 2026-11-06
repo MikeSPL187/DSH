@@ -54,4 +54,25 @@ class OnboardingImeTest {
         compose.onNodeWithText(label(com.dsh.feature.runtime.R.string.ob_begin)).performClick()
         compose.runOnIdle { assertEquals(fixture, checked); assertEquals(fixture, finished) }
     }
+    @Test fun skipWithImeAndBackClosesInstallerDetailsFirst() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        fun label(id: Int) = instrumentation.targetContext.getString(id)
+        compose.setContent { DshTheme {
+            OnboardingScreen(install = LinuxInstall(stage = 2, hostFailed = true, error = "Host startup failed", errorDetail = "qa-install-detail"),
+                sharedAccessGranted = true, checkKey = { _, _, _ -> KeyCheck.Ok() },
+                onWhereKey = {}, onChoosePrivate = {}, onRequestShared = {}, onRetryInstall = {},
+                notify = false, onNotifyChange = {}, language = "en", onLanguage = {}, onFinish = {})
+        } }
+        compose.onNodeWithText(label(com.dsh.feature.runtime.R.string.ob_start)).performClick()
+        compose.onNode(hasSetTextAction()).performClick()
+        compose.waitUntil(60_000) { ViewCompat.getRootWindowInsets(compose.activity.window.decorView)?.isVisible(WindowInsetsCompat.Type.ime()) == true }
+        compose.onNodeWithText(label(com.dsh.feature.runtime.R.string.ob_skip_key)).performClick()
+        compose.onNodeWithText(label(com.dsh.feature.runtime.R.string.ob_continue)).performClick()
+        compose.onNodeWithText(label(com.dsh.feature.runtime.R.string.ob_more)).performScrollTo().performClick()
+        compose.onNodeWithText("qa-install-detail").assertExists()
+        instrumentation.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
+        compose.onNodeWithText("qa-install-detail").assertDoesNotExist()
+        compose.onNodeWithText("Host startup failed").assertExists()
+    }
+
 }

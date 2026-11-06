@@ -303,11 +303,13 @@ def main():
         device.shell('settings put secure show_ime_with_hard_keyboard 1')
         device.adb('install', '-r', 'app/build/outputs/apk/debug/app-debug.apk', timeout=120)
         device.adb('install', '-r', 'app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk', timeout=120)
-        result = device.shell('am instrument -w -r -e class com.dsh.ReplaceKeyImeTest,com.dsh.OnboardingImeTest ' + PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner', timeout=180)
+        result = device.shell('am instrument -w -r -e class com.dsh.ReplaceKeyImeTest,com.dsh.OnboardingImeTest,com.dsh.NativeBackupTest ' + PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner', timeout=180)
         (args.output / 'instrumentation.log').write_text(result)
-        assert 'OK (2 tests)' in result, 'Native IME test failed'
+        assert 'OK (4 tests)' in result, 'Native IME test failed'
         device.check('native-ime-save-exact-key-and-masked-accessibility')
         device.check('native-ime-onboarding-continue-exact-key')
+        device.check('native-skip-with-ime-and-installer-details-back')
+        device.check('native-backup-restore-cancel-corrupt-and-share-receiver')
         (args.output / 'ime-save.png').write_bytes(device.adb('exec-out', 'run-as', PACKAGE, 'cat', 'cache/round4-ime-save.png'))
         device.production(image)
         (args.output / 'meminfo.txt').write_text(device.shell('dumpsys meminfo ' + PACKAGE))

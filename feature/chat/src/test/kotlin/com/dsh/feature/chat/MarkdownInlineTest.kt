@@ -43,4 +43,9 @@ class MarkdownInlineTest {
         assertTrue(blocks.any { it is MarkdownBlock.Code && it.code == "a = 1\nb = 2" })
     }
 
+    @Test fun unsupportedTexIsPreservedAndDoesNotBecomeEmphasis() {
+        val text = "Formula: ${'$'}a * b * c${'$'} and \\(x * y * z\\) **bold**"
+        assertEquals("Formula: ${'$'}a * b * c${'$'} and \\(x * y * z\\) bold", parse(text).text)
+    }
+
 }
