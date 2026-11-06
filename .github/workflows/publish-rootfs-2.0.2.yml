@@ -27,8 +27,8 @@ jobs:
       actions: read
     env:
       GH_TOKEN: ${{ github.token }}
-      ROOTFS_RELEASE_DIR: ${{ runner.temp }}/approved-rootfs-release
-      ROOTFS_ARTIFACT_DIR: ${{ runner.temp }}/approved-rootfs-artifact
+      ROOTFS_RELEASE_DIR: publish-work/approved-rootfs-release
+      ROOTFS_ARTIFACT_DIR: publish-work/approved-rootfs-artifact
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
@@ -36,7 +36,7 @@ jobs:
           name: rootfs-2.0.2-candidate
           run-id: 42145348410
           github-token: ${{ github.token }}
-          path: ${{ runner.temp }}/approved-rootfs-artifact
+          path: ${{ env.ROOTFS_ARTIFACT_DIR }}
       - name: Verify approved artifact, source revision and tested APK pins
         run: python3 .github/scripts/publish-approved-rootfs.py prepare
       - name: Create draft and verify uploaded asset digests
@@ -49,6 +49,6 @@ jobs:
         if: always()
         with:
           name: rootfs-2.0.2-publication-verification
-          path: ${{ runner.temp }}/approved-rootfs-release/publication.json
+          path: ${{ env.ROOTFS_RELEASE_DIR }}/publication.json
           if-no-files-found: ignore
           retention-days: 30
