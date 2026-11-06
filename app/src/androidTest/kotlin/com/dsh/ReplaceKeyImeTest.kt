@@ -26,6 +26,10 @@ class ReplaceKeyImeTest {
         var saved: String? = null
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
+        val vault = com.dsh.feature.settings.logic.ApiKeyVault
+        val ref = "QA_IME_KEY"
+        vault.init(context)
+        vault.delete(ref)
         val automation = instrumentation.uiAutomation
         automation.serviceInfo = requireNotNull(automation.serviceInfo).apply {
             flags = flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
@@ -35,7 +39,11 @@ class ReplaceKeyImeTest {
             DshTheme {
                 SettingsHomeScreen(SettingsUi(), {}, initialSheet = "key", actions = object : SettingsActions {
                     override suspend fun checkKey(baseUrl: String?, key: String): KeyState { checked = key; return KeyState.Ok }
-                    override suspend fun saveKey(key: String): Boolean { saved = key; return true }
+                    override suspend fun saveKey(key: String): Boolean {
+                        val ok = vault.save(ref, key)
+                        if (ok) saved = vault.use(ref) { it }
+                        return ok
+                    }
                 })
             }
         }
@@ -89,5 +97,6 @@ class ReplaceKeyImeTest {
         compose.waitUntil(60_000) { saved != null }
         assertEquals(fixture, saved)
         assertEquals(fixture, checked)
+        vault.delete(ref)
     }
 }

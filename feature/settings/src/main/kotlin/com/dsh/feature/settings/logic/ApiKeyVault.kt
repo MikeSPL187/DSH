@@ -53,16 +53,14 @@ object ApiKeyVault {
             Base64.encodeToString(c.iv, Base64.NO_WRAP) + ":" + Base64.encodeToString(c.doFinal(key.toByteArray()), Base64.NO_WRAP)
         }.getOrNull()
         if (enc == null) {
-            delete(ref)
             return false
         }
-        p.edit()
+        return p.edit()
             .putString("$ref.last4", key.takeLast(4))
             .putLong("$ref.added", System.currentTimeMillis())
             .putString("$ref.enc", enc)
             .remove("$ref.lost")
-            .apply()
-        return true
+            .commit()
     }
 
     /** Сохранённый ключ больше не расшифровывается (ключ Keystore потерян): его нужно ввести заново. */

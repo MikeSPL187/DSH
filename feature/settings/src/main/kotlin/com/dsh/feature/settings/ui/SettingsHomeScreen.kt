@@ -135,6 +135,8 @@ data class SettingsUi(
     val balance: String? = null,
     val today: String? = null,
     val monthSpent: String? = null,
+    val usageTokens: String? = null,
+    val usageIncomplete: Boolean = false,
     val monthSpentFraction: Float = 0f,
     val balanceDays: Int? = null,
     val customProviders: List<ProviderRow> = emptyList(),
@@ -495,6 +497,7 @@ private fun RootPage(ui: SettingsUi, a: SettingsActions, go: (StPage) -> Unit) {
             ),
             Modifier.padding(top = 8.dp).rise(2),
         )
+        SubNote(stringResource(if (ui.usageIncomplete) R.string.st_usage_incomplete else R.string.st_usage_estimate))
         GLabel(stringResource(R.string.st_g_work), Modifier.rise(3))
         Gl(Modifier.rise(4)) {
             row { PageRow(StPage.Models, pageTitle(StPage.Models), ui.defaultModel.ifBlank { null }) { go(StPage.Models) } }
@@ -586,11 +589,13 @@ private fun ModelsPage(ui: SettingsUi, a: SettingsActions, toast: ToastState, on
             Text(stringResource(R.string.st_bal_title, ui.provider), style = small(12.5.sp, 16.sp), color = Dsh.colors.t3)
             Spacer(Modifier.height(4.dp))
             BigWithNote(ui.balance ?: "—", ui.balanceDays?.let { pluralStringResource(R.plurals.st_bal_days, it, it) })
+            ui.usageTokens?.let { KvRow(stringResource(R.string.st_usage_tokens_label), it) }
             if (ui.monthSpent != null) {
                 Spacer(Modifier.height(14.dp))
                 val month = stringArrayResource(R.array.st_month_spent)[java.time.LocalDate.now().monthValue - 1]
                 KvRow(month, ui.monthSpent)
                 SubNote(stringResource(R.string.st_usage_note))
+                if (ui.usageIncomplete) SubNote(stringResource(R.string.st_usage_incomplete))
             }
         }
         GLabel(stringResource(R.string.st_providers))

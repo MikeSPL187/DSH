@@ -155,6 +155,26 @@ class Device:
             raise AssertionError('Graphite or system bars did not render dark')
         self.screenshot('graphite')
         self.check('theme-and-system-bars-apply-locally')
+        self.click('Porcelain · Light')
+        self.wait(lambda n: self.has('Porcelain · Light', n))
+        time.sleep(1)
+        assert not self.dark_pixels(), 'Porcelain did not become light'
+        self.screenshot('porcelain')
+        self.click('System')
+        self.shell('cmd uimode night yes')
+        self.wait(lambda n: self.has('Appearance', n))
+        for _ in range(20):
+            if self.dark_pixels(): break
+            time.sleep(.5)
+        else: raise AssertionError('System night theme/bars did not become dark')
+        self.screenshot('system-night')
+        self.shell('cmd uimode night no')
+        for _ in range(20):
+            if not self.dark_pixels(): break
+            time.sleep(.5)
+        else: raise AssertionError('System day theme did not become light')
+        self.check('porcelain-and-system-day-night')
+        self.click('Graphite · Dark')
         for cycle in range(2):
             self.wait(lambda n: self.has('Русский', n))
             self.click('Русский')
@@ -283,12 +303,16 @@ def main():
         device.shell('settings put secure show_ime_with_hard_keyboard 1')
         device.adb('install', '-r', 'app/build/outputs/apk/debug/app-debug.apk', timeout=120)
         device.adb('install', '-r', 'app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk', timeout=120)
-        result = device.shell('am instrument -w -r -e class com.dsh.ReplaceKeyImeTest ' + PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner', timeout=180)
+        result = device.shell('am instrument -w -r -e class com.dsh.ReplaceKeyImeTest,com.dsh.OnboardingImeTest ' + PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner', timeout=180)
         (args.output / 'instrumentation.log').write_text(result)
-        assert 'OK (1 test)' in result, 'Native IME test failed'
+        assert 'OK (2 tests)' in result, 'Native IME test failed'
         device.check('native-ime-save-exact-key-and-masked-accessibility')
+        device.check('native-ime-onboarding-continue-exact-key')
         (args.output / 'ime-save.png').write_bytes(device.adb('exec-out', 'run-as', PACKAGE, 'cat', 'cache/round4-ime-save.png'))
         device.production(image)
+        (args.output / 'meminfo.txt').write_text(device.shell('dumpsys meminfo ' + PACKAGE))
+        (args.output / 'gfxinfo.txt').write_text(device.shell('dumpsys gfxinfo ' + PACKAGE))
+        (args.output / 'source-revision.txt').write_text(subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode())
     except Exception as error:
         (args.output / 'failure.txt').write_text(str(error))
         try:

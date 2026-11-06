@@ -475,9 +475,12 @@
     <string name="st_mem_project">Проект %1$s</string>
     <string name="st_mem_other">Другие проекты</string>
     <string name="st_mcp_token_saved">Сохранён безопасно</string>
-    <string name="st_usage_note">Использование в DSH. Без проверенного тарифа модели денежный расход недоступен; баланс аккаунта показан отдельно.</string>
+    <string name="st_usage_note">Оценка использования моделей в DSH в CNY по тарифам, проверенным 6 ноября 2026. Диапазон учитывает пиковые и непиковые цены. Поиск, загрузка веб-страниц и использование вне DSH не включены. Баланс аккаунта показан отдельно.</string>
     <string name="st_mcp_starting">Запускается…</string>
     <string name="st_mcp_stopped">Host остановлен</string>
     <string name="st_source_revision">Ревизия исходников</string>
 <string name="st_export_preparing">Подготовка архива…</string>
+    <string name="st_usage_estimate">Оценка расходов · неизвестная стоимость показана как —</string>
+    <string name="st_usage_incomplete">Неполная оценка: для части запросов нет проверенной цены или полного usage.</string>
+    <string name="st_usage_tokens_label">Токены за месяц</string>
 </resources>

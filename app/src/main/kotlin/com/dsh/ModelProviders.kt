@@ -23,7 +23,10 @@ import kotlinx.serialization.json.put
  * Одна копия на приложение: её читают «Настройки», первый запуск и вход по ключу.
  */
 @Stable
-internal class ModelProviders(private val repository: DshRepository) {
+internal class ModelProviders(
+    private val repository: DshRepository,
+    private val saveLocalKey: (String, String) -> Boolean = ApiKeyVault::save,
+) {
     private var providersRaw by mutableStateOf<String?>(null)
     private var settingsRaw by mutableStateOf<String?>(null)
     private var credentialsRaw by mutableStateOf<String?>(null)
@@ -65,7 +68,14 @@ internal class ModelProviders(private val repository: DshRepository) {
         val vaultRef = vaultRefOf(provider)
         if (key.isNotBlank()) {
             if (!repository.plugins.setCredential(hostId, provider.keyRef, key)) return false
-            ApiKeyVault.save(vaultRef, key)
+            if (!saveLocalKey(vaultRef, key)) {
+                // Roll back the remote replacement too when the previous key is available.
+                val restored = ApiKeyVault.use(vaultRef) { previous ->
+                    repository.plugins.setCredential(hostId, provider.keyRef, previous)
+                }
+                if (restored == null && !provider.configured) repository.plugins.unsetCredential(hostId, provider.keyRef)
+                return false
+            }
         }
         var saved = true
         if (provider.settingsNs.isNotBlank()) {

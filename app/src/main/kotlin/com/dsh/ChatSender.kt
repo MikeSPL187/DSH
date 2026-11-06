@@ -237,10 +237,7 @@ private fun imageTypeOf(name: String): String? = when (name.substringAfterLast('
 
 /** Keep complete words in generated session titles; the UI handles visual ellipsis. */
 internal fun sessionTitle(text: String): String {
-    val line = text.lineSequence().firstOrNull { it.isNotBlank() }?.trim().orEmpty()
-    if (line.length <= 80) return line
-    val boundary = line.lastIndexOf(' ', 80)
-    return line.take(if (boundary > 0) boundary else 80).trimEnd() + "…"
+    return text.lineSequence().firstOrNull { it.isNotBlank() }?.trim().orEmpty()
 }
 
 internal fun friendlySendError(raw: String, code: String? = null): String = if (code?.startsWith("dsh/auth/") == true) raw

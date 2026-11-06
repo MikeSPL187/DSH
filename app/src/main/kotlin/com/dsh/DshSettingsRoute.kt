@@ -124,7 +124,11 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         }
         if (ApiKeyVault.lost(DEEPSEEK_VAULT_REF)) toast.show(context.getString(R.string.key_lost_reenter))
         balance = result?.second
-        usage = withContext(Dispatchers.IO) { com.dsh.feature.settings.logic.UsageLedger.peek(context) }
+    }
+    LaunchedEffect(Unit) {
+        com.dsh.feature.settings.logic.UsageLedger.changes.collect {
+            usage = withContext(Dispatchers.IO) { com.dsh.feature.settings.logic.UsageLedger.peek(context) }
+        }
     }
     val money = { v: Double -> balance?.let { String.format(Locale.getDefault(), "%.2f %s", v, it.second) } }
 
@@ -296,8 +300,10 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         keyLast4 = ApiKeyVault.last4(DEEPSEEK_VAULT_REF),
         keyAdded = ApiKeyVault.addedAt(DEEPSEEK_VAULT_REF)?.let { shortDate(it) },
         balance = balance?.let { money(it.first) },
-        today = context.getString(R.string.usage_tokens, usage.today),
-        monthSpent = context.getString(R.string.usage_tokens, usage.month),
+        today = usage.todayCost.display(),
+        monthSpent = usage.monthCost.display(),
+        usageTokens = context.getString(R.string.usage_tokens, usage.month),
+        usageIncomplete = usage.monthCost.unknown > 0,
         monthSpentFraction = 0f,
         balanceDays = null,
         customProviders = custom.map { p ->

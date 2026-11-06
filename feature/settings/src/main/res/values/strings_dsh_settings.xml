@@ -463,9 +463,12 @@
     <string name="st_mem_project">Project %1$s</string>
     <string name="st_mem_other">Other projects</string>
     <string name="st_mcp_token_saved">Saved securely</string>
-    <string name="st_usage_note">Usage in DSH. Monetary cost is unavailable without a verified tariff for this model; account balance is shown separately.</string>
+    <string name="st_usage_note">Estimate of model usage in DSH, in CNY, using tariffs verified on 6 Nov 2026. The range covers peak and off-peak prices. Search/fetch and usage outside DSH are excluded. Account balance is separate.</string>
     <string name="st_mcp_starting">Starting…</string>
     <string name="st_mcp_stopped">Host is stopped</string>
     <string name="st_source_revision">Source revision</string>
 <string name="st_export_preparing">Preparing archive…</string>
+    <string name="st_usage_estimate">Estimated expenses · unavailable prices are shown as —</string>
+    <string name="st_usage_incomplete">Partial estimate: some requests have no verified price or complete usage.</string>
+    <string name="st_usage_tokens_label">Tokens this month</string>
 </resources>

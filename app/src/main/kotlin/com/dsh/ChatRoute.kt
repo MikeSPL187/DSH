@@ -337,7 +337,8 @@ internal fun ChatRoute(d: ChatDeps) {
         // Provider usage is recorded from durable events, independently of opening Settings.
         spentToday = remember(sessionId, stats) {
             val usage = com.dsh.feature.settings.logic.UsageLedger.peek(context)
-            context.getString(R.string.usage_tokens, usage.today)
+            usage.todayCost.display()?.let { if (usage.todayCost.unknown > 0) "$it *" else it }
+                ?: context.getString(R.string.usage_tokens, usage.today)
         },
         onOpenSpending = {
             ui.settingsInitialSection = com.dsh.feature.settings.ui.StPage.Models

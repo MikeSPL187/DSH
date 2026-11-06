@@ -22,7 +22,7 @@ concurrency:
 jobs:
   devices:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad
@@ -108,10 +108,10 @@ jobs:
         run: |
           test -c /dev/kvm
           sudo chmod 666 /dev/kvm
-      - name: Android 11 and 13, one capped emulator at a time
+      - name: Android 11, 13 and 15, one capped emulator at a time
         run: |
           status=0
-          for api in 30 33; do
+          for api in 30 33 35; do
             if ! python3 infra/qa/android-device.py --api "$api" --rootfs qa-rootfs/rootfs-x86_64.bin --output "device-evidence/api-$api"; then
               status=1
             fi
