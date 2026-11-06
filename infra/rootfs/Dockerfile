@@ -46,6 +46,7 @@ ARG DSH_SOURCE_COMMIT
 # Каждый пакет `@deepseek-ai/*` — архивом `pnpm pack`, как при публикации в npm (те же `files`).
 RUN pnpm install --frozen-lockfile \
   && DSH_CLIENT_COMMIT_HASH="$DSH_SOURCE_COMMIT" pnpm run build:artifacts \
+  && pnpm run build:check \
   && mkdir -p /out/packs \
   && pnpm -r --no-sort --workspace-concurrency=4 --filter '@deepseek-ai/*' --filter '!@deepseek-ai/node-addon-system-*' \
        exec sh -c 'pnpm pack --pack-destination /out/packs >/dev/null' \
