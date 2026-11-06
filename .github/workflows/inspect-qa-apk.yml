@@ -32,7 +32,7 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import base64, hashlib, json, os, re, subprocess, zipfile
+          import base64, hashlib, json, os, re, subprocess, urllib.request, zipfile
           repo = 'MikeSPL187/DSH'
           run_id = os.environ['APK_RUN']
           assert run_id.isdecimal()
@@ -45,6 +45,12 @@ jobs:
           apk = Path('apk/dsh-mobile-1.1.4-release.apk')
           tools = Path(os.environ['ANDROID_HOME']) / 'build-tools/35.0.0'
           signature = subprocess.check_output([str(tools / 'apksigner'), 'verify', '--verbose', '--print-certs', str(apk)], text=True)
+          old = next(a for a in api('releases/tags/app-v1.1.3')['assets'] if a['name'] == 'dsh-mobile-1.1.3-release.apk')
+          urllib.request.urlretrieve(old['browser_download_url'], 'previous-release.apk')
+          previous_signature = subprocess.check_output([str(tools / 'apksigner'), 'verify', '--print-certs', 'previous-release.apk'], text=True)
+          certificate = r'Signer #\d+ certificate SHA-256 digest: ([0-9a-f]+)'
+          signers = re.findall(certificate, signature)
+          assert signers and signers == re.findall(certificate, previous_signature), 'Signing identity differs from installed 1.1.3'
           badging = subprocess.check_output([str(tools / 'aapt2'), 'dump', 'badging', str(apk)], text=True)
           assert "name='app.dsh.mobile'" in badging and "versionCode='114'" in badging and "versionName='1.1.4'" in badging
           with zipfile.ZipFile(apk) as z:
@@ -57,7 +63,7 @@ jobs:
               'arm64-v8a': '4F27BE41B3AC58E09145FF0752E3CFE6FE70A1D89611693D5F4DAD8365FEBBB8'}
           result = {'source': source, 'apkRun': int(run_id), 'sha256': hashlib.sha256(apk.read_bytes()).hexdigest(),
                     'size': apk.stat().st_size, 'package': 'app.dsh.mobile', 'versionName': '1.1.4', 'versionCode': 114,
-                    'signatureVerified': True, 'sourceEmbedded': True, 'rootfsManifestMatchesSource': True,
+                    'signatureVerified': True, 'signingMatches113': True, 'signerSha256': signers, 'sourceEmbedded': True, 'rootfsManifestMatchesSource': True,
                     'rootfsManifest': manifest}
           Path('apk-verification.json').write_text(json.dumps(result, indent=2) + '\n')
           Path('signature-verification.txt').write_text(signature)
