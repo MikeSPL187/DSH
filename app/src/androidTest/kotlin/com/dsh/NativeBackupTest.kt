@@ -19,7 +19,7 @@ import java.util.zip.ZipInputStream
 
 class NativeBackupTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
-    @Test fun restoreCancelCorruptArchiveAndRealShareReceiver() = runBlocking {
+    @Test fun restoreCancelCorruptArchiveAndRealShareReceiver(): Unit = runBlocking {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val root = File(context.cacheDir, "qa-backup-fixture").apply { deleteRecursively(); mkdirs() }
@@ -54,7 +54,10 @@ class NativeBackupTest {
                 assertTrue(action?.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK) == true)
                 compose.waitUntil(30_000) { nodes().any { it.text?.toString()?.startsWith("QA archive read ") == true } }
                 assertTrue(nodes().any { it.text?.toString() == "QA archive read PASS" })
-                instrumentation.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
+                instrumentation.uiAutomation.executeShellCommand("input keyevent 4").use { command ->
+                    android.os.ParcelFileDescriptor.AutoCloseInputStream(command).use { it.readBytes() }
+                }
+                compose.waitUntil(30_000) { nodes().none { it.text?.toString()?.startsWith("QA archive read ") == true } }
             }
             shared.delete()
         } finally { root.deleteRecursively() }
