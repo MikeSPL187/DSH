@@ -22,7 +22,7 @@ class Device:
         self.output, self.serial, self.checks = output, 0, {}
 
     def adb(self, *args, timeout=60, stdin=None, check=True):
-        return subprocess.run(['adb', '-s', 'emulator-5554', *args], stdin=stdin,
+        return subprocess.run([str(Path(os.environ['ANDROID_HOME']) / 'platform-tools/adb'), '-s', 'emulator-5554', *args], stdin=stdin,
                               capture_output=True, timeout=timeout, check=check).stdout
 
     def shell(self, command, **kwargs):
@@ -182,6 +182,7 @@ class Device:
         self.adb('shell', 'input', 'keyevent', '4')
         self.wait(lambda n: self.has('Settings', n))
         self.click('Plugins', scroll=True)
+        self.wait(lambda n: any(self.label(x).startswith('All') for x in n) and any(self.label(x).startswith('Native') for x in n))
         self.adb('shell', 'input', 'keyevent', '4')
         self.wait(lambda n: self.has('Settings', n))
         self.check('plugins-back-returns-to-settings')
@@ -225,7 +226,7 @@ def main():
     tools = sdk / 'cmdline-tools/latest/bin'
     package = 'system-images;android-%d;google_apis;x86_64' % args.api
     subprocess.run([str(tools / 'sdkmanager'), '--licenses'], input=b'y\n' * 100, check=True)
-    subprocess.run([str(tools / 'sdkmanager'), 'emulator', package], check=True)
+    subprocess.run([str(tools / 'sdkmanager'), 'emulator', 'platform-tools', package], check=True)
     name = 'dsh-qa-' + str(args.api)
     avds = Path(os.environ.get('RUNNER_TEMP', '/tmp')) / 'dsh-device-avds'
     avds.mkdir(parents=True, exist_ok=True)
