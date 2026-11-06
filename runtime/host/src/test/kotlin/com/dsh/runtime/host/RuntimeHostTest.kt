@@ -61,9 +61,8 @@ class RuntimeHostTest {
             assertTrue(cmd.contains("-r"))
             assertTrue(cmd.contains(layout.rootfsDir.absolutePath))
             assertTrue(cmd.contains("${workspace.absolutePath}:/workspace"))
-            // Процессу Host нарочно не даётся --link2symlink: он ломает атомарную публикацию hardlink
-            // инструмента write на рабочей папке FUSE (вместо этого fs-link-fallback.cjs).
-            assertFalse(cmd.contains("--link2symlink"))
+            // dpkg needs hardlink emulation; Node publication bypasses it in the preload.
+            assertTrue(cmd.contains("--link2symlink"))
             // Три пункта как в DSHA: мнимый root, завершение гостя при выходе launcher, исправление lstat symlink.
             assertTrue(cmd.contains("-0"))
             assertTrue(cmd.contains("--kill-on-exit"))

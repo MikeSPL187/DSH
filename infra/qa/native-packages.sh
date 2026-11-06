@@ -10,6 +10,11 @@ getent passwd _apt
 getent group nogroup
 test -z "$(dpkg --audit)"
 curl --version
+# The final image, including the installed compatibility library, is immutable input.
+test -r /opt/dsh/lib/libdsh-android-compat.so
+grep -Fx /opt/dsh/lib/libdsh-android-compat.so /etc/ld.so.preload
+sha256sum -c /opt/dsh/sbom/android-compat.sha256
+node --require /root/.dsh/patches/fs-link-fallback.cjs /root/dsh-native-fileops.mjs
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT HUP INT TERM
 mkdir -p "$work/package/DEBIAN" "$work/package/usr/share/dsh-native-qa"
@@ -20,6 +25,12 @@ echo payload > "$work/package/usr/share/dsh-native-qa/payload"
 dpkg-deb -Zgzip --build "$work/package" "$work/probe.deb"
 dpkg --install "$work/probe.deb"
 test "$(cat /usr/share/dsh-native-qa/payload)" = payload
+# Upgrade replaces an existing file and exercises dpkg's backup/rename path.
+sed -i 's/Version: 1.0/Version: 1.1/' "$work/package/DEBIAN/control"
+echo updated > "$work/package/usr/share/dsh-native-qa/payload"
+dpkg-deb -Zgzip --build "$work/package" "$work/upgrade.deb"
+dpkg --install "$work/upgrade.deb"
+test "$(cat /usr/share/dsh-native-qa/payload)" = updated
 dpkg --purge dsh-native-qa
 test ! -e /usr/share/dsh-native-qa/payload
 test -z "$(dpkg --audit)"

@@ -60,7 +60,7 @@ data class RuntimeLayout(
     /** Папка preload-патчей Node перед запуском (пока только запасной fs.link). */
     val patchDir: File get() = File(dshHomeDir, "patches")
 
-    /** Preload-патч: жёсткая ссылка на FUSE всегда даёт EPERM — заменяем семантикой copy+rename. */
+    /** Preload-патч: публикация файла на Android сохраняет источник и не заменяет существующую цель. */
     val linkFallbackPatch: File get() = File(patchDir, "fs-link-fallback.cjs")
 
     /** Замер времени запуска: моменты preload, медленных модулей и готовности dsh web. */
@@ -72,44 +72,31 @@ data class RuntimeLayout(
      * Инструмент `write` при создании файла атомарно публикует его через `link(temp, target)`; внешняя память
      * Android — FUSE, жёсткая ссылка сразу даёт EPERM (--link2symlink у proot не перехватывает
      * путь linkat из Node), и перекрывающая запись агента всегда падает, остаётся только shell. Здесь
-     * маленький preload-патч: при EPERM/ENOTSUP/EXDEV link заменяется на «копия + удаление временного файла»,
-     * с сохранением правила «успех, только если цели не было».
+     * preload-патч публикует копию через COPYFILE_EXCL до входа в эмуляцию hardlink PRoot.
+     * Источник остаётся для последующего unlink вызывающим; существующая цель не заменяется.
+     * libc-команды (dpkg) сохраняют полноценную эмуляцию hardlink в PRoot.
      */
     fun ensureNodePatches() {
         patchDir.mkdirs()
         val source = """
             |'use strict'
+            |// dsh-file-publish-copy-excl-v2: do not enter PRoot link2symlink for Node publication.
             |const fs = require('node:fs')
             |const fsp = require('node:fs/promises')
-            |const FALLBACK_CODES = new Set(['EPERM', 'ENOTSUP', 'EOPNOTSUPP', 'EXDEV', 'EACCES'])
-            |function fallbackSync(existingPath, newPath) {
-            |  // Только копия, источник не удаляется: после успешного link вызывающий обычно сам делает unlink источника
-            |  // (так публикуют атомарно attachment store и fs-local), раннее удаление дало бы
-            |  // на том шаге ENOENT, обёрнутый в ошибку записи.
-            |  fs.copyFileSync(existingPath, newPath, fs.constants.COPYFILE_EXCL || 1)
-            |}
-            |const originalLinkSync = fs.linkSync
+            |const flags = fs.constants.COPYFILE_EXCL
+            |// The source remains until its caller unlinks it; an existing target is never replaced.
+            |// Android disallows real hardlinks. PRoot's emulation may relocate a temporary source
+            |// before reporting an error on FUSE, so attempting link first is not safe here.
             |fs.linkSync = function (existingPath, newPath) {
-            |  try { return originalLinkSync(existingPath, newPath) } catch (e) {
-            |    if (!e || !FALLBACK_CODES.has(e.code)) throw e
-            |    return fallbackSync(existingPath, newPath)
-            |  }
+            |  return fs.copyFileSync(existingPath, newPath, flags)
             |}
-            |const originalLink = fs.link
             |fs.link = function (existingPath, newPath, callback) {
-            |  const done = typeof callback === 'function' ? callback : function () {}
-            |  return originalLink.call(fs, existingPath, newPath, function (error) {
-            |    if (!error || !FALLBACK_CODES.has(error.code)) return done(error)
-            |    try { fallbackSync(existingPath, newPath); done(null) } catch (fallbackError) { done(fallbackError) }
-            |  })
+            |  return fs.copyFile(existingPath, newPath, flags, callback)
             |}
-            |const originalLinkPromise = fsp.link
-            |fsp.link = async function (existingPath, newPath) {
-            |  try { return await originalLinkPromise(existingPath, newPath) } catch (e) {
-            |    if (!e || !FALLBACK_CODES.has(e.code)) throw e
-            |    fallbackSync(existingPath, newPath)
-            |  }
+            |fsp.link = function (existingPath, newPath) {
+            |  return fsp.copyFile(existingPath, newPath, flags)
             |}
+            |require('node:module').syncBuiltinESMExports()
             |""".trimMargin()
         if (!linkFallbackPatch.isFile || linkFallbackPatch.readText() != source) {
             linkFallbackPatch.writeText(source)

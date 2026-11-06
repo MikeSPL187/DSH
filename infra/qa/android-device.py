@@ -109,7 +109,7 @@ class Device:
         text = self.shell('dumpsys activity activities')
         return any(re.search(r'\b(?:mResumedActivity|topResumedActivity)\s*[:=]', line) and PACKAGE + '/com.dsh.MainActivity' in line for line in text.splitlines())
 
-    def production(self, image, compat_probe=False):
+    def production(self, image):
         self.upload(image, 'files/cache/rootfs-local.tar.gz')
         digest = self.private('sha256sum files/cache/rootfs-local.tar.gz').split()[0]
         assert digest == hashlib.sha256(image.read_bytes()).hexdigest()
@@ -194,12 +194,9 @@ class Device:
         self.check('host-open-terminal-opens-shell')
         self.upload(Path('infra/qa/native-packages.sh'), 'files/rootfs/root/dsh-native-packages.sh')
         self.upload(Path('infra/qa/native-cancel.mjs'), 'files/rootfs/root/dsh-native-cancel.mjs')
-        if compat_probe:
-            self.upload(Path('qa-compat.so'), 'files/rootfs/root/dsh-compat-probe.so')
-            self.check('temporary-creat-compat-probe-not-an-unmodified-image')
-        command = ('LD_PRELOAD=/root/dsh-compat-probe.so ' if compat_probe else '') + 'sh /root/dsh-native-packages.sh'
+        self.upload(Path('infra/qa/native-fileops.mjs'), 'files/rootfs/root/dsh-native-fileops.mjs')
         self.tap(next(x for x in nodes if x.get('class') == 'android.widget.EditText' and x.get('enabled') == 'true'))
-        self.shell('input text ' + shlex.quote(command.replace(' ', '%s')))
+        self.shell('input text ' + shlex.quote('sh%s/root/dsh-native-packages.sh'))
         self.adb('shell', 'input', 'keyevent', '66')
         deadline = time.monotonic() + 60
         while time.monotonic() < deadline:
@@ -212,7 +209,9 @@ class Device:
             self.dump()
             raise AssertionError('Terminal package/cancellation probe did not complete')
         self.screenshot('terminal-packages')
-        self.check('native-dpkg-install-purge-and-curl')
+        self.check('native-dpkg-build-install-upgrade-purge-and-curl')
+        assert 'PASS' in self.private('cat files/rootfs/root/dsh-native-fileops.result')
+        self.check('native-node-file-publication-retains-source-without-overwriting-target')
         cancelled = json.loads(self.private('cat files/rootfs/root/dsh-native-cancel.result'))
         assert cancelled == {'portFreed': True, 'unrelatedListenerPreserved': True}
         self.check('native-android-cancel-frees-server-and-preserves-other-listener')
@@ -221,7 +220,6 @@ class Device:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--api', type=int, required=True)
-    parser.add_argument('--compat-probe', action='store_true', help='Explicit development-only preload; not final image acceptance')
     parser.add_argument('--rootfs', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
@@ -290,7 +288,7 @@ def main():
         assert 'OK (1 test)' in result, 'Native IME test failed'
         device.check('native-ime-save-exact-key-and-masked-accessibility')
         (args.output / 'ime-save.png').write_bytes(device.adb('exec-out', 'run-as', PACKAGE, 'cat', 'cache/round4-ime-save.png'))
-        device.production(image, args.compat_probe)
+        device.production(image)
     except Exception as error:
         (args.output / 'failure.txt').write_text(str(error))
         try:

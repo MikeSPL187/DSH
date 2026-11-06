@@ -32,10 +32,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
       - name: Validate native fixtures
         run: |
-          cc -Wall -Wextra -Werror -shared -fPIC infra/rootfs/android-compat.c -o qa-compat.so
           python3 -m py_compile infra/qa/android-device.py
           sh -n infra/qa/native-packages.sh
           node --check infra/qa/native-cancel.mjs
+          node --check infra/qa/native-fileops.mjs
+          node --test infra/qa/fs-link-preload.test.mjs
       # These APKs were built in this repository before the fixture-only change.
       # Reuse requires an exact match of every tracked Android build input below.
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
@@ -98,7 +99,7 @@ jobs:
         if: steps.rootfs.outputs.published != 'true'
         with:
           name: rootfs-2.0.2-candidate
-          run-id: 42131494409
+          run-id: 42145348410
           github-token: ${{ github.token }}
           path: qa-rootfs
       - name: Require hardware acceleration
@@ -109,7 +110,7 @@ jobs:
         run: |
           status=0
           for api in 30 33; do
-            if ! python3 infra/qa/android-device.py --compat-probe --api "$api" --rootfs qa-rootfs/rootfs-x86_64.bin --output "device-evidence/api-$api"; then
+            if ! python3 infra/qa/android-device.py --api "$api" --rootfs qa-rootfs/rootfs-x86_64.bin --output "device-evidence/api-$api"; then
               status=1
             fi
           done

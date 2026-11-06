@@ -14,7 +14,7 @@ const spawn = Object.values(module).find(value => typeof value === 'function' &&
 assert.ok(spawn, 'Compiled spawn test seam changed')
 const portFile = '/tmp/dsh-native-child-port'
 rmSync(portFile, { force: true })
-const other = createServer()
+const other = createServer(socket => socket.end())
 other.listen(0, '127.0.0.1')
 await once(other, 'listening')
 const serverCode = "const s=require('node:net').createServer();s.listen(0,'127.0.0.1',()=>require('node:fs').writeFileSync('/tmp/dsh-native-child-port',String(s.address().port)));process.on('SIGTERM',()=>{});"

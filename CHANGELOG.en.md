@@ -5,6 +5,8 @@ This file records changes to the DSH Mobile Android app. The bridge plugin and r
 ## 1.1.4 — unreleased
 
 - QA round 4: protect Replace key from IME overlap and stale validation, inherit the automation model, keep Host tasks through UI recreation, distinguish Host authorization from offline errors, preserve Debian accounts and cancel Android subprocess descendants by identity. New rootfs candidates include curl.
+- Restore dpkg status backups with PRoot hardlink emulation, while the Host Node preload publishes via COPYFILE_EXCL before emulation can relocate temporary sources. Cover sync/callback/promise file writes, ESM aliases and refusing existing targets.
+- Fix Android dpkg-deb ENOSYS: translate libc creat/creat64 to equivalent openat calls; include the narrow compatibility library and source/checksum in the Linux image. Verify permissions, umask, truncation and errno under a simulated Android seccomp filter.
 - Pin Linux 2.0.2 with curl and the complete source-built agent, including Android process cancellation and workspace consent fixes. Existing installations can update Linux in Settings. The APK candidate requires publication of the prepared rootfs assets before online installation.
 
 - QA round 3: commit IME input before Continue, retain Settings when returning from Plugins, preserve backup preparation across Activity recreation and grant the recipient access to the ZIP.

@@ -7,9 +7,6 @@ on:
         description: Android device QA run in this repository
         required: true
         type: string
-  pull_request:
-    paths:
-      - '.github/workflows/qa-evidence.yml'
 
 permissions:
   contents: read

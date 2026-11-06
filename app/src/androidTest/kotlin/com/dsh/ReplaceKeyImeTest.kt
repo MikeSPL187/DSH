@@ -58,12 +58,23 @@ class ReplaceKeyImeTest {
         }
         var passwordFieldObserved = false
         fun inspect(node: android.view.accessibility.AccessibilityNodeInfo) {
-            assertFalse("Key exposed in accessibility", node.text?.contains(fixture) == true)
+            assertFalse("Key exposed in accessibility", node.text?.let { it.contains(fixture) || it.contains(fixture.takeLast(10)) } == true)
             if (node.isEditable && node.isPassword) passwordFieldObserved = true
             for (i in 0 until node.childCount) node.getChild(i)?.let(::inspect)
         }
         roots.forEach(::inspect)
         assertTrue("Password field absent from accessibility observation", passwordFieldObserved)
+        // Show changes only visual rendering: Android's real a11y tree must stay masked.
+        compose.onNodeWithContentDescription(context.getString(com.dsh.feature.settings.R.string.st_key_show)).performClick()
+        compose.onNodeWithContentDescription(context.getString(com.dsh.feature.settings.R.string.st_key_hide)).assertExists()
+        passwordFieldObserved = false
+        compose.waitUntil(30_000) {
+            roots = automation.windows.mapNotNull { it.root }.filter { it.packageName?.toString() == context.packageName }
+            roots.isNotEmpty()
+        }
+        roots.forEach(::inspect)
+        assertTrue("Revealed key must retain protected accessibility", passwordFieldObserved)
+        compose.onNodeWithContentDescription(context.getString(com.dsh.feature.settings.R.string.st_key_hide)).performClick()
         val image = requireNotNull(automation.takeScreenshot()) { "Screenshot unavailable" }
         File(context.cacheDir, "round4-ime-save.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
         val down = SystemClock.uptimeMillis()
