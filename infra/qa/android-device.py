@@ -227,10 +227,13 @@ def main():
     subprocess.run([str(tools / 'sdkmanager'), '--licenses'], input=b'y\n' * 100, check=True)
     subprocess.run([str(tools / 'sdkmanager'), 'emulator', package], check=True)
     name = 'dsh-qa-' + str(args.api)
-    subprocess.run([str(tools / 'avdmanager'), 'create', 'avd', '-n', name, '-k', package, '--force'], input=b'no\n', check=True)
-    android_user = Path(os.environ.get('ANDROID_USER_HOME', str(Path.home() / '.android')))
-    avds = Path(os.environ.get('ANDROID_AVD_HOME', str(android_user / 'avd')))
-    config = avds / (name + '.avd') / 'config.ini'
+    avds = Path(os.environ.get('RUNNER_TEMP', '/tmp')) / 'dsh-device-avds'
+    avds.mkdir(parents=True, exist_ok=True)
+    device_env = dict(os.environ, ANDROID_AVD_HOME=str(avds))
+    avd_path = avds / (name + '.avd')
+    subprocess.run([str(tools / 'avdmanager'), 'create', 'avd', '-n', name, '-k', package,
+                    '--path', str(avd_path), '--force'], input=b'no\n', env=device_env, check=True)
+    config = avd_path / 'config.ini'
     overrides = {'hw.lcd.width': '720', 'hw.lcd.height': '1440', 'hw.lcd.density': '320',
                  'hw.ramSize': '3072', 'hw.cpu.ncore': '3', 'hw.keyboard': 'yes',
                  'disk.dataPartition.size': '4096M'}
@@ -240,7 +243,7 @@ def main():
     log = (args.output / 'emulator.log').open('wb')
     emulator = subprocess.Popen([str(sdk / 'emulator/emulator'), '-avd', name, '-accel', 'on', '-no-window', '-no-audio', '-no-boot-anim',
                                  '-no-snapshot', '-gpu', 'swiftshader_indirect', '-memory', '3072', '-cores', '3', '-partition-size', '4096'],
-                                stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+                                stdout=log, stderr=subprocess.STDOUT, start_new_session=True, env=device_env)
     stop = threading.Event()
 
     def watchdog():
@@ -299,7 +302,7 @@ def main():
                 os.killpg(emulator.pid, signal.SIGTERM)
             emulator.wait(timeout=30)
             log.close()
-            subprocess.run([str(tools / 'avdmanager'), 'delete', 'avd', '-n', name], check=False)
+            subprocess.run([str(tools / 'avdmanager'), 'delete', 'avd', '-n', name], env=device_env, check=False)
 
 
 if __name__ == '__main__':
