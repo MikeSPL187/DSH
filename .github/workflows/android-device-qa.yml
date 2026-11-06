@@ -10,6 +10,12 @@ on:
       - 'infra/qa/**'
       - '.github/workflows/android-device-qa.yml'
   workflow_dispatch:
+    inputs:
+      profile:
+        description: Full matrix or focused Host integrations on Android 11
+        type: choice
+        options: [full, integration-only]
+        default: full
 
 permissions:
   contents: read
@@ -110,9 +116,14 @@ jobs:
           test -c /dev/kvm
           sudo chmod 666 /dev/kvm
       - name: Android 11, 13 and 15, one capped emulator at a time
+        env:
+          QA_PROFILE: ${{ inputs.profile || 'full' }}
         run: |
-          for api in 30 33 35; do
-            python3 infra/qa/android-device.py --api "$api" --rootfs qa-rootfs/rootfs-x86_64.bin --output "device-evidence/api-$api"
+          apis="30 33 35"
+          flags=()
+          if [ "$QA_PROFILE" = integration-only ]; then apis=30; flags+=(--integration-only); fi
+          for api in $apis; do
+            python3 infra/qa/android-device.py --api "$api" --rootfs qa-rootfs/rootfs-x86_64.bin --output "device-evidence/api-$api" "${flags[@]}"
           done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()

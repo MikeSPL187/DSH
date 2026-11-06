@@ -29,7 +29,11 @@ class NativeChatRecoveryTest {
     private suspend fun bind() {
         val workspace = StorageAccess.workspaceRoot(app).absolutePath
         val status = withContext(Dispatchers.IO) { app.runtimeManager.start(workspace).getOrThrow() }
-        assertTrue(app.bindLocalHost(requireNotNull(status.port), status.token))
+        val accepted = app.bindLocalHost(requireNotNull(status.port), status.token)
+        if (!accepted) {
+            val diagnosis = app.defaultClient.authenticate("http://127.0.0.1:${status.port}", status.token)
+            fail("Host bind failed: phase=${status.phase}, port=${status.port}, tokenPresent=${!status.token.isNullOrBlank()}, auth=$diagnosis")
+        }
         app.dshRepository.subscribeRemoteEvents("local-host")
         app.dshRepository.refreshSessions("local-host")
     }
@@ -49,6 +53,11 @@ class NativeChatRecoveryTest {
         val record = app.chatRunJournal.records.value.single { it.text == text }
         assertNotNull(record.sessionId)
         assertTrue(record.status in ChatRunJournal.ACTIVE)
+        compose.activityRule.scenario.recreate()
+        delay(1500)
+        assertTrue("Activity recreation interrupted an application-owned request",
+            app.chatRunJournal.records.value.single { it.id == record.id }.status in ChatRunJournal.ACTIVE)
+        File(app.cacheDir, "qa-native-recreation.json").writeText("""{"activityRecreated":true,"requestStillActive":true}""")
         File(app.cacheDir, "qa-native-recovery-ready.txt").writeText(record.id)
         // Deliberately remain inside instrumentation until the driver kills the real process.
         // Teardown cannot run in a killed process; the second invocation removes this provider.

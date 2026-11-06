@@ -34,6 +34,16 @@ class Device:
     def private(self, command, **kwargs):
         return self.shell('run-as ' + PACKAGE + ' sh -c ' + shlex.quote(command), **kwargs)
 
+    def instrument(self, command, log_name, timeout):
+        try:
+            result = self.shell(command, timeout=timeout)
+        except subprocess.TimeoutExpired as error:
+            result = (error.stdout or b'').decode(errors='replace')
+            (self.output / log_name).write_text(result + '\nINSTRUMENTATION TIMED OUT\n')
+            raise
+        (self.output / log_name).write_text(result)
+        return result
+
     def dump(self):
         self.serial += 1
         self.adb('shell', 'uiautomator', 'dump', '--compressed', '/sdcard/dsh-qa.xml')
@@ -192,8 +202,7 @@ class Device:
         self.check('native-five-cold-starts-allow-navigation-without-host-gate')
 
     def automation(self, methods):
-        result = self.shell('am instrument -w -r -e class com.dsh.NativeAutomationTest ' + PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner', timeout=600)
-        (self.output / 'automation-instrumentation.log').write_text(result)
+        result = self.instrument('am instrument -w -r -e class com.dsh.NativeAutomationTest ' + PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner', 'automation-instrumentation.log', 600)
         for name in ('automation.json', 'provider-error.json', 'chat-layout.json', 'offline.json', 'readonly.json', 'integration-state.txt',
                      'integration-failure.png', 'chat-ime-font13.png', 'chat-landscape-font13.png'):
             path = 'cache/qa-native-' + name
@@ -240,6 +249,10 @@ class Device:
                 records = json.loads(self.private('cat files/chat-outbox-v1.json'))
                 record = next(x for x in records if x['model']['modelId'] == 'qa-recovery')
                 assert 'Native partial response' in record['partial'], 'Partial answer was not durably checkpointed'
+                recreation = json.loads(self.private('cat cache/qa-native-recreation.json'))
+                assert recreation == {'activityRecreated': True, 'requestStillActive': True}
+                (self.output / 'native-recreation.json').write_text(json.dumps(recreation, indent=2) + '\n')
+                self.check('native-activity-recreation-preserves-active-application-owned-request')
                 (self.output / 'recovery-before-kill.json').write_text(json.dumps({k: record[k] for k in ('id', 'sessionId', 'status', 'partial')}, indent=2) + '\n')
                 self.adb('shell', 'am', 'force-stop', PACKAGE)
                 assert not self.shell('pidof ' + PACKAGE, check=False).strip(), 'Application process survived force-stop'
@@ -270,7 +283,7 @@ class Device:
         self.check('native-force-stop-retains-durable-partial-and-visible-interruption')
         self.check('native-interrupted-chat-retry-completes-through-real-host')
 
-    def production(self, image, methods):
+    def production(self, image, methods, integration_only=False):
         self.upload(image, 'files/cache/rootfs-local.tar.gz')
         digest = self.private('sha256sum files/cache/rootfs-local.tar.gz').split()[0]
         assert digest == hashlib.sha256(image.read_bytes()).hexdigest()
@@ -289,6 +302,8 @@ class Device:
             raise AssertionError('Linux installation or Host startup failed')
         self.click('Start working')
         self.check('rootfs-install-and-host-start')
+        if integration_only:
+            return
         self.wait(lambda n: any(re.search(r'menu|меню|drawer', self.label(x), re.I) for x in n))
         nodes = self.dump()
         self.tap(next(x for x in nodes if re.search(r'menu|меню|drawer', self.label(x), re.I)))
@@ -412,6 +427,7 @@ def main():
     parser.add_argument('--api', type=int, required=True)
     parser.add_argument('--rootfs', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--integration-only', action='store_true')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     image = args.rootfs.resolve()
@@ -484,7 +500,7 @@ def main():
         with mcp_server() as (port, methods):
             device.adb('reverse', 'tcp:38889', 'tcp:' + str(port))
             try:
-                device.production(image, methods)
+                device.production(image, methods, args.integration_only)
                 device.automation(methods)
                 device.recovery(port, methods)
             finally:
@@ -497,6 +513,10 @@ def main():
         (args.output / 'failure.txt').write_text(str(error))
         try:
             (args.output / 'package-probe.log').write_text(device.private('cat files/rootfs/root/dsh-native-packages.log', check=False))
+            host_log = device.private('cat files/logs/host_*.log', check=False)
+            host_log = re.sub(r'(?i)(token=)[A-Za-z0-9_-]+', r'\1[redacted]', host_log)
+            (args.output / 'host-runtime.log').write_text(host_log[-80_000:])
+            (args.output / 'android-proxy.txt').write_text(device.shell('settings get global http_proxy', check=False))
             device.screenshot('failure')
         except Exception:
             pass

@@ -43,7 +43,11 @@ class NativeAutomationTest {
         val originalDefault = AutomationStore.defaultModel
         try {
             val status = withContext(Dispatchers.IO) { app.runtimeManager.start(workspace).getOrThrow() }
-            assertTrue(app.bindLocalHost(requireNotNull(status.port), status.token))
+            val accepted = app.bindLocalHost(requireNotNull(status.port), status.token)
+            if (!accepted) {
+                val diagnosis = app.defaultClient.authenticate("http://127.0.0.1:${status.port}", status.token)
+                fail("Host bind failed: phase=${status.phase}, port=${status.port}, tokenPresent=${!status.token.isNullOrBlank()}, auth=$diagnosis")
+            }
             assertTrue("Host/Vault rejected synthetic provider", withContext(Dispatchers.Main) {
                 manager.save("local-host", provider, fixture, provider.baseUrl, provider.models)
             })
