@@ -55,12 +55,31 @@ object ApiKeyVault {
         if (enc == null) {
             return false
         }
-        return p.edit()
-            .putString("$ref.last4", key.takeLast(4))
-            .putLong("$ref.added", System.currentTimeMillis())
-            .putString("$ref.enc", enc)
+        return storeCipher(p, ref, key.takeLast(4), enc, System.currentTimeMillis())
+    }
+
+    /** commit() can fail after updating memory; a failed replacement must retain the old key. */
+    @Synchronized
+    internal fun storeCipher(p: android.content.SharedPreferences, ref: String, last4: String, encrypted: String, added: Long): Boolean {
+        val before = p.all.let { values -> listOf("last4", "added", "enc", "lost").associate { "$ref.$it" to values["$ref.$it"] } }
+        val saved = runCatching { p.edit()
+            .putString("$ref.last4", last4)
+            .putLong("$ref.added", added)
+            .putString("$ref.enc", encrypted)
             .remove("$ref.lost")
-            .commit()
+            .commit() }.getOrDefault(false)
+        if (!saved) {
+            val rollback = p.edit()
+            for ((name, value) in before) when (value) {
+                is String -> rollback.putString(name, value)
+                is Long -> rollback.putLong(name, value)
+                is Boolean -> rollback.putBoolean(name, value)
+                else -> rollback.remove(name)
+            }
+            // Restore memory even if the device still cannot write. Never report success.
+            runCatching { rollback.commit() }
+        }
+        return saved
     }
 
     /** Сохранённый ключ больше не расшифровывается (ключ Keystore потерян): его нужно ввести заново. */
