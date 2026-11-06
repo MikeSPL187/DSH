@@ -552,7 +552,7 @@ private fun Profile(ui: SettingsUi, modifier: Modifier, onClick: () -> Unit) {
     }
     val shape = RoundedCornerShape(22.dp)
     Row(
-        modifier.fillMaxWidth().clip(shape).background(Dsh.colors.s1).border(1.dp, Dsh.colors.line, shape).rowClick(onClick = onClick).padding(15.dp),
+        modifier.actionSemantics(name, description = sub, action = onClick).fillMaxWidth().clip(shape).background(Dsh.colors.s1).border(1.dp, Dsh.colors.line, shape).rowClick(onClick = onClick).padding(15.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -851,7 +851,7 @@ private fun ThemeCard(kind: String, label: String, on: Boolean, modifier: Modifi
     val border by animateColorAsState(if (on) c.accent else c.line, tween(200), label = "th")
     val shape = RoundedCornerShape(18.dp)
     Column(
-        modifier
+        modifier.actionSemantics(label, role = Role.RadioButton, selected = on, action = onClick)
             .then(
                 if (on) Modifier.drawBehind {
                     val r = 4.dp.toPx()
