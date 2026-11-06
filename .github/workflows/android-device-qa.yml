@@ -40,9 +40,11 @@ jobs:
       # These APKs were built in this repository before the fixture-only change.
       # Reuse requires an exact match of every tracked Android build input below.
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        # APK reuse is an optimization: expiry/cache misses must fall back to a build.
+        continue-on-error: true
         with:
           name: android-device-apks
-          run-id: 42140162464
+          run-id: 42147802639
           github-token: ${{ github.token }}
           path: device-apks
       - name: Verify reusable APK inputs
