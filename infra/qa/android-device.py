@@ -299,7 +299,7 @@ class Device:
             peer.close()
         result = self.instrument('am instrument -w -r -e class com.dsh.NativeChatRecoveryTest#recoverInterruptedRequestAndRetryFromChat ' + component,
                                  'recovery-instrumentation.log', 300)
-        for name in ('recovery.json', 'interrupted-chat.png'):
+        for name in ('recovery.json', 'interrupted-chat.png', 'recovery-a11y.txt'):
             file = 'cache/qa-native-' + name
             if self.private('test -f ' + shlex.quote(file) + ' && echo present', check=False).strip() == 'present':
                 (self.output / ('native-' + name)).write_bytes(self.adb('exec-out', 'run-as', PACKAGE, 'cat', file))

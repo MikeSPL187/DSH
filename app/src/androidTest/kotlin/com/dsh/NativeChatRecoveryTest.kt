@@ -80,6 +80,15 @@ class NativeChatRecoveryTest {
             assertTrue(interrupted.error.orEmpty().contains("stopped", ignoreCase = true))
             val reason = hasText(interrupted.error!!)
             compose.waitUntil(60_000) { compose.onAllNodes(reason).fetchSemanticsNodes().isNotEmpty() }
+            // Keep the interruption and partial answer in view if a previous chat restored IME focus.
+            compose.runOnUiThread {
+                androidx.core.view.WindowCompat.getInsetsController(compose.activity.window, compose.activity.window.decorView)
+                    .hide(androidx.core.view.WindowInsetsCompat.Type.ime())
+            }
+            compose.waitUntil(30_000) {
+                androidx.core.view.ViewCompat.getRootWindowInsets(compose.activity.window.decorView)
+                    ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) != true
+            }
             compose.onNode(reason).performScrollTo().assertIsDisplayed()
             val retry = compose.onAllNodesWithText(app.getString(com.dsh.feature.chat.R.string.chat_retry_send)).onFirst()
             retry.performScrollTo().assertIsDisplayed()
@@ -91,16 +100,28 @@ class NativeChatRecoveryTest {
             }
             var visibleSince = 0L
             val retryLabel = app.getString(com.dsh.feature.chat.R.string.chat_retry_send)
-            compose.waitUntil(60_000) {
+            try {
+                compose.waitUntil(60_000) {
+                    val root = instrumentation.uiAutomation.rootInActiveWindow
+                    val visible = root != null && visibleText(root, interrupted.error!!) && visibleText(root, retryLabel) &&
+                        visibleText(root, "Native partial response")
+                    val now = android.os.SystemClock.uptimeMillis()
+                    if (!visible) visibleSince = 0L else if (visibleSince == 0L) visibleSince = now
+                    visible && now - visibleSince >= 500
+                }
+            } finally {
                 val root = instrumentation.uiAutomation.rootInActiveWindow
-                val visible = root != null && visibleText(root, interrupted.error!!) && visibleText(root, retryLabel) &&
-                    visibleText(root, "Native partial response")
-                val now = android.os.SystemClock.uptimeMillis()
-                if (!visible) visibleSince = 0L else if (visibleSince == 0L) visibleSince = now
-                visible && now - visibleSince >= 500
-            }
-            instrumentation.uiAutomation.takeScreenshot()?.let { bitmap ->
-                File(app.cacheDir, "qa-native-interrupted-chat.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                val tree = StringBuilder()
+                fun dump(node: android.view.accessibility.AccessibilityNodeInfo, depth: Int) {
+                    val bounds = android.graphics.Rect().also(node::getBoundsInScreen)
+                    tree.appendLine("${" ".repeat(depth)}${node.packageName} visible=${node.isVisibleToUser} bounds=$bounds text=${node.text} desc=${node.contentDescription}")
+                    for (i in 0 until node.childCount) node.getChild(i)?.let { dump(it, depth + 1) }
+                }
+                root?.let { dump(it, 0) }
+                File(app.cacheDir, "qa-native-recovery-a11y.txt").writeText(tree.toString())
+                instrumentation.uiAutomation.takeScreenshot()?.let { bitmap ->
+                    File(app.cacheDir, "qa-native-interrupted-chat.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                }
             }
             retry.performClick()
             withTimeout(120_000) { while (app.chatRunJournal.records.value.any { it.text == text }) delay(100) }
