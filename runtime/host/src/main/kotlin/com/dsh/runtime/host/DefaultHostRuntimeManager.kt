@@ -865,7 +865,6 @@ class DefaultHostRuntimeManager(
                 )
             )
         }
-        HostBundleCompat.ensure(layout.rootfsDir).getOrElse { return@withContext fail(it) }
         applyBundledRuntimePatches()
         // В образе может не быть двоичного файла платформы для node-addon-require-builtin; тогда подставляем
         // чистый JS (с --expose-internals), иначе Host завершится при загрузке Loader.

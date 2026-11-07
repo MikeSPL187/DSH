@@ -11,6 +11,21 @@ import java.io.File
 class RuntimeHostTest {
 
     @Test
+    fun canonicalCliKeepsProfileReloadStateSharedEvenWhenAnAggregateBundleExists() {
+        val root = java.nio.file.Files.createTempDirectory("dsh-canonical-host").toFile()
+        try {
+            val layout = RuntimeLayout(root, File(root, "lib"))
+            File(layout.rootfsDir, "usr/local/lib/node_modules/@deepseek-ai/dsh/lib/host.bundle.mjs").apply {
+                parentFile!!.mkdirs()
+                writeText("// Aggregate bundle duplicates the dynamically imported app-boot module")
+            }
+            val command = ProotCommandBuilder.build(ProotCommandBuilder.LaunchConfig(layout, root.absolutePath))
+            assertTrue(command.contains("/usr/local/lib/node_modules/@deepseek-ai/dsh/lib/bin.js"))
+            assertFalse(command.any { it.endsWith("host.bundle.mjs") })
+        } finally { root.deleteRecursively() }
+    }
+
+    @Test
     fun testProcessOutputParser() {
         val line1 = "dsh web: listening on http://127.0.0.1:45321/?token=sec_abc12345"
         val parsed1 = ProcessOutputParser.parseLine(line1)

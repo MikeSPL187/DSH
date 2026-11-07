@@ -184,19 +184,10 @@ object ProotCommandBuilder {
         cmd.add("/root/.dsh/patches/fs-link-fallback.cjs")
         cmd.add("--require")
         cmd.add("/root/.dsh/patches/startup-trace.cjs")
-        // Если в образе есть bundle входа запуска — берём его: ~1200 открытий файлов модулей
-        // сводятся к одному (под proot это главная цена холодного старта); иначе — исходный bin.js.
-        val bundledEntry = java.io.File(
-            config.layout.rootfsDir,
-            "usr/local/lib/node_modules/@deepseek-ai/dsh/lib/host.bundle.mjs",
-        )
-        cmd.add(
-            if (bundledEntry.isFile) {
-                "/usr/local/lib/node_modules/@deepseek-ai/dsh/lib/host.bundle.mjs"
-            } else {
-                "/usr/local/lib/node_modules/@deepseek-ai/dsh/lib/bin.js"
-            },
-        )
+        // The CLI and dynamically loaded controllers must import the same app-boot module.
+        // An aggregate bundle duplicates its private root-Include registry: settings writes
+        // then fail with "profile reload requires the root Include entry".
+        cmd.add("/usr/local/lib/node_modules/@deepseek-ai/dsh/lib/bin.js")
         cmd.add("--profile")
         cmd.add("web")
         cmd.add("--no-open")
