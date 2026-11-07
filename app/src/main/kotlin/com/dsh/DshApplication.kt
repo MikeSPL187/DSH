@@ -11,6 +11,7 @@ import com.dsh.core.data.DefaultSettingsRepository
 import com.dsh.core.data.DshDatabase
 import com.dsh.core.data.DshRepository
 import com.dsh.core.protocol.HostCookieJar
+import com.dsh.core.protocol.LoopbackProxySelector
 import com.dsh.core.protocol.RemoteClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -74,6 +75,7 @@ class DshApplication : Application() {
     val okHttpClient by lazy {
         OkHttpClient.Builder()
             .cookieJar(cookieJar)
+            .proxySelector(LoopbackProxySelector(java.net.ProxySelector.getDefault()))
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)

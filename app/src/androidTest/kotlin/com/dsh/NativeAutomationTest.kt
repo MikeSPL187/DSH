@@ -17,6 +17,7 @@ import com.dsh.feature.settings.logic.AutomationStore
 import com.dsh.core.model.AppSettings
 import com.dsh.core.model.RunStatus
 import com.dsh.runtime.host.RuntimePhase
+import kotlinx.serialization.json.*
 import kotlinx.coroutines.*
 import org.junit.Assert.*
 import org.junit.Rule
@@ -34,7 +35,12 @@ class NativeAutomationTest {
     private val ids = listOf("qa-native-scheduled", "qa-native-failed", "qa-native-layout", "qa-native-readonly")
 
     private suspend fun withProvider(block: suspend () -> Unit) {
-        val manager = ModelProviders(app.dshRepository)
+        var localAttempted = false
+        var localSaved = false
+        val manager = ModelProviders(app.dshRepository) { ref, key ->
+            localAttempted = true
+            ApiKeyVault.save(ref, key).also { localSaved = it }
+        }
         val ref = "QA_RUNTIME_API_KEY"
         val fixture = "qa-runtime-synthetic-secret"
         val provider = ModelProviderUi("qa-runtime", "QA runtime", listOf("qa-model", "qa-fail", "qa-readonly"), ref, false,
@@ -48,9 +54,26 @@ class NativeAutomationTest {
                 val diagnosis = app.defaultClient.authenticate("http://127.0.0.1:${status.port}", status.token)
                 fail("Host bind failed: phase=${status.phase}, port=${status.port}, tokenPresent=${!status.token.isNullOrBlank()}, auth=$diagnosis")
             }
-            assertTrue("Host/Vault rejected synthetic provider", withContext(Dispatchers.Main) {
+            val saved = withContext(Dispatchers.Main) {
                 manager.save("local-host", provider, fixture, provider.baseUrl, provider.models)
-            })
+            }
+            if (!saved) {
+                val credential = app.defaultClient.rpcRaw("local-host", "credentials/set", """{"ref":"$ref","value":"$fixture"}""")
+                val ops = buildJsonArray {
+                    for ((field, value) in listOf("apiKeyEnv" to JsonPrimitive(ref), "api" to JsonPrimitive("openai-completions"),
+                        "baseURL" to JsonPrimitive(provider.baseUrl), "models" to JsonArray(provider.models.map { buildJsonObject { put("id", it); put("name", it) } }))) {
+                        add(buildJsonObject { put("op", "set"); put("path", JsonArray((provider.settingsPath + field).map(::JsonPrimitive))); put("value", value) })
+                    }
+                }
+                val settings = app.defaultClient.rpcRaw("local-host", "settings/mutate", buildJsonObject { put("ns", provider.settingsNs); put("ops", ops) }.toString())
+                val diagnosis = buildJsonObject {
+                    put("localAttempted", localAttempted); put("localSaved", localSaved)
+                    put("credentials", credential.toString().replace(fixture, "[fixture]"))
+                    put("settings", settings.toString().replace(fixture, "[fixture]"))
+                }
+                File(app.cacheDir, "qa-native-provider-save-diagnostic.json").writeText(diagnosis.toString())
+                fail("Provider save failed: $diagnosis")
+            }
             assertEquals(fixture, ApiKeyVault.use(ref) { it })
             block()
         } catch (error: Throwable) {

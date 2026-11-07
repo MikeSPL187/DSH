@@ -13,7 +13,6 @@ import struct
 import subprocess
 import threading
 import time
-import uuid
 import xml.etree.ElementTree as ET
 from mcp_fixture import server as mcp_server
 
@@ -45,43 +44,6 @@ class Device:
         (self.output / log_name).write_text(result)
         return result
 
-    def host_probe(self):
-        # Exercise the same JSON requests outside instrumentation, retaining only safe replies.
-        logs = self.private('cat files/logs/host_*.log')
-        endpoints = re.findall(r'dsh web: http://127\.0\.0\.1:(\d+)/\?token=([A-Za-z0-9_-]+)', logs)
-        assert endpoints, 'No Host endpoint for the RPC probe'
-        port, token = endpoints[-1]
-        forwarded = int(self.adb('forward', 'tcp:0', 'tcp:' + port).decode().strip())
-        connection = http.client.HTTPConnection('127.0.0.1', forwarded, timeout=30)
-        headers = {'Host': '127.0.0.1:' + port, 'Content-Type': 'application/json'}
-        output = {}
-        try:
-            connection.request('GET', '/?token=' + token, headers=headers)
-            response = connection.getresponse()
-            output['authenticationStatus'] = response.status
-            cookie = response.getheader('Set-Cookie')
-            response.read()
-            assert response.status == 303 and cookie, 'Host did not issue a cookie'
-            headers['Cookie'] = cookie.split(';', 1)[0]
-            def rpc(method, args):
-                body = {'type': 'client-request', 'rpcId': str(uuid.uuid4()), 'method': method, 'payload': {'args': args}}
-                connection.request('POST', '/api/' + method, json.dumps(body), headers)
-                reply = connection.getresponse()
-                text = reply.read().decode()
-                return {'status': reply.status, 'body': json.loads(text)}
-            output['credentials/set'] = rpc('credentials/set', {'ref': 'QA_NATIVE_PROBE', 'value': 'qa-probe-synthetic-secret'})
-            values = {'apiKeyEnv': 'QA_NATIVE_PROBE', 'api': 'openai-completions', 'baseURL': 'http://127.0.0.1:38889/v1',
-                      'models': [{'id': 'qa-probe', 'name': 'qa-probe'}]}
-            output['settings/mutate'] = rpc('settings/mutate', {'ns': 'llm-pi-ai',
-                'ops': [{'op': 'set', 'path': ['providers', 'qa-probe', k], 'value': v} for k, v in values.items()]})
-            output['credentials/unset'] = rpc('credentials/unset', {'ref': 'QA_NATIVE_PROBE'})
-            output['settings/unset'] = rpc('settings/mutate', {'ns': 'llm-pi-ai', 'ops': [{'op': 'unset', 'path': ['providers', 'qa-probe']}]})
-        finally:
-            connection.close()
-            self.adb('forward', '--remove', 'tcp:' + str(forwarded), check=False)
-            (self.output / 'host-probe.json').write_text(json.dumps(output, ensure_ascii=False, indent=2) + '\n')
-        assert all(v['body'].get('result', {}).get('ok') for k, v in output.items() if k != 'authenticationStatus'), 'Host rejected a credential or settings RPC; see host-probe.json'
-        self.check('native-host-direct-credential-and-provider-settings-rpc')
 
     def dump(self):
         self.serial += 1
@@ -208,6 +170,8 @@ class Device:
             self.wait(lambda n: self.has('Stop', n), seconds=120)
         finally:
             if previous_proxy in ('', 'null'):
+                # Deleting the legacy key alone leaves ProxyTracker's canonical proxy active.
+                self.shell('settings put global http_proxy :0')
                 self.shell('settings delete global http_proxy')
             else:
                 self.shell('settings put global http_proxy ' + shlex.quote(previous_proxy))
@@ -240,13 +204,24 @@ class Device:
         (self.output / 'cold-starts.json').write_text(json.dumps(samples, indent=2) + '\n')
         self.check('native-five-cold-starts-allow-navigation-without-host-gate')
 
-    def automation(self, methods):
-        result = self.instrument('am instrument -w -r -e class com.dsh.NativeAutomationTest ' + PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner', 'automation-instrumentation.log', 600)
-        for name in ('automation.json', 'provider-error.json', 'chat-layout.json', 'offline.json', 'readonly.json', 'integration-state.txt',
+    def proxy_auth(self):
+        result = self.instrument('am instrument -w -r -e class com.dsh.NativeHostProxyTest ' + PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner', 'proxy-instrumentation.log', 150)
+        assert 'OK (1 test)' in result, 'Native authentication/RPC with an unreachable user proxy failed'
+        self.check('native-host-authentication-and-rpc-with-user-proxy')
+
+    def automation(self, methods, probe_only=False):
+        target = "com.dsh.NativeAutomationTest" + ("#providerFailureReachesTerminalHistory" if probe_only else "")
+        result = self.instrument('am instrument -w -r -e class ' + target + ' ' + PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner', 'automation-instrumentation.log', 600)
+        for name in ('automation.json', 'provider-error.json', 'chat-layout.json', 'offline.json', 'readonly.json', 'provider-save-diagnostic.json', 'integration-state.txt',
                      'integration-failure.png', 'chat-ime-font13.png', 'chat-landscape-font13.png'):
             path = 'cache/qa-native-' + name
             if self.private('test -f ' + shlex.quote(path) + ' && echo present', check=False).strip() == 'present':
                 (self.output / ('native-' + name)).write_bytes(self.adb('exec-out', 'run-as', PACKAGE, 'cat', path))
+        if probe_only:
+            assert 'OK (1 test)' in result, 'Native provider save / HTTP probe failed'
+            assert 'llm/qa-fail' in methods and 'llm/auth-ok' in methods and 'llm/auth-bad' not in methods
+            self.check('native-provider-save-and-controlled-http-error-roundtrip')
+            return
         assert 'OK (5 tests)' in result, 'Native scheduled automation / chat integration failed'
         outcome = json.loads(self.private('cat cache/qa-native-automation.json'))
         assert outcome == {'scheduled': 'ok', 'historyCount': 1, 'model': 'qa-model', 'idleHost': 'running'}
@@ -541,10 +516,9 @@ def main():
             device.adb('reverse', 'tcp:38889', 'tcp:' + str(port))
             try:
                 device.production(image, methods, args.integration_only)
-                if args.host_probe:
-                    device.host_probe()
-                else:
-                    device.automation(methods)
+                device.proxy_auth()
+                device.automation(methods, args.host_probe)
+                if not args.host_probe:
                     device.recovery(port, methods)
             finally:
                 device.adb('reverse', '--remove', 'tcp:38889', check=False)
