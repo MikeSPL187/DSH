@@ -11,6 +11,7 @@ import com.dsh.core.data.DefaultSettingsRepository
 import com.dsh.core.data.DshDatabase
 import com.dsh.core.data.DshRepository
 import com.dsh.core.protocol.HostCookieJar
+import com.dsh.core.protocol.LoopbackProxySelector
 import com.dsh.core.protocol.RemoteClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,6 +21,11 @@ import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
 class DshApplication : Application() {
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        AppLanguage.refreshLegacyResources(this)
+    }
 
     /**
      * Защита от EOF в потоке чтения WebSocket.
@@ -45,6 +51,8 @@ class DshApplication : Application() {
     }
 
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    val backupExport by lazy { BackupExportController(applicationScope) }
+    val chatRunJournal by lazy { ChatRunJournal(java.io.File(filesDir, "chat-outbox-v1.json")) }
 
     lateinit var runtimeLayout: RuntimeLayout
         private set
@@ -72,6 +80,7 @@ class DshApplication : Application() {
     val okHttpClient by lazy {
         OkHttpClient.Builder()
             .cookieJar(cookieJar)
+            .proxySelector(LoopbackProxySelector(java.net.ProxySelector.getDefault()))
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
@@ -158,6 +167,7 @@ class DshApplication : Application() {
         com.dsh.runtime.host.HostStrings.init(this)
         com.dsh.feature.settings.logic.ApiKeyVault.init(this)
         com.dsh.feature.settings.logic.DshUserPrefs.init(this)
+        com.dsh.feature.settings.HostTheme.init(this)
         com.dsh.feature.settings.logic.ToolCallLog.init(this)
         com.dsh.feature.settings.logic.ToolPolicy.init(this)
         com.dsh.runtime.host.AgentNetworkPolicy.init(this)
@@ -165,7 +175,8 @@ class DshApplication : Application() {
         AutomationScheduler.rescheduleAll(this)
         // Тексты из модулей без Context следуют за языком интерфейса, а не только за системным.
         com.dsh.core.model.Tr.language = {
-            resources.configuration.locales[0]?.language ?: java.util.Locale.getDefault().language
+            AppLanguage.selection(this).takeUnless { it == "system" }
+                ?: resources.configuration.locales[0]?.language ?: java.util.Locale.getDefault().language
         }
         runtimeLayout = RuntimeLayout(
             baseDir = filesDir,
@@ -177,11 +188,28 @@ class DshApplication : Application() {
             runner = hostRunner
         )
         HostRuntimeHolder.manager = runtimeManager
-        HostRuntimeHolder.hasRunningTasks = { dshRepository.runningSessionIdsFlow.value.isNotEmpty() }
+        HostRuntimeHolder.hasRunningTasks = {
+            dshRepository.runningSessionIdsFlow.value.isNotEmpty() ||
+                chatRunJournal.records.value.any { it.status in ChatRunJournal.ACTIVE } ||
+                dshRepository.tasks.jobsFlow.value.any { it.finishedAt == null } ||
+                dshRepository.approvals.pendingQuestionsFlow.value.isNotEmpty() ||
+                com.dsh.terminal.TerminalHub.anyLive()
+        }
+        HostRuntimeHolder.isUiVisible = { UserActivity.isForeground }
         // Host прогревается при открытии интерфейса (MainAppHost, StartupGate), а не здесь (G-39): процесс поднимается
         // и ради JobScheduler в фоне, где foreground-служба запрещена (Android 12+), — proot и Node работали бы без
         // службы и уведомления. Миграция папки Default — там же, перед прогревом. Автоматизации запускают Host сами.
         applicationScope.launch(Dispatchers.IO) { dshRepository.pruneMessageCache() }
+        applicationScope.launch(Dispatchers.IO) {
+            dshRepository.sessionEvents.collect { (host, event) ->
+                chatRunJournal.onEvent(host, event)
+                if (event is com.dsh.core.protocol.RemoteEvent.UsageReported) {
+                    com.dsh.feature.settings.logic.UsageLedger.parse(host, event.sessionId, event.at, event.data)?.let {
+                        com.dsh.feature.settings.logic.UsageLedger.record(this@DshApplication, it)
+                    }
+                }
+            }
+        }
         // Память агента: факты — в личных файлах, для агента — блок в ~/.agents/AGENTS.md (если Linux уже установлен).
         applicationScope.launch(Dispatchers.IO) {
             com.dsh.core.data.AgentMemory.init(java.io.File(filesDir, "agent-memory.json"), java.io.File(runtimeLayout.agentsHomeDir, "AGENTS.md"))

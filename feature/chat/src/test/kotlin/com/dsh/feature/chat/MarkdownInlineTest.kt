@@ -36,4 +36,16 @@ class MarkdownInlineTest {
         assertTrue("слишком долго: $ms мс", ms < 3_000)
         assertTrue(s.text.startsWith("слово курсив"))
     }
+    @Test
+    fun singleNewlinesInAnAnswerArePreserved() {
+        val blocks = parseMarkdownBlocks("first\nsecond\n\n- item\n\n```python\na = 1\nb = 2\n```")
+        assertEquals(MarkdownBlock.Paragraph("first\nsecond"), blocks.first())
+        assertTrue(blocks.any { it is MarkdownBlock.Code && it.code == "a = 1\nb = 2" })
+    }
+
+    @Test fun unsupportedTexIsPreservedAndDoesNotBecomeEmphasis() {
+        val text = "Formula: ${'$'}a * b * c${'$'} and \\(x * y * z\\) **bold**"
+        assertEquals("Formula: ${'$'}a * b * c${'$'} and \\(x * y * z\\) bold", parse(text).text)
+    }
+
 }

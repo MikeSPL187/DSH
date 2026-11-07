@@ -52,9 +52,9 @@ import java.io.File
 class DshScreensSweepTest {
     private val mcpDemo = com.dsh.feature.settings.ui.McpUi(
         listOf(
-            com.dsh.feature.settings.ui.McpRow("github", true, "https://api.githubcopilot.com/mcp/", "a1b2", com.dsh.feature.settings.ui.McpStatus.OK),
-            com.dsh.feature.settings.ui.McpRow("docs", false, "npx -y @modelcontextprotocol/server-filesystem /workspace/docs", null, com.dsh.feature.settings.ui.McpStatus.ERROR),
-            com.dsh.feature.settings.ui.McpRow("linear", true, "https://mcp.linear.app/mcp", null, com.dsh.feature.settings.ui.McpStatus.PENDING),
+            com.dsh.feature.settings.ui.McpRow("github", true, "https://api.githubcopilot.com/mcp/", true, com.dsh.feature.settings.ui.McpStatus.OK),
+            com.dsh.feature.settings.ui.McpRow("docs", false, "npx -y @modelcontextprotocol/server-filesystem /workspace/docs", false, com.dsh.feature.settings.ui.McpStatus.ERROR),
+            com.dsh.feature.settings.ui.McpRow("linear", true, "https://mcp.linear.app/mcp", false, com.dsh.feature.settings.ui.McpStatus.PENDING),
         ),
         restartNeeded = true,
     )

@@ -52,6 +52,8 @@ jobs:
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           pnpm run build:artifacts
+          pnpm run build:check
+          pnpm exec vitest run packages/session/session-title/tests/session-title.spec.ts
 
       - name: Дерево установки
         working-directory: agent

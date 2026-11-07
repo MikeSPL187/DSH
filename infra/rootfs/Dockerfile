@@ -46,10 +46,18 @@ ARG DSH_SOURCE_COMMIT
 # Каждый пакет `@deepseek-ai/*` — архивом `pnpm pack`, как при публикации в npm (те же `files`).
 RUN pnpm install --frozen-lockfile \
   && DSH_CLIENT_COMMIT_HASH="$DSH_SOURCE_COMMIT" pnpm run build:artifacts \
+  && pnpm run build:check \
   && mkdir -p /out/packs \
   && pnpm -r --no-sort --workspace-concurrency=4 --filter '@deepseek-ai/*' --filter '!@deepseek-ai/node-addon-system-*' \
        exec sh -c 'pnpm pack --pack-destination /out/packs >/dev/null' \
   && ls /out/packs | wc -l
+
+# libc compatibility for Android's syscall allowlist; no runtime compiler needed.
+FROM agent-build AS android-compat
+COPY android-compat.c /tmp/android-compat.c
+RUN mkdir -p /out/compat \
+  && cc -Wall -Wextra -Werror -shared -fPIC -Wl,-z,relro,-z,now \
+       /tmp/android-compat.c -o /out/compat/libdsh-android-compat.so
 
 # Агент в образе: сторонние зависимости — `npm ci` по нашему package-lock, затем каждый пакет
 # `@deepseek-ai/*` и сам `@deepseek-ai/dsh` заменяются содержимым нашего архива той же версии (пакета без
@@ -62,6 +70,7 @@ RUN pnpm install --frozen-lockfile \
 # модулей при запуске сводятся к одному.
 FROM ${NODE_IMAGE} AS agent
 ARG AGENT_DIR=/usr/local/lib/node_modules/@deepseek-ai/dsh
+COPY overlay-agent.mjs /tmp/overlay-agent.mjs
 COPY --from=agent-build /out/packs /out/packs
 COPY agent/package.json agent/package-lock.json /tmp/agent/
 RUN set -eu; \
@@ -69,28 +78,18 @@ RUN set -eu; \
     cp /tmp/agent/package.json /tmp/agent/package-lock.json "$AGENT_DIR/"; \
     cd "$AGENT_DIR"; \
     npm ci --no-audit --no-fund; \
-    overlay() { \
-      pack="/out/packs/$(node -p 'const p = require(process.argv[1]); p.name.slice(1).replace("/", "-") + "-" + p.version + ".tgz"' "$1/package.json")"; \
-      [ -f "$pack" ] || { echo "no source build: $pack" >&2; exit 1; }; \
-      find "$1" -mindepth 1 -maxdepth 1 ! -name node_modules ! -name package.json ! -name package-lock.json -exec rm -rf {} +; \
-      tar -xzf "$pack" -C "$1" --strip-components=1 --no-same-owner --exclude=package/package.json; \
-    }; \
-    overlay "$AGENT_DIR"; \
-    count=1; \
-    for installed in $(find node_modules -type d -path '*/node_modules/@deepseek-ai/*' -prune); do \
-      case "$(basename "$installed")" in libreoffice-kit*|node-addon-system-*) continue ;; esac; \
-      overlay "$installed"; count=$((count + 1)); \
-    done; \
-    echo "replaced $count @deepseek-ai packages with the source build"; \
+    node -e 'const fs = require("node:fs"); fs.copyFileSync(require.resolve("@esbuild/linux-" + process.arch + "/bin/esbuild"), "/tmp/esbuild"); fs.chmodSync("/tmp/esbuild", 0o755)'; \
+    npm prune --omit=dev --no-audit --no-fund; \
+    node /tmp/overlay-agent.mjs install "$AGENT_DIR" /out/packs /tmp/agent-source-files.json; \
     rm -rf /out
 WORKDIR /usr/local/lib/node_modules/@deepseek-ai/dsh/lib
 # CommonJS внутри ESM (в том числе undici) требует require с опорой на bundle.
-RUN ../node_modules/.bin/esbuild bin.js --bundle --platform=node --format=esm --target=node24 \
+RUN /tmp/esbuild bin.js --bundle --platform=node --format=esm --target=node24 \
       --banner:js='/* dsh-host-bundle-require-v1 */ import { createRequire as __dshHostCreateRequire } from "node:module"; var require = __dshHostCreateRequire(import.meta.url);' \
       --outfile=host.bundle.mjs --external:*.node --external:node:* --log-level=warning \
   && ls -lh host.bundle.mjs
-# В образ — без dev-зависимостей (esbuild и прочее только для сборки).
-RUN cd .. && npm prune --omit=dev --no-audit --no-fund
+# Npm reconciliation finishes before overlays: the audit covers exactly the production tree.
+RUN node /tmp/overlay-agent.mjs verify /usr/local/lib/node_modules/@deepseek-ai/dsh /tmp/agent-source-files.json
 
 FROM ${NODE_IMAGE}
 ARG DSH_VERSION
@@ -103,12 +102,22 @@ ENV PATH=$PNPM_HOME/bin:$PATH
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     git \
+    curl \
     ca-certificates \
     patch \
   && rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man /usr/share/info /usr/share/lintian
 
+# glibc creat uses a legacy syscall rejected by Android; openat is equivalent.
+COPY --from=android-compat /out/compat/libdsh-android-compat.so /opt/dsh/lib/libdsh-android-compat.so
+COPY android-compat.c /opt/dsh/sbom/android-compat.c
+RUN printf '/opt/dsh/lib/libdsh-android-compat.so\n' > /etc/ld.so.preload \
+  && sha256sum /opt/dsh/lib/libdsh-android-compat.so > /opt/dsh/sbom/android-compat.sha256
+
+RUN test -s /var/lib/dpkg/status && test -z "$(dpkg --audit)" && curl --version
+
 # 2. Агент (с патчами и bundle) и pnpm из проверенного tarball.
 COPY --from=agent /usr/local/lib/node_modules/@deepseek-ai/dsh /usr/local/lib/node_modules/@deepseek-ai/dsh
+COPY --from=agent /tmp/agent-source-files.json /opt/dsh/sbom/agent-source-files.json
 COPY --from=fetch /fetch/pnpm.tgz /tmp/pnpm.tgz
 RUN ln -s ../lib/node_modules/@deepseek-ai/dsh/lib/bin.js /usr/local/bin/dsh \
   && npm install -g --no-audit --no-fund --ignore-scripts /tmp/pnpm.tgz \

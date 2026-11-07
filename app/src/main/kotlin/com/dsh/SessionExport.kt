@@ -92,18 +92,19 @@ fun shareArchive(context: Context, result: Result<java.io.File>, chooserTitle: S
         return
     }
     pruneOldArchives(file.parentFile, keep = 3)
-    val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
-    val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-        type = "application/zip"
-        putExtra(android.content.Intent.EXTRA_STREAM, uri)
-        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    }
-    runCatching {
+    try {
+        val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
+        val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+            type = "application/zip"
+            putExtra(android.content.Intent.EXTRA_STREAM, uri)
+            clipData = android.content.ClipData.newRawUri("backup", uri)
+            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
         context.startActivity(
             android.content.Intent.createChooser(send, chooserTitle)
-                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                .apply { if (context !is android.app.Activity) addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) },
         )
-    }.onFailure {
+    } catch (_: Exception) {
         Toast.makeText(context, failedMessage, Toast.LENGTH_LONG).show()
     }
 }

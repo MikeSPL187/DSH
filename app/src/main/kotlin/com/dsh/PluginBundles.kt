@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
@@ -41,6 +42,10 @@ import java.io.File
  */
 internal class BundleSelection(context: Context) {
     private val prefs = context.getSharedPreferences(PLUGIN_SELECTION_PREFS, Context.MODE_PRIVATE)
+    init {
+        if (!prefs.contains(PLUGIN_SELECTION_KEY)) prefs.edit().putStringSet(PLUGIN_SELECTION_KEY,
+            setOf("@deepseek-ai/dsh-experimental-terminal-bundle")).apply()
+    }
 
     fun set(name: String, enabled: Boolean) {
         val current = enabled().toMutableSet()
@@ -90,8 +95,8 @@ internal class BundleToggle(
         val restart = HostRuntimeHolder.restartHost?.invoke() ?: return false
         if (restart.isFailure) return false
         val finished = withTimeoutOrNull(90_000) {
-            runner.statusFlow.first { it.phase != RuntimePhase.RUNNING }
-            runner.statusFlow.first { it.phase == RuntimePhase.RUNNING }
+            runner.statusFlow.first { it.phase == RuntimePhase.RUNNING || it.phase == RuntimePhase.ERROR }
+            if (runner.statusFlow.value.phase == RuntimePhase.ERROR) return@withTimeoutOrNull false
             true
         } ?: false
         repository.plugins.refreshAll(ui.activeHostId)
@@ -194,11 +199,13 @@ internal fun HostRestartBridgeEffect(hostId: String, repository: DshRepository, 
 @Composable
 internal fun PluginPollingEffect(ui: AppUiState, repository: DshRepository, runner: HostProcessRunner, selection: BundleSelection) {
     val context = LocalContext.current
-    val restored = remember { mutableSetOf<String>() }
     val sessionId by rememberUpdatedState(ui.selectedSessionId)
     val hostId by rememberUpdatedState(ui.activeHostId)
+    val localStatus by runner.statusFlow.collectAsState()
     val plugins = repository.plugins
-    LaunchedEffect(Unit) {
+    LaunchedEffect(hostId, localStatus.pid, localStatus.phase == RuntimePhase.RUNNING) {
+        // The profile can reset on every Host start, not just on Activity creation.
+        val restored = mutableSetOf<String>()
         var ticks = 0
         while (true) {
             delay(4_000)
@@ -208,7 +215,7 @@ internal fun PluginPollingEffect(ui: AppUiState, repository: DshRepository, runn
             ticks += 1
             // Одна ошибка (Host перезапускается, мост не ответил) не должна остановить цикл навсегда.
             runCatching {
-                if (ticks % 4 == 0) {
+                if (ticks % 4 == 1) {
                     plugins.refreshBridgePluginCatalog()
                     val catalog = plugins.bridgePluginCatalogFlow.value
                     val missing = selection.enabled().filter { name ->

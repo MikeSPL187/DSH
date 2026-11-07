@@ -249,7 +249,7 @@ class HostProcessRunner(
         }
     }
 
-    suspend fun terminate(): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun terminate(reason: HostStopReason = HostStopReason.USER): Result<Unit> = withContext(Dispatchers.IO) {
         val proc = synchronized(lock) {
             stopping = true
             process
@@ -275,6 +275,7 @@ class HostProcessRunner(
                 if (process === proc) process = null
                 _statusFlow.value = RuntimeStatus(
                     phase = RuntimePhase.STOPPED,
+                    stopReason = reason,
                     logTail = logLines.toList(),
                     updatedAtMillis = System.currentTimeMillis()
                 )

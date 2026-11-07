@@ -297,16 +297,7 @@ internal suspend fun checkApiKey(provider: OnboardingProvider, baseUrl: String, 
     }
 
 /** `balance_infos[0]` → «12,40 $» / «85,00 ¥» в формате текущего языка. */
-internal fun parseBalance(body: String): String? = runCatching {
-    val info = JSONObject(body).getJSONArray("balance_infos").getJSONObject(0)
-    val amount = info.getString("total_balance").toDouble()
-    val sign = when (info.optString("currency")) {
-        "USD" -> "$"
-        "CNY" -> "¥"
-        else -> info.optString("currency")
-    }
-    String.format(java.util.Locale.getDefault(), "%.2f %s", amount, sign)
-}.getOrNull()
+internal fun parseBalance(body: String): String? = com.dsh.core.model.parseDeepSeekBalance(body)?.formatted()
 
 /** Список моделей OpenAI-совместимого `/models`. */
 internal fun parseModels(body: String): List<String> = runCatching {

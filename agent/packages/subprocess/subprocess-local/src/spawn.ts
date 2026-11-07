@@ -26,7 +26,8 @@ import type { BoundProcessOwner, ManagedProcessLaunch } from './managed-owner.ts
 import { waitWithAbort } from './managed-owner.ts'
 import { controlEnvironment, controlPipe } from './control-spawn.ts'
 import { SUBPROCESS_CONTROL_FD } from '@deepseek-ai/dsh-subprocess/control'
-import { linuxProcessGroupHasLiveMembers } from './process-inspector.ts'
+import { createProcessInspector, linuxProcessGroupHasLiveMembers } from './process-inspector.ts'
+import { androidProcessOwner } from './android-owner.ts'
 import { OutputCollector, prepareManagedProcessBinding, type SpillFailureReporter } from './output.ts'
 
 type SpawnProcess = (
@@ -496,7 +497,7 @@ export function spawnSubprocess(spec: SubprocessSpawnSpec, internals: SpawnInter
   })
   const direct = directChildResult(child)
   const pid = child.pid
-  const owner = fallbackOwner(
+  const owner = android && pid !== undefined ? androidProcessOwner(pid, createProcessInspector(platform)) : fallbackOwner(
     platform,
     pid,
     child,

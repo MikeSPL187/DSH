@@ -55,10 +55,11 @@ class HostService : Service() {
     private val idleHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private val stopWhenTasksDone = object : Runnable {
         override fun run() {
+            if (HostRuntimeHolder.isUiVisible?.invoke() == true) return
             if (HostRuntimeHolder.hasRunningTasks?.invoke() == true) {
                 idleHandler.postDelayed(this, IDLE_CHECK_MS)
             } else {
-                stopHostAndSelf()
+                stopHostAndSelf(reason = HostStopReason.TASKS_FINISHED)
             }
         }
     }
@@ -128,7 +129,7 @@ class HostService : Service() {
                 return START_NOT_STICKY
             }
             ACTION_USER_STOP -> {
-                stopHostAndSelf(startId)
+                stopHostAndSelf(startId, HostStopReason.USER)
                 return START_NOT_STICKY
             }
             ACTION_KEEP_WHILE_TASKS -> {
@@ -139,6 +140,7 @@ class HostService : Service() {
                 return START_NOT_STICKY
             }
             else -> {
+                idleHandler.removeCallbacks(stopWhenTasksDone)
                 val notification = buildForegroundNotification(getString(R.string.host_service_running))
                 startForeground(NOTIFICATION_ID, notification)
                 return START_NOT_STICKY
@@ -158,15 +160,17 @@ class HostService : Service() {
         super.onTaskRemoved(rootIntent)
     }
 
-    private fun stopHostAndSelf(startId: Int? = null) {
+    private fun stopHostAndSelf(startId: Int? = null, reason: HostStopReason = HostStopReason.UI_CLOSED) {
         val manager = HostRuntimeHolder.manager
         Thread {
+            if (reason != HostStopReason.USER && HostRuntimeHolder.isUiVisible?.invoke() == true) return@Thread
             if (manager != null) {
-                kotlinx.coroutines.runBlocking { runCatching { manager.stop() } }
+                kotlinx.coroutines.runBlocking { runCatching { manager.stop(reason) } }
             }
+            if (reason != HostStopReason.USER && HostRuntimeHolder.isUiVisible?.invoke() == true) return@Thread
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            if (startId != null) stopSelf(startId) else stopSelf()
         }.start()
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        if (startId != null) stopSelf(startId) else stopSelf()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

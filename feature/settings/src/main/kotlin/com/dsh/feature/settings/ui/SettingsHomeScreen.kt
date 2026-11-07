@@ -71,6 +71,7 @@ import com.dsh.core.designsystem.Dsh
 import com.dsh.core.designsystem.DshGlyphs
 import com.dsh.feature.settings.R
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.ensureActive
 import com.dsh.core.designsystem.kit.DeviceSignInSheetBody
 
 /** Страницы «Настроек» (как `PAGES` в прототипе). */
@@ -117,11 +118,13 @@ data class StorageUsage(
 /** Всё, что показывают «Настройки». Значения уже отформатированы там, где это зависит от данных приложения. */
 @Immutable
 data class SettingsUi(
+    val exportBusy: Boolean = false,
     val appVersion: String = "",
     val appBuild: Long = 0,
     val hostVersion: String? = null,
     val sdkVersion: String? = null,
     val distro: String? = null,
+    val sourceRevision: String? = null,
     val androidVersion: String = "",
     // Профиль и ключ
     val accountName: String? = null,
@@ -132,6 +135,8 @@ data class SettingsUi(
     val balance: String? = null,
     val today: String? = null,
     val monthSpent: String? = null,
+    val usageTokens: String? = null,
+    val usageIncomplete: Boolean = false,
     val monthSpentFraction: Float = 0f,
     val balanceDays: Int? = null,
     val customProviders: List<ProviderRow> = emptyList(),
@@ -145,7 +150,7 @@ data class SettingsUi(
     val autoModelName: String = "",
     val autoReasoningIndex: Int = 0,
     // Работа
-    val pluginsOn: Int = 0,
+    val pluginsOn: Int? = null,
     val automationsOn: Int = 0,
     /** true — «Сам в рабочей папке», false — «Спрашивать», null — Host не отдал пресеты. */
     val autoApprove: Boolean? = false,
@@ -175,6 +180,7 @@ data class SettingsUi(
     val haptics: Boolean = true,
     // Host
     val hostRunning: Boolean = false,
+    val hostStopReason: String? = null,
     val hostUptime: String? = null,
     val hostMemory: String? = null,
     val hostMemoryFraction: Float = 0f,
@@ -349,7 +355,10 @@ fun SettingsHomeScreen(
     /** Рендерер Markdown для «Вида» инструкций; null — простой текст. */
     markdown: (@Composable (String) -> Unit)? = null,
 ) {
-    val stack = remember { PageStack(StPage.Root).also { if (initialPage != StPage.Root) it.push(initialPage) } }
+    val stack = rememberSaveable(saver = androidx.compose.runtime.saveable.listSaver<PageStack<StPage>, String>(
+        save = { it.entries.map { page -> page.name } },
+        restore = { names -> PageStack(StPage.valueOf(names.first())).also { stack -> names.drop(1).forEach { stack.push(StPage.valueOf(it)) } } },
+    )) { PageStack(StPage.Root).also { if (initialPage != StPage.Root) it.push(initialPage) } }
     val editor = remember { InstructionEditor() }
     val scope = rememberCoroutineScope()
     val savedMsg = stringResource(R.string.st_inst_saved)
@@ -488,6 +497,7 @@ private fun RootPage(ui: SettingsUi, a: SettingsActions, go: (StPage) -> Unit) {
             ),
             Modifier.padding(top = 8.dp).rise(2),
         )
+        SubNote(stringResource(if (ui.usageIncomplete) R.string.st_usage_incomplete else R.string.st_usage_estimate))
         GLabel(stringResource(R.string.st_g_work), Modifier.rise(3))
         Gl(Modifier.rise(4)) {
             row { PageRow(StPage.Models, pageTitle(StPage.Models), ui.defaultModel.ifBlank { null }) { go(StPage.Models) } }
@@ -495,7 +505,7 @@ private fun RootPage(ui: SettingsUi, a: SettingsActions, go: (StPage) -> Unit) {
             row { StRow(pageTitle(StPage.GitHub), icon = DshGlyphs.get("git"), tile = Si.c6, value = ui.github.login?.let { if (it.isEmpty()) stringResource(R.string.st_gh_on) else "@$it" } ?: stringResource(R.string.st_gh_off), chevron = true, onClick = { go(StPage.GitHub) }) }
             row { PageRow(StPage.Memory, pageTitle(StPage.Memory), memoryValue(ui.memory)) { go(StPage.Memory) } }
             row { PageRow(StPage.Mcp, pageTitle(StPage.Mcp), mcpCount(ui.mcp)) { go(StPage.Mcp) } }
-            row { StRow(stringResource(R.string.st_plugins), icon = DshGlyphs.Puzzle, tile = Si.c8, value = pluralStringResource(R.plurals.st_plugins_on, ui.pluginsOn, ui.pluginsOn), chevron = true, onClick = a::openPlugins) }
+            row { StRow(stringResource(R.string.st_plugins), icon = DshGlyphs.Puzzle, tile = Si.c8, value = ui.pluginsOn?.let { pluralStringResource(R.plurals.st_plugins_on, it, it) } ?: "—", chevron = true, onClick = a::openPlugins) }
             row { StRow(stringResource(R.string.st_automation), icon = DshGlyphs.Clock, tile = Si.c7, value = pluralStringResource(R.plurals.st_auto_on, ui.automationsOn, ui.automationsOn), chevron = true, onClick = a::openAutomation) }
         }
         GLabel(stringResource(R.string.st_g_device), Modifier.rise(5))
@@ -542,7 +552,7 @@ private fun Profile(ui: SettingsUi, modifier: Modifier, onClick: () -> Unit) {
     }
     val shape = RoundedCornerShape(22.dp)
     Row(
-        modifier.fillMaxWidth().clip(shape).background(Dsh.colors.s1).border(1.dp, Dsh.colors.line, shape).rowClick(onClick = onClick).padding(15.dp),
+        modifier.actionSemantics(name, description = sub, action = onClick).fillMaxWidth().clip(shape).background(Dsh.colors.s1).border(1.dp, Dsh.colors.line, shape).rowClick(onClick = onClick).padding(15.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -579,10 +589,13 @@ private fun ModelsPage(ui: SettingsUi, a: SettingsActions, toast: ToastState, on
             Text(stringResource(R.string.st_bal_title, ui.provider), style = small(12.5.sp, 16.sp), color = Dsh.colors.t3)
             Spacer(Modifier.height(4.dp))
             BigWithNote(ui.balance ?: "—", ui.balanceDays?.let { pluralStringResource(R.plurals.st_bal_days, it, it) })
+            ui.usageTokens?.let { KvRow(stringResource(R.string.st_usage_tokens_label), it) }
             if (ui.monthSpent != null) {
                 Spacer(Modifier.height(14.dp))
                 val month = stringArrayResource(R.array.st_month_spent)[java.time.LocalDate.now().monthValue - 1]
-                Meter(month, ui.monthSpent, ui.monthSpentFraction)
+                KvRow(month, ui.monthSpent)
+                SubNote(stringResource(R.string.st_usage_note))
+                if (ui.usageIncomplete) SubNote(stringResource(R.string.st_usage_incomplete))
             }
         }
         GLabel(stringResource(R.string.st_providers))
@@ -632,6 +645,8 @@ private fun ModelsPage(ui: SettingsUi, a: SettingsActions, toast: ToastState, on
 @Composable
 private fun KeySheet(custom: Boolean, a: SettingsActions, toast: ToastState, close: () -> Unit) {
     val scope = rememberCoroutineScope()
+    val focus = androidx.compose.ui.platform.LocalFocusManager.current
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val clipboard = LocalClipboardManager.current
     var name by rememberSaveable { mutableStateOf("") }
     var url by rememberSaveable { mutableStateOf("https://") }
@@ -639,16 +654,25 @@ private fun KeySheet(custom: Boolean, a: SettingsActions, toast: ToastState, clo
     var shown by remember { mutableStateOf(false) }
     var state by remember { mutableStateOf<KeyState?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var checked by remember { mutableStateOf<Pair<String?, String>?>(null) }
     // Адрес своего API, введённый до конца (поле потеряло фокус или нажато «Готово»): ключ уходит только на него —
     // пауза в наборе `https://openai.co…` отправила бы ключ на чужой домен.
     var committedUrl by rememberSaveable { mutableStateOf("") }
     LaunchedEffect(key, url, committedUrl) {
         state = null
+        checked = null
+        busy = false
         if (key.isBlank()) return@LaunchedEffect
         if (custom && url.trim() != committedUrl) return@LaunchedEffect
         kotlinx.coroutines.delay(400)
         busy = true
-        state = a.checkKey(if (custom) committedUrl else null, key.trim())
+        val input = (if (custom) committedUrl else null) to key.trim()
+        val result = try { a.checkKey(input.first, input.second) }
+            catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (_: Exception) { KeyState.Offline }
+        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        checked = input
+        state = result
         busy = false
     }
     SheetTitle(stringResource(if (custom) R.string.st_custom else R.string.st_key_replace))
@@ -661,6 +685,7 @@ private fun KeySheet(custom: Boolean, a: SettingsActions, toast: ToastState, clo
     }
     Field(
         key, { key = it }, stringResource(R.string.st_key_field), secret = !shown, keyboard = KeyboardType.Password,
+        onCommit = { keyboard?.hide() },
         trailing = {
             IconBtn(DshGlyphs.Eye, stringResource(if (shown) R.string.st_key_hide else R.string.st_key_show), size = 40.dp, iconSize = 18.dp, tint = Dsh.colors.t3) { shown = !shown }
             KBtn(stringResource(R.string.st_key_paste), {
@@ -680,7 +705,9 @@ private fun KeySheet(custom: Boolean, a: SettingsActions, toast: ToastState, clo
         if (busy) Spinner(color, 13.dp) else Icon(if (state == KeyState.Ok) DshGlyphs.Check else if (state == KeyState.Bad) DshGlyphs.Alert else DshGlyphs.Lock, null, tint = color, modifier = Modifier.size(15.dp))
         Text(msg, style = small(12.5.sp, 17.sp), color = color)
     }
-    val okToSave = !busy && key.isNotBlank() && state != KeyState.Bad && (!custom || (name.isNotBlank() && url.startsWith("https://") && url.length > 9))
+    fun accepted(): Boolean = !busy && checked == ((if (custom) url.trim() else null) to key.trim()) &&
+        (state == KeyState.Ok || (state == KeyState.Offline && key.trim().length >= 16)) &&
+        (!custom || (name.isNotBlank() && committedUrl == url.trim() && url.startsWith("https://") && url.length > 9))
     val saved = stringResource(R.string.st_key_saved)
     val failed = stringResource(R.string.st_key_save_failed)
     var saving by remember { mutableStateOf(false) }
@@ -688,14 +715,23 @@ private fun KeySheet(custom: Boolean, a: SettingsActions, toast: ToastState, clo
         KBtn(stringResource(R.string.st_cancel), close, Modifier.weight(1f))
         KBtn(
             stringResource(R.string.st_save), {
+                focus.clearFocus()
+                keyboard?.hide()
+                if (saving || !accepted()) return@KBtn
+                val savedKey = key.trim()
+                val savedUrl = url.trim()
+                val savedName = name.trim()
                 saving = true
                 scope.launch {
-                    val ok = if (custom) a.addProvider(name.trim(), url.trim(), key.trim()) else a.saveKey(key.trim())
-                    saving = false
+                    val ok = try {
+                        if (custom) a.addProvider(savedName, savedUrl, savedKey) else a.saveKey(savedKey)
+                    } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                      catch (_: Exception) { false }
+                      finally { saving = false }
                     if (ok) { key = ""; toast.show(saved); close() } else toast.show(failed)
                 }
             },
-            Modifier.weight(1f), kind = BtnKind.Primary, enabled = okToSave, busy = saving,
+            Modifier.weight(1f), kind = BtnKind.Primary, enabled = accepted() && !saving, busy = saving,
         )
     }
 }
@@ -737,11 +773,11 @@ internal fun Field(
     ) {
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
             if (value.isEmpty()) Text(placeholder, style = body(15.sp), color = c.t3, maxLines = 1)
-            BasicTextField(
+            com.dsh.core.designsystem.ProtectedTextField(
                 value, onChange, singleLine = true,
                 textStyle = (if (secret || keyboard == KeyboardType.Password) mono(14.sp, FontWeight.Normal) else body(15.sp)).copy(color = c.t1),
                 cursorBrush = SolidColor(c.accent),
-                visualTransformation = if (secret) PasswordVisualTransformation('•') else VisualTransformation.None,
+                secret = secret || keyboard == KeyboardType.Password, revealed = !secret && keyboard == KeyboardType.Password, label = placeholder,
                 keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = false, imeAction = if (onCommit != null) ImeAction.Done else ImeAction.Default),
                 keyboardActions = KeyboardActions(onDone = { onCommit?.invoke(); defaultKeyboardAction(ImeAction.Done) }),
                 modifier = Modifier.fillMaxWidth().semantics { contentDescription = placeholder }.onFocusChanged {
@@ -815,7 +851,7 @@ private fun ThemeCard(kind: String, label: String, on: Boolean, modifier: Modifi
     val border by animateColorAsState(if (on) c.accent else c.line, tween(200), label = "th")
     val shape = RoundedCornerShape(18.dp)
     Column(
-        modifier
+        modifier.actionSemantics(label, role = Role.RadioButton, selected = on, action = onClick)
             .then(
                 if (on) Modifier.drawBehind {
                     val r = 4.dp.toPx()
@@ -842,7 +878,7 @@ private fun ThemeCard(kind: String, label: String, on: Boolean, modifier: Modifi
             Box(Modifier.offset(8.dp, 24.dp).width(w * 0.55f - 8.dp).height(7.dp).clip(CircleShape).background(bar2))
             Box(Modifier.offset(w * 0.4f, 40.dp).width(w * 0.6f - 8.dp).height(7.dp).clip(CircleShape).background(Color(0xFF5A4CF0)))
         }
-        Text(label, style = body(13.5.sp, 17.sp, FontWeight.Medium), color = if (on) c.t1 else c.t2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(label, style = body(13.5.sp, 17.sp, FontWeight.Medium), color = if (on) c.t1 else c.t2, minLines = 2, maxLines = 2, textAlign = TextAlign.Center, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -980,7 +1016,7 @@ private fun HostPage(ui: SettingsUi, a: SettingsActions, toast: ToastState) {
                     Text(stringResource(R.string.st_host_local), style = display(18.sp, 23.sp), color = Dsh.colors.t1)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                         LiveDot(ui.hostRunning)
-                        val t = if (ui.hostRunning) listOfNotNull(stringResource(R.string.st_host_works), ui.hostUptime).joinToString(" · ") else stringResource(R.string.st_host_off)
+                        val t = if (ui.hostRunning) listOfNotNull(stringResource(R.string.st_host_works), ui.hostUptime).joinToString(" · ") else ui.hostStopReason ?: stringResource(R.string.st_host_off)
                         Text(t, style = small(13.sp, 17.sp), color = if (ui.hostRunning) Dsh.colors.ok else Dsh.colors.t3)
                     }
                 }
@@ -1084,7 +1120,7 @@ private fun StoragePage(ui: SettingsUi, a: SettingsActions, toast: ToastState) {
         }
         GLabel(stringResource(R.string.st_backup))
         Gl {
-            row { StRow(stringResource(R.string.st_export), icon = DshGlyphs.Share, tile = Si.c3, sub = stringResource(R.string.st_export_sub), chevron = true, onClick = a::exportSessions) }
+            row { StRow(if (ui.exportBusy) stringResource(R.string.st_export_preparing) else stringResource(R.string.st_export), icon = DshGlyphs.Share, tile = Si.c3, sub = stringResource(R.string.st_export_sub), chevron = !ui.exportBusy, onClick = { if (!ui.exportBusy) a.exportSessions() }) }
             row { StRow(stringResource(R.string.st_restore), icon = DshGlyphs.Down, tile = Si.c6, chevron = true, onClick = a::restoreBackup) }
         }
     }
@@ -1193,6 +1229,9 @@ private fun AboutPage(ui: SettingsUi, a: SettingsActions, toast: ToastState) {
                 contentAlignment = Alignment.Center,
             ) { Icon(DshGlyphs.get("dsh"), null, tint = Color.White, modifier = Modifier.size(30.dp)) }
             VersionFooter(ui, build = true, top = 12)
+            ui.sourceRevision?.let { revision ->
+                Text(stringResource(R.string.st_source_revision) + ": " + revision, style = small(11.5.sp), color = Dsh.colors.t3, textAlign = TextAlign.Center)
+            }
         }
         Spacer(Modifier.height(10.dp))
         Gl {

@@ -29,4 +29,8 @@ object HostRuntimeHolder {
      */
     @Volatile
     var hasRunningTasks: (() -> Boolean)? = null
+
+    /** An already queued background watcher must not stop a Host after the UI returns. */
+    @Volatile
+    var isUiVisible: (() -> Boolean)? = null
 }

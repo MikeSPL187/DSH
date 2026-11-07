@@ -1,5 +1,9 @@
 package com.dsh.feature.runtime
 
+import kotlinx.coroutines.ensureActive
+
+import androidx.compose.foundation.layout.imePadding
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
@@ -195,6 +199,7 @@ fun OnboardingScreen(
     var key by remember { mutableStateOf("") }
     var check by remember { mutableStateOf<KeyCheck?>(null) }
     var checking by remember { mutableStateOf(false) }
+    var checkedInput by remember { mutableStateOf<Triple<OnboardingProvider, String, String>?>(null) }
     var shared by rememberSaveable { mutableStateOf(false) }
     var waitingShared by rememberSaveable { mutableStateOf(false) }
 
@@ -211,15 +216,23 @@ fun OnboardingScreen(
     val checkFn by rememberUpdatedState(checkKey)
     LaunchedEffect(provider, baseUrl, committedUrl, key) {
         check = null
+        checkedInput = null
         checking = false
         if (key.isBlank() || !urlOk || (provider == OnboardingProvider.CUSTOM && baseUrl.isBlank())) return@LaunchedEffect
         if (provider == OnboardingProvider.CUSTOM && baseUrl.trim() != committedUrl) return@LaunchedEffect
         delay(400)
         checking = true
-        check = runCatching { checkFn(provider, baseUrl.trim(), key.trim()) }.getOrDefault(KeyCheck.Offline)
+        val candidate = key.trim()
+        val candidateInput = Triple(provider, baseUrl.trim(), candidate)
+        val result = try { checkFn(provider, baseUrl.trim(), candidate) } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled } catch (_: Exception) { KeyCheck.Offline }
+        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        checkedInput = candidateInput
+        check = result
         checking = false
     }
-    val keyAccepted = !checking && (check is KeyCheck.Ok || (check == KeyCheck.Offline && key.trim().length >= 16))
+    fun acceptsCurrentKey(): Boolean = checkedInput == Triple(provider, baseUrl.trim(), key.trim()) &&
+        !checking && (check is KeyCheck.Ok || (check == KeyCheck.Offline && key.trim().length >= 16))
+    val keyAccepted = acceptsCurrentKey()
 
     // Доступ ко всем файлам выдаётся в системных настройках: вернулись с ним — идём дальше.
     LaunchedEffect(sharedAccessGranted, waitingShared) {
@@ -236,7 +249,7 @@ fun OnboardingScreen(
     val onPrimary: () -> Unit
     when (step) {
         0 -> { primaryText = stringResource(R.string.ob_start); primaryEnabled = true; onPrimary = { go(1) } }
-        1 -> { primaryText = stringResource(R.string.ob_continue); primaryEnabled = keyAccepted; onPrimary = { go(2) } }
+        1 -> { primaryText = stringResource(R.string.ob_continue); primaryEnabled = keyAccepted; onPrimary = { if (acceptsCurrentKey()) go(2) } }
         2 -> {
             val ask = shared && !sharedAccessGranted
             primaryText = stringResource(if (ask) R.string.ob_allow else R.string.ob_continue)
@@ -262,7 +275,7 @@ fun OnboardingScreen(
                 if (install.error != null) {
                     onRetryInstall()
                 } else {
-                    val saved = key.trim().takeIf { it.isNotEmpty() && keyAccepted }?.let {
+                    val saved = key.trim().takeIf { it.isNotEmpty() && acceptsCurrentKey() }?.let {
                         OnboardingKey(provider, baseUrl.trim(), it, (check as? KeyCheck.Ok)?.models.orEmpty())
                     }
                     onFinish(saved)
@@ -271,7 +284,7 @@ fun OnboardingScreen(
         }
     }
 
-    Column(modifier.fillMaxSize().background(c.bg).statusBarsPadding()) {
+    Column(modifier.fillMaxSize().background(c.bg).statusBarsPadding().imePadding()) {
         TopBar(step, language, onLanguage, onBack = { go(step - 1) })
         AnimatedContent(
             targetState = step,
@@ -414,6 +427,8 @@ private fun LanguagePill(language: String, onLanguage: (String) -> Unit) {
 @Composable
 private fun Bottom(primaryText: String, primaryEnabled: Boolean, onPrimary: () -> Unit, altText: String?, onAlt: () -> Unit) {
     val c = Dsh.colors
+    val focus = androidx.compose.ui.platform.LocalFocusManager.current
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     // Текст второй кнопки запоминаем, чтобы он не пропадал раньше, чем погаснет.
     var lastAlt by remember { mutableStateOf(altText.orEmpty()) }
     if (altText != null) lastAlt = altText
@@ -428,7 +443,7 @@ private fun Bottom(primaryText: String, primaryEnabled: Boolean, onPrimary: () -
     Column(Modifier.fillMaxWidth().padding(start = 22.dp, end = 22.dp, top = 10.dp).navigationBarsPadding().padding(bottom = 16.dp)) {
         DshButton(
             primaryText,
-            onPrimary,
+            { focus.clearFocus(force = true); keyboard?.hide(); onPrimary() },
             Modifier.fillMaxWidth().graphicsLayer { scaleX = pulse.value; scaleY = pulse.value },
             enabled = primaryEnabled,
             big = true,
@@ -750,13 +765,13 @@ private fun Field(
             Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                 val style = TextStyle(fontFamily = DshFonts.mono, fontSize = 15.sp, color = c.t1)
                 if (value.isEmpty()) Text(placeholder, style = style.copy(color = c.t3), maxLines = 1)
-                BasicTextField(
+                com.dsh.core.designsystem.ProtectedTextField(
                     value = value,
                     onValueChange = { onValue(it.replace("\n", "").replace(" ", "")) },
                     singleLine = true,
                     textStyle = style,
                     cursorBrush = SolidColor(c.accent),
-                    visualTransformation = if (secret && !shown) PasswordVisualTransformation('•') else VisualTransformation.None,
+                    secret = secret, revealed = shown, label = if (secret) stringResource(R.string.ob_key_label) else placeholder,
                     keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = false, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { onCommit?.invoke(); defaultKeyboardAction(ImeAction.Done) }),
                     modifier = Modifier.fillMaxWidth().onFocusChanged {
@@ -1032,6 +1047,7 @@ private fun InstallCard(install: LinuxInstall, modifier: Modifier, onCopyReport:
 private fun InstallError(install: LinuxInstall, onCopyReport: (() -> Unit)?) {
     val c = Dsh.colors
     var more by remember { mutableStateOf(false) }
+    BackHandler(enabled = more) { more = false }
     Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background(c.dangerSoft), contentAlignment = Alignment.Center) {
             Icon(com.dsh.core.designsystem.DshGlyphs.Alert, null, tint = c.danger, modifier = Modifier.size(18.dp))

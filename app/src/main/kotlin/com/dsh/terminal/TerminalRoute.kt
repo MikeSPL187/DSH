@@ -90,30 +90,40 @@ fun DshTerminalRoute(
     onBack: (() -> Unit)?,
     prefill: String? = null,
     onPrefilled: () -> Unit = {},
+    workspacePath: String? = null,
 ) {
+    var createdSessionId by androidx.compose.runtime.saveable.rememberSaveable(hostId, sessionId) { mutableStateOf<String?>(null) }
+    val effectiveSessionId = sessionId ?: createdSessionId
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val toast = rememberToast()
     val codeSize = LocalCodeFontSize.current
     var fontSize by remember(codeSize) { mutableStateOf(codeSize - 0.5f) }
-    var tabs by remember(hostId, sessionId) { mutableStateOf<List<TerminalInfo>>(emptyList()) }
-    var shells by remember(hostId, sessionId) { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
-    var activeId by remember(hostId, sessionId) { mutableStateOf(sessionId?.let { TerminalHub.active(hostId, it) }) }
+    var tabs by remember(hostId, effectiveSessionId) { mutableStateOf<List<TerminalInfo>>(emptyList()) }
+    var shells by remember(hostId, effectiveSessionId) { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+    var activeId by remember(hostId, effectiveSessionId) { mutableStateOf(effectiveSessionId?.let { TerminalHub.active(hostId, it) }) }
     var loadSerial by remember { mutableIntStateOf(0) }
-    var listFailed by remember(hostId, sessionId) { mutableStateOf(false) }
-    val conns = remember(hostId, sessionId) { mutableStateMapOf<String, TerminalConnection>() }
-    val writable = remember(hostId, sessionId) { mutableStateMapOf<String, Boolean>() }
-    val closed = remember(hostId, sessionId) { mutableStateMapOf<String, Boolean>() }
-    val failed = remember(hostId, sessionId) { mutableStateMapOf<String, Boolean>() }
-    val reopen = remember(hostId, sessionId) { mutableStateMapOf<String, Int>() }
+    var listFailed by remember(hostId, effectiveSessionId) { mutableStateOf(false) }
+    LaunchedEffect(hostId, sessionId, loadSerial) {
+        if (sessionId == null && createdSessionId == null) {
+            val made = repository.createSession(hostId, context.getString(R.string.terminal_title), workspacePath).getOrNull()
+            createdSessionId = made?.sessionId
+            if (made == null) listFailed = true else repository.watchSession(hostId, made.sessionId)
+        }
+    }
+    val conns = remember(hostId, effectiveSessionId) { mutableStateMapOf<String, TerminalConnection>() }
+    val writable = remember(hostId, effectiveSessionId) { mutableStateMapOf<String, Boolean>() }
+    val closed = remember(hostId, effectiveSessionId) { mutableStateMapOf<String, Boolean>() }
+    val failed = remember(hostId, effectiveSessionId) { mutableStateMapOf<String, Boolean>() }
+    val reopen = remember(hostId, effectiveSessionId) { mutableStateMapOf<String, Int>() }
     var size by remember { mutableStateOf(80 to 24) }
     LaunchedEffect(Unit) { TermHistory.load(context) }
 
     fun bashPath(): String? = shells.firstOrNull { it.second.contains("bash", true) || it.first.endsWith("/bash") }?.first
 
     // Список вкладок; пустой — создаём первую оболочку.
-    LaunchedEffect(hostId, sessionId, loadSerial) {
-        val sid = sessionId ?: return@LaunchedEffect
+    LaunchedEffect(hostId, effectiveSessionId, loadSerial) {
+        val sid = effectiveSessionId ?: return@LaunchedEffect
         listFailed = false
         shells = runCatching { repository.terminals.listTerminalShells(hostId, sid) }.getOrDefault(emptyList())
         var list = runCatching { repository.terminals.listTerminals(hostId, sid) }.getOrDefault(emptyList())
@@ -129,11 +139,11 @@ fun DshTerminalRoute(
     }
 
     // Подключение к каждой вкладке: так у фоновых вкладок крутится признак работы.
-    if (sessionId != null) for (t in tabs) key(t.id) {
+    if (effectiveSessionId != null) for (t in tabs) key(t.id) {
         LaunchedEffect(t.id, reopen[t.id] ?: 0) {
-            val model = TerminalHub.model(hostId, sessionId, t.id)
+            val model = TerminalHub.model(hostId, effectiveSessionId, t.id)
             closed.remove(t.id); failed.remove(t.id)
-            val conn = repository.terminals.openTerminal(hostId, sessionId, size.first, size.second, t.id)
+            val conn = repository.terminals.openTerminal(hostId, effectiveSessionId, size.first, size.second, t.id)
             if (conn == null) { failed[t.id] = true; return@LaunchedEffect }
             conns[t.id] = conn
             try {
@@ -161,14 +171,15 @@ fun DshTerminalRoute(
                 conns.remove(t.id)
             }
         }
-        LaunchedEffect(t.id) { while (true) { delay(500); TerminalHub.model(hostId, sessionId, t.id).checkSetupTimeout() } }
+        LaunchedEffect(t.id) { while (true) { delay(500); TerminalHub.model(hostId, effectiveSessionId, t.id).checkSetupTimeout() } }
     }
 
-    val sid = sessionId
+    val sid = effectiveSessionId
     val active = tabs.firstOrNull { it.id == activeId }
     val model = if (sid != null && active != null) TerminalHub.model(hostId, sid, active.id) else null
     val status = when {
-        sid == null -> TermStatus.NoSession
+        sid == null && listFailed -> TermStatus.Unavailable
+        sid == null -> TermStatus.Connecting
         listFailed -> TermStatus.Unavailable
         active == null -> TermStatus.Connecting
         closed[active.id] == true -> TermStatus.Closed

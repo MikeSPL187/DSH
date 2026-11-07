@@ -2,10 +2,10 @@ name: Build Android APK
 
 on:
   push:
-    branches: [master, main]
+    branches: [master, main, claude/mobile-app-security-audit-8aocub, ccr-da7535bc-u49sft]
     tags: ["android-v*", "app-v*"]
   pull_request:
-    branches: [master, main]
+    branches: [master, main, claude/mobile-app-security-audit-8aocub, ccr-da7535bc-u49sft]
   workflow_dispatch:
 
 permissions:
@@ -65,6 +65,9 @@ jobs:
         run: |
           python3 -I .github/scripts/verify-release-coupling.py
           sh infra/rootfs/prepare-bridge.sh
+
+      - name: Android consent policy tests
+        run: node scripts/tests/android-consent-policy.test.mjs
 
       # Сначала модульные тесты (установщик, транзакции rootfs, semver, мост, политика доверия).
       - name: Unit tests

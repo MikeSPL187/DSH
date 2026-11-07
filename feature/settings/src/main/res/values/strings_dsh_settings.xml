@@ -51,8 +51,8 @@
     </plurals>
     <string name="st_host_running">running</string>
     <string name="st_host_stopped">stopped</string>
-    <string name="st_theme_light">Porcelain</string>
-    <string name="st_theme_dark">Graphite</string>
+    <string name="st_theme_light">Porcelain · Light</string>
+    <string name="st_theme_dark">Graphite · Dark</string>
     <string name="st_theme_system">System</string>
     <string name="st_appr_ask_short">Ask</string>
     <string name="st_appr_auto_short">Auto in folder</string>
@@ -335,7 +335,7 @@
     <string name="st_report_sub">With the log, without keys or files</string>
     <string name="st_whats_new">What\'s new</string>
     <string name="st_licenses">Licenses</string>
-    <string name="st_about_note">Based on deepseek-harness-mobile 1.0.6. Works with DeepSeek Harness.</string>
+    <string name="st_about_note">Based on deepseek-harness-mobile. Works with DeepSeek Harness.</string>
     <string name="st_model_default">Default model</string>
     <string name="st_models_empty">Host hasn\'t sent the model list yet</string>
     <!-- MCP servers -->
@@ -462,4 +462,13 @@
     <string name="st_mem_all">For all projects</string>
     <string name="st_mem_project">Project %1$s</string>
     <string name="st_mem_other">Other projects</string>
+    <string name="st_mcp_token_saved">Saved securely</string>
+    <string name="st_usage_note">Estimate of model usage in DSH, in CNY, using tariffs verified on 6 Nov 2026. The range covers peak and off-peak prices. Search/fetch and usage outside DSH are excluded. Account balance is separate.</string>
+    <string name="st_mcp_starting">Starting…</string>
+    <string name="st_mcp_stopped">Host is stopped</string>
+    <string name="st_source_revision">Source revision</string>
+<string name="st_export_preparing">Preparing archive…</string>
+    <string name="st_usage_estimate">Estimated expenses · unavailable prices are shown as —</string>
+    <string name="st_usage_incomplete">Partial estimate: some requests have no verified price or complete usage.</string>
+    <string name="st_usage_tokens_label">Tokens this month</string>
 </resources>

@@ -47,16 +47,25 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+
       - name: Bridge-плагин (проверка contentSha256 из APK)
         run: sh infra/rootfs/prepare-bridge.sh
 
       - name: Тесты Android-файлов APK
-        run: node infra/rootfs/tests/fs-search-quote.test.mjs
+        run: |
+          sh infra/rootfs/tests/android-creat.sh
+          node infra/rootfs/tests/fs-search-quote.test.mjs
+          node infra/rootfs/tests/android-owner.test.mjs
+          node --experimental-transform-types infra/rootfs/tests/android-server-cancel.test.mjs
+          node --test infra/rootfs/tests/overlay-agent.test.mjs infra/rootfs/tests/session-title.test.mjs
 
       - name: Сборка образа
         run: |
           BRIDGE_VERSION=$(python3 -I -c 'import json; print(json.load(open("app/src/main/assets/bridge-plugin.json"))["version"])')
-          docker build --pull --build-context agent-src=agent --build-arg DSH_VERSION="$DSH_VERSION" --build-arg BRIDGE_VERSION="$BRIDGE_VERSION" \
+          docker build --pull --build-context agent-src=agent --build-arg DSH_SOURCE_COMMIT="$GITHUB_SHA" --build-arg DSH_VERSION="$DSH_VERSION" --build-arg BRIDGE_VERSION="$BRIDGE_VERSION" \
             -t dsh-rootfs:${{ matrix.arch }} infra/rootfs
           docker create --name rootfs dsh-rootfs:${{ matrix.arch }}
           mkdir -p output
@@ -65,11 +74,54 @@ jobs:
           docker rm rootfs
           sha256sum output/rootfs-${{ matrix.arch }}.tar
 
+      - name: PRoot — установка и удаление Debian-пакета
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libtalloc-dev
+          # Ubuntu 24.04 ships PRoot 5.1.0, which crashes against this arm64 glibc.
+          # Pin the test tool too; the Android APK's Termux PRoot is unchanged.
+          git clone --no-checkout https://github.com/proot-me/proot.git "$RUNNER_TEMP/qa-proot"
+          git -C "$RUNNER_TEMP/qa-proot" checkout --detach d4b49e2243dee34e41c13dfeca6a3d07e9cf0f00
+          make -C "$RUNNER_TEMP/qa-proot/src" -j2 proot
+          mkdir qa-rootfs
+          tar -xf output/rootfs-${{ matrix.arch }}.tar --no-same-owner -C qa-rootfs
+          DSH_QA_PROOT="$RUNNER_TEMP/qa-proot/src/proot" sh infra/rootfs/tests/proot-packages.sh qa-rootfs
+          rm -rf qa-rootfs
+
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: rootfs-${{ matrix.arch }}
           path: output/
           retention-days: 3
+
+  candidate:
+    if: github.event_name == 'push' || inputs.rootfs_version == ''
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: tars
+          merge-multiple: true
+      - name: Кандидат rootfs без публикации
+        run: |
+          BRIDGE_VERSION=$(python3 -I -c 'import json; print(json.load(open("app/src/main/assets/bridge-plugin.json"))["version"])')
+          python3 -I infra/rootfs/package_rootfs.py "$DSH_VERSION" 2.0.3 "$BRIDGE_VERSION" \
+            tars/rootfs-x86_64.tar tars/rootfs-arm64.tar "$GITHUB_REPOSITORY" dist
+          for arch in x86_64 arm64; do
+            tar -czf "dist/sbom-$arch.tar.gz" -C tars "sbom-$arch"
+          done
+          printf '%s\n' "$GITHUB_SHA" > dist/source-revision.txt
+          printf '%s\n' 'QA candidate only. No release/tag was published. Manifest URLs become installable only after an explicit release.' > dist/CANDIDATE.txt
+          (cd dist && sha256sum * > SHA256SUMS)
+          cat dist/rootfs-manifest.json dist/SHA256SUMS
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rootfs-2.0.3-candidate
+          path: dist/
+          retention-days: 14
 
   release:
     if: github.event_name == 'workflow_dispatch' && inputs.rootfs_version != ''

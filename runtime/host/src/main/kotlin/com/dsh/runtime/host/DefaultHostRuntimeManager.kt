@@ -237,6 +237,11 @@ class DefaultHostRuntimeManager(
      * снятие файловых блокировок и временные папки spill — без повторной загрузки всего rootfs.
      */
     private fun applyBundledRuntimePatches() {
+        // Deployment policy belongs to the App, including images with engine patches baked in.
+        val policy = context.assets.open("rootfs-patches/android-consent-policy.mjs").bufferedReader().use { it.readText() }
+        val policyFile = File(layout.rootfsDir, "root/.dsh/android-consent-policy.mjs")
+        policyFile.parentFile?.mkdirs()
+        if (!policyFile.isFile || policyFile.readText() != policy) writeTextAtomically(policyFile, policy)
         // Образ со вшитыми патчами: файлы DSH уже «исходник + патч», замена целыми файлами из APK
         // вернула бы старый движок. Остаётся только Node preload в /root/.dsh.
         if (installedAndroidPatched()) return
@@ -257,7 +262,8 @@ class DefaultHostRuntimeManager(
         // fs-search по-прежнему через мост устройства: он делает find/grep в proot на стороне Android.
         // 40: fs-search под Android экранирует шаблон и путь одинарными кавычками (раньше JSON.stringify — `$(…)` в шаблоне
         // выполнялся через android_exec_shell), путь «-…» не становится опцией find (G-52).
-        val patchRevision = "40"
+        // 41: Android consent deployment policy is installed independently of engine patches.
+        val patchRevision = "41"
         if (patchMarker.isFile && patchMarker.readText().trim() == patchRevision) return
         val patches = mapOf(
             "rootfs-patches/dsh-app-boot-index.js" to
@@ -859,7 +865,6 @@ class DefaultHostRuntimeManager(
                 )
             )
         }
-        HostBundleCompat.ensure(layout.rootfsDir).getOrElse { return@withContext fail(it) }
         applyBundledRuntimePatches()
         // В образе может не быть двоичного файла платформы для node-addon-require-builtin; тогда подставляем
         // чистый JS (с --expose-internals), иначе Host завершится при загрузке Loader.
@@ -871,6 +876,12 @@ class DefaultHostRuntimeManager(
         // оставляет весь веб-клиент на странице ошибки запуска (хватает одной сбойной записи), а файл патча
         // постоянный — без починки так и останется сломанным. Сверка безопасна при повторе и стоит одного чтения.
         applyBridgeBundleRow()
+        val consentPatch = webAppPatchFile()
+        if (consentPatch.isFile && !consentPatch.readText().contains("id: android-consent-policy")) {
+            val previous = consentPatch.readText().trim().takeUnless { it == "[]" }.orEmpty()
+            writeTextAtomically(consentPatch, previous + "\n# android-consent\n- insert:\n    - id: android-consent-policy\n      name: /root/.dsh/android-consent-policy.mjs\n")
+        }
+        val mcpConfiguration = McpServers(layout).applyToProfile()
         applyInstalledPluginRows()
         // Bridge-плагин — из rootfs или установкой с GitHub; кода в APK больше нет.
         runCatching {
@@ -1090,6 +1101,7 @@ class DefaultHostRuntimeManager(
 
         // Напечатан Web URL — сервис уже слушает; дополнительные проверки HTTP/WS под Android
         // может сорвать сетевая политика, поэтому сразу переходим в RUNNING.
+        McpServers(layout).markApplied(mcpConfiguration)
         runner.markReady()
         Result.success(runner.statusFlow.value)
         }
@@ -1098,11 +1110,15 @@ class DefaultHostRuntimeManager(
 
     override suspend fun stop(): Result<Unit> = lifecycle.stopping { stopLocked() }
 
-    private suspend fun stopLocked(): Result<Unit> = withContext(Dispatchers.IO) {
+    override suspend fun stop(reason: HostStopReason): Result<Unit> = lifecycle.stopping { stopLocked(reason) }
+
+    private suspend fun stopLocked(reason: HostStopReason = HostStopReason.USER): Result<Unit> = withContext(Dispatchers.IO) {
+        if (reason in setOf(HostStopReason.UI_CLOSED, HostStopReason.TASKS_FINISHED) &&
+            HostRuntimeHolder.isUiVisible?.invoke() == true) return@withContext Result.success(Unit)
         bridgeServer?.stop()
         bridgeServer = null
 
-        val result = runner.terminate()
+        val result = runner.terminate(reason)
         val serviceIntent = Intent(context, HostService::class.java).apply {
             action = HostService.ACTION_STOP
         }

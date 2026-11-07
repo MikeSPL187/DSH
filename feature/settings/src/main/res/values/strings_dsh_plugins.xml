@@ -25,8 +25,8 @@
     <string name="pl_install_short">Install</string>
     <string name="pl_installed_toast">%1$s installed</string>
     <string name="pl_install_failed">Couldn\'t install %1$s</string>
-    <string name="pl_hint">Host plugins give the agent tools. Native ones add their own screens and phone features.</string>
-    <string name="pl_enable">Turn on %1$s</string>
+    <string name="pl_hint">All counts available plugins; On counts enabled plugins. Host plugins give the agent tools. Native plugins add screens and phone features.</string>
+    <string name="pl_enable">%1$s</string>
     <string name="pl_turned_on">%1$s is on</string>
     <string name="pl_turned_off">%1$s is off</string>
     <string name="pl_sub_blocked">Blocked · signature changed</string>

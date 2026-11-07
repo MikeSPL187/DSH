@@ -20,7 +20,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
 import com.dsh.core.model.ScheduleInfo
+import java.io.File
 
 /**
  * Расписание автоматизаций: у каждой включённой — одно задание JobScheduler на время
@@ -51,20 +54,89 @@ object AutomationScheduler {
     private fun jobsOf(js: JobScheduler, id: String): List<Int> =
         js.allPendingJobs.filter { (it.id and 0xffff.inv()) == JOB_BASE && it.extras.getString(EXTRA_ID) == id }.map { it.id }
 
-    fun schedule(context: Context, a: Automation) {
-        val js = context.getSystemService(JobScheduler::class.java) ?: return
+    private fun prefs(context: Context) = context.getSharedPreferences("automation_scheduler", Context.MODE_PRIVATE)
+
+    fun waitingReason(context: Context, a: Automation): String? {
+        val battery = context.getSystemService(android.os.BatteryManager::class.java)
+        if (a.charge && battery?.isCharging != true) return com.dsh.core.model.Tr.t("Waiting for charging", "Ожидает зарядки")
+        val cm = context.getSystemService(android.net.ConnectivityManager::class.java)
+        val network = cm?.activeNetwork
+        val caps = network?.let { cm.getNetworkCapabilities(it) }
+        if (a.wifi && caps?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) != true)
+            return com.dsh.core.model.Tr.t("Waiting for Wi-Fi", "Ожидает Wi-Fi")
+        if (caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) != true)
+            return com.dsh.core.model.Tr.t("Waiting for network", "Ожидает сети")
+        return null
+    }
+
+    fun status(context: Context, a: Automation): String {
+        if (!a.on) return com.dsh.core.model.Tr.t("Disabled", "Выключено")
+        if (prefs(context).getBoolean("error/${a.id}", false))
+            return com.dsh.core.model.Tr.t("Could not schedule. Edit and save to retry.", "Не удалось запланировать. Измените и сохраните для повтора.")
+        val js = context.getSystemService(JobScheduler::class.java)
+        val job = js?.allPendingJobs?.firstOrNull { it.extras.getString(EXTRA_ID) == a.id }
+            ?: return com.dsh.core.model.Tr.t("Not scheduled", "Не запланировано")
+        val at = job.extras.getLong(EXTRA_AT)
+        val time = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT).format(java.util.Date(at))
+        return if (System.currentTimeMillis() < at) {
+            val prefix = if (prefs(context).getBoolean("clock/${a.id}", false)) com.dsh.core.model.Tr.t("Clock changed; next run: ", "Время изменено; следующий запуск: ")
+                else com.dsh.core.model.Tr.t("Scheduled: ", "Запланировано: ")
+            prefix + time
+        }
+        else waitingReason(context, a) ?: com.dsh.core.model.Tr.t("Waiting for Android", "Ожидает разрешения Android")
+    }
+
+    private fun occurrences(context: Context, id: String): List<String> {
+        val p = prefs(context)
+        val raw = p.getString("occurrences/$id", null)
+        if (raw != null) {
+            val rows = org.json.JSONArray(raw)
+            return (0 until rows.length()).map { rows.getString(it) }
+        }
+        // Read markers from earlier development builds without losing an uncertain run.
+        return listOfNotNull(
+            (p.all["started/$id"] as? Long)?.let { "pending:$it" },
+            (p.all["completed/$id"] as? Long)?.let { "done:$it" },
+        )
+    }
+    private fun saveOccurrences(context: Context, id: String, rows: List<String>): Boolean = prefs(context).edit()
+        .putString("occurrences/$id", org.json.JSONArray(rows.takeLast(128)).toString())
+        .remove("started/$id").remove("completed/$id").commit()
+
+    @Synchronized internal fun claimOccurrence(context: Context, id: String, at: Long): Boolean {
+        val rows = occurrences(context, id)
+        if (rows.any { it.substringAfter(':').toLongOrNull() == at }) return false
+        return saveOccurrences(context, id, rows + "pending:$at")
+    }
+    @Synchronized internal fun releaseOccurrence(context: Context, id: String, at: Long) {
+        saveOccurrences(context, id, occurrences(context, id).filterNot { it == "pending:$at" })
+    }
+    @Synchronized internal fun completeOccurrence(context: Context, id: String, at: Long) {
+        saveOccurrences(context, id, occurrences(context, id).filterNot { it.substringAfter(':').toLongOrNull() == at } + "done:$at")
+    }
+
+    fun schedule(context: Context, a: Automation, preservePending: Boolean = false, clockChanged: Boolean = false) {
+        val js = context.getSystemService(JobScheduler::class.java)
+        if (js == null) { prefs(context).edit().putBoolean("error/${a.id}", true).apply(); return }
+        if (preservePending && jobsOf(js, a.id).isNotEmpty()) return
+        prefs(context).edit().putBoolean("clock/${a.id}", clockChanged).apply()
         jobsOf(js, a.id).forEach(js::cancel)
         val at = AutomationStore.nextRun(a) ?: return
-        val jobId = freeJobId(js, a.id) ?: return
+        val jobId = freeJobId(js, a.id) ?: run { prefs(context).edit().putBoolean("error/${a.id}", true).apply(); return }
         val extras = PersistableBundle().apply { putString(EXTRA_ID, a.id); putLong(EXTRA_AT, at) }
-        val job = JobInfo.Builder(jobId, ComponentName(context, AutomationJobService::class.java))
+        val builder = JobInfo.Builder(jobId, ComponentName(context, AutomationJobService::class.java))
             .setMinimumLatency((at - System.currentTimeMillis()).coerceAtLeast(0))
             .setRequiresCharging(a.charge)
-            .setRequiredNetworkType(if (a.wifi) JobInfo.NETWORK_TYPE_UNMETERED else JobInfo.NETWORK_TYPE_ANY)
+            .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
             .setPersisted(true)
             .setExtras(extras)
-            .build()
-        runCatching { js.schedule(job) }
+        if (a.wifi && android.os.Build.VERSION.SDK_INT >= 28) {
+            builder.setRequiredNetwork(android.net.NetworkRequest.Builder()
+                .addTransportType(android.net.NetworkCapabilities.TRANSPORT_WIFI)
+                .addCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET).build())
+        }
+        val accepted = runCatching { js.schedule(builder.build()) == JobScheduler.RESULT_SUCCESS }.getOrDefault(false)
+        prefs(context).edit().putBoolean("error/${a.id}", !accepted).apply()
     }
 
     fun cancel(context: Context, id: String) {
@@ -74,7 +146,7 @@ object AutomationScheduler {
 
     /** Пересчитать все задания (после запуска приложения и изменений). */
     fun rescheduleAll(context: Context) {
-        AutomationStore.items.forEach { if (it.on) schedule(context, it) else cancel(context, it.id) }
+        AutomationStore.items.forEach { if (it.on) schedule(context, it, preservePending = true) else cancel(context, it.id) }
     }
 
     internal fun idOf(params: JobParameters): String? = params.extras.getString(EXTRA_ID)
@@ -83,18 +155,38 @@ object AutomationScheduler {
 
 /** Задание JobScheduler: запускает автоматизацию в фоне и сразу планирует следующий запуск. */
 class AutomationJobService : JobService() {
+    private val jobs = mutableMapOf<Int, kotlinx.coroutines.Job>()
     override fun onStartJob(params: JobParameters): Boolean {
         val id = AutomationScheduler.idOf(params) ?: return false
         val app = applicationContext as DshApplication
-        // Сама работа идёт в области приложения: Host — foreground-сервис, задание ему не нужно.
-        app.applicationScope.launch {
-            AutomationRunner.run(app, id, AutomationScheduler.plannedOf(params))
-            jobFinished(params, false)
+        jobs[params.jobId] = app.applicationScope.launch {
+            try {
+                val a = AutomationStore.get(id)
+                if (a == null || !a.on) { jobFinished(params, false); return@launch }
+                if (AutomationScheduler.waitingReason(app, a) != null) { jobFinished(params, true); return@launch }
+                val accepted = AutomationRunner.run(app, id, AutomationScheduler.plannedOf(params))
+                jobFinished(params, !accepted)
+                if (accepted) AutomationStore.get(id)?.let { AutomationScheduler.schedule(app, it) }
+            } finally {
+                if (jobs[params.jobId] === kotlinx.coroutines.currentCoroutineContext()[kotlinx.coroutines.Job]) jobs.remove(params.jobId)
+            }
         }
         return true
     }
+    override fun onStopJob(params: JobParameters): Boolean {
+        jobs.remove(params.jobId)?.cancel()
+        val id = AutomationScheduler.idOf(params) ?: return false
+        return AutomationStore.get(id)?.on == true &&
+            (android.os.Build.VERSION.SDK_INT < 31 || params.stopReason != JobParameters.STOP_REASON_CANCELLED_BY_APP)
+    }
+    override fun onDestroy() { jobs.values.toList().forEach { it.cancel() }; jobs.clear(); super.onDestroy() }
+}
 
-    override fun onStopJob(params: JobParameters): Boolean = false
+/** The persisted jobs survive reboot; wall-clock/time-zone changes need a fresh calculation. */
+class AutomationTimeReceiver : android.content.BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: android.content.Intent) {
+        AutomationStore.items.forEach { AutomationScheduler.schedule(context, it, clockChanged = true) }
+    }
 }
 
 /**
@@ -107,6 +199,8 @@ object AutomationRunner {
 
     /** Автоматизации, которые сейчас идут в этом процессе. */
     private val active = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private val activeSessions = java.util.concurrent.ConcurrentHashMap<String, String>()
+    internal fun ownsSession(sessionId: String?): Boolean = sessionId != null && activeSessions.containsValue(sessionId)
 
     /**
      * Занять запуск [id]; false — он уже идёт. Запись «run» в истории без живого запуска осталась от убитого
@@ -123,12 +217,23 @@ object AutomationRunner {
 
     internal fun release(id: String) { active.remove(id) }
 
-    suspend fun run(app: DshApplication, id: String, plannedAt: Long = System.currentTimeMillis()) {
-        val a = AutomationStore.get(id) ?: return
-        if (!claim(id, app.getString(R.string.au_run_interrupted))) return
+    suspend fun run(app: DshApplication, id: String, plannedAt: Long = 0): Boolean {
+        val a = AutomationStore.get(id) ?: return true
+        if (!claim(id, app.getString(R.string.au_run_interrupted))) return false
         try {
+            if (plannedAt > 0 && !AutomationScheduler.claimOccurrence(app, id, plannedAt)) return true
             runClaimed(app, id, a, plannedAt)
+            if (plannedAt > 0) AutomationScheduler.completeOccurrence(app, id, plannedAt)
+            return true
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            val sid = activeSessions[id]
+            val stopped = sid == null || withContext(kotlinx.coroutines.NonCancellable + Dispatchers.IO) {
+                runCatching { app.dshRepository.cancelSession(LOCAL_HOST, sid, AutomationStore.get(id)?.history?.firstOrNull()?.at) }.getOrDefault(false)
+            }
+            if (stopped && plannedAt > 0) AutomationScheduler.releaseOccurrence(app, id, plannedAt)
+            throw cancelled
         } finally {
+            activeSessions.remove(id)
             release(id)
         }
     }
@@ -139,23 +244,29 @@ object AutomationRunner {
             AutomationStore.addRun(id, AutoRun(plannedAt, "skip", null, app.getString(R.string.au_run_postponed, conditionsText(app, a))))
         }
         AutomationStore.addRun(id, AutoRun(started, "run", null, app.getString(R.string.au_run_working)))
-        val outcome = runCatching { execute(app, a) }.getOrElse { Outcome(false, it.message ?: app.getString(R.string.au_run_failed), null, false) }
+        val outcome = try { execute(app, a) } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            AutomationStore.addRun(id, AutoRun(started, "err", System.currentTimeMillis() - started, app.getString(R.string.au_run_interrupted)))
+            throw cancelled
+        } catch (error: Exception) { Outcome(false, error.message ?: app.getString(R.string.au_run_failed), null, false) }
         val finished = System.currentTimeMillis()
         AutomationStore.addRun(id, AutoRun(started, if (outcome.ok) "ok" else "err", finished - started, outcome.summary, outcome.sessionId))
         notifyIfNeeded(app, a, outcome)
-        AutomationStore.get(id)?.let { AutomationScheduler.schedule(app, it) }
     }
 
     private data class Outcome(val ok: Boolean, val summary: String, val sessionId: String?, val changed: Boolean)
 
     private suspend fun execute(app: DshApplication, a: Automation): Outcome = withContext(Dispatchers.IO) {
         val repo = app.dshRepository
-        val workspace = a.project.ifBlank { StorageAccess.workspaceRoot(app).absolutePath }
+        val workspaceRoot = StorageAccess.workspaceRoot(app)
+        val workspace = automationWorkspacePath(a.project, workspaceRoot)
+            ?: return@withContext Outcome(false, app.getString(R.string.au_run_no_project), null, false)
+        val projectDir = File(workspaceRoot, workspace.removePrefix(HOST_WORKSPACE_ROOT).trimStart('/'))
+        if (!projectDir.isDirectory) return@withContext Outcome(false, app.getString(R.string.au_run_no_project), null, false)
         // Host: разбудить и привязать клиента, если приложение закрыто.
         val status = app.runtimeManager.getStatus().takeIf { it.phase == RuntimePhase.RUNNING && it.port != null }
-            ?: app.runtimeManager.start(workspace).getOrNull()
+            ?: app.runtimeManager.start(workspaceRoot.absolutePath).getOrNull()
             ?: return@withContext Outcome(false, app.getString(R.string.au_run_no_host), null, false)
-        if (app.localHostPort <= 1 && status.port != null && !app.bindLocalHost(status.port!!, status.token)) {
+        if (status.port != null && !app.bindLocalHost(status.port!!, status.token)) {
             return@withContext Outcome(false, app.getString(R.string.au_run_no_host), null, false)
         }
         repo.subscribeRemoteEvents(LOCAL_HOST)
@@ -164,13 +275,18 @@ object AutomationRunner {
             return@withContext Outcome(false, app.getString(R.string.au_run_no_session, it.message ?: ""), null, false)
         }
         val sid = session.sessionId
+        activeSessions[a.id] = sid
         // Права — до промпта, и без запасного пути: не удалось — сессия не запускается. Иначе автоматизация
         // «только читать» в фоне, без пользователя, работала бы с правами сессии по умолчанию (вплоть до полного доступа).
         val preset = presetFor(a.perm)
         if (runCatching { repo.selectPermissionPreset(LOCAL_HOST, sid, preset) }.getOrDefault(false) != true) {
             return@withContext Outcome(false, app.getString(R.string.au_run_no_perm), sid, false)
         }
-        modelFor(app, a)?.let { (model, provider, effort) -> runCatching { repo.selectModel(LOCAL_HOST, sid, model, provider, effort) } }
+        repo.hostSettings.refreshModelCatalog(LOCAL_HOST)
+        val selection = modelFor(app, a) ?: return@withContext Outcome(false, app.getString(R.string.au_run_no_model), sid, false)
+        if (repo.selectModel(LOCAL_HOST, sid, selection.first, selection.second, selection.third).isFailure) {
+            return@withContext Outcome(false, app.getString(R.string.au_run_no_model), sid, false)
+        }
 
         val prompt = buildString {
             append(a.prompt.trim())
@@ -179,10 +295,15 @@ object AutomationRunner {
         repo.sendMessage(LOCAL_HOST, sid, prompt).onFailure {
             return@withContext Outcome(false, app.getString(R.string.au_run_send_failed, it.message.orEmpty()), sid, false)
         }
-        // Ход начался — и закончился.
-        withTimeoutOrNull(90_000) { repo.runningSessionIdsFlow.first { sid in it } }
-        val done = withTimeoutOrNull(TURN_TIMEOUT_MS) { repo.runningSessionIdsFlow.first { sid !in it } } != null
-        if (!done) runCatching { repo.cancelSession(LOCAL_HOST, sid) }
+        val key = com.dsh.core.data.SessionKey(LOCAL_HOST, sid)
+        val settled = withTimeoutOrNull(TURN_TIMEOUT_MS) {
+            repo.runStatesFlow.first { it[key]?.terminal == true }[key]
+        }
+        val done = settled != null
+        if (!done || settled?.status != com.dsh.core.model.RunStatus.SUCCEEDED) runCatching { repo.cancelSession(LOCAL_HOST, sid) }
+        if (settled != null && settled.status != com.dsh.core.model.RunStatus.SUCCEEDED) {
+            return@withContext Outcome(false, settled.message ?: app.getString(R.string.au_run_failed), sid, false)
+        }
         val messages = withTimeoutOrNull(10_000) { repo.getMessages(LOCAL_HOST, sid).first { list -> list.any { it.role == MessageRole.ASSISTANT } } }.orEmpty()
         val answer = messages.lastOrNull { it.role == MessageRole.ASSISTANT }?.content.orEmpty().substringAfterLast('\u0001')
         val changed = messages.any { m -> m.role == MessageRole.TOOL && Regex("\u0002(?:write|edit|apply_patch|patch|create)[^\u0002]*\u0002ok", RegexOption.IGNORE_CASE).containsMatchIn(m.content) }
@@ -204,14 +325,10 @@ object AutomationRunner {
 
     /** Модель по названию из каталога Host: (id, провайдер, уровень рассуждения). */
     private fun modelFor(app: DshApplication, a: Automation): Triple<String, String?, String?>? {
-        val name = a.model.substringBefore(" · ").trim().ifBlank { return null }
         val catalog = app.dshRepository.hostSettings.modelCatalogFlow.value
-        for (g in catalog.groups) {
-            val m = g.models.firstOrNull { it.name == name || it.id == name } ?: continue
-            val effort = m.reasoningEfforts.getOrNull(a.reasoning)?.id ?: m.defaultReasoningEffort
-            return Triple(m.id, g.id, effort)
-        }
-        return null
+        val resolved = resolveAutomationModel(a, catalog, automationDefault(AutomationStore.defaultModel, app.settingsRepository.settingsFlow.value, catalog)) ?: return null
+        if (resolved != a) AutomationStore.upsert(resolved)
+        return Triple(resolved.modelId!!, resolved.providerId, resolved.reasoningEffort)
     }
 
     private fun conditionsText(context: Context, a: Automation): String = listOfNotNull(
@@ -250,14 +367,37 @@ internal fun DshAutomationRoute(
     val toast = com.dsh.core.designsystem.kit.rememberToast()
     val reasoning = com.dsh.feature.chat.ReasoningLevel.entries.map { context.getString(it.labelResId) }
     androidx.compose.runtime.LaunchedEffect(Unit) { HostSchedules.refresh?.invoke() }
+    val modelCatalog by app.dshRepository.hostSettings.modelCatalogFlow.collectAsState()
+    val appSettings by app.settingsRepository.settingsFlow.collectAsState()
+    val default = automationDefault(AutomationStore.defaultModel, appSettings, modelCatalog)
+    androidx.compose.runtime.LaunchedEffect(modelCatalog, default) {
+        AutomationStore.items.filter { it.model.isBlank() }.forEach { legacy ->
+            resolveAutomationModel(legacy, modelCatalog, default)?.let(AutomationStore::upsert)
+        }
+    }
+    var scheduleTick by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    androidx.compose.runtime.LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(5000); scheduleTick++ } }
     val actions = object : com.dsh.feature.settings.ui.AutomationActions {
-        override fun save(a: Automation) {
-            val withLabel = if (a.model.isNotBlank() && " · " !in a.model && reasoning.isNotEmpty()) a.copy(model = a.model + " · " + reasoning.getOrElse(a.reasoning) { reasoning.first() }) else a
-            AutomationStore.upsert(withLabel)
-            AutomationScheduler.schedule(context, withLabel)
+        override fun scheduleStatus(id: String): String {
+            @Suppress("UNUSED_VARIABLE") val tick = scheduleTick
+            return AutomationStore.get(id)?.let { AutomationScheduler.status(context, it) }.orEmpty()
+        }
+        override fun save(a: Automation): Boolean {
+            val selected = resolveAutomationModel(a, modelCatalog, default) ?: run {
+                toast.show(context.getString(R.string.au_run_no_model))
+                return false
+            }
+            AutomationStore.upsert(selected)
+            AutomationScheduler.schedule(context, selected)
+            return true
         }
         override fun delete(id: String) { AutomationScheduler.cancel(context, id); AutomationStore.delete(id) }
         override fun runNow(id: String) {
+            val a = AutomationStore.get(id) ?: return
+            val selected = resolveAutomationModel(a, modelCatalog, default) ?: run {
+                toast.show(context.getString(R.string.au_run_no_model)); return
+            }
+            AutomationStore.upsert(selected)
             AutomationStore.get(id)?.let { toast.show(context.getString(R.string.au_run_started, it.name)) }
             app.applicationScope.launch { AutomationRunner.run(app, id, 0) }
         }
@@ -268,9 +408,13 @@ internal fun DshAutomationRoute(
         com.dsh.feature.settings.ui.AgentTask(s.id, s.title.ifBlank { s.prompt.take(60) }, scheduleText(context, s), s.sessionId.ifBlank { null })
     }
     com.dsh.feature.settings.ui.AutomationHomeScreen(
-        items = AutomationStore.items, onClose = onClose, actions = actions, agentTasks = tasks, projects = projects,
-        models = models.map { it.substringBefore(" · ") }.distinct(), reasoningLevels = reasoning,
-        defaultModel = AutomationStore.defaultModel, toast = toast,
+        items = AutomationStore.items.map { a ->
+            val group = modelCatalog.groups.find { it.id == a.providerId }
+            val model = group?.models?.find { it.id == a.modelId }
+            if (group != null && model != null) a.copy(model = automationModelLabel(modelCatalog, group, model)) else a
+        }, onClose = onClose, actions = actions, agentTasks = tasks, projects = projects,
+        models = modelCatalog.groups.flatMap { group -> group.models.map { automationModelLabel(modelCatalog, group, it) } }, reasoningLevels = reasoning,
+        defaultModel = default, toast = toast,
     )
 }
 

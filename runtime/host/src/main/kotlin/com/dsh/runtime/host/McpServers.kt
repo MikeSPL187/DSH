@@ -24,8 +24,6 @@ class McpServers(private val layout: RuntimeLayout, private val registryFile: Fi
         val args: List<String> = emptyList(),
         /** Есть ли токен: заголовок `Authorization: Bearer` из ссылки [tokenRef]. */
         val hasToken: Boolean = false,
-        /** Последние 4 символа токена — единственное, что о нём показывает приложение. */
-        val tokenTail: String = "",
     ) {
         /** Id записи профиля: по нему Host сообщает состояние. */
         val entryId: String get() = "mcp-$name"
@@ -34,7 +32,37 @@ class McpServers(private val layout: RuntimeLayout, private val registryFile: Fi
 
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
 
-    fun list(): List<Server> = runCatching { json.decodeFromString<List<Server>>(registryFile.readText()) }.getOrDefault(emptyList())
+    fun list(): List<Server> = runCatching {
+        val raw = registryFile.readText()
+        val servers = json.decodeFromString<List<Server>>(raw)
+        if ("\"tokenTail\"" in raw) atomicWrite(registryFile, json.encodeToString(servers))
+        servers
+    }.getOrDefault(emptyList())
+
+    fun fingerprint(): String = java.security.MessageDigest.getInstance("SHA-256")
+        .digest(json.encodeToString(list()).toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+
+    fun restartNeeded(): Boolean {
+        val applied = File(layout.runtimeMetaDir, "mcp-applied.sha256")
+        if (!applied.isFile && list().isEmpty()) return false
+        return runCatching { applied.readText() }.getOrNull() != fingerprint()
+    }
+
+    fun markApplied(fingerprint: String) {
+        val applied = File(layout.runtimeMetaDir, "mcp-applied.sha256")
+        applied.parentFile?.mkdirs()
+        atomicWrite(applied, fingerprint)
+    }
+
+    /** Reinstalling rootfs must remount the user's registered servers too. */
+    fun applyToProfile(): String {
+        val servers = list()
+        val patch = webAppPatchFile(layout)
+        if (!patch.isFile && servers.isEmpty()) return fingerprint()
+        require(patch.isFile) { "dsh-web-app patch layer is missing" }
+        atomicWrite(patch, mount(patch.readText(), servers))
+        return fingerprint()
+    }
 
     /** Добавить или заменить сервер; блок в слое патчей пишется сразу. */
     fun put(server: Server) {
@@ -66,13 +94,17 @@ class McpServers(private val layout: RuntimeLayout, private val registryFile: Fi
         const val STDIO = "stdio"
         private const val MARKER = "# android-mcp: "
         private val NAME = Regex("^[A-Za-z0-9_-]{1,32}$")
-        private val URL = Regex("""^(https://[^\s/?#]+(?:[/?#]\S*)?|http://(localhost|127\.0\.0\.1)(:\d{1,5})?(/\S*)?)$""")
 
         /** Имя сервера `dsh-mcp-client`: `[A-Za-z0-9_-]{1,32}`. */
         fun validName(name: String): Boolean = NAME.matches(name)
 
         /** https-адрес или http только на этот телефон (`localhost`) — как политика сети приложения. */
-        fun validUrl(url: String): Boolean = URL.matches(url)
+        fun validUrl(url: String): Boolean = runCatching {
+            val parsed = java.net.URI(url)
+            val host = parsed.host ?: return@runCatching false
+            parsed.userInfo == null && parsed.fragment == null && parsed.port in -1..65535 && parsed.port != 0 &&
+                !url.any { it.isWhitespace() } && (parsed.scheme == "https" || parsed.scheme == "http" && host in setOf("localhost", "127.0.0.1"))
+        }.getOrDefault(false)
 
         /** Ссылка на токен в хранилище ключей Host: `MCP_<ИМЯ>_TOKEN`, допустимая `credentialRef`. */
         fun tokenRefOf(name: String): String = "MCP_" + name.uppercase().replace('-', '_') + "_TOKEN"

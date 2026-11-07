@@ -57,9 +57,9 @@ class McpServersTest {
             val layout = RuntimeLayout(baseDir = root, nativeLibraryDir = java.io.File(root, "lib"))
             val patch = webAppPatchFile(layout).apply { parentFile.mkdirs(); writeText("[]\n") }
             val servers = McpServers(layout, java.io.File(root, "mcp.json"))
-            servers.put(http.copy(name = "git-hub", tokenTail = "a1b2"))
+            servers.put(http.copy(name = "git-hub"))
             assertEquals(listOf("git-hub"), servers.list().map { it.name })
-            assertEquals("a1b2", servers.list().single().tokenTail)
+            assertFalse(java.io.File(root, "mcp.json").readText().contains("tokenTail"))
             assertTrue(patch.readText().contains("# android-mcp: git-hub"))
             assertTrue(runCatching { servers.put(stdio.copy(name = "GIT_HUB")) }.isFailure)
             servers.put(stdio)
@@ -70,4 +70,24 @@ class McpServersTest {
             root.deleteRecursively()
         }
     }
+    @Test
+    fun `legacy token suffix is erased and applied configuration is tracked`() {
+        val root = kotlin.io.path.createTempDirectory("mcp-legacy").toFile()
+        try {
+            val layout = RuntimeLayout(baseDir = root, nativeLibraryDir = java.io.File(root, "lib"))
+            webAppPatchFile(layout).apply { parentFile!!.mkdirs(); writeText("[]\n") }
+            val registry = java.io.File(root, "mcp.json").apply {
+                writeText("""[{"name":"docs","kind":"http","url":"https://example.com/mcp","hasToken":true,"tokenTail":"WXYZ"}]""")
+            }
+            val servers = McpServers(layout, registry)
+            assertTrue(servers.list().single().hasToken)
+            assertFalse(registry.readText().contains("WXYZ"))
+            assertTrue(servers.restartNeeded())
+            servers.markApplied(servers.applyToProfile())
+            assertFalse(servers.restartNeeded())
+            servers.put(servers.list().single().copy(url = "https://example.com/v2"))
+            assertTrue(servers.restartNeeded())
+        } finally { root.deleteRecursively() }
+    }
+
 }

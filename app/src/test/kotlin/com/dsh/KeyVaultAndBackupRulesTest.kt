@@ -26,6 +26,16 @@ class KeyVaultAndBackupRulesTest {
         assertFalse(ApiKeyVault.has("TEST_KEY"))
     }
 
+    @Test fun failedReplacementPreservesPreviouslyStoredCiphertext() {
+        val context: Context = ApplicationProvider.getApplicationContext()
+        ApiKeyVault.init(context)
+        val prefs = context.getSharedPreferences("dsh_key_vault", 0)
+        prefs.edit().putString("OLD.enc", "old-encrypted-fixture").putString("OLD.last4", "1234").commit()
+        assertFalse(ApiKeyVault.save("OLD", "replacement-fixture"))
+        org.junit.Assert.assertEquals("old-encrypted-fixture", prefs.getString("OLD.enc", null))
+        org.junit.Assert.assertEquals("1234", ApiKeyVault.last4("OLD"))
+    }
+
     /** G-37: перенос «телефон → телефон» и облачная копия исключают данные DSH. */
     @Test
     fun manifestExcludesDataFromTransfer() {

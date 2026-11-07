@@ -78,6 +78,14 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -439,6 +447,26 @@ fun SiTile(icon: ImageVector, color: Color) {
     }
 }
 
+/** One labelled accessibility action for a composite control. Place before its touch modifier.
+ * Visual children retain touch handling; independent child actions must remain outside this scope.
+ */
+fun Modifier.actionSemantics(
+    label: String,
+    description: String? = null,
+    role: Role = Role.Button,
+    selected: Boolean? = null,
+    checked: Boolean? = null,
+    action: () -> Unit,
+): Modifier = clearAndSetSemantics {
+    contentDescription = label
+    text = AnnotatedString(label)
+    this.role = role
+    if (description != null) stateDescription = description
+    if (selected != null) this.selected = selected
+    if (checked != null) toggleableState = if (checked) ToggleableState.On else ToggleableState.Off
+    onClick { action(); true }
+}
+
 /** Нажимаемая область строки: подсветка s2 при нажатии и мгновенное затухание, как в прототипе. */
 @Composable
 fun Modifier.rowClick(enabled: Boolean = true, role: Role = Role.Button, onClick: (() -> Unit)?): Modifier {
@@ -466,12 +494,16 @@ fun Gr(
     center: (@Composable ColumnScope.() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
-    androidx.compose.foundation.layout.BoxWithConstraints(modifier.fillMaxWidth()) {
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier.fillMaxWidth().then(
+        if (title != null && onClick != null && trailing == null) Modifier.actionSemantics(title,
+            description = listOfNotNull(sub, value).joinToString(", ").takeIf { it.isNotBlank() }, action = onClick)
+        else Modifier,
+    )) {
     // Со значением: заголовок — сколько ему нужно (не больше 60 % строки, не рвётся по буквам на 360),
     // значение — всё остальное, у правого края, с многоточием.
     val titleMax = maxWidth * 0.6f
     Row(
-        Modifier.fillMaxWidth().heightIn(min = minHeight).rowClick(onClick = onClick).padding(padding),
+        Modifier.fillMaxWidth().heightIn(min = minHeight).semantics(mergeDescendants = true) { if (title != null) contentDescription = title }.rowClick(onClick = onClick).padding(padding),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -513,10 +545,14 @@ fun StRow(
     onClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
-    BoxWithConstraints(modifier.fillMaxWidth()) {
+    BoxWithConstraints(modifier.fillMaxWidth().then(
+        if (onClick != null && trailing == null) Modifier.actionSemantics(title,
+            description = listOfNotNull(sub, value).joinToString(", ").takeIf { it.isNotBlank() }, action = onClick)
+        else Modifier,
+    )) {
         val maxVal = maxWidth * 0.46f
         Row(
-            Modifier.fillMaxWidth().heightIn(min = 52.dp).rowClick(onClick = onClick).padding(start = 14.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+            Modifier.fillMaxWidth().heightIn(min = 52.dp).semantics(mergeDescendants = true) { contentDescription = title }.rowClick(onClick = onClick).padding(start = 14.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -565,7 +601,7 @@ private fun TitleWithBadge(title: String, badge: String, color: Color) {
 /** Строка с переключателем `.st-row .toggle`: вся строка переключает. */
 @Composable
 fun StToggle(title: String, checked: Boolean, onChange: (Boolean) -> Unit, icon: ImageVector, tile: Color, sub: String? = null) {
-    StRow(title, icon = icon, tile = tile, sub = sub, onClick = { onChange(!checked) }) {
+    StRow(title, modifier = Modifier.actionSemantics(title, description = sub, role = Role.Switch, checked = checked) { onChange(!checked) }, icon = icon, tile = tile, sub = sub, onClick = { onChange(!checked) }) {
         Box(Modifier.offset(x = 4.dp)) { DshSwitch(checked, onChange, contentDescription = title) }
     }
 }
@@ -595,6 +631,7 @@ fun Opts(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier
                     .then(if (on) Modifier.shadow(1.5.dp, RoundedCornerShape(8.dp)) else Modifier)
                     .clip(RoundedCornerShape(8.dp))
                     .background(bg)
+                    .actionSemantics(o, role = Role.RadioButton, selected = on) { onSelect(i) }
                     .selectable(on, role = Role.RadioButton) { onSelect(i) }
                     .padding(horizontal = if (wide) 2.dp else 10.dp),
                 contentAlignment = Alignment.Center,
@@ -616,7 +653,8 @@ fun Segm(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier
             options.forEachIndexed { i, label ->
                 val on = i == selected
                 Box(
-                    Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(11.dp)).selectable(on, role = Role.RadioButton) { onSelect(i) },
+                    Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(11.dp)).actionSemantics(label, role = Role.RadioButton, selected = on) { onSelect(i) }
+                    .selectable(on, role = Role.RadioButton) { onSelect(i) },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(label, style = body(fontSize, 18.sp, if (on) FontWeight.Medium else FontWeight.Normal), color = if (on) Dsh.colors.t1 else Dsh.colors.t2, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -640,6 +678,7 @@ fun StChips(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modif
                 Modifier.weight(1f).height(40.dp)
                     .then(if (on) Modifier.shadow(2.dp, RoundedCornerShape(11.dp)) else Modifier)
                     .clip(RoundedCornerShape(11.dp)).background(bg)
+                    .actionSemantics(o, role = Role.RadioButton, selected = on) { onSelect(i) }
                     .selectable(on, role = Role.RadioButton) { onSelect(i) },
                 contentAlignment = Alignment.Center,
             ) { Text(o, style = body(14.sp, 18.sp, if (on) FontWeight.Medium else FontWeight.Normal), color = if (on) Dsh.colors.t1 else Dsh.colors.t2, maxLines = 1) }
@@ -662,7 +701,7 @@ fun RadioDot(on: Boolean) {
 @Composable
 fun Rad(title: String, sub: String?, on: Boolean, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().selectable(on, role = Role.RadioButton, onClick = onClick).padding(horizontal = 14.dp, vertical = 13.dp),
+        Modifier.fillMaxWidth().actionSemantics(title, description = sub, role = Role.RadioButton, selected = on, action = onClick).selectable(on, role = Role.RadioButton, onClick = onClick).padding(horizontal = 14.dp, vertical = 13.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         RadioDot(on)
@@ -830,7 +869,7 @@ fun KSheet(visible: Boolean, onDismiss: () -> Unit, content: @Composable ColumnS
         }
         AnimatedVisibility(
             visible,
-            modifier = Modifier.align(Alignment.BottomCenter),
+            modifier = Modifier.align(Alignment.BottomCenter).imePadding().statusBarsPadding(),
             enter = slideInVertically(DshMotion.smooth()) { it + it / 20 },
             exit = slideOutVertically(DshMotion.smooth()) { it + it / 20 },
         ) {

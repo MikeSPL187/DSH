@@ -78,6 +78,10 @@ class DshRepository(
 
     /** Сессии, в которых сейчас идёт ход. */
     val runningSessionIdsFlow = MutableStateFlow<Set<String>>(emptySet())
+    val runStatesFlow = MutableStateFlow<Map<SessionKey, com.dsh.core.model.RunState>>(emptyMap())
+    private val _sessionEvents = MutableSharedFlow<Pair<String, RemoteEvent>>(extraBufferCapacity = 128)
+    val sessionEvents: SharedFlow<Pair<String, RemoteEvent>> = _sessionEvents.asSharedFlow()
+
 
     /** Сессии, где ход закончился, пока пользователь смотрел другую. */
     val unreadSessionIdsFlow = MutableStateFlow<Set<String>>(emptySet())
@@ -117,6 +121,9 @@ class DshRepository(
     suspend fun refreshSessions(hostId: String) {
         val sessions = (client.listSessions(hostId) as? RemoteResult.Success)?.data ?: return
         liveSessionIdsFlow.value = sessions.map { it.sessionId }.toSet()
+        val running = sessions.filter { it.status == "running" }.map { it.sessionId }.toSet()
+        runningSessionIdsFlow.value = running
+        _sessionEvents.emit(hostId to RemoteEvent.SessionCatalog(running))
         upsertSessions(hostId, sessions)
     }
 
@@ -230,9 +237,10 @@ class DshRepository(
      * Остановить ход. Сессия перестаёт считаться идущей только после согласия Host: при сбое
      * агент продолжает работать, и «Агент работает» не должен пропасть.
      */
-    suspend fun cancelSession(hostId: String, sessionId: String): Boolean {
+    suspend fun cancelSession(hostId: String, sessionId: String, stopJobsSince: Long? = null): Boolean {
         val stopped = client.cancelSession(hostId, sessionId)
         if (stopped) runningSessionIdsFlow.update { it - sessionId }
+        if (stopped && stopJobsSince != null) return tasks.cancelRunJobs(hostId, sessionId, stopJobsSince)
         return stopped
     }
 
@@ -581,8 +589,25 @@ class DshRepository(
     /** События сессий: ход, фрагменты текста, сообщения, изменения, результаты. */
     private suspend fun onSessionEvent(hostId: String, event: RemoteEvent) {
         val viewed = viewedSessionId
+        _sessionEvents.emit(hostId to event)
         when (event) {
+            is RemoteEvent.TurnCompleted -> {
+                val key = SessionKey(hostId, event.sessionId)
+                runStatesFlow.update { states ->
+                    val previous = states[key]
+                    if (previous != null && (previous.seq > event.state.seq || previous.status == com.dsh.core.model.RunStatus.FAILED && previous.seq < event.state.seq && event.state.status == com.dsh.core.model.RunStatus.SUCCEEDED)) states
+                    else states + (key to event.state)
+                }
+                runningSessionIdsFlow.update { it - event.sessionId }
+            }
             is RemoteEvent.SessionRunning -> {
+                if (event.seq > 0 && (runStatesFlow.value[SessionKey(hostId, event.sessionId)]?.seq ?: -1) > event.seq) return
+                if (event.running && event.seq > 0) {
+                    val key = SessionKey(hostId, event.sessionId)
+                    runStatesFlow.update { states ->
+                        if ((states[key]?.seq ?: -1) >= event.seq) states else states + (key to com.dsh.core.model.RunState(com.dsh.core.model.RunStatus.RUNNING, event.seq, event.at))
+                    }
+                }
                 runningSessionIdsFlow.update { if (event.running) it + event.sessionId else it - event.sessionId }
                 if (!event.running) {
                     if (event.sessionId == viewed) clearStreaming()
@@ -591,11 +616,11 @@ class DshRepository(
             }
             is RemoteEvent.MessageDelta -> {
                 runningSessionIdsFlow.update { it + event.sessionId }
-                if (event.sessionId == viewed) _streamingTextFlow.update { it + event.delta }
+                if (event.sessionId == viewed) _streamingTextFlow.update { if (event.baseline) event.delta else it + event.delta }
             }
             is RemoteEvent.ReasoningDelta -> {
                 runningSessionIdsFlow.update { it + event.sessionId }
-                if (event.sessionId == viewed) _streamingReasoningFlow.update { it + event.delta }
+                if (event.sessionId == viewed) _streamingReasoningFlow.update { if (event.baseline) event.delta else it + event.delta }
             }
             is RemoteEvent.WorkflowRunUpdated -> if (event.sessionId == viewed) {
                 _workflowRunsFlow.update { all ->

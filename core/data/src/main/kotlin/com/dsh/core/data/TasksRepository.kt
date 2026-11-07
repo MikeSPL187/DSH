@@ -13,6 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -139,9 +140,25 @@ class TasksRepository internal constructor(
     suspend fun killJob(hostId: String, sessionId: String, jobId: String): String? =
         (client.killJob(hostId, sessionId, jobId) as? RemoteResult.Success)?.data
 
+    /** Stop only this session's jobs started by the cancelled turn, then observe their exit. */
+    suspend fun cancelRunJobs(hostId: String, sessionId: String, since: Long): Boolean =
+        try { kotlinx.coroutines.withTimeoutOrNull(10_000) {
+            val jobs = client.jobList(hostId, sessionId).first()
+            val owned = jobsForCancelledRun(jobs, sessionId, since)
+            for (job in owned) if (client.killJob(hostId, sessionId, job.id) !is RemoteResult.Success) return@withTimeoutOrNull false
+            if (owned.isNotEmpty()) client.jobList(hostId, sessionId).first { rows ->
+                rows.none { it.id in owned.map { job -> job.id } && it.finishedAt == null && it.status in setOf("running", "stopping", "pending") }
+            }
+            true
+        } ?: false } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { false }
+
     /** Расписания изменились (`schedule/changed`). */
     internal suspend fun onSchedulesChanged(hostId: String) {
         refreshAutomationTasks(hostId)
         refreshTeamTasks(hostId)
     }
 }
+
+/** A timestamp cannot grant ownership of another session or an earlier background server. */
+internal fun jobsForCancelledRun(jobs: List<com.dsh.core.protocol.HostJobInfo>, session: String, since: Long) =
+    jobs.filter { since > 0 && it.owner == session && it.startedAt >= since && it.finishedAt == null && it.status in setOf("running", "stopping", "pending") }
