@@ -287,8 +287,8 @@ class Device:
             assert response.status == 200 and json.loads(response.read()) == {'ready': True}
         finally:
             peer.close()
-        result = self.shell('am instrument -w -r -e class com.dsh.NativeChatRecoveryTest#recoverInterruptedRequestAndRetryFromChat ' + component, timeout=300)
-        (self.output / 'recovery-instrumentation.log').write_text(result)
+        result = self.instrument('am instrument -w -r -e class com.dsh.NativeChatRecoveryTest#recoverInterruptedRequestAndRetryFromChat ' + component,
+                                 'recovery-instrumentation.log', 300)
         for name in ('recovery.json', 'interrupted-chat.png'):
             file = 'cache/qa-native-' + name
             if self.private('test -f ' + shlex.quote(file) + ' && echo present', check=False).strip() == 'present':
