@@ -521,7 +521,7 @@ fun MainAppHost(
 
     // Запуск: Linux установлен и не требует переустановки, есть доступ к папке, Host отвечает,
     // аккаунт и плагины загружены. До этого — экраны запуска.
-    if (!StartupGate(runtimeUi, ui, runtimeManager, status, activeWorkspace, pluginSnapshot != null, openAllFilesSettings, scope)) return
+    if (!StartupGate(runtimeUi, ui, runtimeManager, status, activeWorkspace, openAllFilesSettings, scope)) return
 
     if (runtimeUi.showOnboarding) {
         FirstRunOnboarding(

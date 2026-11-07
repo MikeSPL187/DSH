@@ -2,10 +2,6 @@ package com.dsh
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.dsh.runtime.host.HostRuntimeManager
@@ -21,7 +17,6 @@ import java.io.File
  * Host запускается в фоне, чтобы сохранённые чаты и настройки были доступны сразу.
  * Первый запуск (онбординг) ворота пропускают — у него свои шаги.
  *
- * @param pluginsReady снимок плагинов от Host уже получен.
  */
 @Composable
 internal fun StartupGate(
@@ -30,7 +25,6 @@ internal fun StartupGate(
     runtimeManager: HostRuntimeManager,
     status: RuntimeStatus,
     activeWorkspace: File,
-    pluginsReady: Boolean,
     openAllFilesSettings: () -> Unit,
     scope: CoroutineScope,
 ): Boolean {
@@ -209,29 +203,8 @@ internal fun StartupGate(
             }
         }
     }
-    // Subsequent starts expose cached chats and settings while the Host warms up.
-    if (!runtimeUi.showOnboarding && !runtimeUi.hostProgressReady) return true
-
-    // Порт готов — не значит данные готовы: аккаунт и каталог плагинов — ещё по RPC. Первый
-    // экран ждёт на загрузке до 6 секунд, пока не придут аккаунт и снимок плагинов, —
-    // иначе интерфейс несколько секунд пуст и потом перескакивает.
-    var startupHydrated by remember { mutableStateOf(false) }
-    LaunchedEffect(runtimeUi.hostProgressReady, status.port, runtimeUi.accountHydrated, runtimeUi.pluginsHydrated, pluginsReady) {
-        if (!runtimeUi.hostProgressReady) {
-            startupHydrated = false
-            return@LaunchedEffect
-        }
-        val deadline = System.currentTimeMillis() + 6_000
-        while (System.currentTimeMillis() < deadline) {
-            if (runtimeUi.accountHydrated && runtimeUi.pluginsHydrated && pluginsReady) break
-            kotlinx.coroutines.delay(120)
-        }
-        startupHydrated = true
-    }
-    if (!runtimeUi.showOnboarding && runtimeUi.hostProgressReady && !startupHydrated) {
-        com.dsh.feature.runtime.HostStartScreen(status = stringResource(R.string.host_loading_data))
-        return false
-    }
+    // Cached chats/settings stay usable through Host startup and data hydration.
+    // Do not replace an already visible chat when RUNNING/account/plugin states arrive.
     return true
 }
 

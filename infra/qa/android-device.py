@@ -199,8 +199,18 @@ class Device:
             assert self.foreground(), 'Cold start dropped to launcher'
             assert usable_ms < 20_000, 'Cold start blocked navigation for ' + str(usable_ms) + ' ms'
             total = re.search(r'TotalTime:\s*(\d+)', launch)
+            nodes = self.dump()
+            menu = next((n for n in nodes if re.search(r'menu|drawer', self.label(n), re.I)), None)
+            if menu is not None:
+                self.tap(menu)
+                self.click('Settings')
+            self.wait(lambda n: self.has('Settings', n))
+            stable_until = time.monotonic() + 8
+            while time.monotonic() < stable_until:
+                assert self.has('Settings', self.dump()), 'Host/data hydration replaced the visible Settings screen'
+                assert self.foreground(), 'Warmup removed MainActivity from the foreground'
             samples.append({'iteration': iteration + 1, 'amTotalTimeMs': int(total.group(1)) if total else None,
-                            'usableWithUiAutomatorOverheadMs': usable_ms})
+                            'usableWithUiAutomatorOverheadMs': usable_ms, 'settingsRemainedVisibleDuringWarmup': True})
         (self.output / 'cold-starts.json').write_text(json.dumps(samples, indent=2) + '\n')
         self.check('native-five-cold-starts-allow-navigation-without-host-gate')
 

@@ -83,6 +83,22 @@ class NativeChatRecoveryTest {
             compose.onNode(reason).performScrollTo().assertIsDisplayed()
             val retry = compose.onAllNodesWithText(app.getString(com.dsh.feature.chat.R.string.chat_retry_send)).onFirst()
             retry.performScrollTo().assertIsDisplayed()
+            // Compose can expose nodes from the preceding frame while a startup screen is
+            // replacing it. Require the actual Android accessibility window to show both.
+            fun visibleText(node: android.view.accessibility.AccessibilityNodeInfo, value: String): Boolean {
+                if (node.isVisibleToUser && (node.text?.contains(value) == true || node.contentDescription?.contains(value) == true)) return true
+                return (0 until node.childCount).any { node.getChild(it)?.let { child -> visibleText(child, value) } == true }
+            }
+            var visibleSince = 0L
+            val retryLabel = app.getString(com.dsh.feature.chat.R.string.chat_retry_send)
+            compose.waitUntil(60_000) {
+                val root = instrumentation.uiAutomation.rootInActiveWindow
+                val visible = root != null && visibleText(root, interrupted.error!!) && visibleText(root, retryLabel) &&
+                    visibleText(root, "Native partial response")
+                val now = android.os.SystemClock.uptimeMillis()
+                if (!visible) visibleSince = 0L else if (visibleSince == 0L) visibleSince = now
+                visible && now - visibleSince >= 500
+            }
             instrumentation.uiAutomation.takeScreenshot()?.let { bitmap ->
                 File(app.cacheDir, "qa-native-interrupted-chat.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
             }
