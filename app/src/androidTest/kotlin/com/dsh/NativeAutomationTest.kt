@@ -103,7 +103,7 @@ class NativeAutomationTest {
     @Test fun scheduledFireInheritsDefaultModel(): Unit = runBlocking {
         withProvider("scheduled") {
             openDrawer()
-            compose.onNodeWithText("Settings").performScrollTo().performClick()
+            compose.onNodeWithContentDescription(app.getString(com.dsh.feature.sessions.R.string.dw_settings)).performClick()
             // Wait for a real future wall-clock occurrence. No Run now, forced job or clock jump.
             val next = LocalDateTime.now().plusMinutes(2).withSecond(0).withNano(0)
             val project = File(workspace, "qa-native-project").apply { mkdirs() }
@@ -251,7 +251,8 @@ class NativeAutomationTest {
         val menu = app.getString(com.dsh.feature.chat.R.string.ck_menu)
         compose.waitUntil(60_000) { compose.onAllNodesWithContentDescription(menu).fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithContentDescription(menu).performClick()
-        compose.waitUntil(30_000) { compose.onAllNodesWithText("Settings").fetchSemanticsNodes().isNotEmpty() }
+        val settings = app.getString(com.dsh.feature.sessions.R.string.dw_settings)
+        compose.waitUntil(30_000) { compose.onAllNodesWithContentDescription(settings).fetchSemanticsNodes().isNotEmpty() }
     }
     private fun screenshot(name: String) {
         instrumentation.uiAutomation.takeScreenshot()?.let { bitmap ->
