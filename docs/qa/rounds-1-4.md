@@ -1,87 +1,85 @@
-# QA rounds 1–4: implementation and verification
+# DSH: проверка исправлений раундов 1–4
 
-Baseline: PR #2, `12871835ad24fae08ce15a95c110ce74bff6b738`, APK 1.1.4 (114), published rootfs 2.0.2.
-The original reports tested different revisions. An old Fixed or Still verdict is not evidence about the final APK.
+PR: https://github.com/MikeSPL187/DSH/pull/2 (draft). Приложение 1.1.4 (114).
 
-## Changes in this iteration
+Подтверждённый native-прогон: [42261945428](https://github.com/MikeSPL187/DSH/actions/runs/42261945428), исходники `66bf8dc9`, 21 проверка × Android 11/13/15 = **63 PASS**, crash buffers пусты. Собранный APK и unit-тесты: [42261945444](https://github.com/MikeSPL187/DSH/actions/runs/42261945444).
 
-- Monetary model-usage estimates replace token counts in expense fields. CNY tariff snapshot verified against https://api-docs.deepseek.com/zh-cn/quick_start/pricing on 2026-11-06: Flash input/cache/output 1/0.02/4 CNY per million off-peak, twice those prices at peak; Pro 4.5/0.15/13.5, twice at peak. Only official API-key route and explicitly documented model aliases are priced. A range avoids inventing provider billing timestamps or holiday rules. Search/fetch and external requests excluded. Unknown categories/routes/history stay unpriced; partial coverage is labelled; currencies never combined.
-- Ledger retains old token-only records and persists price snapshots. Replay deduplicates by host/session/turn/step/attempt. Local calendar boundaries, cache costs, retry charges and migration have regression tests.
-- Session titles retain the complete first nonblank line. UI owns visual ellipsis.
-- ModelProviders no longer reports success when Android Keystore saving fails. Failed encryption preserves previous ciphertext; a staged new remote credential is removed on local failure.
-- Native Save test reads the value back from actual Android Keystore. New native onboarding test physically taps Continue while the IME is open.
-- Native QA covers Porcelain and System day/night as well as Graphite, and API 35 in addition to 30/33. Captures revision, gfxinfo and memory.
+Полная сборка/unit-тесты текущего production-кода `69eb239e`: [42385697022](https://github.com/MikeSPL187/DSH/actions/runs/42385697022) **PASS**. Подписанный APK проверен [инструментами Android SDK](https://github.com/MikeSPL187/DSH/actions/runs/42387251475): package/version/source/хеши Linux совпадают, подпись соответствует релизу 1.1.3. SHA-256: `e10c643b0e64777853a6c5f73cb88756cd8efa5b565887c510171b8396904e30`.
 
-## Verification rules
+Регрессии очереди после отказа выбора модели, отката Vault при неуспешной записи, преобразования путей проекта и обновления locale/font/orientation покрыты прошедшими unit-тестами.
 
-A passing unit test establishes logic only; a controlled UI callback is not a real provider test. Native tests run one capped KVM AVD at a time (3072 MB, 3 cores; stop below 1 GiB MemAvailable). Live DeepSeek budget <= 1 CNY; no provider secret is configured in this environment. Physical-device performance is unavailable. Never expose secrets in evidence.
+Дополнительная Android-проверка [42383650312](https://github.com/MikeSPL187/DSH/actions/runs/42383650312), ревизия `075967c1`: **7 PASS на API 30**, crash buffer пуст. Проверен настоящий путь Keystore → сохранение настроек Host → авторизованный HTTP-запрос → терминальная ошибка в истории автоматизации; также подтверждён RPC к локальному Host при недоступном системном прокси. Найдена и исправлена отдельная причина отказа сохранения настроек: агрегированный `host.bundle.mjs` дублировал состояние загрузчика профиля. Android теперь запускает канонический `lib/bin.js` из того же закреплённого образа.
 
-The table below tracks coverage, not a claim that every defect is closed. `Existing` identifies code and tests already on the baseline. Final CI links and limitations are recorded after execution.
+Production-код `69eb239e` дополнительно исправляет преобразование Android-пути выбранного проекта в гостевой `/workspace/...` и обновление системной конфигурации при выбранном языке на Android 11/12. В [прогоне 42386218748](https://github.com/MikeSPL187/DSH/actions/runs/42386218748) на API 30 прошли три из пяти инструментальных сценариев: read-only shell denial, offline/retry и ошибка провайдера. Расписание и chat-layout остановились на навигации теста (преждевременное нажатие меню и неоднозначная карточка); force-stop не запускался. В следующем прогоне `9198bad2` также выявлены ошибки тестовой навигации: лишняя Activity и поиск выгруженного элемента LazyColumn. Они исправлены в `f22495af`; [повторная интеграция](https://github.com/MikeSPL187/DSH/actions/runs/42388943521) выполняется. Эти незавершённые сценарии не засчитываются как PASS.
 
-| ID | Verification / remaining acceptance |
-|---|---|
-| F001 | Existing Compose names test; native screen-wide accessibility audit required |
-| F002 | About contains source revision/version; candidate remains a PR until release |
-| F003 | Exact validation snapshot; live provider validation requires test secret |
-| F004 | Native Save Show/Hide a11y test; onboarding Compose semantics test |
-| F005 | Native production onboarding Skip; repeat with keyboard visible |
-| F006 | Backup restore/cancel/corrupt archive scenario required |
-| F007 | Existing Details Back handler; force installer error for native verification |
-| F008 | Native rootfs install and Host startup |
-| F009 | Check label is Start; installation failure-path verification |
-| F010 | Existing local Host error vs network tests |
-| F011 | Host startup/restart verified; user proxy scenario required |
-| F012 | MCP validation tests; real MCP connect/restart scenario required |
-| F013 | Address hint/validation tests |
-| F015 | No token suffix; legacy migration tests |
-| F016 | MCP state/fingerprint tests; real MCP lifecycle acceptance |
-| F017 | Explicit two-tap delete; retest native |
-| F018 | Native cold startup; stop/start/restart acceptance |
-| F019 | By design: brand names with Light/Dark descriptions |
-| F020 | By design: locale persists |
-| F021 | Native two RU/EN cycles retain Appearance |
-| F022 | Installed version comparison tests; About on final APK |
-| F023 | Preserve inventory on failed polls; loading/host reconnection audit |
-| F024 | CI uses one capped KVM emulator, watchdog and cleanup |
-| F025 | Agent coding cycle with real provider requires secret |
-| F026 | Keystore failures no longer succeed; native encrypted readback; Host roundtrip remaining |
-| F027 | Native input and terminal commands |
-| F028 | Native input and terminal commands |
-| N01 | Existing network classification and retry; offline native scenario |
-| N02 | Durable partial response/retry tests; live force-stop scenario |
-| N03 | Cached UI during Host warmup; measure cold startup |
-| N04 | Single-line-break parser test |
-| N05 | Composer measured insets; native streaming + IME acceptance |
-| N06 | Balance/usage separated, CNY expense estimate |
-| N07 | Native real terminal commands |
-| N08 | Full title preserved; Unicode/long-token regression |
-| N09 | Destructive command approval policy tests; live consent flow |
-| N10 | Existing journal/unsent reason and retry tests |
-| N11 | Required fields hint, Done disabled; native form acceptance |
-| N12 | Neutral toggle names, checked state; native a11y audit |
-| N13 | Stable provider/model/reasoning resolution tests; real scheduled run |
-| N14 | Versioned tariff estimates, cache/retry/unknown/migration/timezone tests |
-| N15 | Native Graphite/Porcelain/System |
-| N16 | Typed terminal error outcome; sandbox-denial integration |
-| N17 | Native system bars + System night on API30/33/35 |
-| N18 | Activity rotation native; chat+IME+font1.3 acceptance remaining |
-| N19 | Emulator metrics only; physical-device verdict unavailable |
-| N20 | Native Save+Keystore and onboarding Continue under IME |
-| N21 | Native Plugins Back returns to Settings |
-| N22 | Native RU/EN foreground/navigation cycles |
-| N23 | Export one-shot/FileProvider tests; native receiving-app acceptance |
-| N24 | Schedule/constraints/DST/dedup tests; genuine scheduled fire remaining |
-| R4-N01 | Default terminal enabled; deliberate disable respected; native enable path |
-| R4-N02 | Host foreground/busy/idle lifecycle tests; idle native acceptance |
-| R4-N03 | Key status refresh; check final APK |
-| R4-N04 | Application-owned sender; recreation/process-death journal tests |
-| R4-N05 | Native dpkg build/install/upgrade/purge + curl on rootfs2.0.2 |
-| R4-N06 | Native cancel frees owned port and preserves unrelated listener |
-| R4-N07 | Automation model resolver and creation validation; native scheduled run |
-| R4-N08 | Network/auth classification tests; offline native acceptance |
+Linux 2.0.3 закреплён по SHA-256 и проверен из установленного Android-образа. Не опубликован: точный кандидат [42257899221](https://github.com/MikeSPL187/DSH/actions/runs/42257899221), source `20f21bc6`, artifact `13523299434`. [Черновик с проверенными файлами](https://github.com/MikeSPL187/DSH/releases/edit/436845729) подготовлен без публикации; удалённые SHA-256 всех семи assets подтверждены. Agent build:artifacts, build:check и профильные Vitest прошли: [42257899196](https://github.com/MikeSPL187/DSH/actions/runs/42257899196).
 
-F014 does not exist in the supplied reports. N25 has no reproducible defect definition. LaTeX preservation, orphan sessions and post-Send navigation are additional prose observations to examine, not silently invented closed IDs.
+В таблице разделены исправление кода, проверка логики и проверка реального Android. Прохождение одного сценария не означает полного аудита всех состояний экрана.
 
-## Delivery
+| ID | Проблема | Состояние | Проверка / ограничение |
+|---|---|---|---|
+| F001 | Доступность кнопок | Проверено на Android 11/13/15 | Системные AccessibilityNodeInfo: нет безымянных действий в проверенных Settings/Appearance EN/RU. Это не аудит всех состояний приложения. |
+| F002 | Версия и ревизия сборки | Исправлено; проверено тестами | 1.1.4 (114), source revision в About; APK собирается из публичной ветки PR. Нового релиза приложения пока нет. |
+| F003 | Валидация API-ключа | Нужна live-проверка | Проверяется тот же снимок ключа, что сохраняется. Ввод/Save проверены; настоящего ключа для запроса DeepSeek нет. |
+| F004 | Секрет в accessibility | Проверено на Android 11/13/15 | Нативный обход Show/Hide: значение защищено; сохранённый ключ целиком не раскрывается. |
+| F005 | Skip при открытой клавиатуре | Проверено на Android 11/13/15 | Реальный IME и переход Skip в инструментальном тесте. |
+| F006 | Restore from backup | Проверено на Android 11/13/15 | Реальные ZIP: restore, отмена подготовленного восстановления, повреждённый архив; данные сохраняются. DocumentsUI — ожидаемый SAF picker. |
+| F007 | Back из Details установки | Проверено на Android 11/13/15 | Принудительно показано состояние ошибки; Back закрывает Details и возвращает экран установки. |
+| F008 | Host не стартует | Проверено на Android 11/13/15 | Установка закреплённого rootfs 2.0.3 и запуск Host; никаких dynamic-require падений. |
+| F009 | Неверная подпись стадии Check | Исправлено; проверено тестами | Фаза запуска подписана Start/Запуск; этапы сверки и запуска разделены. |
+| F010 | Сетевой совет при локальном сбое Host | Исправлено; проверено тестами | Классификация локального запуска/авторизации/транспорта и сообщения об ошибках; unit-тесты. |
+| F011 | Host и proxy env | Проверено на Android 11/13/15 | Stop/Start с пользовательским Android http_proxy=127.0.0.1:9; настройка восстановлена после теста. |
+| F012 | Валидация MCP | Исправлено; проверено тестами | Проверки имени и URL; реальный HTTP MCP peer отдельно проходит initialize/tools/list. |
+| F013 | Подсказка адреса MCP | Исправлено; проверено тестами | Ошибка формата адреса и пример URL в форме; unit/UI-тесты. |
+| F015 | Хвост MCP-токена | Исправлено; проверено тестами | Значение и суффикс убраны из деталей; проверена миграция старых записей. |
+| F016 | MCP зависает after restart | Проверено на Android 11/13/15 | Настоящий MCP peer: Add, Restart, initialize/tools/list, Stop/Start Host, повторное подключение, снятие pending. |
+| F017 | Удаление MCP | Проверено на Android 11/13/15 | Два явных нажатия Delete/Tap again to delete удаляют сервер. |
+| F018 | Start Host со страницы Host | Проверено на Android 11/13/15 | Реальные Stop → Start, новый MCP initialize после запуска. |
+| F019 | Имена тем | По дизайну | Porcelain/Graphite снабжены Light/Dark; названия бренда сохранены. |
+| F020 | Сохранение русского языка | По дизайну | Выбор языка должен сохраняться между сессиями. |
+| F021 | Навигация при смене языка | Проверено на Android 11/13/15 | Два цикла RU → EN: Appearance остаётся открытым, MainActivity на переднем плане. |
+| F022 | Проверка текущей версии | Исправлено; проверено тестами | Сравнение versionCode/semver и корректный About; полная сборка прошла. |
+| F023 | Нестабильные счётчики Plugins | Исправлено; проверено тестами | Последний каталог сохраняется при неудачном poll; неизвестное состояние показано «—», а не ложным нулём. |
+| F024 | Нестабильность эмулятора | Проверено на Android 11/13/15 | Один KVM AVD 3072 МБ/3 ядра; watchdog; 63 проверки, crash buffers пусты. |
+| F025 | Полный coding-цикл агента | Нужна live-проверка | Терминал, Linux-пакеты и cancel проверены; повтор полного coding-цикла через DeepSeek требует тестового секрета. |
+| F026 | Ложный успех Save key | Проверено на Android 11; предыдущий IME-прогон также 13/15 | Настоящее сохранение Vault → Host → авторизованный HTTP подтверждено на API 30; при ошибке записи Vault восстанавливает прежние данные. Финальная повторная проверка IME запланирована. |
+| F027 | Ввод ключа на эмуляторе | Проверено на Android 11/13/15 | Настоящий ввод с IME и точное сравнение введённого/проверенного/сохранённого значения. |
+| F028 | Зависание adb input | Проверено на Android 11/13/15 | Ввод ключа и команд терминала стабилен во всём прогоне. |
+| N01 | Ошибка сети без понятной причины | Проверено на Android 11 | Wi-Fi/mobile data действительно выключены: отдельная причина offline, сессия не создаётся; после восстановления retry завершается успешно. Android 13/15 ещё не перепроверены. |
+| N02 | Потеря ответа после force-stop | Исправлено; проверено тестами | Атомарный журнал, частичный ответ, статус interrupted и Retry; восстановление проверено unit-тестами. Нативный kill посреди модельного ответа ещё не проверен. |
+| N03 | Host блокирует холодный старт | Проверено на Android 11/13/15 | 15 холодных стартов: доступность навигации 2.0–7.8 с с учётом UIAutomator, без падения в launcher. |
+| N04 | Схлопывание переносов | Исправлено; проверено тестами | Сохранение одиночных переносов и literal LaTeX проверено парсером/рендерером. |
+| N05 | Ответ перекрыт composer | Геометрия завершённого ответа проверена на Android 11 | В прогоне 9198bad2 проверка ответа над composer при реальном IME и font scale 1.3 прошла, сохранён скриншот; весь chat-layout тест затем остановился на поиске выгруженного элемента списка. Streaming-сценарий отдельно не подтверждён. |
+| N06 | Валюты и расход смешаны | Исправлено; проверено тестами | Баланс отдельно; расходы по usage и документированным тарифам CNY, неизвестное не заменяется нулём. |
+| N07 | Open terminal открывает чат | Проверено на Android 11/13/15 | Открывается настоящий shell; команды пакетов и отмены процессов выполнены в нём. |
+| N08 | Заголовки режутся посреди слова | Проверено на Android 11/13/15 | Полный текст в приложении; Host нормализует по границам слов. Импортирован и проверен модуль из установленного rootfs 2.0.3. |
+| N09 | Удаление без согласия | Исправлено; проверено тестами | Политика разрушительных команд и подтверждений проверена. Повтор интерактивного consent-флоу с моделью не выполнен. |
+| N10 | Not sent без причины и повтора | Исправлено; проверено тестами | Журнал хранит причину, вложения и Retry; повтор после отказа модели покрыт, включая очередь из трёх сообщений. |
+| N11 | Пустая автоматизация молча не сохраняется | Исправлено; проверено тестами | Done отключён при пустых обязательных полях, объяснение показано; тесты формы. |
+| N12 | Turn on у включённого переключателя | Исправлено; проверено тестами | Нейтральные имена и роль Switch; в реальном a11y-дереве Appearance EN/RU «Vibrate on actions/Вибрация при действиях» имеет checked=true на всех трёх API. Полный аудит остальных экранов не выполнен. |
+| N13 | Automation Model = — | Дополнительный Android-прогон идёт | Стабильные modelId/providerId, наследование модели по умолчанию; проверяется настоящее scheduled fire. |
+| N14 | Расход равен балансу | Исправлено; проверено тестами | Версионированные тарифы, cache/retry/dedup, миграция старого usage, неизвестные модели, часовые пояса и валюты — unit-тесты пройдены. |
+| N15 | Тема остаётся System | Проверено на Android 11/13/15 | Graphite, Porcelain и System day/night применяются; проверены пиксели интерфейса и system bars. |
+| N16 | Автоматизация бесконечно Running | Проверено на Android 11 | Настоящие HTTP-отказ провайдера и отказ shell в read-only завершают историю; явное объяснение sandbox denial подтверждено также HTTP peer. Android 13/15 ещё не перепроверены. |
+| N17 | Светлые system bars в тёмной теме | Проверено на Android 11/13/15 | Пиксельная проверка bars при Graphite и системном night. |
+| N18 | Обрезание/выход при повороте | Дополнительный Android-прогон идёт | Appearance в landscape остаётся в приложении; проверяется настоящий чат, font scale 1.3 и сохранение черновика. |
+| N19 | Janky frames | Открыт | Есть измерения debug APK на SwiftShader; улучшение не доказано. Нужен сопоставимый benchmark, предпочтительно на устройстве. |
+| N20 | IME дописывает символ в ключ | Проверено на Android 11/13/15 | Save и Continue физически нажимаются над IME; введённый, проверенный и сохранённый ключ совпадают. |
+| N21 | Back из Plugins уводит в чат | Проверено на Android 11/13/15 | Back из Plugins возвращает Settings. |
+| N22 | Русский язык выбрасывает в launcher | Проверено на Android 11/13/15 | Два RU/EN цикла на каждой версии Android, проверены foreground и сохранение Appearance. |
+| N23 | Share sheet нестабилен | Проверено на Android 11/13/15 | EN/RU chooser передаёт content URI отдельному test APK/UID; получатель открывает ZIP и проверяет содержимое. |
+| N24 | Запуск по расписанию | Дополнительный Android-прогон идёт | Условия ожидания, DST, дедупликация и clock change покрыты; проверяется настоящий JobScheduler без Run now и без перемотки часов. |
+| R4-N01 | Terminal отключён по умолчанию | Проверено на Android 11/13/15 | Первый запуск открывает shell без Enable; явное отключение пользователем уважается. |
+| R4-N02 | Host останавливается в Settings | Дополнительный Android-прогон идёт | Исправлены foreground/idle/background условия; новая проверка непрерывного RUNNING во время ожидания scheduled fire. |
+| R4-N03 | Устаревший No key в Settings | Исправлено; проверено тестами | Настройки обновляются из состояния ключа; реальная авторизация DeepSeek в этой серии не проверялась. |
+| R4-N04 | Поворот/Activity restart прерывает отправку | Исправлено; проверено тестами | Отправка в applicationScope; уничтожение экранного scope не обрывает очередь. Process death оставляет правдивый interrupted/Retry. |
+| R4-N05 | dpkg сломан, curl отсутствует | Проверено на Android 11/13/15 | Настоящий Android PRoot: build/install/upgrade/purge тестового Debian-пакета и curl. ARM-образ отдельно собран/проверен в CI; Android ARM-устройства нет. |
+| R4-N06 | Сервер держит порт после cancel | Проверено на Android 11/13/15 | Отмена освобождает принадлежащий запуску порт и сохраняет независимый listener. |
+| R4-N07 | Не наследуется модель автоматизации | Дополнительный Android-прогон идёт | Резолвер model/provider/reasoning и валидация; проверяется успешный scheduled run с унаследованной моделью. |
+| R4-N08 | Offline показывается как HTTP 401 | Проверено на Android 11 | Настоящее отключение сети даёт offline, после восстановления повтор успешен. Loopback-auth с пользовательским прокси проверен отдельно; Android 13/15 ещё не перепроверены. |
 
-Do not replace published rootfs2.0.2. If agent/image inputs change, prepare a newly versioned candidate. Do not merge the PR or publish an app release as part of running QA. Final APK must identify its exact source and SHA256. Validate clean install and upgrade preserving user data.
+F014 отсутствует в исходных отчётах. N25 упомянут без воспроизводимого определения; закрытый дефект из него не придумывался. Наблюдение о LaTeX исправлено сохранением формул как исходного текста; отдельный математический движок не добавлялся.
+
+Тестового API-секрета и физического устройства нет. Live-запросы DeepSeek, баланс и полный coding-цикл заново не проверены. Контролируемый провайдер проверяет настоящий путь Android → Host → HTTP, но не доказывает совместимость с живым DeepSeek. N19 остаётся открытым; все 59 пунктов закрытыми не объявляются.
+
+Публикация rootfs 2.0.3 необходима перед установкой итогового APK через публичные URL; пока используется неизменяемый CI-кандидат. Rootfs 2.0.2 не перезаписывался. Приложение не опубликовано, PR не слит.
