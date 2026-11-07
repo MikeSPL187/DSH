@@ -213,7 +213,8 @@ class Device:
         target = "com.dsh.NativeAutomationTest" + ("#providerFailureReachesTerminalHistory" if probe_only else "")
         result = self.instrument('am instrument -w -r -e class ' + target + ' ' + PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner', 'automation-instrumentation.log', 600)
         for name in ('automation.json', 'provider-error.json', 'chat-layout.json', 'offline.json', 'readonly.json', 'provider-save-diagnostic.json', 'integration-state.txt',
-                     'integration-failure.png', 'chat-ime-font13.png', 'chat-landscape-font13.png'):
+                     'integration-failure.png', 'chat-ime-font13.png', 'chat-landscape-font13.png',
+                     *[case + '-failure.' + ext for case in ('scheduled', 'provider-error', 'chat-layout', 'offline', 'readonly') for ext in ('png', 'txt')]):
             path = 'cache/qa-native-' + name
             if self.private('test -f ' + shlex.quote(path) + ' && echo present', check=False).strip() == 'present':
                 (self.output / ('native-' + name)).write_bytes(self.adb('exec-out', 'run-as', PACKAGE, 'cat', path))

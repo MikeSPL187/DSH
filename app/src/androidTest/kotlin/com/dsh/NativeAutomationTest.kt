@@ -34,7 +34,7 @@ class NativeAutomationTest {
     private val workspace get() = StorageAccess.workspaceRoot(app).absolutePath
     private val ids = listOf("qa-native-scheduled", "qa-native-failed", "qa-native-layout", "qa-native-readonly")
 
-    private suspend fun withProvider(block: suspend () -> Unit) {
+    private suspend fun withProvider(case: String, block: suspend () -> Unit) {
         var localAttempted = false
         var localSaved = false
         val manager = ModelProviders(app.dshRepository) { ref, key ->
@@ -78,6 +78,9 @@ class NativeAutomationTest {
             block()
         } catch (error: Throwable) {
             runCatching { screenshot("qa-native-integration-failure.png") }
+            runCatching { screenshot("qa-native-$case-failure.png") }
+            File(app.cacheDir, "qa-native-$case-failure.txt").writeText(
+                error.stackTraceToString() + "\n" + runCatching { compose.onRoot(useUnmergedTree = true).printToString() }.getOrDefault("No semantics root"))
             File(app.cacheDir, "qa-native-integration-state.txt").writeText(ids.joinToString("\n") { id ->
                 AutomationStore.get(id)?.let { "$id: ${AutomationScheduler.status(app, it)}; history=${it.history}" } ?: "$id: absent"
             })
@@ -98,9 +101,9 @@ class NativeAutomationTest {
     }
 
     @Test fun scheduledFireInheritsDefaultModel(): Unit = runBlocking {
-        withProvider {
+        withProvider("scheduled") {
             openDrawer()
-            compose.onNodeWithText("Settings").performClick()
+            compose.onNodeWithText("Settings").performScrollTo().performClick()
             // Wait for a real future wall-clock occurrence. No Run now, forced job or clock jump.
             val next = LocalDateTime.now().plusMinutes(2).withSecond(0).withNano(0)
             val project = File(workspace, "qa-native-project").apply { mkdirs() }
@@ -131,7 +134,7 @@ class NativeAutomationTest {
     }
 
     @Test fun providerFailureReachesTerminalHistory(): Unit = runBlocking {
-        withProvider {
+        withProvider("provider-error") {
             val fail = Automation(ids[1], "Native refused model", project = workspace, model = "qa-fail",
                 modelId = "qa-fail", providerId = "qa-runtime", prompt = "Return a controlled error.")
             withContext(Dispatchers.Main) { AutomationStore.upsert(fail) }
@@ -144,7 +147,7 @@ class NativeAutomationTest {
     }
 
     @Test fun realChatLastReplyStaysAboveImeAndRetainsDraftOnRotation(): Unit = runBlocking {
-        withProvider {
+        withProvider("chat-layout") {
             val prompt = ("Reply ping. " + "Check rotation and the right edge. ".repeat(4)).trim()
             val a = Automation(ids[2], "Native chat layout", project = workspace, model = "qa-model",
                 modelId = "qa-model", providerId = "qa-runtime", prompt = prompt)
@@ -181,7 +184,10 @@ class NativeAutomationTest {
                 compose.runOnUiThread { compose.activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE }
                 compose.waitUntil(30_000) { compose.activity.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE }
                 compose.onNode(editor).assertTextContains(draft)
-                compose.onNode(hasText(prompt) and hasAnyAncestor(hasTestTag("chat-thread"))).performScrollTo().assertIsDisplayed()
+                // LazyColumn may dispose the user bubble while the final answer is visible.
+                val user = hasText(prompt, substring = true)
+                compose.onNodeWithTag("chat-thread").performScrollToNode(user)
+                compose.onNode(user and hasAnyAncestor(hasTestTag("chat-thread"))).assertIsDisplayed()
                 screenshot("qa-native-chat-landscape-font13.png")
                 report("chat-layout", """{"imeAboveComposer":true,"fontScale":1.3,"landscapeDraftRetained":true}""")
             } finally {
@@ -192,7 +198,7 @@ class NativeAutomationTest {
     }
 
     @Test fun offlineSendKeepsTheReasonAndRetriesAfterNetworkReturns(): Unit = runBlocking {
-        withProvider {
+        withProvider("offline") {
             val cm = app.getSystemService(android.net.ConnectivityManager::class.java)
             fun connected(): Boolean = cm.activeNetwork?.let { cm.getNetworkCapabilities(it) }
                 ?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
@@ -225,7 +231,7 @@ class NativeAutomationTest {
     }
 
     @Test fun readOnlyShellDenialFinishesAutomationWithAnExplanation(): Unit = runBlocking {
-        withProvider {
+        withProvider("readonly") {
             val a = Automation(ids[3], "Native read-only shell", project = workspace, model = "qa-readonly",
                 modelId = "qa-readonly", providerId = "qa-runtime", perm = "read", prompt = "Read kernel information and report; do not change files.")
             withContext(Dispatchers.Main) { AutomationStore.upsert(a) }
@@ -240,11 +246,12 @@ class NativeAutomationTest {
 
     private fun report(name: String, json: String) = File(app.cacheDir, "qa-native-$name.json").writeText(json)
     private fun openDrawer() {
-        // Launches can restore a previous Settings page; start from the public New chat shortcut.
-        shell("am start -f 0x20000000 -a app.dsh.action.NEW_CHAT -n ${app.packageName}/com.dsh.MainActivity")
+        // ActivityScenario owns this Activity/task. Wait for startup instead of launching
+        // another task with am start, which leaves Scenario tracking a paused Activity.
         val menu = app.getString(com.dsh.feature.chat.R.string.ck_menu)
         compose.waitUntil(60_000) { compose.onAllNodesWithContentDescription(menu).fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithContentDescription(menu).performClick()
+        compose.waitUntil(30_000) { compose.onAllNodesWithText("Settings").fetchSemanticsNodes().isNotEmpty() }
     }
     private fun screenshot(name: String) {
         instrumentation.uiAutomation.takeScreenshot()?.let { bitmap ->
