@@ -63,6 +63,20 @@ class ChatRunJournalTest {
         } finally { file.parentFile.deleteRecursively() }
     }
 
+    @Test fun emptyReplayedStreamCannotEraseADurablePartialBeforeInterruptionIsReconciled() {
+        val file = kotlin.io.path.createTempDirectory().resolve("outbox.json").toFile()
+        try {
+            ChatRunJournal(file).put(request().copy(status = RunStatus.RUNNING, startedSeq = 2, partial = "saved partial"))
+            val recovered = ChatRunJournal(file)
+            recovered.onEvent("local-host", RemoteEvent.SessionCatalog(emptySet()))
+            recovered.onEvent("local-host", RemoteEvent.MessageDelta("s1", "", baseline = true))
+            recovered.onEvent("local-host", RemoteEvent.SessionSnapshot("s1"))
+            assertEquals(RunStatus.INTERRUPTED, recovered.records.value.single().status)
+            assertEquals("saved partial", recovered.records.value.single().partial)
+            assertEquals("saved partial", ChatRunJournal(file).records.value.single().partial)
+        } finally { file.parentFile.deleteRecursively() }
+    }
+
     @Test fun replayCannotCompleteANewerRequestAndFastFailureIsRetained() {
         val file = kotlin.io.path.createTempDirectory().resolve("outbox.json").toFile()
         try {

@@ -76,6 +76,12 @@ class NativeChatRecoveryTest {
                 while (app.chatRunJournal.records.value.single { it.id == id }.status in ChatRunJournal.ACTIVE) delay(100)
             }
             val interrupted = app.chatRunJournal.records.value.single { it.id == id }
+            File(app.cacheDir, "qa-native-recovery-state.json").writeText(kotlinx.serialization.json.buildJsonObject {
+                put("partialBeforeReplay", kotlinx.serialization.json.JsonPrimitive(record.partial))
+                put("partialAfterReplay", kotlinx.serialization.json.JsonPrimitive(interrupted.partial))
+                put("status", kotlinx.serialization.json.JsonPrimitive(interrupted.status.name))
+            }.toString())
+            assertTrue("Partial lost while replaying Host history: ${interrupted.partial}", interrupted.partial.contains("Native partial response"))
             assertTrue("Missing interruption status: ${interrupted.status}", interrupted.status == RunStatus.INTERRUPTED || interrupted.status == RunStatus.CANCELLED)
             assertTrue(interrupted.error.orEmpty().contains("stopped", ignoreCase = true))
             val reason = hasText(interrupted.error!!)

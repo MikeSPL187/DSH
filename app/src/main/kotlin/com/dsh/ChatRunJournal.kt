@@ -106,9 +106,15 @@ class ChatRunJournal(private val file: File) {
             is RemoteEvent.MessageDelta -> {
                 val request = mutable.value.firstOrNull { it.hostId == host && it.sessionId == event.sessionId && it.status in ACTIVE }
                 if (request != null) {
-                    mutable.value = mutable.value.map { if (it.id == request.id) it.copy(partial = (if (event.baseline) event.delta else it.partial + event.delta).takeLast(128 * 1024)) else it }
-                    val now = System.currentTimeMillis()
-                    if (now - lastCheckpoint >= 500) { commit(mutable.value); lastCheckpoint = now }
+                    // A restarted Host may replay an active attempt with no in-memory stream.
+                    // That empty baseline cannot erase the checkpoint saved before process death.
+                    val emptyRecoverySnapshot = request.id in recovering && event.baseline &&
+                        event.delta.isEmpty() && request.partial.isNotEmpty()
+                    if (!emptyRecoverySnapshot) {
+                        mutable.value = mutable.value.map { if (it.id == request.id) it.copy(partial = (if (event.baseline) event.delta else it.partial + event.delta).takeLast(128 * 1024)) else it }
+                        val now = System.currentTimeMillis()
+                        if (now - lastCheckpoint >= 500) { commit(mutable.value); lastCheckpoint = now }
+                    }
                 }
             }
             else -> Unit
