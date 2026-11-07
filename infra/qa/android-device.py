@@ -506,14 +506,17 @@ def main():
         device.shell('settings put secure show_ime_with_hard_keyboard 1')
         device.adb('install', '-r', 'app/build/outputs/apk/debug/app-debug.apk', timeout=120)
         device.adb('install', '-r', 'app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk', timeout=120)
-        result = device.shell('am instrument -w -r -e class com.dsh.ReplaceKeyImeTest,com.dsh.OnboardingImeTest,com.dsh.NativeBackupTest ' + PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner', timeout=180)
-        (args.output / 'instrumentation.log').write_text(result)
-        assert 'OK (4 tests)' in result, 'Native IME test failed'
-        device.check('native-ime-save-exact-key-and-masked-accessibility')
-        device.check('native-ime-onboarding-continue-exact-key')
-        device.check('native-skip-with-ime-and-installer-details-back')
-        device.check('native-backup-restore-cancel-corrupt-and-share-receiver')
-        (args.output / 'ime-save.png').write_bytes(device.adb('exec-out', 'run-as', PACKAGE, 'cat', 'cache/round4-ime-save.png'))
+        if not args.integration_only:
+            result = device.instrument('am instrument -w -r -e class com.dsh.ReplaceKeyImeTest,com.dsh.OnboardingImeTest,com.dsh.NativeBackupTest ' + PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner', 'instrumentation.log', 180)
+            for source, target in [('round4-ime-save.png', 'ime-save.png'), ('round4-ime-state.json', 'ime-state.json')]:
+                path = 'cache/' + source
+                if device.private('test -f ' + shlex.quote(path) + ' && echo present', check=False).strip() == 'present':
+                    (args.output / target).write_bytes(device.adb('exec-out', 'run-as', PACKAGE, 'cat', path))
+            assert 'OK (4 tests)' in result, 'Native IME test failed'
+            device.check('native-ime-save-exact-key-and-masked-accessibility')
+            device.check('native-ime-onboarding-continue-exact-key')
+            device.check('native-skip-with-ime-and-installer-details-back')
+            device.check('native-backup-restore-cancel-corrupt-and-share-receiver')
         with mcp_server() as (port, methods):
             device.adb('reverse', 'tcp:38889', 'tcp:' + str(port))
             try:

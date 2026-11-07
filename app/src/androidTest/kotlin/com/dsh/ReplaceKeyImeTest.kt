@@ -15,6 +15,8 @@ import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 import java.io.File
+import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** Native IME + physical screen coordinates: Save must not target a keyboard key. */
 class ReplaceKeyImeTest {
@@ -22,8 +24,10 @@ class ReplaceKeyImeTest {
 
     @Test fun saveAboveSoftKeyboardKeepsTheExactValidatedKey() {
         val fixture = "qa-round4-fake-key-0123456789"
-        var checked: String? = null
-        var saved: String? = null
+        val checked = AtomicReference<String?>(null)
+        val saved = AtomicReference<String?>(null)
+        val saveSucceeded = AtomicReference<Boolean?>(null)
+        val saveCalled = AtomicBoolean(false)
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val vault = com.dsh.feature.settings.logic.ApiKeyVault
@@ -38,10 +42,12 @@ class ReplaceKeyImeTest {
         compose.setContent {
             DshTheme {
                 SettingsHomeScreen(SettingsUi(), {}, initialSheet = "key", actions = object : SettingsActions {
-                    override suspend fun checkKey(baseUrl: String?, key: String): KeyState { checked = key; return KeyState.Ok }
+                    override suspend fun checkKey(baseUrl: String?, key: String): KeyState { checked.set(key); return KeyState.Ok }
                     override suspend fun saveKey(key: String): Boolean {
+                        saveCalled.set(true)
                         val ok = vault.save(ref, key)
-                        if (ok) saved = vault.use(ref) { it }
+                        if (ok) saved.set(vault.use(ref) { it })
+                        saveSucceeded.set(ok)
                         return ok
                     }
                 })
@@ -52,13 +58,8 @@ class ReplaceKeyImeTest {
         compose.onNode(field).performClick()
         compose.waitUntil(60_000) { ViewCompat.getRootWindowInsets(compose.activity.window.decorView)?.isVisible(WindowInsetsCompat.Type.ime()) == true }
         instrumentation.sendStringSync(fixture)
-        compose.waitUntil(60_000) { checked == fixture }
-        val save = compose.onNodeWithText(context.getString(com.dsh.feature.settings.R.string.st_save)).performScrollTo()
-        save.assertIsEnabled()
-        val bounds = save.fetchSemanticsNode().boundsInRoot
+        compose.waitUntil(60_000) { checked.get() == fixture }
         val view = compose.activity.window.decorView
-        val ime = ViewCompat.getRootWindowInsets(view)!!.getInsets(WindowInsetsCompat.Type.ime())
-        assertTrue("Save overlaps IME", bounds.bottom <= view.height - ime.bottom)
         var roots: List<android.view.accessibility.AccessibilityNodeInfo> = emptyList()
         compose.waitUntil(30_000) {
             roots = automation.windows.mapNotNull { it.root }.filter { it.packageName?.toString() == context.packageName }
@@ -83,6 +84,21 @@ class ReplaceKeyImeTest {
         roots.forEach(::inspect)
         assertTrue("Revealed key must retain protected accessibility", passwordFieldObserved)
         compose.onNodeWithContentDescription(context.getString(com.dsh.feature.settings.R.string.st_key_hide)).performClick()
+        // Showing/hiding can move the sheet or restart IME layout. Measure the actual tap afterwards.
+        compose.onNode(field).performClick()
+        var lastIme = -1
+        var settledAt = SystemClock.uptimeMillis()
+        compose.waitUntil(30_000) {
+            val insets = ViewCompat.getRootWindowInsets(view)
+            val bottom = insets?.getInsets(WindowInsetsCompat.Type.ime())?.bottom ?: 0
+            if (bottom != lastIme) { lastIme = bottom; settledAt = SystemClock.uptimeMillis() }
+            bottom > 0 && insets?.isVisible(WindowInsetsCompat.Type.ime()) == true && SystemClock.uptimeMillis() - settledAt >= 300
+        }
+        val save = compose.onNodeWithText(context.getString(com.dsh.feature.settings.R.string.st_save)).performScrollTo()
+        save.assertIsEnabled()
+        val bounds = save.fetchSemanticsNode().boundsInRoot
+        val ime = ViewCompat.getRootWindowInsets(view)!!.getInsets(WindowInsetsCompat.Type.ime())
+        assertTrue("Save overlaps IME", bounds.bottom <= view.height - ime.bottom)
         val image = requireNotNull(automation.takeScreenshot()) { "Screenshot unavailable" }
         File(context.cacheDir, "round4-ime-save.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
         val down = SystemClock.uptimeMillis()
@@ -94,9 +110,14 @@ class ReplaceKeyImeTest {
             assertTrue("Touch injection rejected", automation.injectInputEvent(event, true))
             event.recycle()
         }
-        compose.waitUntil(60_000) { saved != null }
-        assertEquals(fixture, saved)
-        assertEquals(fixture, checked)
+        try {
+            compose.waitUntil(60_000) { saveSucceeded.get() != null }
+        } finally {
+            File(context.cacheDir, "round4-ime-state.json").writeText("""{"saveCalled":${saveCalled.get()},"saveSucceeded":${saveSucceeded.get()},"exactValidated":${checked.get() == fixture},"exactStored":${saved.get() == fixture},"buttonBottom":${bounds.bottom},"imeTop":${view.height - ime.bottom}}""")
+        }
+        assertEquals("Android Keystore rejected Save", true, saveSucceeded.get())
+        assertEquals(fixture, saved.get())
+        assertEquals(fixture, checked.get())
         vault.delete(ref)
     }
 }
