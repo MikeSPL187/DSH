@@ -94,6 +94,26 @@ def server():
                         denied = bool(re.search(r'sandbox|denied|not permitted', detail, re.I))
                         methods.append('llm/readonly-denied' if denied else 'llm/readonly-unexpected-result')
                         events[0]['choices'][0]['delta']['content'] = 'Read-only shell report: ' + detail[:800]
+                if model == 'qa-model' and 'qa-automation-input.txt' in json.dumps(request.get('messages', [])) and request.get('tools'):
+                    results = [m.get('content', '') for m in request.get('messages', []) if m.get('role') == 'tool']
+                    if not results:
+                        tools = [t['function'] for t in request['tools'] if re.search(r'(?:^|[._])(?:read|read_file)$', t['function']['name'])]
+                        if len(tools) != 1:
+                            self.reply(400, {'error': {'message': 'QA expected one file-read tool'}})
+                            return
+                        tool = tools[0]
+                        fields = tool.get('parameters', {}).get('properties', {})
+                        args = {'file_path' if 'file_path' in fields else 'path': 'qa-automation-input.txt'}
+                        call = {'index': 0, 'id': 'qa_project_read', 'type': 'function',
+                                'function': {'name': tool['name'], 'arguments': json.dumps(args)}}
+                        events = [dict(base, choices=[{'index': 0, 'delta': {'role': 'assistant', 'tool_calls': [call]}, 'finish_reason': None}]),
+                                  dict(base, choices=[{'index': 0, 'delta': {}, 'finish_reason': 'tool_calls'}], usage=usage)]
+                        methods.append('llm/project-read-requested')
+                    else:
+                        detail = ' '.join(v if isinstance(v, str) else json.dumps(v) for v in results)
+                        found = 'DSH_QA_WORKSPACE_MARKER' in detail
+                        methods.append('llm/project-read-confirmed' if found else 'llm/project-read-missing')
+                        events[0]['choices'][0]['delta']['content'] = 'Workspace marker: DSH_QA_WORKSPACE_MARKER' if found else 'Workspace marker missing: ' + detail[:200]
                 body = (''.join('data: ' + json.dumps(e) + '\n\n' for e in events) + 'data: [DONE]\n\n').encode()
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/event-stream')

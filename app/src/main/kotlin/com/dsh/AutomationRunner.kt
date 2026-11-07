@@ -23,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.collectAsState
 import com.dsh.core.model.ScheduleInfo
+import java.io.File
 
 /**
  * Расписание автоматизаций: у каждой включённой — одно задание JobScheduler на время
@@ -256,10 +257,14 @@ object AutomationRunner {
 
     private suspend fun execute(app: DshApplication, a: Automation): Outcome = withContext(Dispatchers.IO) {
         val repo = app.dshRepository
-        val workspace = a.project.ifBlank { StorageAccess.workspaceRoot(app).absolutePath }
+        val workspaceRoot = StorageAccess.workspaceRoot(app)
+        val workspace = automationWorkspacePath(a.project, workspaceRoot)
+            ?: return@withContext Outcome(false, app.getString(R.string.au_run_no_project), null, false)
+        val projectDir = File(workspaceRoot, workspace.removePrefix(HOST_WORKSPACE_ROOT).trimStart('/'))
+        if (!projectDir.isDirectory) return@withContext Outcome(false, app.getString(R.string.au_run_no_project), null, false)
         // Host: разбудить и привязать клиента, если приложение закрыто.
         val status = app.runtimeManager.getStatus().takeIf { it.phase == RuntimePhase.RUNNING && it.port != null }
-            ?: app.runtimeManager.start(workspace).getOrNull()
+            ?: app.runtimeManager.start(workspaceRoot.absolutePath).getOrNull()
             ?: return@withContext Outcome(false, app.getString(R.string.au_run_no_host), null, false)
         if (status.port != null && !app.bindLocalHost(status.port!!, status.token)) {
             return@withContext Outcome(false, app.getString(R.string.au_run_no_host), null, false)

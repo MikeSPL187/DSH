@@ -92,6 +92,7 @@ class NativeAutomationTest {
                 AutomationStore.setDefaultModel(originalDefault.first, originalDefault.second)
                 manager.remove("local-host", provider)
                 ApiKeyVault.delete(ref)
+                File(workspace, "qa-native-project").deleteRecursively()
             }
         }
     }
@@ -100,8 +101,10 @@ class NativeAutomationTest {
         withProvider {
             // Wait for a real future wall-clock occurrence. No Run now, forced job or clock jump.
             val next = LocalDateTime.now().plusMinutes(2).withSecond(0).withNano(0)
+            val project = File(workspace, "qa-native-project").apply { mkdirs() }
+            File(project, "qa-automation-input.txt").writeText("DSH_QA_WORKSPACE_MARKER")
             val a = Automation(ids[0], "Native scheduled ping", time = next.format(DateTimeFormatter.ofPattern("HH:mm")),
-                project = workspace, prompt = "Reply ping.")
+                project = project.absolutePath, prompt = "Read qa-automation-input.txt and report the exact marker.")
             withContext(Dispatchers.Main) {
                 AutomationStore.setDefaultModel("qa-model", 0)
                 AutomationStore.upsert(a)
@@ -119,9 +122,11 @@ class NativeAutomationTest {
             assertEquals("Scheduled run: " + completed.history.first().result, "ok", completed.history.first().status)
             assertEquals("qa-model", completed.modelId)
             assertEquals("qa-runtime", completed.providerId)
+            assertTrue("Automation read a different project: " + completed.history.first().result,
+                completed.history.first().result.contains("DSH_QA_WORKSPACE_MARKER"))
             delay(1500)
             assertEquals("Scheduled occurrence was duplicated", 1, AutomationStore.get(a.id)!!.history.size)
-            report("automation", """{"scheduled":"ok","historyCount":1,"model":"qa-model","idleHost":"running"}""")
+            report("automation", """{"scheduled":"ok","historyCount":1,"model":"qa-model","idleHost":"running","workspaceMarker":true}""")
         }
     }
 

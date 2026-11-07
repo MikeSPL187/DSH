@@ -224,7 +224,8 @@ class Device:
             return
         assert 'OK (5 tests)' in result, 'Native scheduled automation / chat integration failed'
         outcome = json.loads(self.private('cat cache/qa-native-automation.json'))
-        assert outcome == {'scheduled': 'ok', 'historyCount': 1, 'model': 'qa-model', 'idleHost': 'running'}
+        assert outcome == {'scheduled': 'ok', 'historyCount': 1, 'model': 'qa-model', 'idleHost': 'running', 'workspaceMarker': True}
+        assert 'llm/project-read-confirmed' in methods and 'llm/project-read-missing' not in methods
         assert json.loads(self.private('cat cache/qa-native-provider-error.json')) == {'providerFailure': 'err'}
         assert json.loads(self.private('cat cache/qa-native-chat-layout.json')) == {
             'imeAboveComposer': True, 'fontScale': 1.3, 'landscapeDraftRetained': True}
@@ -241,6 +242,7 @@ class Device:
         self.check('native-real-chat-last-reply-above-ime-at-font13')
         self.check('native-real-chat-landscape-preserves-draft-at-font13')
         self.check('native-idle-settings-preserves-host-before-scheduled-fire')
+        self.check('native-scheduled-automation-reads-the-selected-android-project')
         self.check('native-offline-send-records-reason-and-retries-after-network-restored')
         self.check('native-readonly-shell-denial-finishes-with-explicit-report')
 
