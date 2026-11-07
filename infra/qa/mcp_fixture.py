@@ -97,11 +97,14 @@ def server():
                 if model == 'qa-model' and 'qa-automation-input.txt' in json.dumps(request.get('messages', [])) and request.get('tools'):
                     results = [m.get('content', '') for m in request.get('messages', []) if m.get('role') == 'tool']
                     if not results:
-                        tools = [t['function'] for t in request['tools'] if re.search(r'(?:^|[._])(?:read|read_file)$', t['function']['name'])]
-                        if len(tools) != 1:
-                            self.reply(400, {'error': {'message': 'QA expected one file-read tool'}})
+                        tools = [t['function'] for t in request['tools']
+                                 if re.search(r'(?:^|[._])(?:read|read_file)$', t['function']['name'])
+                                 and {'file_path', 'path'} & t['function'].get('parameters', {}).get('properties', {}).keys()]
+                        if not tools:
+                            self.reply(400, {'error': {'message': 'QA file-read tool missing; observed: ' + ', '.join(t['function']['name'] for t in request['tools'])}})
                             return
-                        tool = tools[0]
+                        # terminal_read also ends in "read", but cannot read a project file.
+                        tool = min(tools, key=lambda t: (t['name'] not in ('read', 'read_file'), t['name']))
                         fields = tool.get('parameters', {}).get('properties', {})
                         args = {'file_path' if 'file_path' in fields else 'path': 'qa-automation-input.txt'}
                         call = {'index': 0, 'id': 'qa_project_read', 'type': 'function',

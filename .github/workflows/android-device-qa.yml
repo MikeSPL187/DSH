@@ -43,6 +43,7 @@ jobs:
       - name: Validate native fixtures
         run: |
           python3 -m py_compile infra/qa/android-device.py infra/qa/mcp_fixture.py
+          python3 infra/qa/mcp-fixture-test.py
           sh -n infra/qa/native-packages.sh
           node --check infra/qa/native-cancel.mjs
           node --check infra/qa/native-fileops.mjs
