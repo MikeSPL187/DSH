@@ -514,6 +514,15 @@ def main():
             raise RuntimeError('Emulator boot timeout')
         for setting in ['window_animation_scale', 'transition_animation_scale', 'animator_duration_scale']:
             device.shell('settings put global ' + setting + ' 0')
+        # Scheduled tests intentionally spend minutes without input. Geometry-only Compose
+        # assertions can still pass with the display asleep; native a11y requires an awake AVD.
+        device.shell('svc power stayon true')
+        device.shell('settings put system screen_off_timeout 2147483647')
+        device.shell('input keyevent 224')
+        device.shell('wm dismiss-keyguard')
+        power = device.shell('dumpsys power')
+        (args.output / 'power-before-tests.txt').write_text(power)
+        assert 'mWakefulness=Awake' in power, 'Native UI tests require an awake display'
         device.shell('settings put secure show_ime_with_hard_keyboard 1')
         device.adb('install', '-r', 'app/build/outputs/apk/debug/app-debug.apk', timeout=120)
         device.adb('install', '-r', 'app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk', timeout=120)
@@ -550,6 +559,8 @@ def main():
             host_log = re.sub(r'(?i)(token=)[A-Za-z0-9_-]+', r'\1[redacted]', host_log)
             (args.output / 'host-runtime.log').write_text(host_log[-80_000:])
             (args.output / 'android-proxy.txt').write_text(device.shell('settings get global http_proxy', check=False))
+            (args.output / 'power-on-failure.txt').write_text(device.shell('dumpsys power', check=False))
+            (args.output / 'windows-on-failure.txt').write_text(device.shell('dumpsys window windows', check=False))
             device.screenshot('failure')
         except Exception:
             pass
