@@ -618,7 +618,9 @@ fun ModernChatScreen(
     val threadBottom = with(density) { composerTop.toDp() } + 16.dp
     LaunchedEffect(bottomInset, composerTop) {
         if (chatRows.isNotEmpty() && !listState.isScrollInProgress && (composerFocused || !listState.canScrollForward)) {
-            listState.scrollToItem(chatRows.lastIndex, Int.MAX_VALUE / 2)
+            // Initial/subcomposed content can still be measuring when this effect starts.
+            // Schedule the position for the next measure instead of forcing a nested layout.
+            listState.requestScrollToItem(chatRows.lastIndex, Int.MAX_VALUE / 2)
         }
     }
     val homeScroll = rememberScrollState()
