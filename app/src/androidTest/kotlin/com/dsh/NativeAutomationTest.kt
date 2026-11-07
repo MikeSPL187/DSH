@@ -99,6 +99,8 @@ class NativeAutomationTest {
 
     @Test fun scheduledFireInheritsDefaultModel(): Unit = runBlocking {
         withProvider {
+            openDrawer()
+            compose.onNodeWithText("Settings").performClick()
             // Wait for a real future wall-clock occurrence. No Run now, forced job or clock jump.
             val next = LocalDateTime.now().plusMinutes(2).withSecond(0).withNano(0)
             val project = File(workspace, "qa-native-project").apply { mkdirs() }
@@ -110,8 +112,6 @@ class NativeAutomationTest {
                 AutomationStore.upsert(a)
                 AutomationScheduler.schedule(app, a)
             }
-            compose.onNodeWithContentDescription(app.getString(com.dsh.feature.chat.R.string.ck_menu)).performClick()
-            compose.onNodeWithText("Settings").performClick()
             withTimeout(240_000) {
                 while (AutomationStore.get(a.id)?.history?.firstOrNull()?.status !in setOf("ok", "err")) {
                     assertEquals("Host stopped while Settings remained visible", RuntimePhase.RUNNING, app.runtimeManager.getStatus().phase)
@@ -153,10 +153,10 @@ class NativeAutomationTest {
             val run = AutomationStore.get(a.id)!!.history.first()
             assertEquals("Chat fixture: " + run.result, "ok", run.status)
             assertNotNull(run.sessionId)
-            compose.waitUntil(60_000) { compose.onAllNodesWithContentDescription(app.getString(com.dsh.feature.chat.R.string.ck_menu)).fetchSemanticsNodes().isNotEmpty() }
-            compose.onNodeWithContentDescription(app.getString(com.dsh.feature.chat.R.string.ck_menu)).performClick()
+            openDrawer()
             compose.onNodeWithText(app.getString(com.dsh.feature.sessions.R.string.dw_automation)).performClick()
-            compose.onNodeWithText(a.name).performScrollTo().performClick()
+            // The upcoming-run banner and list row both open the same automation.
+            compose.onAllNodes(hasText(a.name) and hasClickAction()).onFirst().performScrollTo().performClick()
             val history = hasClickAction() and hasText(run.result, substring = true) and hasText("Today", substring = true)
             compose.onNode(history).performScrollTo().performClick()
             compose.waitUntil(60_000) { compose.onAllNodesWithTag("chat-thread").fetchSemanticsNodes().isNotEmpty() }
@@ -239,6 +239,13 @@ class NativeAutomationTest {
     }
 
     private fun report(name: String, json: String) = File(app.cacheDir, "qa-native-$name.json").writeText(json)
+    private fun openDrawer() {
+        // Launches can restore a previous Settings page; start from the public New chat shortcut.
+        shell("am start -f 0x20000000 -a app.dsh.action.NEW_CHAT -n ${app.packageName}/com.dsh.MainActivity")
+        val menu = app.getString(com.dsh.feature.chat.R.string.ck_menu)
+        compose.waitUntil(60_000) { compose.onAllNodesWithContentDescription(menu).fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithContentDescription(menu).performClick()
+    }
     private fun screenshot(name: String) {
         instrumentation.uiAutomation.takeScreenshot()?.let { bitmap ->
             File(app.cacheDir, name).outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
