@@ -10,6 +10,7 @@ This file records changes to the DSH Mobile Android app. The bridge plugin and r
 - Pin the immutable Linux 2.0.3 candidate with curl, repaired Debian package operations, complete-word session titles and the source-built agent. The prepared rootfs assets remain in a private release draft; online installation requires their publication.
 - Start the canonical Host CLI so profile reloads and provider settings use the same bootstrap state. Bypass the system proxy for literal loopback endpoints while retaining it for external requests.
 - Map selected Android project directories to the Host workspace for automations. Preserve current font scale, orientation and night mode when an app language is selected on Android 8–12.
+- Reconnect a recreated screen to a session whose creation finishes after the old screen is destroyed, without replacing a new chat or another selected session. Schedule IME-related scrolling for the next layout instead of forcing a nested measurement.
 - Roll back API-key metadata and ciphertext when persistence fails. Estimate spending from recorded usage and verified CNY tariffs; unknown prices remain unavailable instead of appearing as zero.
 - Track implementation and actual Android verification separately in the [rounds 1–4 matrix](docs/qa/rounds-1-4.md). Live-provider checks and the SwiftShader performance finding remain unconfirmed.
 
