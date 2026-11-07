@@ -59,13 +59,27 @@ object AppLanguage {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) return base
         val locale = legacyLocale(selection(base)) ?: return base
         java.util.Locale.setDefault(locale)
-        val config = android.content.res.Configuration(base.resources.configuration)
-        config.setLocale(locale)
+        // Override only locale: copying the full configuration pins the old font scale,
+        // orientation and night mode in this Context across Android configuration changes.
+        val config = android.content.res.Configuration().apply {
+            fontScale = 0f
+            setLocale(locale)
+        }
         return base.createConfigurationContext(config)
     }
 
     private fun legacyLocale(selection: String): java.util.Locale? =
         if (selection == "system") null else java.util.Locale.forLanguageTag(selection)
+
+    /** Keep background/UI error strings localized after device font, rotation or night-mode changes. */
+    internal fun refreshLegacyResources(context: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            val selected = selection(context)
+            java.util.Locale.setDefault(legacyLocale(selected)
+                ?: android.content.res.Resources.getSystem().configuration.locales[0])
+            applyLegacy(context.applicationContext, selected)
+        }
+    }
 
     @Suppress("DEPRECATION")
     private fun applyLegacy(context: Context, selection: String) {

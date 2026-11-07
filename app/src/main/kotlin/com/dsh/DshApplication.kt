@@ -22,6 +22,11 @@ import java.util.concurrent.TimeUnit
 
 class DshApplication : Application() {
 
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        AppLanguage.refreshLegacyResources(this)
+    }
+
     /**
      * Защита от EOF в потоке чтения WebSocket.
      *
@@ -170,7 +175,8 @@ class DshApplication : Application() {
         AutomationScheduler.rescheduleAll(this)
         // Тексты из модулей без Context следуют за языком интерфейса, а не только за системным.
         com.dsh.core.model.Tr.language = {
-            resources.configuration.locales[0]?.language ?: java.util.Locale.getDefault().language
+            AppLanguage.selection(this).takeUnless { it == "system" }
+                ?: resources.configuration.locales[0]?.language ?: java.util.Locale.getDefault().language
         }
         runtimeLayout = RuntimeLayout(
             baseDir = filesDir,
