@@ -16,6 +16,9 @@ import org.robolectric.annotation.Config
 import java.lang.reflect.Proxy
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.resume
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], application = DshApplication::class)
@@ -25,6 +28,72 @@ class ChatSenderQueueTest {
             org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
             delay(10)
         }
+    }
+
+    @Test fun recreatedScreenFindsItsSessionWhenCreationFinishesAfterTheScreenWasDestroyed() = runBlocking {
+        val app = ApplicationProvider.getApplicationContext<DshApplication>()
+        val connectivity = app.getSystemService(android.net.ConnectivityManager::class.java)
+        val shadow = org.robolectric.Shadows.shadowOf(connectivity)
+        shadow.setActiveNetworkInfo(org.robolectric.shadows.ShadowNetworkInfo.newInstance(
+            android.net.NetworkInfo.DetailedState.CONNECTED, android.net.ConnectivityManager.TYPE_WIFI, 0, true, true))
+        val caps = org.robolectric.shadows.ShadowNetworkCapabilities.newInstance()
+        org.robolectric.Shadows.shadowOf(caps).addCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        shadow.setNetworkCapabilities(connectivity.activeNetwork, caps)
+        val creating = AtomicReference<Continuation<RemoteResult<SessionInfo>>?>()
+        val sent = AtomicInteger()
+        val screenScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val client = Proxy.newProxyInstance(DshClientProtocol::class.java.classLoader, arrayOf(DshClientProtocol::class.java)) { _, method, args ->
+            when (method.name) {
+                "createSession" -> {
+                    @Suppress("UNCHECKED_CAST")
+                    val continuation = args.last() as Continuation<RemoteResult<SessionInfo>>
+                    creating.set(continuation)
+                    kotlin.coroutines.intrinsics.COROUTINE_SUSPENDED
+                }
+                "selectModel" -> RemoteResult.Success(true)
+                "sendMessage" -> {
+                    sent.incrementAndGet()
+                    RemoteResult.Success(ChatMessage("local-host", "late-session", "echo", MessageRole.USER, "recreated request"))
+                }
+                else -> error("Unexpected call ${method.name}")
+            }
+        } as DshClientProtocol
+        val dao = Proxy.newProxyInstance(DshDao::class.java.classLoader, arrayOf(DshDao::class.java)) { _, _, _ -> Unit } as DshDao
+        try {
+            val old = AppUiState(AppSettings(), app.filesDir, true)
+            val sender = ChatSender(app, screenScope, DshRepository(dao, client, screenScope), old,
+                AppRuntimeUiState(false, 0f to ""), app.runtimeManager, mutableStateListOf(), { app.filesDir })
+            sender.send("recreated request", ModelChoice("m", "p"))
+            pumpUntil { creating.get() != null }
+            assertNull(old.selectedSessionId)
+            // rememberSaveable restores the pending conversation, but creates a new state instance.
+            fun restored() = AppUiState(AppSettings(), app.filesDir, true).apply {
+                pendingChatId = old.pendingChatId
+                activePage = ActivePage.SETTINGS
+            }
+            val current = restored()
+            val newChat = restored().apply { selectedSessionId = null }
+            val otherHost = restored().apply { activeHostId = "other-host" }
+            val otherSession = restored().apply { selectedSessionId = "other-session" }
+            screenScope.cancel()
+            requireNotNull(creating.get()).resume(RemoteResult.Success(
+                SessionInfo("local-host", "late-session", "Chat", null, "idle", System.currentTimeMillis())))
+            pumpUntil { sent.get() == 1 }
+            assertNull("The destroyed sender must not directly mutate the new screen", current.selectedSessionId)
+            assertTrue(current.resumePendingConversation(app.chatRunJournal))
+            assertEquals("late-session", current.selectedSessionId)
+            assertEquals("Restoring the chat must not close Settings", ActivePage.SETTINGS, current.activePage)
+            assertFalse(newChat.resumePendingConversation(app.chatRunJournal))
+            assertNull(newChat.selectedSessionId)
+            assertFalse(otherHost.resumePendingConversation(app.chatRunJournal))
+            assertFalse(otherSession.resumePendingConversation(app.chatRunJournal))
+            assertEquals("other-session", otherSession.selectedSessionId)
+            // Fast completion may remove the request before the new screen first observes it.
+            app.chatRunJournal.records.value.filter { it.text == "recreated request" }.forEach { app.chatRunJournal.remove(it.id) }
+            val completedBeforeResume = restored()
+            assertTrue(completedBeforeResume.resumePendingConversation(app.chatRunJournal))
+            assertEquals("late-session", completedBeforeResume.selectedSessionId)
+        } finally { screenScope.cancel() }
     }
 
     @Test fun threeFastMessagesCreateOneSessionAndKeepSubmissionOrder() = runBlocking {

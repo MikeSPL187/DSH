@@ -40,6 +40,13 @@ class AppUiState(
             if (value == null) pendingChatId = java.util.UUID.randomUUID().toString()
             sessionIdState = value
         }
+    /** A sender can finish session creation after the Activity owning its UI state was destroyed. */
+    internal fun resumePendingConversation(journal: ChatRunJournal): Boolean {
+        if (selectedSessionId != null) return false
+        val bound = journal.sessionForConversation(activeHostId, pendingChatId) ?: return false
+        selectedSessionId = bound
+        return true
+    }
     var currentAppSettings by mutableStateOf(initialSettings)
     var settingsInitialSection by mutableStateOf<com.dsh.feature.settings.ui.StPage?>(null)
     var hasAllFilesAccess by mutableStateOf(initialAllFilesAccess)

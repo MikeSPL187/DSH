@@ -194,6 +194,11 @@ fun MainAppHost(
     LaunchedEffect(ui.selectedSessionId) { dshRepository.markSessionViewed(ui.selectedSessionId) }
 
     LaunchedEffect(sessions, liveSessionIds) {
+        val journal = (context.applicationContext as DshApplication).chatRunJournal
+        if (ui.resumePendingConversation(journal)) {
+            runtimeUi.didInitialResume = true
+            return@LaunchedEffect
+        }
         // При открытии приложения — последняя обновлённая сессия, а не пустая новая.
         if (!runtimeUi.didInitialResume) {
             val draft = (context.applicationContext as DshApplication).chatRunJournal.records.value.lastOrNull { it.hostId == ui.activeHostId && it.sessionId == null }
@@ -219,6 +224,11 @@ fun MainAppHost(
     val repoMessages by dshRepository.getMessages(ui.activeHostId, ui.selectedSessionId ?: "")
         .collectAsState(initial = emptyList())
     val savedPrompts by (context.applicationContext as DshApplication).chatRunJournal.records.collectAsState()
+    LaunchedEffect(ui.activeHostId, ui.pendingChatId, savedPrompts) {
+        if (ui.resumePendingConversation((context.applicationContext as DshApplication).chatRunJournal)) {
+            runtimeUi.didInitialResume = true
+        }
+    }
     val recoveryStatus by runner.statusFlow.collectAsState()
     LaunchedEffect(ui.activeHostId, recoveryStatus.phase, savedPrompts.map { it.sessionId }.distinct()) {
         if (runner.statusFlow.value.phase == RuntimePhase.RUNNING) {
