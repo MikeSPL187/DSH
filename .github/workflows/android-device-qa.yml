@@ -14,7 +14,7 @@ on:
       profile:
         description: Full matrix or focused Host integrations on Android 11
         type: choice
-        options: [full, integration-only]
+        options: [full, integration-only, host-probe]
         default: full
 
 permissions:
@@ -22,8 +22,8 @@ permissions:
   actions: read
 
 concurrency:
-  group: android-device-qa-${{ github.ref }}
-  cancel-in-progress: true
+  group: android-device-qa-one-avd
+  cancel-in-progress: false
 
 jobs:
   devices:
@@ -51,7 +51,7 @@ jobs:
         continue-on-error: true
         with:
           name: android-device-apks
-          run-id: 42261945428
+          run-id: 42273946827
           github-token: ${{ github.token }}
           path: device-apks
       - name: Verify reusable APK inputs
@@ -121,7 +121,8 @@ jobs:
         run: |
           apis="30 33 35"
           flags=()
-          if [ "$QA_PROFILE" = integration-only ]; then apis=30; flags+=(--integration-only); fi
+          if [ "$QA_PROFILE" != full ]; then apis=30; flags+=(--integration-only); fi
+          if [ "$QA_PROFILE" = host-probe ]; then flags+=(--host-probe); fi
           for api in $apis; do
             python3 infra/qa/android-device.py --api "$api" --rootfs qa-rootfs/rootfs-x86_64.bin --output "device-evidence/api-$api" "${flags[@]}"
           done
