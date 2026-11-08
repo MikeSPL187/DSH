@@ -540,6 +540,7 @@ def main():
                 for file in files:
                     if re.fullmatch(r'cache/qa-text-[A-Za-z0-9_.-]+\.png', file):
                         (args.output / Path(file).name).write_bytes(device.adb('exec-out', 'run-as', PACKAGE, 'cat', file))
+                (args.output / 'text-layout.txt').write_text(device.private('cat cache/qa-text-layout.txt', check=False))
             return
         if not args.integration_only:
             result = device.instrument('am instrument -w -r -e class com.dsh.ReplaceKeyImeTest,com.dsh.OnboardingImeTest,com.dsh.NativeBackupTest ' + PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner', 'instrumentation.log', 180)

@@ -58,7 +58,13 @@ class ChatTextLayoutTest {
         node.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
         assertEquals("Missing text layout for $text", 1, layouts.size)
         val layout = layouts.single()
-        assertFalse("Overflow for $text", layout.hasVisualOverflow)
+        val diagnostic = "text=$text size=${layout.size} paragraph=${layout.multiParagraph.width}x${layout.multiParagraph.height} " +
+            "overflowWidth=${layout.didOverflowWidth} overflowHeight=${layout.didOverflowHeight} lines=${layout.lineCount} " +
+            "constraints=${layout.layoutInput.constraints} maxLines=${layout.layoutInput.maxLines} softWrap=${layout.layoutInput.softWrap} " +
+            (0 until layout.lineCount).joinToString { "line$it=${layout.getLineStart(it)}..${layout.getLineEnd(it)} right=${layout.getLineRight(it)} bottom=${layout.getLineBottom(it)}" }
+        File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir, "qa-text-layout.txt").appendText(diagnostic + "\n")
+        if (layout.hasVisualOverflow) screenshot("overflow-" + if (text == model) "model" else "amount")
+        assertFalse("Overflow: $diagnostic", layout.hasVisualOverflow)
         repeat(layout.lineCount) { assertFalse("Ellipsis for $text", layout.isLineEllipsized(it)) }
         val bounds = node.fetchSemanticsNode().boundsInRoot
         val viewport = compose.onNodeWithTag("text-viewport").fetchSemanticsNode().boundsInRoot
