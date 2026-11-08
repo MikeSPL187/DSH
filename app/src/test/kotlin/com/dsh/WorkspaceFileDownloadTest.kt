@@ -32,6 +32,9 @@ class WorkspaceFileDownloadTest {
 
     @Before fun setup() {
         context = ApplicationProvider.getApplicationContext()
+        // Robolectric's WebKit MIME registry starts empty; Android supplies this mapping.
+        org.robolectric.Shadows.shadowOf(android.webkit.MimeTypeMap.getSingleton())
+            .addExtensionMimeTypeMapping("txt", "text/plain")
         StorageAccess.choosePrivateWorkspace(context)
         root = StorageAccess.workspaceRoot(context).apply { mkdirs() }
         destination = File(context.cacheDir, "saved-download").apply { writeText("previous content") }
