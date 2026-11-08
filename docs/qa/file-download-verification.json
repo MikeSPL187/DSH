@@ -1,0 +1,82 @@
+{
+  "source": "e32d3eab7bcda35ff13850a3eba25bb9225d545a",
+  "buildAndUnitRun": 42460386061,
+  "buildAndUnitConclusion": "success",
+  "apkVerificationRun": 42461708822,
+  "apkVerificationConclusion": "success",
+  "apkArtifact": 13609668239,
+  "apkVerificationArtifact": 13610196431,
+  "apk": {
+    "source": "e32d3eab7bcda35ff13850a3eba25bb9225d545a",
+    "apkRun": 42460386061,
+    "sha256": "d70dc60f1b2c244ab40d9ac49328ca731877129f054618fad9d8d15d78d5ebf4",
+    "size": 14399833,
+    "package": "app.dsh.mobile",
+    "versionName": "1.1.4",
+    "versionCode": 114,
+    "signatureVerified": true,
+    "signingMatches113": true,
+    "signerSha256": [
+      "3e8d02cb1fa316aee739271a27953c56b868aa8cb86ddc000ebd3019bb202931"
+    ],
+    "sourceEmbedded": true,
+    "rootfsManifestMatchesSource": true,
+    "rootfsManifest": {
+      "rootfsName": "dsh-rootfs",
+      "runtimeVersion": "2.0.3-dsh0.2.1-rc.2-bridge2.0.7",
+      "releaseTag": "rootfs-v2.0.3",
+      "bridgeVersion": "2.0.7",
+      "baseDistro": "debian-13-slim",
+      "libc": "glibc",
+      "pageSize": "16k-compatible",
+      "archiveFormat": "tar.gz",
+      "bundledPackages": [
+        "node-24",
+        "pnpm",
+        "@deepseek-ai/dsh@0.2.1-rc.2",
+        "dsh-mobile-bridge-plugin@2.0.7",
+        "python3",
+        "git",
+        "curl"
+      ],
+      "downloadUrls": {
+        "x86_64": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.3/rootfs-x86_64.bin",
+        "arm64-v8a": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.3/rootfs-arm64-v8a.bin"
+      },
+      "downloadSha256": {
+        "x86_64": "C7022C8692C02928302D047182DF10E9421C05C78F7CAD2E121882B9AE84C886",
+        "arm64-v8a": "4F27BE41B3AC58E09145FF0752E3CFE6FE70A1D89611693D5F4DAD8365FEBBB8"
+      },
+      "archiveSizeBytes": 299916757,
+      "prootLibrary": "libproot.so",
+      "androidPatched": true
+    }
+  },
+  "tests": {
+    "framework": "Robolectric",
+    "apiLevels": [
+      26,
+      34
+    ],
+    "cases": [
+      "original filename, case-insensitive MIME lookup and unknown extension",
+      "exact binary copy (2 MiB + 17 bytes), unchanged source and empty output",
+      "denied output permission reports failure without changing source",
+      "missing/private/symlink/directory/sibling paths never open destination",
+      "arbitrary file URI rejected",
+      "file action invokes download for selected file; folders hide action"
+    ],
+    "appUnitVariants": [
+      "debug",
+      "release"
+    ]
+  },
+  "nativeDocumentPickerTestedThisRound": false,
+  "releaseState": {
+    "appPublished": false,
+    "prDraft": true,
+    "prMerged": false,
+    "rootfsTag": "rootfs-v2.0.3",
+    "rootfsRebuilt": false
+  }
+}
