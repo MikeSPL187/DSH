@@ -63,9 +63,15 @@ class ChatTextLayoutTest {
             "constraints=${layout.layoutInput.constraints} maxLines=${layout.layoutInput.maxLines} softWrap=${layout.layoutInput.softWrap} " +
             (0 until layout.lineCount).joinToString { "line$it=${layout.getLineStart(it)}..${layout.getLineEnd(it)} right=${layout.getLineRight(it)} bottom=${layout.getLineBottom(it)}" }
         File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir, "qa-text-layout.txt").appendText(diagnostic + "\n")
-        if (layout.hasVisualOverflow) screenshot("overflow-" + if (text == model) "model" else "amount")
-        assertFalse("Overflow: $diagnostic", layout.hasVisualOverflow)
-        repeat(layout.lineCount) { assertFalse("Ellipsis for $text", layout.isLineEllipsized(it)) }
+        // A shrink-wrapped Text can report didOverflowWidth because the paragraph keeps
+        // its original available width (e.g. 444px), although every glyph fits in 348px.
+        // Check actual line extents and retained characters, not that allocated width.
+        val clipped = layout.didOverflowHeight || layout.multiParagraph.didExceedMaxLines ||
+            (0 until layout.lineCount).any { layout.isLineEllipsized(it) || layout.getLineLeft(it) < -1f ||
+                layout.getLineRight(it) > layout.size.width + 1f || layout.getLineBottom(it) > layout.size.height + 1f }
+        if (clipped) screenshot("overflow-" + if (text == model) "model" else "amount")
+        assertFalse("Clipped text: $diagnostic", clipped)
+        assertEquals("Missing trailing characters: $diagnostic", text.length, layout.getLineEnd(layout.lineCount - 1))
         val bounds = node.fetchSemanticsNode().boundsInRoot
         val viewport = compose.onNodeWithTag("text-viewport").fetchSemanticsNode().boundsInRoot
         assertTrue("Text outside horizontal viewport: $text", bounds.left >= viewport.left - 1 && bounds.right <= viewport.right + 1)
