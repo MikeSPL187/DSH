@@ -45,6 +45,7 @@ jobs:
           python3 -m py_compile infra/qa/android-device.py infra/qa/mcp_fixture.py
           python3 infra/qa/mcp-fixture-test.py
           python3 infra/qa/rootfs-selection-test.py
+          python3 scripts/tests/pinned-rootfs-test.py
           sh -n infra/qa/native-packages.sh
           node --check infra/qa/native-cancel.mjs
           node --check infra/qa/native-fileops.mjs
@@ -100,21 +101,9 @@ jobs:
       - name: Prefer published pinned rootfs
         if: inputs.profile != 'ui-layout'
         id: rootfs
-        run: |
-          mkdir -p qa-rootfs
-          python3 - <<'PY'
-          import json, urllib.request, urllib.error, pathlib, hashlib, os
-          m = json.load(open('app/src/main/assets/rootfs-manifest.json'))
-          p = pathlib.Path('qa-rootfs/rootfs-x86_64.bin')
-          try:
-              urllib.request.urlretrieve(m['downloadUrls']['x86_64'], p)
-              assert hashlib.sha256(p.read_bytes()).hexdigest().upper() == m['downloadSha256']['x86_64']
-              published = True
-          except urllib.error.HTTPError as e:
-              if e.code != 404: raise
-              published = False
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as f: f.write('published=' + str(published).lower() + '\n')
-          PY
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/download-pinned-rootfs.py
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         if: inputs.profile != 'ui-layout' && steps.rootfs.outputs.published != 'true'
         with:
