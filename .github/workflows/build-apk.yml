@@ -66,6 +66,9 @@ jobs:
           python3 -I .github/scripts/verify-release-coupling.py
           sh infra/rootfs/prepare-bridge.sh
 
+      - name: Verify installed dependency resolution
+        run: npm ls --package-lock-only --all --prefix infra/rootfs/agent > /dev/null
+
       - name: Android consent policy tests
         run: node scripts/tests/android-consent-policy.test.mjs
 
