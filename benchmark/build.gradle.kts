@@ -16,6 +16,7 @@ android {
     buildTypes {
         create("benchmark") {
             isDebuggable = true
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "benchmark-rules.pro")
             matchingFallbacks += listOf("release")
