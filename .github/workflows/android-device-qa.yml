@@ -12,9 +12,9 @@ on:
   workflow_dispatch:
     inputs:
       profile:
-        description: Full matrix or focused Host integrations on Android 11
+        description: Full matrix, focused Host integrations, or text-layout regressions
         type: choice
-        options: [full, integration-only, host-probe]
+        options: [full, integration-only, host-probe, ui-layout]
         default: full
       apk_run:
         description: Optional test APK cache run; all Android build inputs must match
@@ -126,7 +126,11 @@ jobs:
         run: |
           apis="30 33 35"
           flags=()
-          if [ "$QA_PROFILE" != full ]; then apis=30; flags+=(--integration-only); fi
+          if [ "$QA_PROFILE" = ui-layout ]; then
+            flags+=(--ui-only)
+          elif [ "$QA_PROFILE" != full ]; then
+            apis=30; flags+=(--integration-only)
+          fi
           if [ "$QA_PROFILE" = host-probe ]; then flags+=(--host-probe); fi
           for api in $apis; do
             python3 infra/qa/android-device.py --api "$api" --rootfs qa-rootfs/rootfs-x86_64.bin --output "device-evidence/api-$api" "${flags[@]}"

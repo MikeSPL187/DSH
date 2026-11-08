@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -543,6 +544,7 @@ fun StRow(
     badge: String? = null,
     leading: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
+    valueBelow: Boolean = false,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     BoxWithConstraints(modifier.fillMaxWidth().then(
@@ -560,8 +562,9 @@ fun StRow(
             Column(Modifier.weight(1f)) {
                 if (badge == null) Text(title, style = body(15.sp), color = titleColor) else TitleWithBadge(title, badge, titleColor)
                 if (!sub.isNullOrEmpty()) Text(sub, style = small(), color = subColor)
+                if (valueBelow && value != null) Text(value, style = body(14.sp, 18.sp), color = valueColor)
             }
-            if (value != null) Text(value, style = body(14.sp, 18.sp), color = valueColor, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = maxVal))
+            if (value != null && !valueBelow) Text(value, style = body(14.sp, 18.sp), color = valueColor, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = maxVal))
             trailing?.invoke()
             if (chevron) Icon(DshGlyphs.Right, null, tint = Dsh.colors.t3, modifier = Modifier.size(18.dp))
         }
@@ -978,12 +981,39 @@ fun StCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() ->
 @Composable
 fun StatRow(items: List<Triple<String, String, Boolean>>, modifier: Modifier = Modifier, valueSize: TextUnit = 17.sp, padV: Dp = 10.dp) {
     val shape = RoundedCornerShape(18.dp)
-    Row(modifier.fillMaxWidth().clip(shape).background(Dsh.colors.s1).border(1.dp, Dsh.colors.line, shape).padding(1.dp).height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
-        items.forEachIndexed { i, (v, label, danger) ->
-            if (i > 0) Box(Modifier.width(1.dp).fillMaxSize().background(Dsh.colors.line))
-            Column(Modifier.weight(1f).padding(horizontal = 12.dp, vertical = padV)) {
-                Text(v, style = display(valueSize, valueSize * 1.25f), color = if (danger) Dsh.colors.danger else Dsh.colors.t1, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(label, style = small(11.5.sp, 14.5.sp), color = Dsh.colors.t3)
+    val valueStyle = display(valueSize, valueSize * 1.25f)
+    val labelStyle = small(11.5.sp, 14.5.sp)
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    BoxWithConstraints(modifier.fillMaxWidth().clip(shape).background(Dsh.colors.s1).border(1.dp, Dsh.colors.line, shape).padding(1.dp)) {
+        val density = LocalDensity.current
+        val cellWidth = with(density) { ((maxWidth - (items.size - 1).coerceAtLeast(0).dp) / items.size.coerceAtLeast(1) - 24.dp).toPx() }
+        val stacked = items.any { (value, label, _) ->
+            measurer.measure(value, valueStyle, softWrap = false).size.width > cellWidth ||
+                measurer.measure(label, labelStyle, softWrap = false).size.width > cellWidth
+        }
+        // Keep the compact card when it fits. Long amounts/ranges and larger fonts get
+        // full-width rows; neither digits nor currency may disappear behind an ellipsis.
+        if (stacked) {
+            Column(Modifier.fillMaxWidth()) {
+                items.forEachIndexed { i, (value, label, danger) ->
+                    if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(Dsh.colors.line))
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = padV),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(label, style = labelStyle, color = Dsh.colors.t3, modifier = Modifier.weight(1f))
+                        Text(value, style = valueStyle, color = if (danger) Dsh.colors.danger else Dsh.colors.t1,
+                            textAlign = TextAlign.End, modifier = Modifier.weight(2f))
+                    }
+                }
+            }
+        } else {
+            Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
+                items.forEachIndexed { i, (value, label, danger) ->
+                    if (i > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(Dsh.colors.line))
+                    Column(Modifier.weight(1f).padding(horizontal = 12.dp, vertical = padV)) {
+                        Text(value, style = valueStyle, color = if (danger) Dsh.colors.danger else Dsh.colors.t1)
+                        Text(label, style = labelStyle, color = Dsh.colors.t3)
+                    }
+                }
             }
         }
     }

@@ -527,7 +527,7 @@ private fun RootPage(ui: SettingsUi, a: SettingsActions, go: (StPage) -> Unit) {
 @Composable
 private fun PageRow(p: StPage, title: String, value: String?, onClick: () -> Unit) {
     val (ic, tile) = PageIcon.getValue(p)
-    StRow(title, icon = DshGlyphs.get(ic), tile = tile, value = value, chevron = true, onClick = onClick)
+    StRow(title, icon = DshGlyphs.get(ic), tile = tile, value = value, valueBelow = p == StPage.Models, chevron = true, onClick = onClick)
 }
 
 @Composable

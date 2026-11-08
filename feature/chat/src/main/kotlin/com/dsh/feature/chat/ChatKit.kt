@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -406,13 +408,13 @@ fun ComposerChip(text: String, icon: ImageVector?, accent: Boolean = false, chev
     val ia = remember { MutableInteractionSource() }
     val ink = if (accent) lerp(c.t1, c.accent, 0.82f) else c.t2
     Row(
-        Modifier.height(40.dp).pressScale(ia, 0.95f).clip(CircleShape).background(if (accent) c.accentSoft else c.s2)
-            .clickable(ia, ripple(), role = Role.Button, onClick = onClick).padding(horizontal = 10.dp),
+        Modifier.heightIn(min = 40.dp).pressScale(ia, 0.95f).clip(RoundedCornerShape(20.dp)).background(if (accent) c.accentSoft else c.s2)
+            .clickable(ia, ripple(), role = Role.Button, onClick = onClick).padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
         if (icon != null) Icon(icon, null, tint = ink, modifier = Modifier.size(14.dp))
-        Text(text, style = ckBody(13.sp, 16.sp), color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 220.dp))
+        Text(text, style = ckBody(13.sp, 16.sp), color = ink, modifier = Modifier.weight(1f, fill = false))
         if (chevron) Icon(DshGlyphs.Chev, null, tint = ink, modifier = Modifier.size(14.dp))
     }
 }
@@ -427,6 +429,7 @@ enum class SendMode { Mic, Send, Stop, Idle }
  * @param above содержимое над строкой ввода внутри карточки (вложения, команда).
  */
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 fun ChatComposer(
     text: String,
     onText: (String) -> Unit,
@@ -461,26 +464,13 @@ fun ChatComposer(
         // У свёрнутых `.chips` остаётся отступ 4 + 2.
         if (!chipsOpen) Spacer(Modifier.height(6.dp))
         AnimatedVisibility(chipsOpen, enter = expandVertically(DshMotion.snappy()) + fadeIn(), exit = shrinkVertically(DshMotion.snappy()) + fadeOut()) {
-            // `.chips.more`: лента прокручивается, а правый край гаснет на 28 dp, пока справа есть ещё чипы.
-            val chipsScroll = rememberScrollState()
-            Row(
-                Modifier.fillMaxWidth().height(46.dp)
-                    .graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
-                    .drawWithContent {
-                        drawContent()
-                        if (chipsScroll.canScrollForward) {
-                            val fade = 28.dp.toPx()
-                            drawRect(
-                                androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(Color.Black, Color.Transparent), startX = size.width - fade, endX = size.width),
-                                topLeft = Offset(size.width - fade, 0f), size = androidx.compose.ui.geometry.Size(fade, size.height),
-                                blendMode = androidx.compose.ui.graphics.BlendMode.DstIn,
-                            )
-                        }
-                    }
-                    .horizontalScroll(chipsScroll).padding(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 2.dp),
+            // Wrap whole controls onto the next line instead of hiding the permission
+            // label behind a scroll/fade. Long model names wrap inside their own chip.
+            FlowRow(
+                Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 2.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                content = chips,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                content = { chips() },
             )
         }
         above()

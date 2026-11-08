@@ -456,6 +456,7 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--integration-only', action='store_true')
     parser.add_argument('--host-probe', action='store_true')
+    parser.add_argument('--ui-only', action='store_true')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     image = args.rootfs.resolve()
@@ -526,6 +527,20 @@ def main():
         device.shell('settings put secure show_ime_with_hard_keyboard 1')
         device.adb('install', '-r', 'app/build/outputs/apk/debug/app-debug.apk', timeout=120)
         device.adb('install', '-r', 'app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk', timeout=120)
+        if args.ui_only:
+            try:
+                result = device.instrument('am instrument -w -r -e class com.dsh.ChatTextLayoutTest ' + PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner', 'text-layout-instrumentation.log', 300)
+                assert 'OK (3 tests)' in result, 'Text clipping / active reasoning regression failed'
+                device.check('native-money-and-model-text-complete-at-320-360dp-font10-13')
+                device.check('native-composer-chips-wrap-and-permission-remains-clickable')
+                device.check('native-reasoning-shows-done-only-after-run-completion')
+                (args.output / 'source-revision.txt').write_text(subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode())
+            finally:
+                files = device.private('ls cache/qa-text-*.png', check=False).splitlines()
+                for file in files:
+                    if re.fullmatch(r'cache/qa-text-[A-Za-z0-9_.-]+\.png', file):
+                        (args.output / Path(file).name).write_bytes(device.adb('exec-out', 'run-as', PACKAGE, 'cat', file))
+            return
         if not args.integration_only:
             result = device.instrument('am instrument -w -r -e class com.dsh.ReplaceKeyImeTest,com.dsh.OnboardingImeTest,com.dsh.NativeBackupTest ' + PACKAGE + '.test/androidx.test.runner.AndroidJUnitRunner', 'instrumentation.log', 180)
             for source, target in [('round4-ime-save.png', 'ime-save.png'), ('round4-ime-state.json', 'ime-state.json')]:
