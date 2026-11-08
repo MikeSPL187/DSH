@@ -59,7 +59,7 @@ class PerformanceCompareTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             device = dict(deviceId="fixture", osBuild="test", refreshHz=120, fontScale=1,
-                          powerSave=False, compilationMode="None", ramGb=8, isPhysical=True, sourceRevision="test")
+                          powerSave=False, compilationMode="None", appState="fresh-onboarding", ramGb=8, isPhysical=True, sourceRevision="test")
             baseline, info = root / "baseline.json", root / "device.json"
             baseline.write_text(json.dumps(fixture()))
             info.write_text(json.dumps(device))
@@ -79,9 +79,9 @@ class PerformanceCompareTest(unittest.TestCase):
 
     def test_physical_display_and_compilation_settings_are_required(self):
         device = dict(deviceId="fixture", osBuild="test", refreshHz=120, fontScale=1,
-                      powerSave=False, compilationMode="None", ramGb=8, isPhysical=True, sourceRevision="abc")
+                      powerSave=False, compilationMode="None", appState="fresh-onboarding", ramGb=8, isPhysical=True, sourceRevision="abc")
         validate_devices(device, device)
-        for key, value in (("isPhysical", False), ("refreshHz", 60), ("fontScale", 1.3), ("compilationMode", "Full")):
+        for key, value in (("isPhysical", False), ("refreshHz", 60), ("fontScale", 1.3), ("compilationMode", "Full"), ("appState", "provisioned")):
             bad = copy.deepcopy(device)
             bad[key] = value
             with self.assertRaises(ValueError): validate_devices(device, bad)

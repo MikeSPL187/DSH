@@ -39,13 +39,16 @@ Keep a device manifest beside each revision's reports, for example:
 {
   "deviceId": "reference-phone", "osBuild": "actual build fingerprint",
   "refreshHz": 120, "fontScale": 1.0, "powerSave": false,
-  "compilationMode": "None", "ramGb": 8, "isPhysical": true,
+  "compilationMode": "None", "appState": "fresh-onboarding; synthetic-fixtures-v1",
+  "ramGb": 8, "isPhysical": true,
   "sourceRevision": "actual source SHA"
 }
 ```
 
 These values must describe the actual run, not defaults inferred from the phone
-model. Also retain temperature, charging state and test conditions in the run
+model. Keep the benchmark app unprovisioned (no key or Linux installation) for
+these synthetic workloads; record that state in `appState` and reject comparisons
+against a provisioned installation. Also retain temperature, charging state and test conditions in the run
 notes. The comparison checks declared settings and the device/OS identity inside
 the benchmark reports; it cannot independently attest manually entered settings.
 

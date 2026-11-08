@@ -6,7 +6,7 @@ from pathlib import Path
 
 REGRESSION_PERCENT = 5.0
 TIMINGS = {"timeToInitialDisplayMs", "timeToFullDisplayMs", "frameDurationCpuMs", "frameOverrunMs"}
-SETTINGS = ("deviceId", "osBuild", "refreshHz", "fontScale", "powerSave", "compilationMode", "ramGb")
+SETTINGS = ("deviceId", "osBuild", "refreshHz", "fontScale", "powerSave", "compilationMode", "ramGb", "appState")
 
 
 def load(path):

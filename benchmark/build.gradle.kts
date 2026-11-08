@@ -35,4 +35,6 @@ dependencies {
     implementation("androidx.test.uiautomator:uiautomator:2.3.0")
     implementation(libs.androidx.junit)
     implementation(libs.androidx.test.runner)
+    // AndroidX Test references these compile-time annotations; R8 needs their definitions.
+    compileOnly("com.google.errorprone:error_prone_annotations:2.18.0")
 }
