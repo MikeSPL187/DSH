@@ -30,3 +30,37 @@ verification by default. When adding a dependency, the explicit
 strict-verification acceptance run. Review and commit the generated checksums,
 then run the default strict build before accepting the change. Runtime and
 normal debug/release variants do not include the optional benchmark module.
+
+## Repeated comparison
+
+Keep a device manifest beside each revision's reports, for example:
+
+```json
+{
+  "deviceId": "reference-phone", "osBuild": "actual build fingerprint",
+  "refreshHz": 120, "fontScale": 1.0, "powerSave": false,
+  "compilationMode": "None", "ramGb": 8, "isPhysical": true,
+  "sourceRevision": "actual source SHA"
+}
+```
+
+These values must describe the actual run, not defaults inferred from the phone
+model. Also retain temperature, charging state and test conditions in the run
+notes. The comparison checks declared settings and the device/OS identity inside
+the benchmark reports; it cannot independently attest manually entered settings.
+
+Run three independent candidate suites, then compare:
+
+```sh
+python3 infra/qa/performance_compare.py --baseline before.json \
+  --candidate after-1.json after-2.json after-3.json \
+  --baseline-device before-device.json --candidate-device after-device.json \
+  --output comparison.json
+```
+
+Exit 0 means no repeated relative timing regression, 1 means every candidate
+exceeded the 5% limit for at least one metric, and 2 means invalid/incomparable
+evidence. The comparator checks startup medians and frame p95, handles negative
+frame overruns, rejects unknown metrics and excludes frame counts from speed
+claims. A passing comparison alone does not close N19 or establish the absolute
+startup and missed-frame targets.

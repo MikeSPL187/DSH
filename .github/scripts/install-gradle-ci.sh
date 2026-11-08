@@ -25,3 +25,6 @@ done
 printf '%s  %s\n' "$checksum" "$archive" | sha256sum -c -
 unzip -q "$archive" -d "$RUNNER_TEMP/dsh-gradle"
 printf '%s\n' "$RUNNER_TEMP/dsh-gradle/gradle-$version/bin" >> "$GITHUB_PATH"
+
+# Large Maven downloads may redirect to the same unreliable browser-download path.
+python3 .github/scripts/cache-kotlin-compiler.py
