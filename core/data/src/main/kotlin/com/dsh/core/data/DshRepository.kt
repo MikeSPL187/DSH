@@ -529,7 +529,8 @@ class DshRepository(
     }
 
     suspend fun refreshMessageFeedback(hostId: String, sessionId: String) {
-        _messageFeedbackFlow.value = listMessageFeedback(hostId, sessionId)
+        val feedback = listMessageFeedback(hostId, sessionId)
+        forViewedSession(sessionId) { _messageFeedbackFlow.value = feedback }
     }
 
     private suspend fun listMessageFeedback(hostId: String, sessionId: String): Map<String, MessageFeedbackInfo> {
