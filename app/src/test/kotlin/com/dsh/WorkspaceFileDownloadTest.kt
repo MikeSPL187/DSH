@@ -87,6 +87,13 @@ class WorkspaceFileDownloadTest {
         assertEquals("previous content", destination.readText())
     }
 
+    @Test fun pickerCannotReturnAnArbitraryFilePath() {
+        val source = File(root, "safe.txt").apply { writeText("source") }
+        assertTrue(saveWorkspaceFile(context, source, Uri.fromFile(destination)).isFailure)
+        assertEquals("previous content", destination.readText())
+        assertEquals(0, provider.opens)
+    }
+
     private class DestinationProvider(private val file: File) : ContentProvider() {
         var deny = false
         var opens = 0

@@ -39,6 +39,7 @@ private fun downloadableWorkspaceFile(context: Context, file: File): File {
 
 /** Open the source before the destination; a missing/invalid source must not truncate output. */
 internal fun saveWorkspaceFile(context: Context, file: File, destination: Uri): Result<Unit> = runCatching {
+    require(destination.scheme == "content") { "Expected a document URI" }
     downloadableWorkspaceFile(context, file).inputStream().use { input ->
         val output = context.contentResolver.openOutputStream(destination, "wt") ?: throw IOException("Destination unavailable")
         output.use { input.copyTo(it) }
