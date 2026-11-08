@@ -38,6 +38,7 @@ def metrics(report):
     for case in cases:
         name = case["name"]
         params = json.dumps(case.get("params", {}), sort_keys=True)
+        start = len(result)
         for group, statistic in (("metrics", "median"), ("sampledMetrics", "P95")):
             for key, value in case.get(group, {}).items():
                 if key == "frameCount":
@@ -53,6 +54,8 @@ def metrics(report):
                 if identity in result:
                     raise ValueError(f"Duplicate benchmark: {identity}")
                 result[identity] = number
+        if len(result) == start:
+            raise ValueError(f"No timing measurements in case: {name}")
     if not result:
         raise ValueError("No comparable metrics")
     return result

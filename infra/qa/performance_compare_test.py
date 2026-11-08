@@ -35,6 +35,11 @@ class PerformanceCompareTest(unittest.TestCase):
         report["benchmarks"][0]["metrics"]["frameCount"] = {"median": 100}
         self.assertTrue(compare(report, [fixture()] * 3)["accepted"])
 
+    def test_every_workload_requires_a_timing_measurement(self):
+        report = fixture()
+        report["benchmarks"].append({"name": "empty rendering", "metrics": {"frameCount": {"median": 100}}})
+        with self.assertRaises(ValueError): compare(report, [report] * 3)
+
     def test_unknown_metric_requires_classification(self):
         report = fixture()
         report["benchmarks"][0]["metrics"]["throughput"] = {"median": 500}

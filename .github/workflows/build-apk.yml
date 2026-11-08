@@ -68,6 +68,11 @@ jobs:
           python3 -I .github/scripts/verify-release-coupling.py
           sh infra/rootfs/prepare-bridge.sh
 
+      - name: Check module dependency directions
+        run: |
+          python3 scripts/check-module-boundaries.py
+          python3 scripts/tests/module-boundaries-test.py
+
       - name: Verify installed dependency resolution
         run: npm ls --package-lock-only --all --prefix infra/rootfs/agent > /dev/null
 
