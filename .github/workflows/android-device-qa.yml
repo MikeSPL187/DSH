@@ -74,11 +74,15 @@ jobs:
             rm -rf device-apks
             echo "reused=false" >> "$GITHUB_OUTPUT"
           fi
+      - name: Install verified Gradle distribution
+        if: steps.apks.outputs.reused != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/install-gradle-ci.sh
       - name: Build before starting any emulator
         if: steps.apks.outputs.reused != 'true'
         run: |
-          chmod +x gradlew
-          ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --max-workers=2 -Pkotlin.compiler.execution.strategy=in-process
+          gradle :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --max-workers=2 -Pkotlin.compiler.execution.strategy=in-process
       - name: Record reusable test APKs
         run: |
           mkdir -p device-apks
