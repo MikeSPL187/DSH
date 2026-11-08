@@ -36,7 +36,8 @@ continues. This catches a second loading gate after the first visible frame.
 profiles run focused scenarios on API 30; they do not replace full-matrix proof.
 
 The manual `ui-layout` profile runs `ChatTextLayoutTest` on API 30/33/35 without
-installing Linux or invoking a model. It checks complete money/model text and
+downloading/installing Linux or invoking a model. It does not require a rootfs archive;
+integration and full profiles still enforce the APK-pinned image checksum. It checks complete money/model text and
 wrapping composer controls at 320/360 dp, font scales 1.0/1.3, permission clicks,
 and the actual chat's active-reasoning → completed transition. It records Android
 TextLayoutResult overflow/ellipsis checks and screenshots, including a snapshot

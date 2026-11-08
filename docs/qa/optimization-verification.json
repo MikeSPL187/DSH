@@ -25,13 +25,87 @@
     "passed": 3
   },
   "physical_performance_verified": false,
-  "android_full_build_verified": false,
+  "android_full_build_verified": true,
   "functional_source": "f6de85443e6e810f8e6228b537e1c6a73a4e8c3c",
   "focused_android_tests": {
     "files": 29,
     "chat": 41,
     "streaming_buffer": 2,
     "failures": 0,
-    "app_ui_executed": false
-  }
+    "app_ui_executed": true
+  },
+  "apk": {
+    "apkRun": 42469004964,
+    "source": "4406bc30ac422773011bc4262327f88cef06d39d",
+    "size": 14403217,
+    "sha256": "e1df6ca4497d8b11e475e80a4c86d6ca94c1ff710f552817b9aee6066d9411f7",
+    "signatureVerified": true,
+    "signerSha256": [
+      "3e8d02cb1fa316aee739271a27953c56b868aa8cb86ddc000ebd3019bb202931"
+    ],
+    "sourceEmbedded": true,
+    "package": "app.dsh.mobile",
+    "versionName": "1.1.4",
+    "versionCode": 114,
+    "rootfsManifestMatchesSource": true,
+    "rootfsTag": "rootfs-v2.0.3",
+    "benchmarkFixtureAbsent": true
+  },
+  "native_ui": {
+    "run": 42470141980,
+    "fixtureSource": "36c1d3d18523f771222144bea0ac2ca8e1bc5937",
+    "debugApkSource": "f63c58aaf2f8a9cf9836702d9ae907186c9bb3ba",
+    "trackedAndroidInputsMatched": true,
+    "apis": [
+      30,
+      33,
+      35
+    ],
+    "checksPassed": 9,
+    "crashes": 0,
+    "performanceAcceptance": false
+  },
+  "benchmark": {
+    "buildRun": 42472168962,
+    "source": "b8dca43adfc7baa99d57fef48657a15dac323a00",
+    "status": "success",
+    "physicalRun": false,
+    "baselineProfileGenerated": false,
+    "rejectedUnsignedPairRun": 42471211772,
+    "artifact": 13613961818,
+    "verification": {
+      "source": "b8dca43adfc7baa99d57fef48657a15dac323a00",
+      "artifacts": {
+        "target": {
+          "package": "app.dsh.mobile.benchmark",
+          "bytes": 14407949,
+          "sha256": "d2deee7536c8adb16de49ba5af8376df7f84380d1c2a5312990d3d6172e4f4c2",
+          "signerSha256": [
+            "cfd157b232b658f4fbc3cf3801be0ab8bd7a5e4de9f0bf920d83319b11bc7b94"
+          ],
+          "signatureVerified": true,
+          "r8MappingPresent": true
+        },
+        "controller": {
+          "package": "com.dsh.benchmark",
+          "bytes": 40906341,
+          "sha256": "0b77f21d578bda148664ec3fdfa8801850c61d926ea5eccf3d86bd19447a13c3",
+          "signerSha256": [
+            "cfd157b232b658f4fbc3cf3801be0ab8bd7a5e4de9f0bf920d83319b11bc7b94"
+          ],
+          "signatureVerified": true,
+          "r8MappingPresent": true
+        }
+      },
+      "selfInstrumenting": true,
+      "physicalExecutionVerified": false
+    }
+  },
+  "pythonTests": {
+    "performanceComparison": 10,
+    "moduleDirections": 4,
+    "verifiedCompiler": 3,
+    "rootfsSelection": 3
+  },
+  "normalAndroidInputsUnchangedBetweenReleaseAndBenchmarkSource": true
 }
