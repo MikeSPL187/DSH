@@ -1,0 +1,37 @@
+{
+  "rootfs_run": 42464830630,
+  "source": "da092e24",
+  "result": "success",
+  "release": "skipped",
+  "archive_bytes": {
+    "x86_64": {
+      "before": 299916757,
+      "after": 264518982,
+      "sha256": "a565a81aadc25544c0c1b16f3dfa82361df83349ee5db65605ea1a124b25973c"
+    },
+    "arm64": {
+      "before": 302072206,
+      "after": 266669308,
+      "sha256": "5305c9dd2e6aa64b272f23534f7be4cdb7777673342d7bf723291ad68accaec7"
+    }
+  },
+  "zod_instances": {
+    "before": 51,
+    "after": 1,
+    "version": "4.4.3"
+  },
+  "dependency_graph": "npm ls --package-lock-only --all: exit 0 before and after",
+  "overlay_tests": {
+    "passed": 3
+  },
+  "physical_performance_verified": false,
+  "android_full_build_verified": false,
+  "functional_source": "f6de85443e6e810f8e6228b537e1c6a73a4e8c3c",
+  "focused_android_tests": {
+    "files": 29,
+    "chat": 41,
+    "streaming_buffer": 2,
+    "failures": 0,
+    "app_ui_executed": false
+  }
+}
