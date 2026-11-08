@@ -72,6 +72,7 @@ jobs:
         run: |
           python3 scripts/check-module-boundaries.py
           python3 scripts/tests/module-boundaries-test.py
+          python3 scripts/tests/verified-compiler-test.py
 
       - name: Verify installed dependency resolution
         run: npm ls --package-lock-only --all --prefix infra/rootfs/agent > /dev/null

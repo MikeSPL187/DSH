@@ -32,7 +32,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: bash .github/scripts/install-gradle-ci.sh
       - name: Validate performance comparison
-        run: python3 infra/qa/performance_compare_test.py
+        run: |
+          python3 infra/qa/performance_compare_test.py
+          python3 scripts/tests/verified-compiler-test.py
       - name: Compile optimized benchmark target and test APK
         env:
           REFRESH_VERIFICATION: ${{ inputs.refresh_verification }}
