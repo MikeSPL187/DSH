@@ -1,12 +1,17 @@
 package com.dsh.core.data
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.flow.first
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class StreamingTextBufferTest {
-    @Test fun burstRetainsEveryUnicodeDelta() = runBlocking {
+    @Test fun burstRetainsEveryUnicodeDelta() = runBlocking<Unit> {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         try {
             val stream = StreamingTextBuffer(scope)
@@ -16,7 +21,7 @@ class StreamingTextBufferTest {
         } finally { scope.cancel() }
     }
 
-    @Test fun baselineReplacesAccumulatedStreamAndClearInvalidatesOldPublication() = runBlocking {
+    @Test fun baselineReplacesAccumulatedStreamAndClearInvalidatesOldPublication() = runBlocking<Unit> {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         try {
             val stream = StreamingTextBuffer(scope)

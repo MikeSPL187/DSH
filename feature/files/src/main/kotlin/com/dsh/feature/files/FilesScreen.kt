@@ -61,7 +61,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -611,8 +611,7 @@ private fun DirectoryRowFrame(first: Boolean, last: Boolean, content: @Composabl
     val top = if (first) 18.dp else 0.dp
     val bottom = if (last) 18.dp else 0.dp
     val shape = RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)
-    Box(Modifier.fillMaxWidth().clip(shape).background(c.s1).drawWithContent {
-        drawContent()
+    Box(Modifier.fillMaxWidth().clip(shape).background(c.s1).drawWithCache {
         val inset = 0.5.dp.toPx()
         val right = size.width - inset
         val end = size.height - inset
@@ -621,19 +620,22 @@ private fun DirectoryRowFrame(first: Boolean, last: Boolean, content: @Composabl
         val outline = androidx.compose.ui.graphics.Path().apply {
             moveTo(inset, if (first) rt else 0f)
             if (first) {
-                quadraticBezierTo(inset, inset, rt, inset)
+                quadraticTo(inset, inset, rt, inset)
                 lineTo(right - rt, inset)
-                quadraticBezierTo(right, inset, right, rt)
+                quadraticTo(right, inset, right, rt)
             } else moveTo(right, 0f)
             lineTo(right, if (last) end - rb else size.height)
             if (last) {
-                quadraticBezierTo(right, end, right - rb, end)
+                quadraticTo(right, end, right - rb, end)
                 lineTo(rb, end)
-                quadraticBezierTo(inset, end, inset, end - rb)
+                quadraticTo(inset, end, inset, end - rb)
             } else moveTo(inset, size.height)
             lineTo(inset, if (first) rt else 0f)
         }
-        drawPath(outline, c.line, style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
+        onDrawWithContent {
+            drawContent()
+            drawPath(outline, c.line, style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
+        }
     }) { content() }
 }
 

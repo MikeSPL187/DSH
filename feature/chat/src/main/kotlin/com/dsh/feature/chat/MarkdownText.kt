@@ -63,7 +63,10 @@ private fun bodyTextStyle(): TextStyle {
 fun MarkdownMessageText(text: String, color: Color = com.dsh.core.designsystem.Dsh.colors.t1) {
     val c = com.dsh.core.designsystem.Dsh.colors
     val blocks by produceState(emptyList<MarkdownBlock>(), text) {
-        value = withContext(Dispatchers.Default) { parseMarkdownBlocks(text) }
+        value = withContext(Dispatchers.Default) {
+            android.os.Trace.beginSection("DSH.Markdown.parse")
+            try { parseMarkdownBlocks(text) } finally { android.os.Trace.endSection() }
+        }
     }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         blocks.forEach { block ->
