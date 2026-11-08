@@ -26,7 +26,7 @@
   },
   "physical_performance_verified": false,
   "android_full_build_verified": true,
-  "functional_source": "f6de85443e6e810f8e6228b537e1c6a73a4e8c3c",
+  "functional_source": "d64f83591a115c29200a8ca668fda79419e8699c",
   "focused_android_tests": {
     "files": 29,
     "chat": 41,
@@ -35,10 +35,11 @@
     "app_ui_executed": true
   },
   "apk": {
-    "apkRun": 42469004964,
-    "source": "4406bc30ac422773011bc4262327f88cef06d39d",
-    "size": 14403217,
-    "sha256": "e1df6ca4497d8b11e475e80a4c86d6ca94c1ff710f552817b9aee6066d9411f7",
+    "apkRun": 42479174257,
+    "artifact": 13617695586,
+    "source": "d64f83591a115c29200a8ca668fda79419e8699c",
+    "size": 14403669,
+    "sha256": "a79e8ba4fea11db09c6f10dcde67babaead12abacf99dab70a8563e2e1ed7c74",
     "signatureVerified": true,
     "signerSha256": [
       "3e8d02cb1fa316aee739271a27953c56b868aa8cb86ddc000ebd3019bb202931"
@@ -105,7 +106,133 @@
     "performanceComparison": 10,
     "moduleDirections": 4,
     "verifiedCompiler": 3,
-    "rootfsSelection": 3
+    "rootfsSelection": 3,
+    "pinnedRootfsDownload": 5,
+    "deviceProfileLauncher": 5
   },
-  "normalAndroidInputsUnchangedBetweenReleaseAndBenchmarkSource": true
+  "normalAndroidInputsUnchangedBetweenReleaseAndBenchmarkSource": false,
+  "initial_functional_source": "f6de85443e6e810f8e6228b537e1c6a73a4e8c3c",
+  "previous_apk": {
+    "apkRun": 42469004964,
+    "source": "4406bc30ac422773011bc4262327f88cef06d39d",
+    "size": 14403217,
+    "sha256": "e1df6ca4497d8b11e475e80a4c86d6ca94c1ff710f552817b9aee6066d9411f7",
+    "signatureVerified": true,
+    "signerSha256": [
+      "3e8d02cb1fa316aee739271a27953c56b868aa8cb86ddc000ebd3019bb202931"
+    ],
+    "sourceEmbedded": true,
+    "package": "app.dsh.mobile",
+    "versionName": "1.1.4",
+    "versionCode": 114,
+    "rootfsManifestMatchesSource": true,
+    "rootfsTag": "rootfs-v2.0.3",
+    "benchmarkFixtureAbsent": true
+  },
+  "state_ownership": {
+    "productionSource": "d64f83591a115c29200a8ca668fda79419e8699c",
+    "apkBuildRun": 42479174257,
+    "fullAndroidUnitTests": "success",
+    "localFocusedTests": {
+      "sessionIsolation": 4,
+      "streamingBuffer": 3,
+      "outcomes": 3,
+      "streamReconnect": 5,
+      "failures": 0,
+      "feedbackIsolation": 2
+    },
+    "reproducedBeforeFix": [
+      "old text reaches newly selected chat",
+      "old reasoning reaches newly selected chat",
+      "delta appended during publication is not published",
+      "late feedback reaches newly selected chat",
+      "background feedback replaces viewed-chat ratings"
+    ],
+    "journalPersistenceChanged": false,
+    "notificationOwnershipChanged": false,
+    "physicalPerformanceVerified": false,
+    "nativeFullMatrix": {
+      "run": 42476869369,
+      "status": "success",
+      "debugApkSource": "5e1812e207a2fa01803e197e762968080ad64047",
+      "trackedAndroidInputsMatchProductionSource": true,
+      "productionSource": "4515ebae8d47cd185b637cc0a416b13227a3a66f",
+      "excludesFeedbackFollowUp": true,
+      "followUpProductionDifference": "Only feedback refresh publication now checks current session ownership.",
+      "artifact": 13617203814,
+      "apis": [
+        30,
+        33,
+        35
+      ],
+      "checksPassed": 102,
+      "crashes": 0,
+      "perApi": [
+        {
+          "api": 30,
+          "checksPassed": 34,
+          "crashes": 0,
+          "coldStartsChecked": 5,
+          "maxUsableWithUiAutomatorOverheadMs": 5336
+        },
+        {
+          "api": 33,
+          "checksPassed": 34,
+          "crashes": 0,
+          "coldStartsChecked": 5,
+          "maxUsableWithUiAutomatorOverheadMs": 6539
+        },
+        {
+          "api": 35,
+          "checksPassed": 34,
+          "crashes": 0,
+          "coldStartsChecked": 5,
+          "maxUsableWithUiAutomatorOverheadMs": 7556
+        }
+      ],
+      "performanceAcceptance": false,
+      "screenshotsReviewed": [
+        "api-35/native-interrupted-chat.png",
+        "api-35/appearance-ru-1.png"
+      ]
+    },
+    "localFocusedTestSource": "d64f83591a115c29200a8ca668fda79419e8699c",
+    "eventProjectionSource": "4515ebae8d47cd185b637cc0a416b13227a3a66f",
+    "latestAndroidInputsUnchangedThrough": "6205f34d"
+  },
+  "normalAndroidInputsComparison": {
+    "releaseSource": "4406bc30ac422773011bc4262327f88cef06d39d",
+    "benchmarkSource": "b8dca43adfc7baa99d57fef48657a15dac323a00",
+    "unchanged": true
+  },
+  "state_projection_apk": {
+    "apkRun": 42476865470,
+    "artifact": 13616321367,
+    "source": "4515ebae8d47cd185b637cc0a416b13227a3a66f",
+    "size": 14403553,
+    "sha256": "953f20621e147312e5db91e80ad5e15deffe7014ea1897e41188ac4c83ac3f18",
+    "signatureVerified": true,
+    "signerSha256": [
+      "3e8d02cb1fa316aee739271a27953c56b868aa8cb86ddc000ebd3019bb202931"
+    ],
+    "sourceEmbedded": true,
+    "package": "app.dsh.mobile",
+    "versionName": "1.1.4",
+    "versionCode": 114,
+    "rootfsManifestMatchesSource": true,
+    "rootfsTag": "rootfs-v2.0.3",
+    "benchmarkFixtureAbsent": true
+  },
+  "nativeWorkflowProgress": {
+    "source": "6205f34d",
+    "sequentialApiSteps": [
+      30,
+      33,
+      35
+    ],
+    "launcherTestsPassed": 5,
+    "bashSyntax": "passed",
+    "workflowYaml": "passed",
+    "currentNativeRunPredatesRefactor": true
+  }
 }

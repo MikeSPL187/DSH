@@ -2,7 +2,11 @@
 
 The full workflow runs one KVM emulator at a time: API 30, then 33, then 35,
 with 3072 MiB and 3 virtual cores. A global concurrency group also serializes
-runs from different branches. APKs are built before emulator startup, or reused
+runs from different branches. Each Android version has its own sequential workflow
+step so API-specific progress and failures are visible before the job finishes.
+The shared launcher rejects unknown profiles/APIs and prevents focused Host profiles
+from running on API 33/35; five tests check full, UI-only and focused arguments.
+APKs are built before emulator startup, or reused
 only when every tracked Android build input matches the cached build. Both the
 original APK source and the current fixture revision are recorded. A watchdog stops the emulator if host MemAvailable
 falls below 1 GiB. Software fallback is rejected. GitHub documents hosted-runner
@@ -44,6 +48,10 @@ TextLayoutResult overflow/ellipsis checks and screenshots, including a snapshot
 before a layout assertion fails. This focused profile does not re-run Host tests.
 
 Rootfs 2.0.3 public downloads were published on 2026-11-08 and are preferred.
+The workflow resolves the exact filename through the official GitHub release API,
+downloads its binary asset, and verifies the APK-pinned SHA-256 before accepting
+it. Only a missing release permits candidate fallback; network errors, missing
+assets and hash mismatches fail. Failed downloads preserve any existing image.
 For an unpublished candidate, the successful candidate run
 42257899221 supplies the immutable rootfs 2.0.3 image, which must still match the APK's hash. That fallback
 artifact expires after 14 days. Published rootfs 2.0.3 assets provide durable
