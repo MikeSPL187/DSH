@@ -79,6 +79,10 @@ class ChatTextLayoutTest {
 
     private fun screenshot(name: String) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
+        // Semantics can advance before Android presents the next surface buffer.
+        compose.waitForIdle()
+        instrumentation.waitForIdleSync()
+        android.os.SystemClock.sleep(300)
         val bitmap = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
         File(instrumentation.targetContext.cacheDir, "qa-text-$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()

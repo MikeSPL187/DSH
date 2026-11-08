@@ -35,6 +35,13 @@ continues. This catches a second loading gate after the first visible frame.
 `full` runs the entire matrix. The manual `integration-only` and `host-probe`
 profiles run focused scenarios on API 30; they do not replace full-matrix proof.
 
+The manual `ui-layout` profile runs `ChatTextLayoutTest` on API 30/33/35 without
+installing Linux or invoking a model. It checks complete money/model text and
+wrapping composer controls at 320/360 dp, font scales 1.0/1.3, permission clicks,
+and the actual chat's active-reasoning → completed transition. It records Android
+TextLayoutResult overflow/ellipsis checks and screenshots, including a snapshot
+before a layout assertion fails. This focused profile does not re-run Host tests.
+
 Rootfs 2.0.3 public downloads were published on 2026-11-08 and are preferred.
 For an unpublished candidate, the successful candidate run
 42257899221 supplies the immutable rootfs 2.0.3 image, which must still match the APK's hash. That fallback
