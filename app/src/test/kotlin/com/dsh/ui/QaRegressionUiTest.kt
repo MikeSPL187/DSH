@@ -69,7 +69,7 @@ class QaRegressionUiTest {
             DshTheme {
                 FilesScreen(
                     root = root, rootLabel = "QA Project", refreshKey = 0, git = null, onClose = {}, onAttach = {}, onAsk = {},
-                    onReview = {}, commitMessage = null, onShare = {}, onImport = {}, onToast = {},
+                    onReview = {}, commitMessage = null, onShare = {}, onImport = {}, onToast = {}, onDownload = {},
                 )
             }
         }
@@ -83,6 +83,26 @@ class QaRegressionUiTest {
         ScreenShots.capture(compose, "qa-folder-actions-sheet", compose.activity)
         compose.onNodeWithText("Переименовать").assertExists()
         compose.onNodeWithText("Удалить").assertExists()
+        compose.onAllNodesWithText("Скачать").assertCountEquals(0)
+    }
+
+    @Test fun fileActionsIncludeDownloadWithTheSelectedFile() {
+        val root = File(compose.activity.cacheDir, "qa-download-menu").apply { deleteRecursively(); mkdirs() }
+        val file = File(root, "architecture-review.txt").apply { writeText("# Architecture") }
+        var downloaded: File? = null
+        compose.setContent {
+            DshTheme {
+                FilesScreen(root = root, rootLabel = "QA", refreshKey = 0, git = null, onClose = {}, onAttach = {},
+                    onAsk = {}, onReview = {}, commitMessage = null, onShare = {}, onImport = {}, onToast = {},
+                    onDownload = { downloaded = it })
+            }
+        }
+        compose.waitUntil(5_000) { compose.onAllNodesWithContentDescription("Действия").fetchSemanticsNodes().isNotEmpty() }
+        settle()
+        compose.onAllNodesWithContentDescription("Действия")[0].performClick()
+        settle()
+        compose.onNodeWithText("Скачать").performClick()
+        compose.runOnIdle { assertEquals(file.canonicalFile, downloaded?.canonicalFile) }
     }
     @Test
     fun revealedSecretNeverEntersMergedOrUnmergedSemanticsAndRemainsEditable() {

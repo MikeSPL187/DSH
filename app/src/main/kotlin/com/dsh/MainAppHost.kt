@@ -812,6 +812,7 @@ fun MainAppHost(
             )
         }
     }
+    val downloadWorkspaceFile = rememberWorkspaceFileDownload()
     val workspaceFilesContent: @Composable () -> Unit = {
         val askTemplate = stringResource(com.dsh.feature.files.R.string.fs_ask_prompt)
         FilesScreen(
@@ -842,6 +843,7 @@ fun MainAppHost(
             onShare = { f ->
                 if (!shareWorkspaceFile(context, f)) android.widget.Toast.makeText(context, context.getString(R.string.share_failed), android.widget.Toast.LENGTH_LONG).show()
             },
+            onDownload = downloadWorkspaceFile,
             onImport = { dir ->
                 ui.filesDir = dir
                 filesImportLauncher.launch(arrayOf("*/*"))

@@ -200,6 +200,8 @@ fun FilesScreen(
     /** Описание запроса на слияние по сообщениям коммитов (ИИ); null — недоступно. */
     pullText: (suspend (List<String>) -> Result<String>)? = null,
     onAskText: (String) -> Unit = {},
+    /** Save a copy to a user-selected location on the phone. Null hides the action. */
+    onDownload: ((File) -> Unit)? = null,
 ) {
     val c = Dsh.colors
     val scope = rememberCoroutineScope()
@@ -293,7 +295,7 @@ fun FilesScreen(
     BackHandler(enabled = sheet == null && stack.size > 1) { pop() }
 
     DshSheetScaffold(
-        sheet = sheet?.let { s -> { SheetBody(s, root, changedPaths, ::file, onDone = { sheet = null }, onSheet = { sheet = it }, git, onAsk, onAttach, onShare, onImport, onToast, ::refresh, currentDir = (stack.lastOrNull { it is Entry.Dir } as? Entry.Dir)?.path ?: "", commitMessage = commitMessage, gitHub = gitHub,
+        sheet = sheet?.let { s -> { SheetBody(s, root, changedPaths, ::file, onDone = { sheet = null }, onSheet = { sheet = it }, git, onAsk, onAttach, onShare, onImport = onImport, onToast = onToast, refresh = ::refresh, currentDir = (stack.lastOrNull { it is Entry.Dir } as? Entry.Dir)?.path ?: "", commitMessage = commitMessage, gitHub = gitHub,
             afterLogin = { loginTick++; val then = afterLogin ?: { doPush() }; afterLogin = null; then() },
             pullText = pullText,
             onMoved = { refresh(); doPush(thenPull = true) },
@@ -305,6 +307,7 @@ fun FilesScreen(
             onEditReload = { sheet = null; editor.path?.let { p -> editor.reset(p); scope.launch { withContext(Dispatchers.IO) { editor.load(file(p)) }; onToast(reloadedText) } } },
             onEditOverwrite = { sheet = null; saveEditor(force = true) },
             onEdit = { p -> sheet = null; edit(p) },
+            onDownload = onDownload,
         ) } },
         onDismiss = { sheet = null },
         modifier = modifier,
@@ -1580,6 +1583,7 @@ private fun ColumnScope.SheetBody(
     onAsk: (File) -> Unit,
     onAttach: (File) -> Unit,
     onShare: (File) -> Unit,
+    onDownload: ((File) -> Unit)?,
     onImport: (File) -> Unit,
     onToast: (String) -> Unit,
     refresh: () -> Unit,
@@ -1638,6 +1642,7 @@ private fun ColumnScope.SheetBody(
             DshSheetList {
                 DshSheetItem(DshGlyphs.Spark, stringResource(R.string.fs_fa_ask), { onDone(); onAsk(f) }, first = true)
                 DshSheetItem(DshGlyphs.At, stringResource(R.string.fs_fa_attach), { onDone(); onAttach(f) })
+                if (!f.isDirectory && onDownload != null) DshSheetItem(DshGlyphs.Down, stringResource(R.string.fs_fa_download), { onDone(); onDownload(f) })
                 if (!f.isDirectory) DshSheetItem(DshGlyphs.Share, stringResource(R.string.fs_fa_share), { onDone(); onShare(f) })
                 if (!f.isDirectory && editable(sheet.path)) DshSheetItem(DshGlyphs.Code, stringResource(R.string.fe_edit), { onEdit(sheet.path) })
                 DshSheetItem(DshGlyphs.Pencil, stringResource(R.string.fs_fa_rename), { onSheet(Sheet.Rename(sheet.path)) })

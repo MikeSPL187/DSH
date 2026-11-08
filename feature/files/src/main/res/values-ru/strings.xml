@@ -52,6 +52,9 @@
     <string name="fs_fa_ask">Спросить DSH о файле</string>
     <string name="fs_fa_attach">Прикрепить к сообщению</string>
     <string name="fs_fa_share">Поделиться</string>
+    <string name="fs_fa_download">Скачать</string>
+    <string name="fs_download_saved">Файл сохранён: %1$s</string>
+    <string name="fs_download_failed">Не удалось сохранить «%1$s» — проверьте файл и место сохранения</string>
     <string name="fs_fa_rename">Переименовать</string>
     <string name="fs_fa_delete">Удалить</string>
     <string name="fs_add_title">Добавить в папку</string>
