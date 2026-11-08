@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -78,6 +79,14 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -439,6 +448,26 @@ fun SiTile(icon: ImageVector, color: Color) {
     }
 }
 
+/** One labelled accessibility action for a composite control. Place before its touch modifier.
+ * Visual children retain touch handling; independent child actions must remain outside this scope.
+ */
+fun Modifier.actionSemantics(
+    label: String,
+    description: String? = null,
+    role: Role = Role.Button,
+    selected: Boolean? = null,
+    checked: Boolean? = null,
+    action: () -> Unit,
+): Modifier = clearAndSetSemantics {
+    contentDescription = label
+    text = AnnotatedString(label)
+    this.role = role
+    if (description != null) stateDescription = description
+    if (selected != null) this.selected = selected
+    if (checked != null) toggleableState = if (checked) ToggleableState.On else ToggleableState.Off
+    onClick { action(); true }
+}
+
 /** Нажимаемая область строки: подсветка s2 при нажатии и мгновенное затухание, как в прототипе. */
 @Composable
 fun Modifier.rowClick(enabled: Boolean = true, role: Role = Role.Button, onClick: (() -> Unit)?): Modifier {
@@ -466,12 +495,16 @@ fun Gr(
     center: (@Composable ColumnScope.() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
-    androidx.compose.foundation.layout.BoxWithConstraints(modifier.fillMaxWidth()) {
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier.fillMaxWidth().then(
+        if (title != null && onClick != null && trailing == null) Modifier.actionSemantics(title,
+            description = listOfNotNull(sub, value).joinToString(", ").takeIf { it.isNotBlank() }, action = onClick)
+        else Modifier,
+    )) {
     // Со значением: заголовок — сколько ему нужно (не больше 60 % строки, не рвётся по буквам на 360),
     // значение — всё остальное, у правого края, с многоточием.
     val titleMax = maxWidth * 0.6f
     Row(
-        Modifier.fillMaxWidth().heightIn(min = minHeight).rowClick(onClick = onClick).padding(padding),
+        Modifier.fillMaxWidth().heightIn(min = minHeight).semantics(mergeDescendants = true) { if (title != null) contentDescription = title }.rowClick(onClick = onClick).padding(padding),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -511,12 +544,17 @@ fun StRow(
     badge: String? = null,
     leading: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
+    valueBelow: Boolean = false,
     trailing: (@Composable () -> Unit)? = null,
 ) {
-    BoxWithConstraints(modifier.fillMaxWidth()) {
+    BoxWithConstraints(modifier.fillMaxWidth().then(
+        if (onClick != null && trailing == null) Modifier.actionSemantics(title,
+            description = listOfNotNull(sub, value).joinToString(", ").takeIf { it.isNotBlank() }, action = onClick)
+        else Modifier,
+    )) {
         val maxVal = maxWidth * 0.46f
         Row(
-            Modifier.fillMaxWidth().heightIn(min = 52.dp).rowClick(onClick = onClick).padding(start = 14.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+            Modifier.fillMaxWidth().heightIn(min = 52.dp).semantics(mergeDescendants = true) { contentDescription = title }.rowClick(onClick = onClick).padding(start = 14.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -524,8 +562,9 @@ fun StRow(
             Column(Modifier.weight(1f)) {
                 if (badge == null) Text(title, style = body(15.sp), color = titleColor) else TitleWithBadge(title, badge, titleColor)
                 if (!sub.isNullOrEmpty()) Text(sub, style = small(), color = subColor)
+                if (valueBelow && value != null) Text(value, style = body(14.sp, 18.sp), color = valueColor)
             }
-            if (value != null) Text(value, style = body(14.sp, 18.sp), color = valueColor, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = maxVal))
+            if (value != null && !valueBelow) Text(value, style = body(14.sp, 18.sp), color = valueColor, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = maxVal))
             trailing?.invoke()
             if (chevron) Icon(DshGlyphs.Right, null, tint = Dsh.colors.t3, modifier = Modifier.size(18.dp))
         }
@@ -565,7 +604,7 @@ private fun TitleWithBadge(title: String, badge: String, color: Color) {
 /** Строка с переключателем `.st-row .toggle`: вся строка переключает. */
 @Composable
 fun StToggle(title: String, checked: Boolean, onChange: (Boolean) -> Unit, icon: ImageVector, tile: Color, sub: String? = null) {
-    StRow(title, icon = icon, tile = tile, sub = sub, onClick = { onChange(!checked) }) {
+    StRow(title, modifier = Modifier.actionSemantics(title, description = sub, role = Role.Switch, checked = checked) { onChange(!checked) }, icon = icon, tile = tile, sub = sub, onClick = { onChange(!checked) }) {
         Box(Modifier.offset(x = 4.dp)) { DshSwitch(checked, onChange, contentDescription = title) }
     }
 }
@@ -595,6 +634,7 @@ fun Opts(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier
                     .then(if (on) Modifier.shadow(1.5.dp, RoundedCornerShape(8.dp)) else Modifier)
                     .clip(RoundedCornerShape(8.dp))
                     .background(bg)
+                    .actionSemantics(o, role = Role.RadioButton, selected = on) { onSelect(i) }
                     .selectable(on, role = Role.RadioButton) { onSelect(i) }
                     .padding(horizontal = if (wide) 2.dp else 10.dp),
                 contentAlignment = Alignment.Center,
@@ -616,7 +656,8 @@ fun Segm(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modifier
             options.forEachIndexed { i, label ->
                 val on = i == selected
                 Box(
-                    Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(11.dp)).selectable(on, role = Role.RadioButton) { onSelect(i) },
+                    Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(11.dp)).actionSemantics(label, role = Role.RadioButton, selected = on) { onSelect(i) }
+                    .selectable(on, role = Role.RadioButton) { onSelect(i) },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(label, style = body(fontSize, 18.sp, if (on) FontWeight.Medium else FontWeight.Normal), color = if (on) Dsh.colors.t1 else Dsh.colors.t2, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -640,6 +681,7 @@ fun StChips(options: List<String>, selected: Int, onSelect: (Int) -> Unit, modif
                 Modifier.weight(1f).height(40.dp)
                     .then(if (on) Modifier.shadow(2.dp, RoundedCornerShape(11.dp)) else Modifier)
                     .clip(RoundedCornerShape(11.dp)).background(bg)
+                    .actionSemantics(o, role = Role.RadioButton, selected = on) { onSelect(i) }
                     .selectable(on, role = Role.RadioButton) { onSelect(i) },
                 contentAlignment = Alignment.Center,
             ) { Text(o, style = body(14.sp, 18.sp, if (on) FontWeight.Medium else FontWeight.Normal), color = if (on) Dsh.colors.t1 else Dsh.colors.t2, maxLines = 1) }
@@ -662,7 +704,7 @@ fun RadioDot(on: Boolean) {
 @Composable
 fun Rad(title: String, sub: String?, on: Boolean, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().selectable(on, role = Role.RadioButton, onClick = onClick).padding(horizontal = 14.dp, vertical = 13.dp),
+        Modifier.fillMaxWidth().actionSemantics(title, description = sub, role = Role.RadioButton, selected = on, action = onClick).selectable(on, role = Role.RadioButton, onClick = onClick).padding(horizontal = 14.dp, vertical = 13.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         RadioDot(on)
@@ -830,7 +872,7 @@ fun KSheet(visible: Boolean, onDismiss: () -> Unit, content: @Composable ColumnS
         }
         AnimatedVisibility(
             visible,
-            modifier = Modifier.align(Alignment.BottomCenter),
+            modifier = Modifier.align(Alignment.BottomCenter).imePadding().statusBarsPadding(),
             enter = slideInVertically(DshMotion.smooth()) { it + it / 20 },
             exit = slideOutVertically(DshMotion.smooth()) { it + it / 20 },
         ) {
@@ -939,12 +981,39 @@ fun StCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() ->
 @Composable
 fun StatRow(items: List<Triple<String, String, Boolean>>, modifier: Modifier = Modifier, valueSize: TextUnit = 17.sp, padV: Dp = 10.dp) {
     val shape = RoundedCornerShape(18.dp)
-    Row(modifier.fillMaxWidth().clip(shape).background(Dsh.colors.s1).border(1.dp, Dsh.colors.line, shape).padding(1.dp).height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
-        items.forEachIndexed { i, (v, label, danger) ->
-            if (i > 0) Box(Modifier.width(1.dp).fillMaxSize().background(Dsh.colors.line))
-            Column(Modifier.weight(1f).padding(horizontal = 12.dp, vertical = padV)) {
-                Text(v, style = display(valueSize, valueSize * 1.25f), color = if (danger) Dsh.colors.danger else Dsh.colors.t1, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(label, style = small(11.5.sp, 14.5.sp), color = Dsh.colors.t3)
+    val valueStyle = display(valueSize, valueSize * 1.25f)
+    val labelStyle = small(11.5.sp, 14.5.sp)
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    BoxWithConstraints(modifier.fillMaxWidth().clip(shape).background(Dsh.colors.s1).border(1.dp, Dsh.colors.line, shape).padding(1.dp)) {
+        val density = LocalDensity.current
+        val cellWidth = with(density) { ((maxWidth - (items.size - 1).coerceAtLeast(0).dp) / items.size.coerceAtLeast(1) - 24.dp).toPx() }
+        val stacked = items.any { (value, label, _) ->
+            measurer.measure(value, valueStyle, softWrap = false).size.width > cellWidth ||
+                measurer.measure(label, labelStyle, softWrap = false).size.width > cellWidth
+        }
+        // Keep the compact card when it fits. Long amounts/ranges and larger fonts get
+        // full-width rows; neither digits nor currency may disappear behind an ellipsis.
+        if (stacked) {
+            Column(Modifier.fillMaxWidth()) {
+                items.forEachIndexed { i, (value, label, danger) ->
+                    if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(Dsh.colors.line))
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = padV),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(label, style = labelStyle, color = Dsh.colors.t3, modifier = Modifier.weight(1f))
+                        Text(value, style = valueStyle, color = if (danger) Dsh.colors.danger else Dsh.colors.t1,
+                            textAlign = TextAlign.End, modifier = Modifier.weight(2f))
+                    }
+                }
+            }
+        } else {
+            Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
+                items.forEachIndexed { i, (value, label, danger) ->
+                    if (i > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(Dsh.colors.line))
+                    Column(Modifier.weight(1f).padding(horizontal = 12.dp, vertical = padV)) {
+                        Text(value, style = valueStyle, color = if (danger) Dsh.colors.danger else Dsh.colors.t1)
+                        Text(label, style = labelStyle, color = Dsh.colors.t3)
+                    }
+                }
             }
         }
     }

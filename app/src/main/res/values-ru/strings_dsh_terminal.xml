@@ -45,4 +45,8 @@
     <string name="tm_paste_more">и ещё строк: %1$d</string>
     <string name="tm_paste_cancel">Отмена</string>
     <string name="tm_paste_run">Выполнить все</string>
+    <string name="terminal_title">Терминал</string>
+    <string name="terminal_enable_description">Плагин терминала выключен. Включите его, чтобы открыть оболочку в проекте.</string>
+    <string name="terminal_enable">Включить терминал</string>
+    <string name="terminal_enable_failed">Не удалось включить терминал. Проверьте состояние Host и повторите.</string>
 </resources>

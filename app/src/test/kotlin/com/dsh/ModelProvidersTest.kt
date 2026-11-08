@@ -39,7 +39,7 @@ class ModelProvidersTest {
     )
 
     /** Host отвечает [replies] по имени метода; остальное — `ok: true`. */
-    private fun providers(replies: Map<String, RemoteResult<String>>): ModelProviders {
+    private fun providers(replies: Map<String, RemoteResult<String>>, localSave: Boolean = true): ModelProviders {
         val client = Proxy.newProxyInstance(DshClientProtocol::class.java.classLoader, arrayOf(DshClientProtocol::class.java)) { _, m, args ->
             when (m.name) {
                 "rpcRaw" -> (args[1] as String).let { method ->
@@ -51,7 +51,7 @@ class ModelProvidersTest {
             }
         } as DshClientProtocol
         val dao = Proxy.newProxyInstance(DshDao::class.java.classLoader, arrayOf(DshDao::class.java)) { _, _, _ -> Unit } as DshDao
-        return ModelProviders(DshRepository(dao, client, scope))
+        return ModelProviders(DshRepository(dao, client, scope)) { _, _ -> localSave }
     }
 
     /** Локальная отметка о ключе (Keystore в Robolectric нет — проверяется согласованность метаданных). */
@@ -70,6 +70,12 @@ class ModelProvidersTest {
     @After fun tearDown() {
         scope.cancel()
         ApiKeyVault.clearAll()
+    }
+
+    @Test
+    fun `failed local encryption never reports success and removes newly staged remote key`() = runBlocking {
+        assertFalse(providers(emptyMap(), localSave = false).save("local-host", provider(configured = false), "qa-only-key"))
+        assertEquals(listOf("credentials/set", "credentials/unset"), calls)
     }
 
     @Test

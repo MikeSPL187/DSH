@@ -141,11 +141,10 @@ object ProotCommandBuilder {
         bind(config.layout.passwdOverlay.absolutePath, "/etc/passwd")
         bind(config.layout.groupOverlay.absolutePath, "/etc/group")
 
-        // Внимание: процессу Host нельзя давать --link2symlink. С этим флагом proot имитирует link() через
-        // промежуточные файлы `.l2s.*` и уносит исходный, и на рабочей папке FUSE атомарная запись инструмента write
-        // «временный файл + жёсткая ссылка» падает с ENOENT. Вместо этого — preload-патч Node: link на
-        // FUSE получает EPERM и переходит к copy+unlink (см. RuntimeLayout.ensureNodePatches).
-        // Команды buildExec (установка плагинов и т. п.) сохраняют --link2symlink — им нужна именно эта семантика.
+        // Android denies real hardlinks, including dpkg's status-old backup.
+        // PRoot preserves libc hardlink semantics; the Host Node preload publishes
+        // files via COPYFILE_EXCL before PRoot can relocate their temporary source.
+        cmd.add("--link2symlink")
         cmd.add("-w")
         cmd.add("/root")
 
@@ -180,24 +179,15 @@ object ProotCommandBuilder {
         // (Cannot find module .../node-addon-require-builtin/...). С открытыми internals
         // движок сначала пробует require('internal/...') и от дополнения не зависит.
         cmd.add("--expose-internals")
-        // Запасной путь жёстких ссылок на рабочей папке FUSE (атомарное создание инструментом write).
+        // Публикация файлов Node без перемещения источника эмулятором hardlink.
         cmd.add("--require")
         cmd.add("/root/.dsh/patches/fs-link-fallback.cjs")
         cmd.add("--require")
         cmd.add("/root/.dsh/patches/startup-trace.cjs")
-        // Если в образе есть bundle входа запуска — берём его: ~1200 открытий файлов модулей
-        // сводятся к одному (под proot это главная цена холодного старта); иначе — исходный bin.js.
-        val bundledEntry = java.io.File(
-            config.layout.rootfsDir,
-            "usr/local/lib/node_modules/@deepseek-ai/dsh/lib/host.bundle.mjs",
-        )
-        cmd.add(
-            if (bundledEntry.isFile) {
-                "/usr/local/lib/node_modules/@deepseek-ai/dsh/lib/host.bundle.mjs"
-            } else {
-                "/usr/local/lib/node_modules/@deepseek-ai/dsh/lib/bin.js"
-            },
-        )
+        // The CLI and dynamically loaded controllers must import the same app-boot module.
+        // An aggregate bundle duplicates its private root-Include registry: settings writes
+        // then fail with "profile reload requires the root Include entry".
+        cmd.add("/usr/local/lib/node_modules/@deepseek-ai/dsh/lib/bin.js")
         cmd.add("--profile")
         cmd.add("web")
         cmd.add("--no-open")

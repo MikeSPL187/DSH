@@ -23,8 +23,9 @@ internal sealed interface ChatRow {
  * затем итоговый ответ — последнее сообщение ассистента с содержимым. Рассуждение итогового ответа
  * (до `\u0001`) уходит в ход работы.
  *
- * Ход закрыт («Готово»), если после него есть следующий вопрос, если уже есть ответ (статус
- * running мог ещё не смениться) или если агент не работает и нет идущих инструментов.
+ * Промежуточный текст и рассуждения не завершают активный запрос. Ход закрыт,
+ * если после него есть следующий вопрос либо агент уже не работает и есть ответ
+ * или нет идущих инструментов.
  * У идущего запроса ход работы есть всегда — там «Думаю».
  */
 internal fun buildChatRows(messages: List<ChatMessage>, isThinking: Boolean): List<ChatRow> {
@@ -79,8 +80,8 @@ internal fun buildChatRows(messages: List<ChatMessage>, isThinking: Boolean): Li
         while (end < messages.size && messages[end].role != MessageRole.USER) end++
         val turn = messages.subList(index + 1, end)
         val running = turn.any { parseTool(it)?.status == "running" }
-        val answered = turn.any { it.role == MessageRole.ASSISTANT && it.content.isNotBlank() }
-        val closed = user != null && (end < messages.size || answered || (!isThinking && !running))
+        val answered = turn.any { it.role == MessageRole.ASSISTANT && it.content.substringAfter('\u0001').isNotBlank() }
+        val closed = user != null && (end < messages.size || (!isThinking && (answered || !running)))
         appendTurn(user, turn, closed)
         index = end
     }

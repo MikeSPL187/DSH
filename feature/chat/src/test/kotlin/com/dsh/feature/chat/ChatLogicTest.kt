@@ -41,10 +41,33 @@ class ChatLogicTest {
     }
 
     @Test
-    fun `running tool keeps the turn open, an answer closes it`() {
+    fun `intermediate assistant text cannot close an active request`() {
         assertFalse((buildChatRows(listOf(user("q"), tool("t", "running")), isThinking = false)[1] as ChatRow.Work).done)
         val answered = buildChatRows(listOf(user("q"), tool("t", "running"), assistant("a", "Here")), isThinking = true)
-        assertTrue((answered[1] as ChatRow.Work).done)
+        assertFalse((answered[1] as ChatRow.Work).done)
+    }
+
+    @Test
+    fun `reasoning and completed tools remain running until the request finishes`() {
+        val messages = listOf(user("q"), tool("t", "done"), assistant("a", "Still investigating\u0001"))
+        val active = buildChatRows(messages, isThinking = true).filterIsInstance<ChatRow.Work>().single()
+        assertFalse(active.done)
+        assertEquals(listOf("t", "a_r"), active.items.map { it.messageId })
+        assertTrue(buildChatRows(messages, isThinking = false).filterIsInstance<ChatRow.Work>().single().done)
+    }
+
+    @Test
+    fun `streamed answer stays running until Host completes the request`() {
+        val messages = listOf(user("q"), tool("t", "done"), assistant("a", "Reasoning\u0001Partial answer"))
+        assertFalse(buildChatRows(messages, true).filterIsInstance<ChatRow.Work>().single().done)
+        assertTrue(buildChatRows(messages, false).filterIsInstance<ChatRow.Work>().single().done)
+        assertEquals("Partial answer", (buildChatRows(messages, true).last() as ChatRow.Single).message.content)
+    }
+
+    @Test
+    fun `completed request with an answer closes even if old tool status is stale`() {
+        val messages = listOf(user("q"), tool("t", "running"), assistant("a", "Done"))
+        assertTrue(buildChatRows(messages, false).filterIsInstance<ChatRow.Work>().single().done)
     }
 
     @Test
@@ -111,7 +134,7 @@ class ChatLogicTest {
             """.trimIndent(),
         )
         assertEquals(MarkdownBlock.Heading(1, "Title"), blocks[0])
-        assertEquals(MarkdownBlock.Paragraph("Some text continues here."), blocks[1])
+        assertEquals(MarkdownBlock.Paragraph("Some text\ncontinues here."), blocks[1])
         assertEquals(MarkdownBlock.ListItem("•", "item"), blocks[2])
         assertEquals(MarkdownBlock.ListItem("•", "nested", depth = 1), blocks[3])
         assertEquals(MarkdownBlock.ListItem("•", "done", checked = true), blocks[4])

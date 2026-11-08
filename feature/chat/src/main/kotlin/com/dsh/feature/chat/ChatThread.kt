@@ -75,12 +75,12 @@ import kotlinx.coroutines.launch
 
 /** Пузырь пользователя `.msg-user`: до 82 % ширины, s2, радиусы 22/22/6/22. */
 @Composable
-fun UserBubble(text: String, modifier: Modifier = Modifier, onRetry: (() -> Unit)? = null) {
+fun UserBubble(text: String, modifier: Modifier = Modifier, onRetry: (() -> Unit)? = null, failureReason: String? = null) {
     val c = Dsh.colors
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             Box(
-                Modifier.align(Alignment.CenterEnd).widthIn(max = maxWidth * 0.82f)
+                Modifier.align(Alignment.CenterEnd).widthIn(max = (maxWidth * 0.82f).coerceAtMost(560.dp))
                     .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp, bottomEnd = 6.dp, bottomStart = 22.dp))
                     .background(c.s2).padding(horizontal = 15.dp, vertical = 11.dp),
             ) {
@@ -101,7 +101,7 @@ fun UserBubble(text: String, modifier: Modifier = Modifier, onRetry: (() -> Unit
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Icon(DshGlyphs.xs("alert"), null, tint = c.danger, modifier = Modifier.size(15.dp))
-            Text(stringResource(R.string.chat_not_sent), style = ckBody(12.5.sp, 16.sp), color = c.danger)
+            Text(failureReason ?: stringResource(R.string.chat_not_sent), modifier = Modifier.weight(1f), style = ckBody(12.5.sp, 16.sp), color = c.danger)
             Box(
                 Modifier.height(40.dp).clip(RoundedCornerShape(11.dp)).background(c.s2)
                     .clickable(role = Role.Button, onClick = onRetry).padding(horizontal = 12.dp),

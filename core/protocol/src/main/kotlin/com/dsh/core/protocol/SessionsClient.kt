@@ -424,9 +424,17 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
             client.newCall(request).execute().use { response ->
                 val body = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
+                    if (response.code == 401 || response.code == 403) {
+                        val renewed = conn.renewAuthentication()
+                        return@withContext RemoteResult.Failure(
+                            "dsh/auth/expired",
+                            if (renewed) com.dsh.core.model.Tr.t("Host connection renewed. Retry your message.", "Подключение к Host восстановлено. Повторите сообщение.")
+                            else com.dsh.core.model.Tr.t("Host authorization expired. Reconnect to the Host and retry.", "Авторизация Host истекла. Переподключитесь к Host и повторите."),
+                        )
+                    }
                     return@withContext RemoteResult.Failure(
                         "dsh/remote/error",
-                        "Send message failed, HTTP ${response.code}"
+                        com.dsh.core.model.Tr.t("Host rejected the message (HTTP ${response.code}). You can retry.", "Host отклонил сообщение (HTTP ${response.code}). Можно повторить.")
                     )
                 }
                 if (confirmedResult(body) == null) {
@@ -510,6 +518,7 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
     private val historyHasMore =
         java.util.concurrent.ConcurrentHashMap<String, Boolean>()
 
+    private val usageAttempts = java.util.concurrent.ConcurrentHashMap<String, Long>()
     private val toolNames = mutableMapOf<String, String>()
 
     private val toolArgs = mutableMapOf<String, String>()
@@ -560,11 +569,13 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                             // дальше дописываются живые фрагменты.
                             val baselineText = StringBuilder()
                             val baselineReasoning = StringBuilder()
+                            var hasActiveAttempt = false
                             run {
                                 val active = (value["assistantStream"]
                                     as? kotlinx.serialization.json.JsonObject)
                                     ?.get("activeAttempt")
                                     as? kotlinx.serialization.json.JsonObject
+                                hasActiveAttempt = active != null
                                 val stream = active?.get("stream")
                                     as? kotlinx.serialization.json.JsonArray
                                 stream?.forEach { timed ->
@@ -581,19 +592,6 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                                     }
                                 }
                             }
-                            if (baselineReasoning.isNotBlank()) {
-                                eventBus.tryEmit(
-                                    RemoteEvent.ReasoningDelta(
-                                        sessionId,
-                                        baselineReasoning.toString(),
-                                    ),
-                                )
-                            }
-                            if (baselineText.isNotBlank()) {
-                                eventBus.tryEmit(
-                                    RemoteEvent.MessageDelta(sessionId, baselineText.toString()),
-                                )
-                            }
                             records?.forEach { record ->
                                 val entry = record as? kotlinx.serialization.json.JsonObject
                                     ?: return@forEach
@@ -606,11 +604,17 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                                 if (seq > 0 && (minSeq == 0L || seq < minSeq)) minSeq = seq
                                 handleDurableEvent(sessionId, hostId, event)
                             }
+                            // Apply the current stream after history: historical turn/end clears it.
+                            if (hasActiveAttempt) {
+                                eventBus.tryEmit(RemoteEvent.ReasoningDelta(sessionId, baselineReasoning.toString(), baseline = true))
+                                eventBus.tryEmit(RemoteEvent.MessageDelta(sessionId, baselineText.toString(), baseline = true))
+                            }
                             val hasMore = value["hasMore"]?.toString() == "true"
                             val cursor = value["cursor"]?.toString()?.toLongOrNull()
                                 ?: minSeq
                             if (cursor > 0) historyCursors[sessionId] = cursor
                             historyHasMore[sessionId] = hasMore
+                            eventBus.tryEmit(RemoteEvent.SessionSnapshot(sessionId))
                         }
                         "event" -> {
                             val event = value["event"]
@@ -689,6 +693,7 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
         messageId: String,
         role: MessageRole,
         content: String,
+        at: Long = System.currentTimeMillis(),
     ) {
         if (content.isBlank()) return
         eventBus.tryEmit(
@@ -701,7 +706,7 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                     role = role,
                     content = content,
                     seq = seq,
-                    createdAt = System.currentTimeMillis(),
+                    createdAt = at,
                 ),
             )
         )
@@ -800,7 +805,16 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
         val eventType = event["type"]?.toString()?.trim('"') ?: return
         val data = event["data"] as? kotlinx.serialization.json.JsonObject ?: return
         val seq = event["seq"]?.toString()?.toLongOrNull() ?: System.currentTimeMillis()
+        fun emitDurableMessage(sessionId: String, hostId: String, seq: Long, messageId: String, role: MessageRole, content: String) {
+            this@SessionsClient.emitDurableMessage(sessionId, hostId, seq, messageId, role, content, event["time"]?.toString()?.toLongOrNull() ?: System.currentTimeMillis())
+        }
+        val usageKey = "$sessionId/${data["turn"]}/${data["step"]}"
+        fun reportUsage() {
+            val report = kotlinx.serialization.json.JsonObject(data + ("_attempt" to kotlinx.serialization.json.JsonPrimitive(usageAttempts[usageKey] ?: 0L)))
+            eventBus.tryEmit(RemoteEvent.UsageReported(sessionId, seq, event["time"]?.toString()?.toLongOrNull() ?: 0, report))
+        }
         when (eventType) {
+            "llm/retry-started" -> { usageAttempts[usageKey] = seq }
             "tool-workflow/run-start", "tool-workflow/agent-start",
             "tool-workflow/agent-end", "tool-workflow/run-end" -> {
                 applyWorkflowEvent(sessionId, eventType, data)
@@ -879,9 +893,9 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                 val turn = data["turn"]?.toString()?.toIntOrNull() ?: return
                 eventBus.tryEmit(RemoteEvent.ChangesAnnounced(sessionId, seq, turn))
             }
-            "turn/start" -> eventBus.tryEmit(RemoteEvent.SessionRunning(sessionId, true))
+            "turn/start" -> eventBus.tryEmit(RemoteEvent.SessionRunning(sessionId, true, seq, event["time"]?.toString()?.toLongOrNull() ?: 0))
             "turn/end" -> {
-                eventBus.tryEmit(RemoteEvent.SessionRunning(sessionId, false))
+                eventBus.tryEmit(RemoteEvent.SessionRunning(sessionId, false, seq, event["time"]?.toString()?.toLongOrNull() ?: 0))
                 // При сбое модели или сети Host шлёт только turn/end.reason.error без ответа;
                 // чтобы не было пустого пузыря, текст ошибки становится сообщением ассистента.
                 val reason = data["reason"] as? kotlinx.serialization.json.JsonObject
@@ -890,12 +904,22 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                     as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
                 val code = (error?.get("code")
                     as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+                val kind = (reason?.get("kind") as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+                val status = when {
+                    error != null || kind in setOf("error", "blocked", "max-tokens") -> com.dsh.core.model.RunStatus.FAILED
+                    kind == "interrupted" -> com.dsh.core.model.RunStatus.INTERRUPTED
+                    kind in setOf("cancelled", "canceled", "aborted", "forked") -> com.dsh.core.model.RunStatus.CANCELLED
+                    kind == "completed" -> com.dsh.core.model.RunStatus.SUCCEEDED
+                    else -> com.dsh.core.model.RunStatus.FAILED
+                }
+                eventBus.tryEmit(RemoteEvent.TurnCompleted(sessionId, com.dsh.core.model.RunState(
+                    status, seq, event["time"]?.toString()?.toLongOrNull() ?: 0, code, message?.let { friendlyRunError(code, it) },
+                )))
                 if (!message.isNullOrBlank()) {
                     // Полная ошибка: весь message + code (без обрезки), построчно в пузыре.
                     val full = buildString {
                         append("⚠️ ")
-                        append(message)
-                        if (!code.isNullOrBlank()) append("\n\n" + com.dsh.core.model.Tr.t("Error code: ", "Код ошибки: ")).append(code)
+                        append(friendlyRunError(code, message))
                     }
                     emitDurableMessage(
                         sessionId = sessionId,
@@ -907,7 +931,9 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                     )
                 }
             }
+            "assistant/attempt" -> reportUsage()
             "assistant/message" -> {
+                reportUsage()
                 val message = data["message"] as? kotlinx.serialization.json.JsonObject ?: return
                 val blocks = message["content"] as? kotlinx.serialization.json.JsonArray
                 val reasoning = blocks?.mapNotNull { part ->
@@ -974,8 +1000,19 @@ internal class SessionsClient(private val conn: HostConnection) : SessionsApi {
                         null
                     }
                 }?.joinToString("\n").orEmpty()
-                val failed = data["error"] != null ||
+                val failed = data["error"] != null && data["error"] !is kotlinx.serialization.json.JsonNull ||
                     message?.get("isError")?.toString() == "true"
+                val failureDetail = body + " " + data["error"].toString()
+                val unavailableSandbox = failureDetail.contains("no read-only sandbox backend", true) || failureDetail.contains("read-only-unavailable", true)
+                val consentDenied = failureDetail.contains("[android-consent-required]")
+                if (failed && (unavailableSandbox || consentDenied)) {
+                    eventBus.tryEmit(RemoteEvent.TurnCompleted(sessionId, com.dsh.core.model.RunState(
+                        com.dsh.core.model.RunStatus.FAILED, seq, event["time"]?.toString()?.toLongOrNull() ?: 0,
+                        if (unavailableSandbox) "sandbox/read-only-unavailable" else "approval/required",
+                        if (unavailableSandbox) com.dsh.core.model.Tr.t("This Host cannot safely run a read-only shell command.", "Этот Host не поддерживает безопасный запуск shell в режиме только чтения.")
+                        else com.dsh.core.model.Tr.t("The command requires your approval. The run was stopped.", "Команда требует вашего подтверждения. Запуск остановлен."),
+                    )))
+                }
                 emitDurableMessage(
                     sessionId, hostId, seq, "tool_$callId", MessageRole.TOOL,
                     "\u0002TOOL\u0002$callId\u0002$name\u0002" +
@@ -1347,4 +1384,12 @@ internal fun parseSessionList(hostId: String, value: kotlinx.serialization.json.
             permissionPreset = text(values?.get("permissions") as? kotlinx.serialization.json.JsonObject, "currentValue"),
         )
     }
+}
+
+internal fun friendlyRunError(code: String?, message: String): String = when {
+    code?.contains("TRANSPORT", true) == true || message.contains("transport failed", true) ->
+        com.dsh.core.model.Tr.t("The connection to the model was lost. Check your network and try again.", "Соединение с моделью потеряно. Проверьте сеть и повторите запрос.")
+    code?.contains("auth", true) == true || code in setOf("401", "403") ->
+        com.dsh.core.model.Tr.t("The provider rejected the credentials. Check your API key in Settings.", "Провайдер отклонил данные входа. Проверьте API-ключ в настройках.")
+    else -> message
 }

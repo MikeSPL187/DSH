@@ -53,6 +53,9 @@
     <string name="fs_fa_ask">Ask DSH about the file</string>
     <string name="fs_fa_attach">Attach to message</string>
     <string name="fs_fa_share">Share</string>
+    <string name="fs_fa_download">Download</string>
+    <string name="fs_download_saved">File saved: %1$s</string>
+    <string name="fs_download_failed">Couldn’t save “%1$s” — check the file and destination</string>
     <string name="fs_fa_rename">Rename</string>
     <string name="fs_fa_delete">Delete</string>
     <string name="fs_add_title">Add to folder</string>

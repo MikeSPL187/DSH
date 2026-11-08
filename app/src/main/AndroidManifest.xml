@@ -105,6 +105,12 @@
             android:permission="android.permission.BIND_JOB_SERVICE"
             android:exported="false" />
 
+        <receiver android:name=".AutomationTimeReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
         <!-- «Не усыплять» из уведомления перед авто-сном (только для своих PendingIntent). -->
         <receiver
             android:name=".KeepAwakeReceiver"

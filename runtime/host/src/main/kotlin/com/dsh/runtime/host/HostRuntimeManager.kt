@@ -13,6 +13,9 @@ enum class RuntimePhase {
 }
 
 @Serializable
+enum class HostStopReason { USER, IDLE, UI_CLOSED, TASKS_FINISHED, RESTART }
+
+@Serializable
 data class RuntimeStatus(
     val phase: RuntimePhase,
     val port: Int? = null,
@@ -25,6 +28,7 @@ data class RuntimeStatus(
     val exitCode: Int? = null,
     /** Время последнего обновления состояния (epoch millis). */
     val updatedAtMillis: Long = 0L,
+    val stopReason: HostStopReason? = null,
 )
 
 interface HostRuntimeManager {
@@ -82,5 +86,6 @@ interface HostRuntimeManager {
     suspend fun warmUp(workspacePath: String): Result<RuntimeStatus> = start(workspacePath)
 
     suspend fun stop(): Result<Unit>
+    suspend fun stop(reason: HostStopReason): Result<Unit> = stop()
 }
 

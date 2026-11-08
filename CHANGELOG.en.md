@@ -2,6 +2,31 @@
 
 This file records changes to the DSH Mobile Android app. The bridge plugin and rootfs image have their own release lines; see [RELEASING.md](RELEASING.md) for the release order.
 
+## 1.1.4 — unreleased
+
+- QA round 4: protect Replace key from IME overlap and stale validation, inherit the automation model, keep Host tasks through UI recreation, distinguish Host authorization from offline errors, preserve Debian accounts and cancel Android subprocess descendants by identity. New rootfs candidates include curl.
+- Restore dpkg status backups with PRoot hardlink emulation, while the Host Node preload publishes via COPYFILE_EXCL before emulation can relocate temporary sources. Cover sync/callback/promise file writes, ESM aliases and refusing existing targets.
+- Fix Android dpkg-deb ENOSYS: translate libc creat/creat64 to equivalent openat calls; include the narrow compatibility library and source/checksum in the Linux image. Verify permissions, umask, truncation and errno under a simulated Android seccomp filter.
+- Pin the immutable Linux 2.0.3 candidate with curl, repaired Debian package operations, complete-word session titles and the source-built agent. The prepared rootfs assets remain in a private release draft; online installation requires their publication.
+- Start the canonical Host CLI so profile reloads and provider settings use the same bootstrap state. Bypass the system proxy for literal loopback endpoints while retaining it for external requests.
+- Map selected Android project directories to the Host workspace for automations. Preserve current font scale, orientation and night mode when an app language is selected on Android 8–12.
+- Reconnect a recreated screen to a session whose creation finishes after the old screen is destroyed, without replacing a new chat or another selected session. Schedule IME-related scrolling for the next layout instead of forcing a nested measurement.
+- Keep cached chats and Settings visible while account and plugin data load; Host readiness no longer replaces an already visible screen with another loading gate.
+- Roll back API-key metadata and ciphertext when persistence fails. Estimate spending from recorded usage and verified CNY tariffs; unknown prices remain unavailable instead of appearing as zero.
+- Track implementation and actual Android verification separately in the [rounds 1–4 matrix](docs/qa/rounds-1-4.md). Live-provider checks and the SwiftShader performance finding remain unconfirmed.
+
+- QA round 3: commit IME input before Continue, retain Settings when returning from Plugins, preserve backup preparation across Activity recreation and grant the recipient access to the ZIP.
+- Show scheduled automation waiting/failure reasons, match real Wi-Fi transport, cancel stopped jobs, prevent duplicate occurrences and retain pending jobs across application starts.
+- Resolve automation models consistently by provider/model IDs; reject ambiguous names and remove silent first-model fallback. See [round 3 verification](docs/qa/QA_ROUND3_1.1.4.ru.md).
+
+- Protect revealed API keys and MCP tokens from accessibility text; remove persisted MCP token suffixes.
+- Preserve outgoing chat requests and partial replies across process death, with explicit interruption and retry; keep rapid sends in one conversation.
+- Apply themes offline, restore settings navigation, follow the theme in system bars, and open the terminal instead of redirecting to chat.
+- Settle automation runs from durable outcomes, fail clearly without a read-only sandbox, and require consent for potentially destructive workspace commands.
+- Reconcile MCP configuration after restart; record provider token usage instead of treating account balance as spending.
+- Improve accessibility labels, Markdown newlines, keyboard/landscape insets, automation validation and model persistence.
+- See [QA round 2 implementation and remaining device checks](docs/qa/QA_ROUND2_1.1.4.ru.md).
+
 ## 1.0.6 — 2026-10-23
 
 ### Fixed

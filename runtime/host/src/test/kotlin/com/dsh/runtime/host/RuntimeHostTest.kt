@@ -11,6 +11,21 @@ import java.io.File
 class RuntimeHostTest {
 
     @Test
+    fun canonicalCliKeepsProfileReloadStateSharedEvenWhenAnAggregateBundleExists() {
+        val root = java.nio.file.Files.createTempDirectory("dsh-canonical-host").toFile()
+        try {
+            val layout = RuntimeLayout(root, File(root, "lib"))
+            File(layout.rootfsDir, "usr/local/lib/node_modules/@deepseek-ai/dsh/lib/host.bundle.mjs").apply {
+                parentFile!!.mkdirs()
+                writeText("// Aggregate bundle duplicates the dynamically imported app-boot module")
+            }
+            val command = ProotCommandBuilder.build(ProotCommandBuilder.LaunchConfig(layout, root.absolutePath))
+            assertTrue(command.contains("/usr/local/lib/node_modules/@deepseek-ai/dsh/lib/bin.js"))
+            assertFalse(command.any { it.endsWith("host.bundle.mjs") })
+        } finally { root.deleteRecursively() }
+    }
+
+    @Test
     fun testProcessOutputParser() {
         val line1 = "dsh web: listening on http://127.0.0.1:45321/?token=sec_abc12345"
         val parsed1 = ProcessOutputParser.parseLine(line1)
@@ -61,9 +76,8 @@ class RuntimeHostTest {
             assertTrue(cmd.contains("-r"))
             assertTrue(cmd.contains(layout.rootfsDir.absolutePath))
             assertTrue(cmd.contains("${workspace.absolutePath}:/workspace"))
-            // Процессу Host нарочно не даётся --link2symlink: он ломает атомарную публикацию hardlink
-            // инструмента write на рабочей папке FUSE (вместо этого fs-link-fallback.cjs).
-            assertFalse(cmd.contains("--link2symlink"))
+            // dpkg needs hardlink emulation; Node publication bypasses it in the preload.
+            assertTrue(cmd.contains("--link2symlink"))
             // Три пункта как в DSHA: мнимый root, завершение гостя при выходе launcher, исправление lstat symlink.
             assertTrue(cmd.contains("-0"))
             assertTrue(cmd.contains("--kill-on-exit"))

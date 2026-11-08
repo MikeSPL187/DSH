@@ -1,0 +1,103 @@
+{
+  "productionSource": "75b3265c2307b8f3feba7a2ede061080832914a3",
+  "finalFixtureSource": "3f2e221c5c24556bfc7c8b2186d69cfb1fa195da",
+  "unitAndSignedApkRun": 42449233570,
+  "unitAndSignedApkConclusion": "success",
+  "apkInspectorRun": 42450539290,
+  "apkInspectorConclusion": "success",
+  "apk": {
+    "source": "75b3265c2307b8f3feba7a2ede061080832914a3",
+    "apkRun": 42449233570,
+    "sha256": "75cf6a6fcd7a89b2126d32988f8e1c9dbaa472c1fb6c07a944857aede58ae998",
+    "size": 14397369,
+    "package": "app.dsh.mobile",
+    "versionName": "1.1.4",
+    "versionCode": 114,
+    "signatureVerified": true,
+    "signingMatches113": true,
+    "signerSha256": [
+      "3e8d02cb1fa316aee739271a27953c56b868aa8cb86ddc000ebd3019bb202931"
+    ],
+    "sourceEmbedded": true,
+    "rootfsManifestMatchesSource": true,
+    "rootfsManifest": {
+      "rootfsName": "dsh-rootfs",
+      "runtimeVersion": "2.0.3-dsh0.2.1-rc.2-bridge2.0.7",
+      "releaseTag": "rootfs-v2.0.3",
+      "bridgeVersion": "2.0.7",
+      "baseDistro": "debian-13-slim",
+      "libc": "glibc",
+      "pageSize": "16k-compatible",
+      "archiveFormat": "tar.gz",
+      "bundledPackages": [
+        "node-24",
+        "pnpm",
+        "@deepseek-ai/dsh@0.2.1-rc.2",
+        "dsh-mobile-bridge-plugin@2.0.7",
+        "python3",
+        "git",
+        "curl"
+      ],
+      "downloadUrls": {
+        "x86_64": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.3/rootfs-x86_64.bin",
+        "arm64-v8a": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.3/rootfs-arm64-v8a.bin"
+      },
+      "downloadSha256": {
+        "x86_64": "C7022C8692C02928302D047182DF10E9421C05C78F7CAD2E121882B9AE84C886",
+        "arm64-v8a": "4F27BE41B3AC58E09145FF0752E3CFE6FE70A1D89611693D5F4DAD8365FEBBB8"
+      },
+      "archiveSizeBytes": 299916757,
+      "prootLibrary": "libproot.so",
+      "androidPatched": true
+    }
+  },
+  "finalNativeRun": 42450956853,
+  "finalNativeArtifact": 13606236430,
+  "finalNativeConclusion": "success",
+  "checksPassed": 9,
+  "devices": [
+    {
+      "api": 30,
+      "checks": {
+        "native-money-and-model-text-complete-at-320-360dp-font10-13": "PASS",
+        "native-composer-chips-wrap-and-permission-remains-clickable": "PASS",
+        "native-reasoning-shows-done-only-after-run-completion": "PASS"
+      },
+      "crashBytes": 0,
+      "textLayoutSamples": 32,
+      "screenshots": 11,
+      "instrumentationResult": "OK (3 tests)"
+    },
+    {
+      "api": 33,
+      "checks": {
+        "native-money-and-model-text-complete-at-320-360dp-font10-13": "PASS",
+        "native-composer-chips-wrap-and-permission-remains-clickable": "PASS",
+        "native-reasoning-shows-done-only-after-run-completion": "PASS"
+      },
+      "crashBytes": 0,
+      "textLayoutSamples": 32,
+      "screenshots": 11,
+      "instrumentationResult": "OK (3 tests)"
+    },
+    {
+      "api": 35,
+      "checks": {
+        "native-money-and-model-text-complete-at-320-360dp-font10-13": "PASS",
+        "native-composer-chips-wrap-and-permission-remains-clickable": "PASS",
+        "native-reasoning-shows-done-only-after-run-completion": "PASS"
+      },
+      "crashBytes": 0,
+      "textLayoutSamples": 32,
+      "screenshots": 11,
+      "instrumentationResult": "OK (3 tests)"
+    }
+  ],
+  "runtimeSourceInputsMatchBetweenSignedAndNative": true,
+  "runtimeSourceTreeFingerprintSha256": "67474b69390f1a9d795487f7559e0c435461a8c6bfff4f94579a51328b4ed44b",
+  "activeReasoningScreenshotReviewed": true,
+  "settingsAndComposerScreenshotsReviewed": true,
+  "terminalStatusConfirmedByUnitAndCompose": true,
+  "terminalScreenshotAcceptedAsPostTransitionProof": false,
+  "captureNote": "takeScreenshot can return the preceding surface frame immediately after a semantics transition. Terminal screenshots were not used as post-transition pixel proof. A waitForIdleSync + 300ms capture barrier was added after the passing functional run; assertions and runtime code unchanged."
+}

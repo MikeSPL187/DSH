@@ -187,6 +187,7 @@ fun PluginsHomeScreen(
     initialPlugin: String? = null,
     initialLog: Boolean = false,
     initialSheet: String? = null,
+    catalogStatus: String? = null,
     toast: ToastState = rememberToast(),
     /** Собственный раздел встроенного плагина (например, подготовка модели голосового ввода). */
     extraSection: (@Composable (pluginId: String) -> Unit)? = null,
@@ -216,7 +217,7 @@ fun PluginsHomeScreen(
         bar = { p, back ->
             val pl = when (p) { is PlPage.Detail -> plugins.find { it.id == p.id }; is PlPage.Log -> plugins.find { it.id == p.id }; else -> null }
             val (title, sub) = when (p) {
-                PlPage.List -> stringResource(R.string.pl_title) to (pluralStringResource(R.plurals.pl_on, enabled, enabled) + if (updates > 0) " · " + pluralStringResource(R.plurals.pl_updates, updates, updates) else "")
+                PlPage.List -> stringResource(R.string.pl_title) to (catalogStatus ?: (pluralStringResource(R.plurals.pl_on, enabled, enabled) + if (updates > 0) " · " + pluralStringResource(R.plurals.pl_updates, updates, updates) else ""))
                 is PlPage.Log -> stringResource(R.string.pl_log_title) to pl?.name
                 is PlPage.Detail -> (pl?.name ?: "") to pl?.let { stringResource(if (it.native) R.string.pl_kind_native_full else R.string.pl_kind_host_full) + " · " + it.version }
             }

@@ -14,7 +14,10 @@ const stdio = (credentialEnv: Record<string, string>): Config => ({
   toolCallTimeoutMs: 1000, failOnStartupError: false,
 })
 const ctxWith = (values: Record<string, string> | undefined): CredentialResolver | undefined => values === undefined ? undefined : {
-  resolve: ref => Promise.resolve(ref in values ? { value: values[ref], source: 'file' as const } : undefined),
+  resolve: ref => {
+    const value = values[ref]
+    return Promise.resolve(typeof value === 'string' ? { value, source: 'file' as const } : undefined)
+  },
 }
 
 describe('resolveCredentialBindings', () => {

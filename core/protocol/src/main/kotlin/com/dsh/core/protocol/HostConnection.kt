@@ -19,13 +19,23 @@ internal class HostConnection(
     val json: Json = Json { ignoreUnknownKeys = true },
 ) : HostRpcApi {
     val mediaTypeJson = "application/json; charset=utf-8".toMediaType()
+    @Volatile private var credentials: Pair<String, String?>? = null
 
     override suspend fun authenticate(baseUrl: String, token: String?): RemoteResult<String> {
         val auth = HostAuthenticator(client = client)
         return when (val res = auth.exchangeTokenForCookie(baseUrl, token)) {
-            is RemoteResult.Success -> RemoteResult.Success("Authenticated, ${res.data.size} cookies acquired")
+            is RemoteResult.Success -> {
+                credentials = baseUrl.trimEnd('/') to token
+                RemoteResult.Success("Authenticated, ${res.data.size} cookies acquired")
+            }
             is RemoteResult.Failure -> res
         }
+    }
+
+    /** Renew a rejected Host cookie, but never repeat a possibly accepted prompt. */
+    suspend fun renewAuthentication(): Boolean {
+        val saved = credentials?.takeIf { it.first == baseUrl } ?: return false
+        return authenticate(saved.first, saved.second) is RemoteResult.Success
     }
 
     /** Читаемая ошибка из ответа RPC; null, если её нет. */

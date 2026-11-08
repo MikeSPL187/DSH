@@ -37,7 +37,7 @@
     <string name="au_then">next %1$s</string>
     <string name="au_turned_on">%1$s: on</string>
     <string name="au_turned_off">%1$s: off</string>
-    <string name="au_enable">Turn on %1$s</string>
+    <string name="au_enable">%1$s</string>
     <string name="au_deleted">“%1$s” deleted</string>
     <string name="au_copy_suffix">" (copy)"</string>
     <string name="au_name_ph">Name</string>
@@ -136,4 +136,6 @@
         <item>Check dependencies for known vulnerabilities and outdated versions.</item>
         <item></item>
     </string-array>
+    <string name="au_required_fields">Enter a name and instructions to enable Done.</string>
+<string name="au_model_unset">Choose a model</string>
 </resources>

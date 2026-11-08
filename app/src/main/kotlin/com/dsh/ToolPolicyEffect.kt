@@ -31,6 +31,10 @@ internal fun ToolPolicyEffect(repository: DshRepository) {
  */
 internal fun toolApprovalPolicy(w: com.dsh.core.protocol.ForwardedWaterfall): Boolean? {
     val tool = (w.request["toolName"] as? kotlinx.serialization.json.JsonPrimitive)?.content ?: return null
+    val reason = (w.request["reason"] as? kotlinx.serialization.json.JsonPrimitive)?.content.orEmpty()
+    if (reason.startsWith("[android-consent-required]")) {
+        return if (AutomationRunner.ownsSession(w.agentId)) false else null
+    }
     val args = toolArgsText(w.request["args"] ?: w.request["arguments"])
     return when {
         // Удаление и опасные команды всегда спрашиваются, какой бы ни был режим.

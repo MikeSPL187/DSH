@@ -1,0 +1,405 @@
+{
+  "revision": "b5841c4d3f0e194a12210ceffef2d31e6edb6ca2",
+  "workflow": 42408909265,
+  "artifact": 13590337439,
+  "checksPassed": 102,
+  "currentProductionRevision": "9bdfe7251d6dfd17c33b13ac488161f643caf8aa",
+  "currentFixtureMergeRevision": "d9cf295f7715c524c9d92c2fe79d5d06fb40c8a4",
+  "testApkSource": "9bdfe7251d6dfd17c33b13ac488161f643caf8aa",
+  "exactTrackedAndroidInputsMatched": true,
+  "rootfsVersion": "2.0.3",
+  "rootfsCandidateSource": "20f21bc6e7e2e177a372ca200b853766bdee071b",
+  "devices": [
+    {
+      "api": 30,
+      "fixtureMerge": "d9cf295f7715c524c9d92c2fe79d5d06fb40c8a4",
+      "checks": {
+        "native-ime-save-exact-key-and-masked-accessibility": "PASS",
+        "native-ime-onboarding-continue-exact-key": "PASS",
+        "native-skip-with-ime-and-installer-details-back": "PASS",
+        "native-backup-restore-cancel-corrupt-and-share-receiver": "PASS",
+        "rootfs-install-and-host-start": "PASS",
+        "theme-and-system-bars-apply-locally": "PASS",
+        "porcelain-and-system-day-night": "PASS",
+        "appearance-retained-through-two-locale-cycles": "PASS",
+        "native-settings-and-appearance-actions-have-accessible-names": "PASS",
+        "appearance-landscape-stays-in-app": "PASS",
+        "plugins-back-returns-to-settings": "PASS",
+        "host-open-terminal-opens-shell": "PASS",
+        "native-dpkg-build-install-upgrade-purge-and-curl": "PASS",
+        "native-host-title-uses-complete-words-from-the-shipped-image": "PASS",
+        "native-node-file-publication-retains-source-without-overwriting-target": "PASS",
+        "native-android-cancel-frees-server-and-preserves-other-listener": "PASS",
+        "native-mcp-add-restart-connects-real-peer": "PASS",
+        "native-host-stop-start-with-user-proxy": "PASS",
+        "native-mcp-reconnect-settles-after-host-stop-start": "PASS",
+        "native-mcp-two-tap-delete": "PASS",
+        "native-five-cold-starts-allow-navigation-without-host-gate": "PASS",
+        "native-host-authentication-and-rpc-with-user-proxy": "PASS",
+        "native-provider-save-vault-host-and-http-credential-roundtrip": "PASS",
+        "native-jobscheduler-fires-on-real-time-without-run-now": "PASS",
+        "native-automation-inherits-default-model-and-records-provider-error": "PASS",
+        "native-real-chat-last-reply-above-ime-at-font13": "PASS",
+        "native-real-chat-landscape-preserves-draft-at-font13": "PASS",
+        "native-idle-settings-preserves-host-before-scheduled-fire": "PASS",
+        "native-scheduled-automation-reads-the-selected-android-project": "PASS",
+        "native-offline-send-records-reason-and-retries-after-network-restored": "PASS",
+        "native-readonly-shell-denial-finishes-with-explicit-report": "PASS",
+        "native-activity-recreation-preserves-active-application-owned-request": "PASS",
+        "native-force-stop-retains-durable-partial-and-visible-interruption": "PASS",
+        "native-interrupted-chat-retry-completes-through-real-host": "PASS"
+      },
+      "crashBytes": 0,
+      "coldStarts": [
+        {
+          "iteration": 1,
+          "amTotalTimeMs": 815,
+          "usableWithUiAutomatorOverheadMs": 4084,
+          "settingsRemainedVisibleDuringWarmup": true
+        },
+        {
+          "iteration": 2,
+          "amTotalTimeMs": 569,
+          "usableWithUiAutomatorOverheadMs": 2275,
+          "settingsRemainedVisibleDuringWarmup": true
+        },
+        {
+          "iteration": 3,
+          "amTotalTimeMs": 444,
+          "usableWithUiAutomatorOverheadMs": 2110,
+          "settingsRemainedVisibleDuringWarmup": true
+        },
+        {
+          "iteration": 4,
+          "amTotalTimeMs": 497,
+          "usableWithUiAutomatorOverheadMs": 2233,
+          "settingsRemainedVisibleDuringWarmup": true
+        },
+        {
+          "iteration": 5,
+          "amTotalTimeMs": 467,
+          "usableWithUiAutomatorOverheadMs": 2160,
+          "settingsRemainedVisibleDuringWarmup": true
+        }
+      ],
+      "imeState": {
+        "saveCalled": true,
+        "saveSucceeded": true,
+        "exactValidated": true,
+        "exactStored": true,
+        "buttonBottom": 890.0,
+        "imeTop": 942
+      },
+      "automation": {
+        "scheduled": "ok",
+        "historyCount": 1,
+        "model": "qa-model",
+        "idleHost": "running",
+        "workspaceMarker": true
+      },
+      "recoveryState": {
+        "partialBeforeReplay": "Native partial response",
+        "partialAfterReplay": "Native partial response",
+        "status": "INTERRUPTED"
+      },
+      "recovery": {
+        "forceStop": true,
+        "partialRetained": true,
+        "interruptionVisible": true,
+        "retry": "ok"
+      },
+      "recreation": {
+        "activityRecreated": true,
+        "requestStillActive": true
+      },
+      "offline": {
+        "reason": "offline",
+        "createdSessionWhileOffline": false,
+        "retry": "ok"
+      },
+      "nativeAccessibilityAndRecoveryScreenshotReviewed": true
+    },
+    {
+      "api": 33,
+      "fixtureMerge": "d9cf295f7715c524c9d92c2fe79d5d06fb40c8a4",
+      "checks": {
+        "native-ime-save-exact-key-and-masked-accessibility": "PASS",
+        "native-ime-onboarding-continue-exact-key": "PASS",
+        "native-skip-with-ime-and-installer-details-back": "PASS",
+        "native-backup-restore-cancel-corrupt-and-share-receiver": "PASS",
+        "rootfs-install-and-host-start": "PASS",
+        "theme-and-system-bars-apply-locally": "PASS",
+        "porcelain-and-system-day-night": "PASS",
+        "appearance-retained-through-two-locale-cycles": "PASS",
+        "native-settings-and-appearance-actions-have-accessible-names": "PASS",
+        "appearance-landscape-stays-in-app": "PASS",
+        "plugins-back-returns-to-settings": "PASS",
+        "host-open-terminal-opens-shell": "PASS",
+        "native-dpkg-build-install-upgrade-purge-and-curl": "PASS",
+        "native-host-title-uses-complete-words-from-the-shipped-image": "PASS",
+        "native-node-file-publication-retains-source-without-overwriting-target": "PASS",
+        "native-android-cancel-frees-server-and-preserves-other-listener": "PASS",
+        "native-mcp-add-restart-connects-real-peer": "PASS",
+        "native-host-stop-start-with-user-proxy": "PASS",
+        "native-mcp-reconnect-settles-after-host-stop-start": "PASS",
+        "native-mcp-two-tap-delete": "PASS",
+        "native-five-cold-starts-allow-navigation-without-host-gate": "PASS",
+        "native-host-authentication-and-rpc-with-user-proxy": "PASS",
+        "native-provider-save-vault-host-and-http-credential-roundtrip": "PASS",
+        "native-jobscheduler-fires-on-real-time-without-run-now": "PASS",
+        "native-automation-inherits-default-model-and-records-provider-error": "PASS",
+        "native-real-chat-last-reply-above-ime-at-font13": "PASS",
+        "native-real-chat-landscape-preserves-draft-at-font13": "PASS",
+        "native-idle-settings-preserves-host-before-scheduled-fire": "PASS",
+        "native-scheduled-automation-reads-the-selected-android-project": "PASS",
+        "native-offline-send-records-reason-and-retries-after-network-restored": "PASS",
+        "native-readonly-shell-denial-finishes-with-explicit-report": "PASS",
+        "native-activity-recreation-preserves-active-application-owned-request": "PASS",
+        "native-force-stop-retains-durable-partial-and-visible-interruption": "PASS",
+        "native-interrupted-chat-retry-completes-through-real-host": "PASS"
+      },
+      "crashBytes": 0,
+      "coldStarts": [
+        {
+          "iteration": 1,
+          "amTotalTimeMs": 1614,
+          "usableWithUiAutomatorOverheadMs": 5291,
+          "settingsRemainedVisibleDuringWarmup": true
+        },
+        {
+          "iteration": 2,
+          "amTotalTimeMs": 1439,
+          "usableWithUiAutomatorOverheadMs": 3761,
+          "settingsRemainedVisibleDuringWarmup": true
+        },
+        {
+          "iteration": 3,
+          "amTotalTimeMs": 1383,
+          "usableWithUiAutomatorOverheadMs": 4974,
+          "settingsRemainedVisibleDuringWarmup": true
+        },
+        {
+          "iteration": 4,
+          "amTotalTimeMs": 1345,
+          "usableWithUiAutomatorOverheadMs": 4928,
+          "settingsRemainedVisibleDuringWarmup": true
+        },
+        {
+          "iteration": 5,
+          "amTotalTimeMs": 1388,
+          "usableWithUiAutomatorOverheadMs": 5173,
+          "settingsRemainedVisibleDuringWarmup": true
+        }
+      ],
+      "imeState": {
+        "saveCalled": true,
+        "saveSucceeded": true,
+        "exactValidated": true,
+        "exactStored": true,
+        "buttonBottom": 886.0,
+        "imeTop": 938
+      },
+      "automation": {
+        "scheduled": "ok",
+        "historyCount": 1,
+        "model": "qa-model",
+        "idleHost": "running",
+        "workspaceMarker": true
+      },
+      "recoveryState": {
+        "partialBeforeReplay": "Native partial response",
+        "partialAfterReplay": "Native partial response",
+        "status": "INTERRUPTED"
+      },
+      "recovery": {
+        "forceStop": true,
+        "partialRetained": true,
+        "interruptionVisible": true,
+        "retry": "ok"
+      },
+      "recreation": {
+        "activityRecreated": true,
+        "requestStillActive": true
+      },
+      "offline": {
+        "reason": "offline",
+        "createdSessionWhileOffline": false,
+        "retry": "ok"
+      },
+      "nativeAccessibilityAndRecoveryScreenshotReviewed": true
+    },
+    {
+      "api": 35,
+      "fixtureMerge": "d9cf295f7715c524c9d92c2fe79d5d06fb40c8a4",
+      "checks": {
+        "native-ime-save-exact-key-and-masked-accessibility": "PASS",
+        "native-ime-onboarding-continue-exact-key": "PASS",
+        "native-skip-with-ime-and-installer-details-back": "PASS",
+        "native-backup-restore-cancel-corrupt-and-share-receiver": "PASS",
+        "rootfs-install-and-host-start": "PASS",
+        "theme-and-system-bars-apply-locally": "PASS",
+        "porcelain-and-system-day-night": "PASS",
+        "appearance-retained-through-two-locale-cycles": "PASS",
+        "native-settings-and-appearance-actions-have-accessible-names": "PASS",
+        "appearance-landscape-stays-in-app": "PASS",
+        "plugins-back-returns-to-settings": "PASS",
+        "host-open-terminal-opens-shell": "PASS",
+        "native-dpkg-build-install-upgrade-purge-and-curl": "PASS",
+        "native-host-title-uses-complete-words-from-the-shipped-image": "PASS",
+        "native-node-file-publication-retains-source-without-overwriting-target": "PASS",
+        "native-android-cancel-frees-server-and-preserves-other-listener": "PASS",
+        "native-mcp-add-restart-connects-real-peer": "PASS",
+        "native-host-stop-start-with-user-proxy": "PASS",
+        "native-mcp-reconnect-settles-after-host-stop-start": "PASS",
+        "native-mcp-two-tap-delete": "PASS",
+        "native-five-cold-starts-allow-navigation-without-host-gate": "PASS",
+        "native-host-authentication-and-rpc-with-user-proxy": "PASS",
+        "native-provider-save-vault-host-and-http-credential-roundtrip": "PASS",
+        "native-jobscheduler-fires-on-real-time-without-run-now": "PASS",
+        "native-automation-inherits-default-model-and-records-provider-error": "PASS",
+        "native-real-chat-last-reply-above-ime-at-font13": "PASS",
+        "native-real-chat-landscape-preserves-draft-at-font13": "PASS",
+        "native-idle-settings-preserves-host-before-scheduled-fire": "PASS",
+        "native-scheduled-automation-reads-the-selected-android-project": "PASS",
+        "native-offline-send-records-reason-and-retries-after-network-restored": "PASS",
+        "native-readonly-shell-denial-finishes-with-explicit-report": "PASS",
+        "native-activity-recreation-preserves-active-application-owned-request": "PASS",
+        "native-force-stop-retains-durable-partial-and-visible-interruption": "PASS",
+        "native-interrupted-chat-retry-completes-through-real-host": "PASS"
+      },
+      "crashBytes": 0,
+      "coldStarts": [
+        {
+          "iteration": 1,
+          "amTotalTimeMs": 2201,
+          "usableWithUiAutomatorOverheadMs": 7919,
+          "settingsRemainedVisibleDuringWarmup": true
+        },
+        {
+          "iteration": 2,
+          "amTotalTimeMs": 1992,
+          "usableWithUiAutomatorOverheadMs": 4273,
+          "settingsRemainedVisibleDuringWarmup": true
+        },
+        {
+          "iteration": 3,
+          "amTotalTimeMs": 2097,
+          "usableWithUiAutomatorOverheadMs": 4501,
+          "settingsRemainedVisibleDuringWarmup": true
+        },
+        {
+          "iteration": 4,
+          "amTotalTimeMs": 1847,
+          "usableWithUiAutomatorOverheadMs": 4119,
+          "settingsRemainedVisibleDuringWarmup": true
+        },
+        {
+          "iteration": 5,
+          "amTotalTimeMs": 2250,
+          "usableWithUiAutomatorOverheadMs": 4712,
+          "settingsRemainedVisibleDuringWarmup": true
+        }
+      ],
+      "imeState": {
+        "saveCalled": true,
+        "saveSucceeded": true,
+        "exactValidated": true,
+        "exactStored": true,
+        "buttonBottom": 838.0,
+        "imeTop": 890
+      },
+      "automation": {
+        "scheduled": "ok",
+        "historyCount": 1,
+        "model": "qa-model",
+        "idleHost": "running",
+        "workspaceMarker": true
+      },
+      "recoveryState": {
+        "partialBeforeReplay": "Native partial response",
+        "partialAfterReplay": "Native partial response",
+        "status": "INTERRUPTED"
+      },
+      "recovery": {
+        "forceStop": true,
+        "partialRetained": true,
+        "interruptionVisible": true,
+        "retry": "ok"
+      },
+      "recreation": {
+        "activityRecreated": true,
+        "requestStillActive": true
+      },
+      "offline": {
+        "reason": "offline",
+        "createdSessionWhileOffline": false,
+        "retry": "ok"
+      },
+      "nativeAccessibilityAndRecoveryScreenshotReviewed": true
+    }
+  ],
+  "latestApk": {
+    "source": "9bdfe7251d6dfd17c33b13ac488161f643caf8aa",
+    "apkRun": 42408205626,
+    "sha256": "4f301802010100a3e74ad79b91dfc65e9fc339b2deb8db19677b78fd23a2428c",
+    "size": 14396201,
+    "package": "app.dsh.mobile",
+    "versionName": "1.1.4",
+    "versionCode": 114,
+    "signatureVerified": true,
+    "signingMatches113": true,
+    "signerSha256": [
+      "3e8d02cb1fa316aee739271a27953c56b868aa8cb86ddc000ebd3019bb202931"
+    ],
+    "sourceEmbedded": true,
+    "rootfsManifestMatchesSource": true,
+    "rootfsManifest": {
+      "rootfsName": "dsh-rootfs",
+      "runtimeVersion": "2.0.3-dsh0.2.1-rc.2-bridge2.0.7",
+      "releaseTag": "rootfs-v2.0.3",
+      "bridgeVersion": "2.0.7",
+      "baseDistro": "debian-13-slim",
+      "libc": "glibc",
+      "pageSize": "16k-compatible",
+      "archiveFormat": "tar.gz",
+      "bundledPackages": [
+        "node-24",
+        "pnpm",
+        "@deepseek-ai/dsh@0.2.1-rc.2",
+        "dsh-mobile-bridge-plugin@2.0.7",
+        "python3",
+        "git",
+        "curl"
+      ],
+      "downloadUrls": {
+        "x86_64": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.3/rootfs-x86_64.bin",
+        "arm64-v8a": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.3/rootfs-arm64-v8a.bin"
+      },
+      "downloadSha256": {
+        "x86_64": "C7022C8692C02928302D047182DF10E9421C05C78F7CAD2E121882B9AE84C886",
+        "arm64-v8a": "4F27BE41B3AC58E09145FF0752E3CFE6FE70A1D89611693D5F4DAD8365FEBBB8"
+      },
+      "archiveSizeBytes": 299916757,
+      "prootLibrary": "libproot.so",
+      "androidPatched": true
+    },
+    "inspectionWorkflow": 42410205695
+  },
+  "releaseState": {
+    "apkPublished": false,
+    "prDraft": true,
+    "prMerged": false,
+    "rootfs203Published": true,
+    "publicationNeedsNewAuthorization": false,
+    "rootfs203ReleaseUrl": "https://github.com/MikeSPL187/DSH/releases/tag/rootfs-v2.0.3",
+    "rootfs203PublishedAt": "2026-11-08T04:28:35Z",
+    "rootfs203ReleaseId": 436845729
+  },
+  "limitations": [
+    "Native functional tests use an instrumented debug APK; signed release inspected separately.",
+    "No live DeepSeek key; real balance and complete live coding cycle were not rechecked.",
+    "No physical or Android ARM device; N19 performance remains open.",
+    "Completed reply above IME checked; streaming+IME and live interactive deletion consent not separately rechecked.",
+    "Accessibility audit covers tested Settings/Appearance states, not every screen."
+  ]
+}

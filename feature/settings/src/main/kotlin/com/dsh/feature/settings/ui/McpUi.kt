@@ -81,16 +81,16 @@ import com.dsh.feature.settings.R
 import kotlinx.coroutines.launch
 
 /** Состояние MCP-сервера в Host: подключён, не запустился, ждёт перезапуска Host. */
-enum class McpStatus { OK, ERROR, PENDING }
+enum class McpStatus { OK, ERROR, PENDING, STARTING, STOPPED }
 
 /**
  * Строка списка MCP-серверов.
  *
  * @param where адрес (`http`) или команда целиком (`stdio`).
- * @param tokenTail последние 4 символа токена; null — токена нет. Сам токен приложение не хранит и не показывает.
+ * @param hasToken токен сохранён в хранилище Host; его значение интерфейс не получает.
  */
 @Immutable
-data class McpRow(val name: String, val http: Boolean, val where: String, val tokenTail: String?, val status: McpStatus)
+data class McpRow(val name: String, val http: Boolean, val where: String, val hasToken: Boolean, val status: McpStatus)
 
 /** Экран «MCP-серверы»: строки и нужен ли перезапуск Host (что-то добавлено или удалено после запуска). */
 @Immutable
@@ -113,6 +113,8 @@ private fun statusText(s: McpStatus) = stringResource(
         McpStatus.OK -> R.string.st_mcp_ok
         McpStatus.ERROR -> R.string.st_mcp_err
         McpStatus.PENDING -> R.string.st_mcp_pending
+        McpStatus.STARTING -> R.string.st_mcp_starting
+        McpStatus.STOPPED -> R.string.st_mcp_stopped
     },
 )
 
@@ -120,7 +122,8 @@ private fun statusText(s: McpStatus) = stringResource(
 private fun statusColor(s: McpStatus) = when (s) {
     McpStatus.OK -> Dsh.colors.ok
     McpStatus.ERROR -> Dsh.colors.danger
-    McpStatus.PENDING -> Dsh.colors.warn
+    McpStatus.PENDING, McpStatus.STARTING -> Dsh.colors.warn
+    McpStatus.STOPPED -> Dsh.colors.t3
 }
 
 /**
@@ -202,7 +205,7 @@ internal fun ColumnScope.McpSheet(row: McpRow, a: SettingsActions, toast: ToastS
         }
         if (row.http) {
             Line()
-            KvRow(stringResource(R.string.st_mcp_token), row.tokenTail?.let { "••••$it" } ?: stringResource(R.string.st_mcp_no_token))
+            KvRow(stringResource(R.string.st_mcp_token), stringResource(if (row.hasToken) R.string.st_mcp_token_saved else R.string.st_mcp_no_token))
         }
         Line()
         KvRow(
@@ -211,6 +214,8 @@ internal fun ColumnScope.McpSheet(row: McpRow, a: SettingsActions, toast: ToastS
                 McpStatus.OK -> stringResource(R.string.st_mcp_state_ok, row.name)
                 McpStatus.ERROR -> stringResource(R.string.st_mcp_state_err)
                 McpStatus.PENDING -> stringResource(R.string.st_mcp_state_pending)
+                McpStatus.STARTING -> stringResource(R.string.st_mcp_starting)
+                McpStatus.STOPPED -> stringResource(R.string.st_mcp_stopped)
             },
             error = row.status == McpStatus.ERROR,
         )
@@ -268,7 +273,7 @@ internal fun McpAddPage(ui: McpUi, a: SettingsActions, toast: ToastState, onDone
     val error = when {
         n.isNotEmpty() && !NAME.matches(n) -> stringResource(R.string.st_mcp_bad_name)
         n.isNotEmpty() && ui.servers.any { nameKey(it.name) == nameKey(n) } -> stringResource(R.string.st_mcp_taken)
-        http && w.isNotEmpty() && !URL.matches(w) -> stringResource(R.string.st_mcp_bad_url)
+        http && w.isNotEmpty() && !com.dsh.runtime.host.McpServers.validUrl(w) -> stringResource(R.string.st_mcp_bad_url)
         else -> ""
     }
     val added = stringResource(R.string.st_mcp_added)
@@ -362,9 +367,9 @@ internal fun ObField(
             Box(Modifier.weight(1f).padding(end = if (trailing == null) 8.dp else 0.dp), contentAlignment = Alignment.CenterStart) {
                 val style = if (mono) TextStyle(fontFamily = DshFonts.mono, fontSize = 14.sp, color = c.t1) else body(15.sp).copy(color = c.t1)
                 if (value.isEmpty()) Text(placeholder, style = style.copy(color = c.t3), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                BasicTextField(
+                com.dsh.core.designsystem.ProtectedTextField(
                     value, onChange, singleLine = true, textStyle = style, cursorBrush = SolidColor(c.accent),
-                    visualTransformation = if (secret) PasswordVisualTransformation('•') else VisualTransformation.None,
+                    secret = secret || keyboard == KeyboardType.Password, revealed = !secret && keyboard == KeyboardType.Password, label = label,
                     keyboardOptions = KeyboardOptions(keyboardType = keyboard, autoCorrectEnabled = false),
                     modifier = Modifier.fillMaxWidth().semantics { contentDescription = label }.onFocusChanged { focused = it.isFocused },
                 )

@@ -75,7 +75,8 @@ import java.time.ZoneId
 
 /** Действия «Автоматизации». */
 interface AutomationActions {
-    fun save(a: Automation) {}
+    fun scheduleStatus(id: String): String = ""
+    fun save(a: Automation): Boolean = true
     fun delete(id: String) {}
     fun runNow(id: String) {}
     fun openSession(sessionId: String) {}
@@ -155,7 +156,8 @@ fun AutomationHomeScreen(
                         KBtn(
                             stringResource(R.string.au_done), {
                                 val d = draft ?: return@KBtn
-                                actions.save(d); fresh = d.id; draft = null
+                                if (!actions.save(d)) return@KBtn
+                                fresh = d.id; draft = null
                                 stack.resetTo(AuPage.List)
                                 toast.show(savedMsg.format(d.name, whenFmt(d).lowercase()))
                             },
@@ -170,7 +172,7 @@ fun AutomationHomeScreen(
             ToastHost(toast)
             KSheet(sheet == "model", onDismiss = { sheet = null }) {
                 val a = current()
-                if (a != null) ModelPickSheet(stringResource(R.string.au_model), models, a.model, reasoningLevels, a.reasoning) { m, r -> update(a.copy(model = m, reasoning = r)); sheet = null }
+                if (a != null) ModelPickSheet(stringResource(R.string.au_model), models, a.model, reasoningLevels, a.reasoning) { m, r -> update(a.copy(model = m, reasoning = r, modelId = null, providerId = null, reasoningEffort = null)); sheet = null }
             }
             KSheet(sheet == "project", onDismiss = { sheet = null }) {
                 val a = current()
@@ -411,6 +413,7 @@ private fun AutoRow(x: Automation, now: Long, fresh: Boolean, a: AutomationActio
         AutoIc(x.icon, x.tone, off = !x.on)
         Column(Modifier.weight(1f)) {
             Text(x.name, style = body(15.sp, 19.5.sp, FontWeight.Medium), color = c.t1, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            a.scheduleStatus(x.id).takeIf { it.isNotBlank() }?.let { Text(it, style = small(12.5.sp, 16.sp), color = c.t2) }
             val cs = conds(x, short = true)
             Text(whenShort(x) + if (cs.isNotEmpty()) " · $cs" else "", style = small(12.5.sp, 16.sp), color = c.t3)
             val nextText = if (next != null) stringResource(R.string.au_then, nextLabel(next, now, short = true)) else stringResource(R.string.au_off_lc)
@@ -453,6 +456,9 @@ private fun AutoEdit(
     val doneMsg = stringResource(R.string.au_deleted, x.name)
     val copySuffix = stringResource(R.string.au_copy_suffix)
     FsView {
+        if (isNew && (x.name.isBlank() || x.prompt.isBlank())) {
+            Text(stringResource(R.string.au_required_fields), style = small(), color = c.t2, modifier = Modifier.padding(bottom = 12.dp))
+        }
         if (isNew) {
             Input(x.name, { onChange(x.copy(name = it.take(40))) }, stringResource(R.string.au_name_ph), single = true, Modifier.padding(bottom = 0.dp))
         }
@@ -497,6 +503,7 @@ private fun AutoEdit(
                 TimePill(x.time) { onChange(x.copy(time = it)) }
             }
         }
+        if (!isNew) a.scheduleStatus(x.id).takeIf { it.isNotBlank() }?.let { Text(it, style = small(13.sp, 18.sp), color = c.t2) }
         val cs = conds(x, short = false)
         Text(
             buildAnnotatedString {
@@ -521,7 +528,7 @@ private fun AutoEdit(
         GLabel(stringResource(R.string.au_where))
         Gl {
             row { Gr(stringResource(R.string.au_project), leading = { Gic(DshGlyphs.Folder) }, value = projects.firstOrNull { it.path == x.project }?.name ?: x.project.substringAfterLast('/').ifBlank { "—" }, chevron = true, onClick = { onSheet("project") }) }
-            row { Gr(stringResource(R.string.au_model), leading = { Gic(DshGlyphs.Cpu) }, value = x.model.ifBlank { "—" }, chevron = true, onClick = { onSheet("model") }) }
+            row { Gr(stringResource(R.string.au_model), leading = { Gic(DshGlyphs.Cpu) }, value = x.model.ifBlank { stringResource(R.string.au_model_unset) }, chevron = true, onClick = { onSheet("model") }) }
         }
         if (!isNew) {
             KBtn(

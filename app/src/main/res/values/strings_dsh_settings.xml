@@ -16,4 +16,6 @@
     <string name="settings_key_dots">Key ••••%1$s</string>
     <string name="settings_uptime_hm">%1$d h %2$d min</string>
     <string name="settings_uptime_m">%1$d min</string>
+    <string name="theme_sync_pending">Theme applied on this phone. Host sync is pending; retry when Host is connected.</string>
+    <string name="usage_tokens">%1$d tokens</string>
 </resources>

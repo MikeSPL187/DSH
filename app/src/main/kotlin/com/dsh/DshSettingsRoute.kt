@@ -23,7 +23,6 @@ import com.dsh.feature.settings.HostPermissionPreset
 import com.dsh.feature.settings.HostTheme
 import com.dsh.feature.settings.UpdateCenter
 import com.dsh.feature.settings.logic.ApiKeyVault
-import com.dsh.feature.settings.logic.BalanceLedger
 import com.dsh.feature.settings.logic.DshUserPrefs
 import com.dsh.feature.settings.logic.HostStats
 import com.dsh.feature.settings.logic.StorageScanner
@@ -68,7 +67,7 @@ internal class SettingsDeps(
     val workspace: java.io.File,
     val availableModels: List<String>,
     val remotes: List<HostDescriptor>,
-    val pluginsOn: Int,
+    val pluginsOn: Int?,
     val trustedNative: List<TrustedPluginRow>,
     val openAllFilesSettings: () -> Unit,
     val onWorkspaceChanged: () -> Unit,
@@ -91,14 +90,31 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
     val context = LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val toast = rememberToast()
+    LaunchedEffect(Unit) {
+        HostTheme.syncErrors.collect { toast.show(context.getString(R.string.theme_sync_pending)) }
+    }
     val settings = d.ui.currentAppSettings
     val hostId = d.ui.activeHostId
     var tick by remember { mutableIntStateOf(0) }
 
+    val exportController = (context.applicationContext as DshApplication).backupExport
+    val exportState by exportController.state.collectAsState()
+    val exportLifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    val exportLifecycleState by exportLifecycle.currentStateFlow.collectAsState()
+    LaunchedEffect(exportState, exportLifecycleState) {
+        if (exportLifecycleState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
+            exportController.consume()?.let { result ->
+                shareArchive(context, result, context.getString(R.string.share_backup_title), context.getString(R.string.backup_failed))
+            }
+        }
+    }
+    LaunchedEffect(exportState.busy) {
+        if (exportState.busy) toast.show(context.getString(com.dsh.feature.settings.R.string.st_export_preparing))
+    }
     // Ключ, баланс и расход.
     var keyState by remember { mutableStateOf(if (ApiKeyVault.has(DEEPSEEK_VAULT_REF)) KeyState.Unknown else KeyState.None) }
     var balance by remember { mutableStateOf<Pair<Double, String>?>(null) }
-    var ledger by remember { mutableStateOf<BalanceLedger.Summary?>(null) }
+    var usage by remember { mutableStateOf(com.dsh.feature.settings.logic.UsageLedger.Summary(0, 0)) }
     LaunchedEffect(tick) {
         val result = ApiKeyVault.use(DEEPSEEK_VAULT_REF) { key -> fetchDeepSeekBalance(key) }
         keyState = when {
@@ -108,7 +124,11 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         }
         if (ApiKeyVault.lost(DEEPSEEK_VAULT_REF)) toast.show(context.getString(R.string.key_lost_reenter))
         balance = result?.second
-        balance?.let { (amount, currency) -> ledger = withContext(Dispatchers.IO) { BalanceLedger.record(context, amount, currency = currency) } }
+    }
+    LaunchedEffect(Unit) {
+        com.dsh.feature.settings.logic.UsageLedger.changes.collect {
+            usage = withContext(Dispatchers.IO) { com.dsh.feature.settings.logic.UsageLedger.peek(context) }
+        }
     }
     val money = { v: Double -> balance?.let { String.format(Locale.getDefault(), "%.2f %s", v, it.second) } }
 
@@ -142,6 +162,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
     val mcpServers = remember { com.dsh.runtime.host.McpServers(d.layout) }
     var mcpTick by remember { mutableIntStateOf(0) }
     val mcpList = remember(mcpTick) { mcpServers.list() }
+    val mcpRestartNeeded = remember(mcpTick, status?.phase, status?.pid) { mcpServers.restartNeeded() }
     val pluginRows by d.repository.plugins.pluginRowsFlow.collectAsState()
     val hostUp = status?.phase == RuntimePhase.RUNNING
     LaunchedEffect(hostId, hostUp, limitsTick) {
@@ -153,10 +174,13 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
     // Host: время работы, память и процессор.
     val running = status?.phase == RuntimePhase.RUNNING
     var runningSince by remember { mutableLongStateOf(0L) }
+    var mcpChecksCompleted by remember { mutableStateOf(false) }
     LaunchedEffect(hostId, status?.phase == RuntimePhase.RUNNING, runningSince, mcpTick) {
+        mcpChecksCompleted = false
         if (status?.phase != RuntimePhase.RUNNING) return@LaunchedEffect
         // Плагины Host поднимаются после запуска не сразу: перечитать состояние несколько раз.
-        repeat(3) { runCatching { d.repository.plugins.refreshPluginInventory(hostId) }; kotlinx.coroutines.delay(2500) }
+        repeat(12) { runCatching { d.repository.plugins.refreshPluginInventory(hostId) }; kotlinx.coroutines.delay(2500) }
+        mcpChecksCompleted = true
     }
     LaunchedEffect(running) { runningSince = if (running) (status?.updatedAtMillis?.takeIf { it > 0 } ?: System.currentTimeMillis()) else 0L }
     val stats = remember { HostStats() }
@@ -263,21 +287,25 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         }
     }
     val ui = SettingsUi(
+        exportBusy = exportState.busy,
         appVersion = currentVersion,
         appBuild = remember { runCatching { androidx.core.content.pm.PackageInfoCompat.getLongVersionCode(context.packageManager.getPackageInfo(context.packageName, 0)) }.getOrDefault(0L) },
         hostVersion = rootfs?.dsh,
         sdkVersion = rootfs?.bridge?.let { "bridge $it" },
         distro = distro,
         androidVersion = "Android ${android.os.Build.VERSION.RELEASE}",
+        sourceRevision = BuildConfig.SOURCE_REVISION,
         accountName = d.oauthManager.accountFlow.collectAsState().value.profile?.name,
         keyState = keyState,
         keyLast4 = ApiKeyVault.last4(DEEPSEEK_VAULT_REF),
         keyAdded = ApiKeyVault.addedAt(DEEPSEEK_VAULT_REF)?.let { shortDate(it) },
         balance = balance?.let { money(it.first) },
-        today = ledger?.let { money(it.today) },
-        monthSpent = ledger?.let { money(it.month) },
-        monthSpentFraction = ledger?.let { l -> balance?.first?.let { b -> (l.month / (l.month + b)).toFloat() } } ?: 0f,
-        balanceDays = ledger?.daysLeft,
+        today = usage.todayCost.display(),
+        monthSpent = usage.monthCost.display(),
+        usageTokens = context.getString(R.string.usage_tokens, usage.month),
+        usageIncomplete = usage.monthCost.unknown > 0,
+        monthSpentFraction = 0f,
+        balanceDays = null,
         customProviders = custom.map { p ->
             val last4 = ApiKeyVault.last4(p.keyRef)
             ProviderRow(
@@ -291,7 +319,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         models = d.availableModels,
         reasoningLevels = reasoningLabels,
         reasoningIndex = reasoningIndex,
-        autoModelName = d.automationModel.first.ifBlank { d.availableModels.firstOrNull().orEmpty() },
+        autoModelName = automationDefault(d.automationModel, settings, d.repository.hostSettings.modelCatalogFlow.value).first,
         autoReasoningIndex = d.automationModel.second,
         pluginsOn = d.pluginsOn,
         automationsOn = d.automationsOn,
@@ -304,7 +332,8 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         workspaceShared = sharedWs,
         limits = limits,
         webSearch = webSearch,
-        mcp = mcpUi(mcpList, pluginRows, hostUp = status?.phase == RuntimePhase.RUNNING),
+        mcp = mcpUi(mcpList, pluginRows, hostUp = status?.phase == RuntimePhase.RUNNING,
+            restartNeeded = mcpRestartNeeded, settled = mcpChecksCompleted),
         memory = com.dsh.feature.settings.ui.MemoryUi(
             on = memory.on, auto = memory.auto, projectName = memProject?.let { java.io.File(it).name },
             rows = memory.facts.map {
@@ -331,6 +360,13 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         codeSize = DshUserPrefs.codeSize,
         haptics = DshUserPrefs.haptics,
         hostRunning = running,
+        hostStopReason = when (status?.stopReason) {
+            com.dsh.runtime.host.HostStopReason.IDLE -> com.dsh.core.model.Tr.t("Sleeping after inactivity", "Спит после простоя")
+            com.dsh.runtime.host.HostStopReason.UI_CLOSED -> com.dsh.core.model.Tr.t("Stopped after closing the app", "Остановлен после закрытия приложения")
+            com.dsh.runtime.host.HostStopReason.TASKS_FINISHED -> com.dsh.core.model.Tr.t("Background tasks finished", "Фоновые задачи завершены")
+            com.dsh.runtime.host.HostStopReason.USER -> com.dsh.core.model.Tr.t("Stopped by you", "Остановлен вами")
+            else -> null
+        },
         hostUptime = if (running && runningSince > 0) uptime(context, now - runningSince) else null,
         hostMemory = mem?.let { com.dsh.feature.settings.ui.formatBytes(it, context.resources.getStringArray(com.dsh.feature.settings.R.array.st_units)) },
         hostMemoryFraction = mem?.let { (it.toDouble() / totalRam).toFloat() } ?: 0f,
@@ -443,9 +479,8 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
                 toast.show(context.getString(R.string.st_key_delete_failed))
                 return false
             }
-            withContext(Dispatchers.IO) { BalanceLedger.clear(context) }
             d.oauthManager.signInWithApiKey("")
-            balance = null; ledger = null; keyState = KeyState.None
+            balance = null; usage = com.dsh.feature.settings.logic.UsageLedger.Summary(0, 0); keyState = KeyState.None
             return true
         }
 
@@ -526,7 +561,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
 
         override suspend fun mcpAdd(http: Boolean, name: String, where: String, token: String?): Boolean {
             val server = if (http) {
-                com.dsh.runtime.host.McpServers.Server(name, com.dsh.runtime.host.McpServers.HTTP, url = where, hasToken = token != null, tokenTail = token?.takeLast(4).orEmpty())
+                com.dsh.runtime.host.McpServers.Server(name, com.dsh.runtime.host.McpServers.HTTP, url = where, hasToken = token != null)
             } else {
                 val (command, args) = com.dsh.runtime.host.McpServers.splitCommand(where) ?: return false
                 com.dsh.runtime.host.McpServers.Server(name, com.dsh.runtime.host.McpServers.STDIO, command = command, args = args)
@@ -578,9 +613,7 @@ internal fun DshSettingsRoute(d: SettingsDeps, status: RuntimeStatus?, initialPa
         }
 
         override fun exportSessions() {
-            scope.launch {
-                shareArchive(context, d.backup.createUserDataBackup(), context.getString(R.string.share_backup_title), context.getString(R.string.backup_failed))
-            }
+            exportController.start { d.backup.createUserDataBackup() }
         }
 
         override fun restoreBackup() { restoreLauncher.launch(arrayOf("application/zip", "application/octet-stream")) }
@@ -665,9 +698,8 @@ private suspend fun fetchDeepSeekBalance(key: String): Pair<KeyState, Pair<Doubl
             when (c.responseCode) {
                 401, 403 -> KeyState.Bad to null
                 in 200..299 -> {
-                    val info = org.json.JSONObject(c.inputStream.bufferedReader().readText()).getJSONArray("balance_infos").getJSONObject(0)
-                    val sign = when (info.optString("currency")) { "USD" -> "$"; "CNY" -> "¥"; else -> info.optString("currency") }
-                    KeyState.Ok to (info.getString("total_balance").toDouble() to sign)
+                    val amount = com.dsh.core.model.parseDeepSeekBalance(c.inputStream.bufferedReader().use { it.readText() })
+                    KeyState.Ok to amount?.let { it.amount.toDouble() to it.currency }
                 }
                 else -> KeyState.Offline to null
             }
@@ -679,21 +711,22 @@ private suspend fun fetchDeepSeekBalance(key: String): Pair<KeyState, Pair<Doubl
  * Строки «MCP-серверов»: запись `mcp-<имя>` в Host активна — «работает», упала — «ошибка», ещё нет — «после
  * перезапуска». Перезапуск нужен, когда есть сервер без записи или запись без сервера (удалён после запуска).
  */
-internal fun mcpUi(servers: List<com.dsh.runtime.host.McpServers.Server>, rows: List<com.dsh.core.model.PluginRowInfo>, hostUp: Boolean): com.dsh.feature.settings.ui.McpUi {
-    val phases = rows.mapNotNull { r -> r.entryId?.takeIf { it.startsWith("mcp-") }?.let { it to r.phase } }.toMap()
+internal fun mcpUi(servers: List<com.dsh.runtime.host.McpServers.Server>, rows: List<com.dsh.core.model.PluginRowInfo>, hostUp: Boolean, restartNeeded: Boolean = false, settled: Boolean = true): com.dsh.feature.settings.ui.McpUi {
+    val phases = rows.mapNotNull { r -> r.entryId?.substringAfterLast(':')?.takeIf { it.startsWith("mcp-") }?.let { it to r.phase } }.toMap()
     val list = servers.map { s ->
-        val status = when (if (hostUp) phases[s.entryId] else null) {
-            "active" -> com.dsh.feature.settings.ui.McpStatus.OK
-            "failed" -> com.dsh.feature.settings.ui.McpStatus.ERROR
-            else -> com.dsh.feature.settings.ui.McpStatus.PENDING
+        val status = when {
+            !hostUp -> com.dsh.feature.settings.ui.McpStatus.STOPPED
+            phases[s.entryId] == "active" -> com.dsh.feature.settings.ui.McpStatus.OK
+            phases[s.entryId] == "failed" -> com.dsh.feature.settings.ui.McpStatus.ERROR
+            restartNeeded -> com.dsh.feature.settings.ui.McpStatus.PENDING
+            !settled -> com.dsh.feature.settings.ui.McpStatus.STARTING
+            else -> com.dsh.feature.settings.ui.McpStatus.ERROR
         }
         com.dsh.feature.settings.ui.McpRow(
             s.name, s.kind == com.dsh.runtime.host.McpServers.HTTP,
             if (s.kind == com.dsh.runtime.host.McpServers.HTTP) s.url else (listOf(s.command) + s.args).joinToString(" "),
-            s.tokenTail.takeIf { s.hasToken }, status,
+            s.hasToken, status,
         )
     }
-    val stale = hostUp && phases.keys.any { id -> servers.none { it.entryId == id } }
-    val pending = hostUp && servers.any { it.entryId !in phases }
-    return com.dsh.feature.settings.ui.McpUi(list, restartNeeded = stale || pending)
+    return com.dsh.feature.settings.ui.McpUi(list, restartNeeded = restartNeeded)
 }

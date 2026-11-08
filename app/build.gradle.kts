@@ -22,8 +22,8 @@ android {
         applicationId = "app.dsh.mobile"
         minSdk = 26
         targetSdk = 35
-        versionCode = 113
-        versionName = "1.1.3"
+        versionCode = 114
+        versionName = "1.1.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Client id OAuth App владельца для входа в GitHub (device flow, без client secret): не секрет, его видно всем.
@@ -31,6 +31,12 @@ android {
         val githubClientId = (findProperty("dshGithubClientId") as String?) ?: System.getenv("DSH_GITHUB_CLIENT_ID")?.ifBlank { null } ?: "Ov23likx4krz7JXH4v5K"
         require(githubClientId.matches(Regex("[A-Za-z0-9._-]*"))) { "dshGithubClientId: unexpected characters" }
         buildConfigField("String", "GITHUB_CLIENT_ID", "\"$githubClientId\"")
+        val revision = providers.environmentVariable("GITHUB_SHA").orNull ?: providers.exec {
+            commandLine("git", "describe", "--always", "--dirty", "--abbrev=12")
+            isIgnoreExitValue = true
+        }.standardOutput.asText.get().trim()
+        val sourceRevision = revision.takeIf { it.matches(Regex("[A-Za-z0-9._-]+")) } ?: "unknown"
+        buildConfigField("String", "SOURCE_REVISION", "\"$sourceRevision\"")
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
@@ -151,6 +157,8 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 }
 
 // Снимочные тесты экранов запускают ComponentActivity из ui-test-manifest, который подключён

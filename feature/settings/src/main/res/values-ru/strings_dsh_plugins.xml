@@ -25,8 +25,8 @@
     <string name="pl_install_short">Установить</string>
     <string name="pl_installed_toast">%1$s установлен</string>
     <string name="pl_install_failed">Не удалось установить %1$s</string>
-    <string name="pl_hint">Host-плагины добавляют агенту инструменты. Нативные — свои экраны и функции телефона.</string>
-    <string name="pl_enable">Включить %1$s</string>
+    <string name="pl_hint">«Все» — доступные плагины, «Включены» — работающие. Плагины Host дают агенту инструменты, нативные добавляют экраны и функции телефона.</string>
+    <string name="pl_enable">%1$s</string>
     <string name="pl_turned_on">%1$s включён</string>
     <string name="pl_turned_off">%1$s выключен</string>
     <string name="pl_sub_blocked">Заблокирован · подпись изменилась</string>

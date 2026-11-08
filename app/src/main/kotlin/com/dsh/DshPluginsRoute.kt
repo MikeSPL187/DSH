@@ -98,6 +98,14 @@ internal fun DshPluginsRoute(d: PluginDeps) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val toast = rememberToast()
+    val pluginRepo = (context.applicationContext as DshApplication).dshRepository.plugins
+    val catalogState by pluginRepo.bridgePluginCatalogFlow.collectAsState()
+    val catalogWarnings by pluginRepo.bridgeWarningsFlow.collectAsState()
+    val catalogStatus = when {
+        catalogWarnings.isNotEmpty() -> com.dsh.core.model.Tr.t("Catalog unavailable. Retrying…", "Каталог недоступен. Повторяем загрузку…")
+        catalogState.source == com.dsh.core.bridge.BridgePluginCatalogSource.NONE -> com.dsh.core.model.Tr.t("Loading Host catalog…", "Загружаем каталог Host…")
+        else -> null
+    }
     var tick by remember { mutableIntStateOf(0) }
 
     // Маркет: рекомендации и доступные обновления.
@@ -303,6 +311,7 @@ internal fun DshPluginsRoute(d: PluginDeps) {
     val hooks = remember(d) { PluginUiHooks(d.loadSettings, d.saveSettings, d.speech) }
     PluginsHomeScreen(
         plugins, catalog, onClose = d.onClose, actions = actions, trust = d.trustCandidate?.let { trustOf(context, it) }, toast = toast,
+        catalogStatus = catalogStatus,
         extraSection = { id -> PluginUis.forBundle(id)?.Section(hooks) },
     )
 }

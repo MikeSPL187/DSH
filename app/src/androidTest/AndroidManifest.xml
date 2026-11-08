@@ -1,0 +1,12 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Test APK only: an independent UID verifies the real chooser's URI grant. -->
+        <activity android:name="com.dsh.QaArchiveReceiver" android:exported="true" android:label="DSH QA archive">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/zip" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
