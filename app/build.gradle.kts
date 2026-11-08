@@ -76,6 +76,17 @@ android {
         }
     }
 
+    if (providers.gradleProperty("dshBenchmarks").orNull == "true") {
+        buildTypes.create("benchmark") {
+            initWith(buildTypes.getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            applicationIdSuffix = ".benchmark"
+            isDebuggable = false
+            matchingFallbacks += listOf("release")
+            manifestPlaceholders["bindPluginPermission"] = "app.dsh.mobile.benchmark.permission.BIND_PLUGIN"
+        }
+    }
+
     packaging {
         // proot 需要从 nativeLibraryDir 直接 exec（extractNativeLibs=false 时该目录不存在），
         // 因此关闭 APK 内直接加载，改为安装时解压 native 库。

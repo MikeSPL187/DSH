@@ -59,3 +59,6 @@ include(":tooling:frontend-patch")
 // App
 include(":app")
 
+
+// Performance tooling is opt-in; normal app builds retain their existing variants.
+if (providers.gradleProperty("dshBenchmarks").orNull == "true") include(":benchmark")

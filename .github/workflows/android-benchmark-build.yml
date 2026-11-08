@@ -1,0 +1,51 @@
+name: Android benchmark build
+on:
+  push:
+    paths:
+      - 'benchmark/**'
+      - 'app/src/benchmark/**'
+      - '.github/workflows/android-benchmark-build.yml'
+  workflow_dispatch:
+    inputs:
+      refresh_verification:
+        description: Generate checksums for review when introducing benchmark dependencies
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: benchmark-build-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  compile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
+      - name: Install verified Gradle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/install-gradle-ci.sh
+      - name: Compile optimized benchmark target and test APK
+        env:
+          REFRESH_VERIFICATION: ${{ inputs.refresh_verification }}
+        run: |
+          args=()
+          if [ "$REFRESH_VERIFICATION" = true ]; then
+            args+=(--write-verification-metadata sha256)
+          fi
+          gradle -PdshBenchmarks=true :app:assembleBenchmark :benchmark:assembleBenchmark \
+            --no-daemon --max-workers=2 -Pkotlin.compiler.execution.strategy=in-process "${args[@]}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: benchmark-build
+          path: |
+            gradle/verification-metadata.xml
+            app/build/outputs/apk/benchmark/*.apk
+            benchmark/build/outputs/apk/benchmark/*.apk
