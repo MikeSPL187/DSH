@@ -10,8 +10,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /** Lossless stream accumulation; only presentation snapshots are coalesced. */
-internal class StreamingTextBuffer(private val scope: CoroutineScope) {
-    private val lock = Any()
+internal class StreamingTextBuffer(
+    private val scope: CoroutineScope,
+    private val lock: Any = Any(),
+) {
     private val text = StringBuilder()
     private val mutable = MutableStateFlow("")
     val snapshots = mutable.asStateFlow()
@@ -27,8 +29,9 @@ internal class StreamingTextBuffer(private val scope: CoroutineScope) {
                 delay(8)
                 synchronized(lock) {
                     if (generation == current) {
-                        mutable.value = text.toString()
+                        val snapshot = text.toString()
                         pending = null
+                        mutable.value = snapshot
                     }
                 }
             }

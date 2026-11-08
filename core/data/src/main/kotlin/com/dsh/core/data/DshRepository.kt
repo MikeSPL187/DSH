@@ -359,15 +359,16 @@ class DshRepository(
 
     // ── Открытая сессия ───────────────────────────────────────────────────────
 
+    // Selection and both stream buffers use one monitor; no cross-buffer lock ordering.
     private val viewedSessionLock = Any()
     @Volatile private var viewedSessionId: String? = null
 
     /** Текст ответа, который печатается сейчас (база при переподключении + живые фрагменты). */
-    private val streamingText = StreamingTextBuffer(scope)
+    private val streamingText = StreamingTextBuffer(scope, viewedSessionLock)
     val streamingTextFlow: StateFlow<String> = streamingText.snapshots
 
     /** Рассуждение, которое печатается сейчас. */
-    private val streamingReasoning = StreamingTextBuffer(scope)
+    private val streamingReasoning = StreamingTextBuffer(scope, viewedSessionLock)
     val streamingReasoningFlow: StateFlow<String> = streamingReasoning.snapshots
 
     /** План агента (проекция `todos`). */
