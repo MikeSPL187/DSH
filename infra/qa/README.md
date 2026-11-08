@@ -35,10 +35,11 @@ continues. This catches a second loading gate after the first visible frame.
 `full` runs the entire matrix. The manual `integration-only` and `host-probe`
 profiles run focused scenarios on API 30; they do not replace full-matrix proof.
 
-Public downloads are preferred. Before publication, the successful candidate run
+Rootfs 2.0.3 public downloads were published on 2026-11-08 and are preferred.
+For an unpublished candidate, the successful candidate run
 42257899221 supplies the immutable rootfs 2.0.3 image, which must still match the APK's hash. That fallback
-artifact expires after 14 days; publish the prepared rootfs assets before relying
-on it beyond that period.
+artifact expires after 14 days. Published rootfs 2.0.3 assets provide durable
+downloads of the same pinned bytes; do not rebuild and overwrite them.
 
 Tests use an instrumented debug APK (`app.dsh.mobile.debug`). The signed release
 APK is independently inspected for package/version/source/rootfs pins and signing

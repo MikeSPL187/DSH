@@ -1,0 +1,56 @@
+{
+  "releaseId": 436845729,
+  "tag": "rootfs-v2.0.3",
+  "source": "20f21bc6e7e2e177a372ca200b853766bdee071b",
+  "url": "https://github.com/MikeSPL187/DSH/releases/tag/rootfs-v2.0.3",
+  "publishedAt": "2026-11-08T04:28:35Z",
+  "prerelease": true,
+  "latest": false,
+  "verifiedAt": "2026-11-08T04:29:21.757458+00:00",
+  "allSevenApprovedAssetsUnchanged": true,
+  "rootfs202Unchanged": true,
+  "unauthenticatedPublicDownloads": [
+    {
+      "name": "rootfs-arm64-v8a.bin",
+      "size": 302072206,
+      "sha256": "4f27be41b3ac58e09145ff0752e3cfe6fe70a1d89611693d5f4dad8365febbb8",
+      "url": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.3/rootfs-arm64-v8a.bin"
+    },
+    {
+      "name": "rootfs-manifest.json",
+      "size": 945,
+      "sha256": "c01d7cfc3a93af9227fac84fda43079689aa2d49c0916f50fa13d9430f9f7b4a",
+      "url": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.3/rootfs-manifest.json"
+    },
+    {
+      "name": "rootfs-x86_64.bin",
+      "size": 299916757,
+      "sha256": "c7022c8692c02928302d047182df10e9421c05c78f7cad2e121882b9ae84c886",
+      "url": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.3/rootfs-x86_64.bin"
+    },
+    {
+      "name": "sbom-arm64.tar.gz",
+      "size": 343382,
+      "sha256": "16fb8c017cf561053f2383a92f9a55eb40329f52b873ae7597d84592b73e499e",
+      "url": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.3/sbom-arm64.tar.gz"
+    },
+    {
+      "name": "sbom-x86_64.tar.gz",
+      "size": 343391,
+      "sha256": "c04eb15484cd22d0aceaca1846d045602929a2ce7005a88cf7c5dc2d767a0406",
+      "url": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.3/sbom-x86_64.tar.gz"
+    },
+    {
+      "name": "SHA256SUMS",
+      "size": 513,
+      "sha256": "6e0d236e8ac0c876ee5270ba69ecdda35cfa8d96c856b2f63b6e445ebe596dbc",
+      "url": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.3/SHA256SUMS"
+    },
+    {
+      "name": "source-revision.txt",
+      "size": 41,
+      "sha256": "f063e1171962e04cb26b73b279f4125fffa2b8678aa5c8eda2c7c02427561d5e",
+      "url": "https://github.com/MikeSPL187/DSH/releases/download/rootfs-v2.0.3/source-revision.txt"
+    }
+  ]
+}

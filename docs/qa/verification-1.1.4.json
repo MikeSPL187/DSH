@@ -389,9 +389,11 @@
     "apkPublished": false,
     "prDraft": true,
     "prMerged": false,
-    "rootfs203Published": false,
-    "rootfs203DraftId": 436845729,
-    "publicationNeedsNewAuthorization": true
+    "rootfs203Published": true,
+    "publicationNeedsNewAuthorization": false,
+    "rootfs203ReleaseUrl": "https://github.com/MikeSPL187/DSH/releases/tag/rootfs-v2.0.3",
+    "rootfs203PublishedAt": "2026-11-08T04:28:35Z",
+    "rootfs203ReleaseId": 436845729
   },
   "limitations": [
     "Native functional tests use an instrumented debug APK; signed release inspected separately.",
