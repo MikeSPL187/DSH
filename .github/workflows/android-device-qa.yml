@@ -8,6 +8,8 @@ on:
       - 'core/**'
       - 'runtime/**'
       - 'infra/qa/**'
+      - '.github/scripts/run-device-qa.sh'
+      - '.github/scripts/download-pinned-rootfs.py'
       - '.github/workflows/android-device-qa.yml'
   workflow_dispatch:
     inputs:
@@ -33,6 +35,8 @@ jobs:
   devices:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    env:
+      QA_PROFILE: ${{ inputs.profile || 'full' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad
@@ -46,6 +50,8 @@ jobs:
           python3 infra/qa/mcp-fixture-test.py
           python3 infra/qa/rootfs-selection-test.py
           python3 scripts/tests/pinned-rootfs-test.py
+          python3 infra/qa/device-profile-test.py
+          bash -n .github/scripts/run-device-qa.sh
           sh -n infra/qa/native-packages.sh
           node --check infra/qa/native-cancel.mjs
           node --check infra/qa/native-fileops.mjs
@@ -115,23 +121,14 @@ jobs:
         run: |
           test -c /dev/kvm
           sudo chmod 666 /dev/kvm
-      - name: Android 11, 13 and 15, one capped emulator at a time
-        env:
-          QA_PROFILE: ${{ inputs.profile || 'full' }}
-        run: |
-          apis="30 33 35"
-          flags=()
-          if [ "$QA_PROFILE" = ui-layout ]; then
-            flags+=(--ui-only)
-          elif [ "$QA_PROFILE" != full ]; then
-            apis=30; flags+=(--integration-only)
-          fi
-          if [ "$QA_PROFILE" = host-probe ]; then flags+=(--host-probe); fi
-          image_args=()
-          if [ "$QA_PROFILE" != ui-layout ]; then image_args+=(--rootfs qa-rootfs/rootfs-x86_64.bin); fi
-          for api in $apis; do
-            python3 infra/qa/android-device.py --api "$api" "${image_args[@]}" --output "device-evidence/api-$api" "${flags[@]}"
-          done
+      - name: Android 11 (API 30)
+        run: bash .github/scripts/run-device-qa.sh 30
+      - name: Android 13 (API 33)
+        if: env.QA_PROFILE == 'full' || env.QA_PROFILE == 'ui-layout'
+        run: bash .github/scripts/run-device-qa.sh 33
+      - name: Android 15 (API 35)
+        if: env.QA_PROFILE == 'full' || env.QA_PROFILE == 'ui-layout'
+        run: bash .github/scripts/run-device-qa.sh 35
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
