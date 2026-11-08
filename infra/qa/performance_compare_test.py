@@ -1,4 +1,9 @@
 import copy
+import json
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
 import unittest
 from performance_compare import compare, validate_devices
 
@@ -49,6 +54,28 @@ class PerformanceCompareTest(unittest.TestCase):
         bad = fixture()
         bad["context"]["build"]["sdk"] = 34
         with self.assertRaises(ValueError): compare(fixture(), [bad] * 3)
+
+    def test_cli_writes_report_and_distinguishes_regression_from_invalid_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            device = dict(deviceId="fixture", osBuild="test", refreshHz=120, fontScale=1,
+                          powerSave=False, compilationMode="None", ramGb=8, isPhysical=True, sourceRevision="test")
+            baseline, info = root / "baseline.json", root / "device.json"
+            baseline.write_text(json.dumps(fixture()))
+            info.write_text(json.dumps(device))
+            candidates = [root / f"candidate-{i}.json" for i in range(3)]
+            for i, path in enumerate(candidates): path.write_text(json.dumps(fixture(106 + i)))
+            output = root / "comparison.json"
+            command = [sys.executable, str(Path(__file__).with_name("performance_compare.py")),
+                       "--baseline", str(baseline), "--candidate", *map(str, candidates),
+                       "--baseline-device", str(info), "--candidate-device", str(info), "--output", str(output)]
+            completed = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(1, completed.returncode, completed.stderr)
+            self.assertFalse(json.loads(output.read_text())["accepted"])
+            candidates[0].write_text(json.dumps(fixture(100)))
+            self.assertEqual(0, subprocess.run(command, capture_output=True).returncode)
+            info.write_text(json.dumps(dict(device, isPhysical=False)))
+            self.assertEqual(2, subprocess.run(command, capture_output=True).returncode)
 
     def test_physical_display_and_compilation_settings_are_required(self):
         device = dict(deviceId="fixture", osBuild="test", refreshHz=120, fontScale=1,

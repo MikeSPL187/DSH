@@ -44,6 +44,7 @@ jobs:
         run: |
           python3 -m py_compile infra/qa/android-device.py infra/qa/mcp_fixture.py
           python3 infra/qa/mcp-fixture-test.py
+          python3 infra/qa/rootfs-selection-test.py
           sh -n infra/qa/native-packages.sh
           node --check infra/qa/native-cancel.mjs
           node --check infra/qa/native-fileops.mjs
@@ -97,6 +98,7 @@ jobs:
           path: device-apks/
           retention-days: 14
       - name: Prefer published pinned rootfs
+        if: inputs.profile != 'ui-layout'
         id: rootfs
         run: |
           mkdir -p qa-rootfs
@@ -114,7 +116,7 @@ jobs:
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f: f.write('published=' + str(published).lower() + '\n')
           PY
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        if: steps.rootfs.outputs.published != 'true'
+        if: inputs.profile != 'ui-layout' && steps.rootfs.outputs.published != 'true'
         with:
           name: rootfs-2.0.3-candidate
           run-id: 42257899221
@@ -136,8 +138,10 @@ jobs:
             apis=30; flags+=(--integration-only)
           fi
           if [ "$QA_PROFILE" = host-probe ]; then flags+=(--host-probe); fi
+          image_args=()
+          if [ "$QA_PROFILE" != ui-layout ]; then image_args+=(--rootfs qa-rootfs/rootfs-x86_64.bin); fi
           for api in $apis; do
-            python3 infra/qa/android-device.py --api "$api" --rootfs qa-rootfs/rootfs-x86_64.bin --output "device-evidence/api-$api" "${flags[@]}"
+            python3 infra/qa/android-device.py --api "$api" "${image_args[@]}" --output "device-evidence/api-$api" "${flags[@]}"
           done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()

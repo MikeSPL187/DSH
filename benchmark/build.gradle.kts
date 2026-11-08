@@ -7,6 +7,7 @@ android {
     namespace = "com.dsh.benchmark"
     compileSdk = 35
     targetProjectPath = ":app"
+    experimentalProperties["android.experimental.self-instrumenting"] = true
     defaultConfig {
         minSdk = 29
         targetSdk = 35
@@ -15,6 +16,8 @@ android {
     buildTypes {
         create("benchmark") {
             isDebuggable = true
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "benchmark-rules.pro")
             matchingFallbacks += listOf("release")
         }
     }
@@ -22,8 +25,9 @@ android {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
     }
-    kotlinOptions { jvmTarget = "21" }
 }
+kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21) } }
+
 androidComponents { beforeVariants(selector().all()) { it.enable = it.buildType == "benchmark" } }
 
 dependencies {

@@ -449,19 +449,31 @@ class Device:
         self.cold_starts()
 
 
+def rootfs_for_run(path, ui_only, manifest_path=Path('app/src/main/assets/rootfs-manifest.json')):
+    if path is None:
+        if ui_only:
+            return None
+        raise ValueError('Linux integration requires --rootfs')
+    image = path.resolve()
+    manifest = json.loads(manifest_path.read_text())
+    with image.open('rb') as stream:
+        actual = hashlib.file_digest(stream, 'sha256').hexdigest().upper()
+    if actual != manifest['downloadSha256']['x86_64'].upper():
+        raise ValueError('Rootfs SHA-256 does not match APK pins')
+    return image
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--api', type=int, required=True)
-    parser.add_argument('--rootfs', type=Path, required=True)
+    parser.add_argument('--rootfs', type=Path)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--integration-only', action='store_true')
     parser.add_argument('--host-probe', action='store_true')
     parser.add_argument('--ui-only', action='store_true')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
-    image = args.rootfs.resolve()
-    manifest = json.loads(Path('app/src/main/assets/rootfs-manifest.json').read_text())
-    assert hashlib.sha256(image.read_bytes()).hexdigest().upper() == manifest['downloadSha256']['x86_64']
+    image = rootfs_for_run(args.rootfs, args.ui_only)
     sdk = Path(os.environ['ANDROID_HOME'])
     tools = sdk / 'cmdline-tools/latest/bin'
     package = 'system-images;android-%d;google_apis;x86_64' % args.api
