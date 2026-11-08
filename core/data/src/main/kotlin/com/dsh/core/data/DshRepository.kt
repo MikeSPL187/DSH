@@ -362,12 +362,12 @@ class DshRepository(
     private var viewedSessionId: String? = null
 
     /** Текст ответа, который печатается сейчас (база при переподключении + живые фрагменты). */
-    private val _streamingTextFlow = MutableStateFlow("")
-    val streamingTextFlow: StateFlow<String> = _streamingTextFlow.asStateFlow()
+    private val streamingText = StreamingTextBuffer(scope)
+    val streamingTextFlow: StateFlow<String> = streamingText.snapshots
 
     /** Рассуждение, которое печатается сейчас. */
-    private val _streamingReasoningFlow = MutableStateFlow("")
-    val streamingReasoningFlow: StateFlow<String> = _streamingReasoningFlow.asStateFlow()
+    private val streamingReasoning = StreamingTextBuffer(scope)
+    val streamingReasoningFlow: StateFlow<String> = streamingReasoning.snapshots
 
     /** План агента (проекция `todos`). */
     private val _todosFlow = MutableStateFlow<List<TodoEntryInfo>>(emptyList())
@@ -415,8 +415,8 @@ class DshRepository(
     /** Пользователь смотрит [sessionId] (null — ни одну): состояние прошлой сессии сбрасывается. */
     fun markSessionViewed(sessionId: String?) {
         if (sessionId != viewedSessionId) {
-            _streamingTextFlow.value = ""
-            _streamingReasoningFlow.value = ""
+            streamingText.clear()
+            streamingReasoning.clear()
             _todosFlow.value = emptyList()
             _goalFlow.value = null
             _subagentsFlow.value = emptyList()
@@ -616,11 +616,11 @@ class DshRepository(
             }
             is RemoteEvent.MessageDelta -> {
                 runningSessionIdsFlow.update { it + event.sessionId }
-                if (event.sessionId == viewed) _streamingTextFlow.update { if (event.baseline) event.delta else it + event.delta }
+                if (event.sessionId == viewed) streamingText.append(event.delta, event.baseline)
             }
             is RemoteEvent.ReasoningDelta -> {
                 runningSessionIdsFlow.update { it + event.sessionId }
-                if (event.sessionId == viewed) _streamingReasoningFlow.update { if (event.baseline) event.delta else it + event.delta }
+                if (event.sessionId == viewed) streamingReasoning.append(event.delta, event.baseline)
             }
             is RemoteEvent.WorkflowRunUpdated -> if (event.sessionId == viewed) {
                 _workflowRunsFlow.update { all ->
@@ -719,8 +719,8 @@ class DshRepository(
     }
 
     private fun clearStreaming() {
-        _streamingTextFlow.value = ""
-        _streamingReasoningFlow.value = ""
+        streamingText.clear()
+        streamingReasoning.clear()
     }
 
     private companion object {

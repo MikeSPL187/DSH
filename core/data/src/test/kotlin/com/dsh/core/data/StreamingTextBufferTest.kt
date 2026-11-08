@@ -1,0 +1,35 @@
+package com.dsh.core.data
+
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.first
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+class StreamingTextBufferTest {
+    @Test fun burstRetainsEveryUnicodeDelta() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val stream = StreamingTextBuffer(scope)
+            repeat(10_000) { stream.append("я🙂", baseline = false) }
+            val expected = "я🙂".repeat(10_000)
+            withTimeout(5000) { stream.snapshots.first { it == expected } }
+        } finally { scope.cancel() }
+    }
+
+    @Test fun baselineReplacesAccumulatedStreamAndClearInvalidatesOldPublication() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val stream = StreamingTextBuffer(scope)
+            stream.append("old", false)
+            stream.clear()
+            stream.append("replayed", true)
+            stream.append(" tail", false)
+            withTimeout(5000) { stream.snapshots.first { it == "replayed tail" } }
+            stream.append(" pending", false)
+            stream.clear()
+            stream.append("new session", true)
+            withTimeout(5000) { stream.snapshots.first { it == "new session" } }
+            assertEquals("new session", stream.snapshots.value)
+        } finally { scope.cancel() }
+    }
+}

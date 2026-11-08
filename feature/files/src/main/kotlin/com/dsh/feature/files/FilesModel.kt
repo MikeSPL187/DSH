@@ -479,3 +479,16 @@ internal fun searchText(root: File, files: List<File>, query: String, maxLines: 
     }
     return TextSearch(out.sortedBy { it.path.lowercase() }, lines, lines >= maxLines)
 }
+
+/** Filesystem attributes captured off the UI thread for a directory listing. */
+internal data class DirectoryEntry(
+    val file: File,
+    val relativePath: String,
+    val directory: Boolean,
+    val size: Long,
+    val modified: Long,
+)
+
+internal fun directoryEntries(root: File, dir: File): List<DirectoryEntry> = listDir(dir).map { file ->
+    DirectoryEntry(file, relPath(root, file), file.isDirectory, file.length(), file.lastModified())
+}
