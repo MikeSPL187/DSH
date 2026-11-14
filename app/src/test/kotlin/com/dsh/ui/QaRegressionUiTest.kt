@@ -21,6 +21,8 @@ import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextInput
@@ -104,6 +106,25 @@ class QaRegressionUiTest {
         compose.onNodeWithText("Скачать").performClick()
         compose.runOnIdle { assertEquals(file.canonicalFile, downloaded?.canonicalFile) }
     }
+    @Test fun largeDirectoryComposesOnlyVisibleRowsAndScrollsToTheEnd() {
+        val root = File(compose.activity.cacheDir, "qa-lazy-directory").apply { deleteRecursively(); mkdirs() }
+        try {
+            repeat(1000) { File(root, "folder-%04d".format(it)).mkdir() }
+            compose.setContent {
+                DshTheme {
+                    FilesScreen(root = root, rootLabel = "QA", refreshKey = 0, git = null, onClose = {},
+                        onAttach = {}, onAsk = {}, onReview = {}, commitMessage = null, onShare = {},
+                        onImport = {}, onToast = {})
+                }
+            }
+            compose.waitUntil(10_000) { compose.onAllNodesWithText("folder-0000").fetchSemanticsNodes().isNotEmpty() }
+            compose.onAllNodesWithText("folder-0999").assertCountEquals(0)
+            org.junit.Assert.assertTrue(compose.onAllNodesWithContentDescription("Действия").fetchSemanticsNodes().size < 30)
+            compose.onNode(hasScrollAction()).performScrollToIndex(1000)
+            compose.onNodeWithText("folder-0999").assertExists()
+        } finally { root.deleteRecursively() }
+    }
+
     @Test
     fun revealedSecretNeverEntersMergedOrUnmergedSemanticsAndRemainsEditable() {
         var key by mutableStateOf("")

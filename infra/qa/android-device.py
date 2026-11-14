@@ -276,6 +276,10 @@ class Device:
                 records = json.loads(self.private('cat files/chat-outbox-v1.json'))
                 record = next(x for x in records if x['model']['modelId'] == 'qa-recovery')
                 assert 'Native partial response' in record['partial'], 'Partial answer was not durably checkpointed'
+                checkpoint = json.loads(self.private('cat cache/qa-native-checkpoint.json'))
+                assert checkpoint == {'prefixDurable': True, 'tailDurableWithoutNextDelta': True}
+                (self.output / 'native-checkpoint.json').write_text(json.dumps(checkpoint, indent=2) + '\n')
+                self.check('native-paused-stream-tail-checkpointed-without-next-delta')
                 recreation = json.loads(self.private('cat cache/qa-native-recreation.json'))
                 assert recreation == {'activityRecreated': True, 'requestStillActive': True}
                 (self.output / 'native-recreation.json').write_text(json.dumps(recreation, indent=2) + '\n')
@@ -305,6 +309,7 @@ class Device:
                 (self.output / ('native-' + name)).write_bytes(self.adb('exec-out', 'run-as', PACKAGE, 'cat', file))
         assert 'OK (1 test)' in result, 'Process-death recovery or UI Retry failed'
         assert 'llm/recovery-partial' in methods
+        assert 'llm/recovery-tail' in methods
         assert json.loads(self.private('cat cache/qa-native-recovery.json')) == {
             'forceStop': True, 'partialRetained': True, 'interruptionVisible': True, 'retry': 'ok'}
         self.check('native-force-stop-retains-durable-partial-and-visible-interruption')
@@ -449,19 +454,31 @@ class Device:
         self.cold_starts()
 
 
+def rootfs_for_run(path, ui_only, manifest_path=Path('app/src/main/assets/rootfs-manifest.json')):
+    if path is None:
+        if ui_only:
+            return None
+        raise ValueError('Linux integration requires --rootfs')
+    image = path.resolve()
+    manifest = json.loads(manifest_path.read_text())
+    with image.open('rb') as stream:
+        actual = hashlib.file_digest(stream, 'sha256').hexdigest().upper()
+    if actual != manifest['downloadSha256']['x86_64'].upper():
+        raise ValueError('Rootfs SHA-256 does not match APK pins')
+    return image
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--api', type=int, required=True)
-    parser.add_argument('--rootfs', type=Path, required=True)
+    parser.add_argument('--rootfs', type=Path)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--integration-only', action='store_true')
     parser.add_argument('--host-probe', action='store_true')
     parser.add_argument('--ui-only', action='store_true')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
-    image = args.rootfs.resolve()
-    manifest = json.loads(Path('app/src/main/assets/rootfs-manifest.json').read_text())
-    assert hashlib.sha256(image.read_bytes()).hexdigest().upper() == manifest['downloadSha256']['x86_64']
+    image = rootfs_for_run(args.rootfs, args.ui_only)
     sdk = Path(os.environ['ANDROID_HOME'])
     tools = sdk / 'cmdline-tools/latest/bin'
     package = 'system-images;android-%d;google_apis;x86_64' % args.api

@@ -5,14 +5,15 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import java.lang.reflect.Proxy
+import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * Подставные DAO и клиент Host для тестов [DshRepository]. Методы отвечают сразу (без приостановки),
  * поэтому `suspend`-методы можно отдавать через [Proxy]: результат возвращается вместо COROUTINE_SUSPENDED.
  */
 internal class RepositoryFakes(private val answer: (method: String, args: List<Any?>) -> Any?) {
-    val clientCalls = mutableListOf<String>()
-    val daoCalls = mutableListOf<String>()
+    val clientCalls = CopyOnWriteArrayList<String>()
+    val daoCalls = CopyOnWriteArrayList<String>()
 
     val client: DshClientProtocol = Proxy.newProxyInstance(
         DshClientProtocol::class.java.classLoader,

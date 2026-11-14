@@ -22,6 +22,10 @@ import com.dsh.core.designsystem.LocalConversationFontSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.getValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -58,7 +62,12 @@ private fun bodyTextStyle(): TextStyle {
 @Composable
 fun MarkdownMessageText(text: String, color: Color = com.dsh.core.designsystem.Dsh.colors.t1) {
     val c = com.dsh.core.designsystem.Dsh.colors
-    val blocks = remember(text) { parseMarkdownBlocks(text) }
+    val blocks by produceState(emptyList<MarkdownBlock>(), text) {
+        value = withContext(Dispatchers.Default) {
+            android.os.Trace.beginSection("DSH.Markdown.parse")
+            try { parseMarkdownBlocks(text) } finally { android.os.Trace.endSection() }
+        }
+    }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         blocks.forEach { block ->
             when (block) {

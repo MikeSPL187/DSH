@@ -165,7 +165,8 @@ fun MainAppHost(
     com.dsh.plugin.nativehost.NativeHost.rpcHandler = slotPluginRpc
 
     val pageState = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
-    val repoSessions by dshRepository.getSessions(ui.activeHostId).collectAsState(initial = emptyList())
+    val sessionsFlow = remember(dshRepository, ui.activeHostId) { dshRepository.getSessions(ui.activeHostId) }
+    val repoSessions by sessionsFlow.collectAsState(initial = emptyList())
     val sessions = repoSessions
 
 
@@ -221,9 +222,11 @@ fun MainAppHost(
 
     val activeSession = sessions.find { it.sessionId == ui.selectedSessionId }
 
-    val repoMessages by dshRepository.getMessages(ui.activeHostId, ui.selectedSessionId ?: "")
-        .collectAsState(initial = emptyList())
-    val savedPrompts by (context.applicationContext as DshApplication).chatRunJournal.records.collectAsState()
+    val messagesFlow = remember(dshRepository, ui.activeHostId, ui.selectedSessionId) {
+        dshRepository.getMessages(ui.activeHostId, ui.selectedSessionId ?: "")
+    }
+    val repoMessages by messagesFlow.collectAsState(initial = emptyList())
+    val savedPrompts by (context.applicationContext as DshApplication).chatRunJournal.messageRecords.collectAsState()
     LaunchedEffect(ui.activeHostId, ui.pendingChatId, savedPrompts) {
         if (ui.resumePendingConversation((context.applicationContext as DshApplication).chatRunJournal)) {
             runtimeUi.didInitialResume = true

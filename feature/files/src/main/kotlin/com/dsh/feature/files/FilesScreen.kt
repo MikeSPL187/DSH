@@ -39,6 +39,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -60,6 +61,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -602,6 +604,41 @@ private fun Group(content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(c.s1).border(1.dp, c.line, RoundedCornerShape(18.dp)), content = content)
 }
 
+/** One lazy row of the continuous directory card; only its outer ends are rounded. */
+@Composable
+private fun DirectoryRowFrame(first: Boolean, last: Boolean, content: @Composable () -> Unit) {
+    val c = Dsh.colors
+    val top = if (first) 18.dp else 0.dp
+    val bottom = if (last) 18.dp else 0.dp
+    val shape = RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)
+    Box(Modifier.fillMaxWidth().clip(shape).background(c.s1).drawWithCache {
+        val inset = 0.5.dp.toPx()
+        val right = size.width - inset
+        val end = size.height - inset
+        val rt = top.toPx()
+        val rb = bottom.toPx()
+        val outline = androidx.compose.ui.graphics.Path().apply {
+            moveTo(inset, if (first) rt else 0f)
+            if (first) {
+                quadraticTo(inset, inset, rt, inset)
+                lineTo(right - rt, inset)
+                quadraticTo(right, inset, right, rt)
+            } else moveTo(right, 0f)
+            lineTo(right, if (last) end - rb else size.height)
+            if (last) {
+                quadraticTo(right, end, right - rb, end)
+                lineTo(rb, end)
+                quadraticTo(inset, end, inset, end - rb)
+            } else moveTo(inset, size.height)
+            lineTo(inset, if (first) rt else 0f)
+        }
+        onDrawWithContent {
+            drawContent()
+            drawPath(outline, c.line, style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
+        }
+    }) { content() }
+}
+
 /** `.fr`: строка файла или папки. */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -674,15 +711,6 @@ private fun Empty(text: String, hint: String? = null, icon: ImageVector? = null,
     }
 }
 
-/** Кол-во объектов в папке и сколько из них изменено. */
-@Composable
-private fun dirMeta(root: File, dir: File, changed: Map<String, GitChange>): String {
-    val n = listDir(dir).size
-    val prefix = relPath(root, dir) + "/"
-    val k = changed.keys.count { it.startsWith(prefix) }
-    return objects(n) + if (k > 0) " · " + stringResource(R.string.fs_changed_in, k) else ""
-}
-
 // ---------------------------------------------------------------------------
 // Виды
 // ---------------------------------------------------------------------------
@@ -703,7 +731,9 @@ private fun DirView(
 ) {
     val c = Dsh.colors
     val dir = if (path.isEmpty()) root else File(root, path)
-    val items by produceState(emptyList<File>(), dir, version) { value = withContext(Dispatchers.IO) { listDir(dir) } }
+    val entries by produceState(emptyList<DirectoryEntry>(), dir, version) {
+        value = withContext(Dispatchers.IO) { directoryEntries(root, dir) }
+    }
     val recent by produceState(emptyList<File>(), root, version, path) {
         value = if (path.isEmpty()) withContext(Dispatchers.IO) { walkFiles(root).sortedByDescending { it.lastModified() }.take(4) } else emptyList()
     }
@@ -722,24 +752,35 @@ private fun DirView(
                 }
             }
         }
-        if (path.isEmpty()) item(key = "all-h") { Section(stringResource(R.string.fs_all), objects(items.size)) }
-        if (items.isEmpty()) {
+        if (path.isEmpty()) item(key = "all-h") { Section(stringResource(R.string.fs_all), objects(entries.size)) }
+        if (entries.isEmpty()) {
             item(key = "empty") { Empty(stringResource(R.string.fs_empty_dir), stringResource(R.string.fs_empty_dir_hint)) }
         } else {
-            item(key = "list") {
-                Group {
-                    items.forEachIndexed { i, f ->
-                        val rel = relPath(root, f)
-                        FileRow(
-                            name = f.name,
-                            meta = if (f.isDirectory) dirMeta(root, f, changed) else fileMeta(f),
-                            dir = f.isDirectory,
-                            first = i == 0,
-                            change = changed[rel],
-                            onClick = { onOpen(f) },
-                            onMore = { onMore(rel) },
-                        )
-                    }
+            itemsIndexed(entries, key = { _, entry -> entry.file.absolutePath }, contentType = { _, _ -> "file-row" }) { index, entry ->
+                val childCount by produceState<Int?>(null, entry, version) {
+                    if (entry.directory) value = withContext(Dispatchers.IO) { listDir(entry.file).size }
+                }
+                val changedCount = remember(changed, entry.relativePath) {
+                    val prefix = entry.relativePath + "/"
+                    changed.keys.count { it.startsWith(prefix) }
+                }
+                val meta = if (entry.directory) {
+                    childCount?.let { objects(it) }.orEmpty() +
+                        if (changedCount > 0) " · " + stringResource(R.string.fs_changed_in, changedCount) else ""
+                } else {
+                    val context = LocalContext.current
+                    "${android.text.format.Formatter.formatShortFileSize(context, entry.size)} · ${relativeTime(entry.modified)}"
+                }
+                DirectoryRowFrame(first = index == 0, last = index == entries.lastIndex) {
+                    FileRow(
+                        name = entry.file.name,
+                        meta = meta,
+                        dir = entry.directory,
+                        first = index == 0,
+                        change = changed[entry.relativePath],
+                        onClick = { onOpen(entry.file) },
+                        onMore = { onMore(entry.relativePath) },
+                    )
                 }
             }
         }

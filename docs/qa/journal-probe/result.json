@@ -1,0 +1,107 @@
+{
+  "workload": "10000 reused 16-character deltas + forced failure commit + scope shutdown",
+  "scope": "Exploratory JDK21 JVM journal probe; not Android, UI frame rate, RSS, or N19 acceptance",
+  "warmupTrials": 3,
+  "measuredTrials": 5,
+  "jvmFlags": [
+    "-Xmx256m",
+    "-XX:+UseSerialGC"
+  ],
+  "os": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "java": "openjdk version \"21.0.13\" 2026-10-20 LTS\nOpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing)",
+  "commonProbeSha256": "f2c52675ab6d5d809b1383208fe9d2613e0ec1f645b05e36cfee407b81589b85",
+  "variants": {
+    "before": {
+      "source": "af05873a1dbdcd0f648a81f889dfd385918c75c9",
+      "journalSha256": "18f11953c15a2c2fd5937d6b7b81d82fbc09a987924d406bc738a8eda1227f1f",
+      "trials": [
+        {
+          "elapsedNs": 80361796,
+          "callingThreadAllocatedBytes": 1013581432,
+          "totalJvmAllocatedBytes": 1013581432,
+          "finalTailChars": 131072,
+          "finalTailMatches": true
+        },
+        {
+          "elapsedNs": 83206092,
+          "callingThreadAllocatedBytes": 1013581432,
+          "totalJvmAllocatedBytes": 1013581432,
+          "finalTailChars": 131072,
+          "finalTailMatches": true
+        },
+        {
+          "elapsedNs": 73537694,
+          "callingThreadAllocatedBytes": 1013581432,
+          "totalJvmAllocatedBytes": 1013581432,
+          "finalTailChars": 131072,
+          "finalTailMatches": true
+        },
+        {
+          "elapsedNs": 79182029,
+          "callingThreadAllocatedBytes": 1013581432,
+          "totalJvmAllocatedBytes": 1013581584,
+          "finalTailChars": 131072,
+          "finalTailMatches": true
+        },
+        {
+          "elapsedNs": 74468920,
+          "callingThreadAllocatedBytes": 1013581432,
+          "totalJvmAllocatedBytes": 1013581432,
+          "finalTailChars": 131072,
+          "finalTailMatches": true
+        }
+      ],
+      "medians": {
+        "elapsedNs": 79182029,
+        "callingThreadAllocatedBytes": 1013581432,
+        "totalJvmAllocatedBytes": 1013581432
+      }
+    },
+    "after": {
+      "source": "898eee42384dd7c73544156443f0b98bba1acf4f",
+      "journalSha256": "5c76436d6cfe0225d14ec256fe77f61205ba8864386bd6c821390f214535de3e",
+      "trials": [
+        {
+          "elapsedNs": 15843890,
+          "callingThreadAllocatedBytes": 1279232,
+          "totalJvmAllocatedBytes": 1279608,
+          "finalTailChars": 131072,
+          "finalTailMatches": true
+        },
+        {
+          "elapsedNs": 4898181,
+          "callingThreadAllocatedBytes": 1288320,
+          "totalJvmAllocatedBytes": 1289184,
+          "finalTailChars": 131072,
+          "finalTailMatches": true
+        },
+        {
+          "elapsedNs": 4200291,
+          "callingThreadAllocatedBytes": 1279216,
+          "totalJvmAllocatedBytes": 1279592,
+          "finalTailChars": 131072,
+          "finalTailMatches": true
+        },
+        {
+          "elapsedNs": 8264131,
+          "callingThreadAllocatedBytes": 959512,
+          "totalJvmAllocatedBytes": 960040,
+          "finalTailChars": 131072,
+          "finalTailMatches": true
+        },
+        {
+          "elapsedNs": 6187885,
+          "callingThreadAllocatedBytes": 959232,
+          "totalJvmAllocatedBytes": 959608,
+          "finalTailChars": 131072,
+          "finalTailMatches": true
+        }
+      ],
+      "medians": {
+        "elapsedNs": 6187885,
+        "callingThreadAllocatedBytes": 1279216,
+        "totalJvmAllocatedBytes": 1279592
+      }
+    }
+  }
+}

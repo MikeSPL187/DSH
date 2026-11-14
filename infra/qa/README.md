@@ -2,7 +2,11 @@
 
 The full workflow runs one KVM emulator at a time: API 30, then 33, then 35,
 with 3072 MiB and 3 virtual cores. A global concurrency group also serializes
-runs from different branches. APKs are built before emulator startup, or reused
+runs from different branches. Each Android version has its own sequential workflow
+step so API-specific progress and failures are visible before the job finishes.
+The shared launcher rejects unknown profiles/APIs and prevents focused Host profiles
+from running on API 33/35; five tests check full, UI-only and focused arguments.
+APKs are built before emulator startup, or reused
 only when every tracked Android build input matches the cached build. Both the
 original APK source and the current fixture revision are recorded. A watchdog stops the emulator if host MemAvailable
 falls below 1 GiB. Software fallback is rejected. GitHub documents hosted-runner
@@ -28,6 +32,12 @@ after Host replay, requires the partial/reason/Retry to be visible in native
 Android accessibility, then clicks Retry and waits for Host completion. The AVD
 is kept awake; screenshots and native trees are captured before teardown.
 
+The recovery provider sends a prefix and waits for Android to confirm its
+checkpoint before releasing a trailing fragment. It then pauses without another
+delta. Native QA reads that tail from the actual journal file before force-stop;
+the prefix/tail checkpoint result is saved as `native-checkpoint.json`. This
+exercises a scheduled checkpoint independently of the next model token.
+
 Each of five cold starts must make navigation usable within 20 seconds, then
 keep Settings visible for eight seconds while Host/account/plugin hydration
 continues. This catches a second loading gate after the first visible frame.
@@ -36,13 +46,18 @@ continues. This catches a second loading gate after the first visible frame.
 profiles run focused scenarios on API 30; they do not replace full-matrix proof.
 
 The manual `ui-layout` profile runs `ChatTextLayoutTest` on API 30/33/35 without
-installing Linux or invoking a model. It checks complete money/model text and
+downloading/installing Linux or invoking a model. It does not require a rootfs archive;
+integration and full profiles still enforce the APK-pinned image checksum. It checks complete money/model text and
 wrapping composer controls at 320/360 dp, font scales 1.0/1.3, permission clicks,
 and the actual chat's active-reasoning → completed transition. It records Android
 TextLayoutResult overflow/ellipsis checks and screenshots, including a snapshot
 before a layout assertion fails. This focused profile does not re-run Host tests.
 
 Rootfs 2.0.3 public downloads were published on 2026-11-08 and are preferred.
+The workflow resolves the exact filename through the official GitHub release API,
+downloads its binary asset, and verifies the APK-pinned SHA-256 before accepting
+it. Only a missing release permits candidate fallback; network errors, missing
+assets and hash mismatches fail. Failed downloads preserve any existing image.
 For an unpublished candidate, the successful candidate run
 42257899221 supplies the immutable rootfs 2.0.3 image, which must still match the APK's hash. That fallback
 artifact expires after 14 days. Published rootfs 2.0.3 assets provide durable

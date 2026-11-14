@@ -359,15 +359,17 @@ class DshRepository(
 
     // ── Открытая сессия ───────────────────────────────────────────────────────
 
-    private var viewedSessionId: String? = null
+    // Selection and both stream buffers use one monitor; no cross-buffer lock ordering.
+    private val viewedSessionLock = Any()
+    @Volatile private var viewedSessionId: String? = null
 
     /** Текст ответа, который печатается сейчас (база при переподключении + живые фрагменты). */
-    private val _streamingTextFlow = MutableStateFlow("")
-    val streamingTextFlow: StateFlow<String> = _streamingTextFlow.asStateFlow()
+    private val streamingText = StreamingTextBuffer(scope, viewedSessionLock)
+    val streamingTextFlow: StateFlow<String> = streamingText.snapshots
 
     /** Рассуждение, которое печатается сейчас. */
-    private val _streamingReasoningFlow = MutableStateFlow("")
-    val streamingReasoningFlow: StateFlow<String> = _streamingReasoningFlow.asStateFlow()
+    private val streamingReasoning = StreamingTextBuffer(scope, viewedSessionLock)
+    val streamingReasoningFlow: StateFlow<String> = streamingReasoning.snapshots
 
     /** План агента (проекция `todos`). */
     private val _todosFlow = MutableStateFlow<List<TodoEntryInfo>>(emptyList())
@@ -413,10 +415,10 @@ class DshRepository(
     }
 
     /** Пользователь смотрит [sessionId] (null — ни одну): состояние прошлой сессии сбрасывается. */
-    fun markSessionViewed(sessionId: String?) {
+    fun markSessionViewed(sessionId: String?) = synchronized(viewedSessionLock) {
         if (sessionId != viewedSessionId) {
-            _streamingTextFlow.value = ""
-            _streamingReasoningFlow.value = ""
+            streamingText.clear()
+            streamingReasoning.clear()
             _todosFlow.value = emptyList()
             _goalFlow.value = null
             _subagentsFlow.value = emptyList()
@@ -527,7 +529,8 @@ class DshRepository(
     }
 
     suspend fun refreshMessageFeedback(hostId: String, sessionId: String) {
-        _messageFeedbackFlow.value = listMessageFeedback(hostId, sessionId)
+        val feedback = listMessageFeedback(hostId, sessionId)
+        forViewedSession(sessionId) { _messageFeedbackFlow.value = feedback }
     }
 
     private suspend fun listMessageFeedback(hostId: String, sessionId: String): Map<String, MessageFeedbackInfo> {
@@ -588,7 +591,6 @@ class DshRepository(
 
     /** События сессий: ход, фрагменты текста, сообщения, изменения, результаты. */
     private suspend fun onSessionEvent(hostId: String, event: RemoteEvent) {
-        val viewed = viewedSessionId
         _sessionEvents.emit(hostId to event)
         when (event) {
             is RemoteEvent.TurnCompleted -> {
@@ -610,19 +612,20 @@ class DshRepository(
                 }
                 runningSessionIdsFlow.update { if (event.running) it + event.sessionId else it - event.sessionId }
                 if (!event.running) {
-                    if (event.sessionId == viewed) clearStreaming()
-                    else unreadSessionIdsFlow.update { it + event.sessionId }
+                    if (!forViewedSession(event.sessionId) { clearStreaming() }) {
+                        unreadSessionIdsFlow.update { it + event.sessionId }
+                    }
                 }
             }
             is RemoteEvent.MessageDelta -> {
                 runningSessionIdsFlow.update { it + event.sessionId }
-                if (event.sessionId == viewed) _streamingTextFlow.update { if (event.baseline) event.delta else it + event.delta }
+                forViewedSession(event.sessionId) { streamingText.append(event.delta, event.baseline) }
             }
             is RemoteEvent.ReasoningDelta -> {
                 runningSessionIdsFlow.update { it + event.sessionId }
-                if (event.sessionId == viewed) _streamingReasoningFlow.update { if (event.baseline) event.delta else it + event.delta }
+                forViewedSession(event.sessionId) { streamingReasoning.append(event.delta, event.baseline) }
             }
-            is RemoteEvent.WorkflowRunUpdated -> if (event.sessionId == viewed) {
+            is RemoteEvent.WorkflowRunUpdated -> forViewedSession(event.sessionId) {
                 _workflowRunsFlow.update { all ->
                     val runs = all[event.sessionId].orEmpty().toMutableList()
                     val index = runs.indexOfFirst { it.runId == event.run.runId }
@@ -630,24 +633,28 @@ class DshRepository(
                     all + (event.sessionId to runs)
                 }
             }
-            is RemoteEvent.UserImages -> if (event.sessionId == viewed) {
+            is RemoteEvent.UserImages -> forViewedSession(event.sessionId) {
                 _messageImagesFlow.update { it + (event.messageId to event.images) }
             }
-            is RemoteEvent.ChangesAnnounced -> if (event.sessionId == viewed) {
+            is RemoteEvent.ChangesAnnounced -> forViewedSession(event.sessionId) {
                 changesSeq = event.seq
                 scope.launch(Dispatchers.IO) {
                     val summary = (client.fetchChangesSummary(hostId, event.sessionId, event.seq) as? RemoteResult.Success)?.data
-                    if (summary != null && viewedSessionId == event.sessionId) _changesFlow.value = summary
+                    if (summary != null) forViewedSession(event.sessionId) {
+                        if (changesSeq == event.seq) _changesFlow.value = summary
+                    }
                 }
             }
-            is RemoteEvent.DeliverablesPresented -> if (event.sessionId == viewed) {
+            is RemoteEvent.DeliverablesPresented -> forViewedSession(event.sessionId) {
                 _deliverablesFlow.update { (it + event.files).distinctBy { file -> file.path } }
             }
             is RemoteEvent.MessageDone -> {
                 // «Идёт ход» решают только turn/start и turn/end: иначе сообщение после
                 // turn/end вернуло бы сессию в работу, и кнопка «Стоп» залипла бы.
                 val message = event.message
-                if (message.sessionId == viewed && message.role == MessageRole.ASSISTANT) clearStreaming()
+                if (message.role == MessageRole.ASSISTANT) {
+                    forViewedSession(message.sessionId) { clearStreaming() }
+                }
                 _doneMessages.tryEmit(message)
                 dao.touchSession(message.hostId, message.sessionId, System.currentTimeMillis())
                 dao.insertMessages(listOf(MessageEntity(
@@ -687,13 +694,12 @@ class DshRepository(
     /** Кадр `session/control`: модели всех сессий и проекции открытой. */
     private fun onControlFrame(text: String) {
         val root = runCatching { hostJson.parseHostJson(text) as? JsonObject }.getOrNull() ?: return
-        val viewed = viewedSessionId
         when (root.str("type")) {
             "baseline" -> {
                 val projections = (root["value"] as? JsonObject)?.get("projections") as? JsonObject ?: return
                 _sessionModelFlow.value = projections.mapNotNull { (sessionId, projection) ->
                     val values = (projection as? JsonObject)?.get("values") as? JsonObject
-                    if (sessionId == viewed) {
+                    forViewedSession(sessionId) {
                         _todosFlow.value = parseTodos(values?.get("todos"))
                         _goalFlow.value = parseGoal(values?.get("goal"))
                         _subagentsFlow.value = parseSubagents(values?.get("subagentCatalog"))
@@ -709,18 +715,27 @@ class DshRepository(
                     "modelSelection" -> parseSelectedModel(value)?.let { model ->
                         _sessionModelFlow.update { it + (sessionId to model) }
                     }
-                    "todos" -> if (sessionId == viewed) _todosFlow.value = parseTodos(value)
-                    "goal" -> if (sessionId == viewed) _goalFlow.value = parseGoal(value)
-                    "subagentCatalog" -> if (sessionId == viewed) _subagentsFlow.value = parseSubagents(value)
-                    "inbox" -> if (sessionId == viewed) _queuedMessagesFlow.value = parseQueue(value)
+                    "todos" -> forViewedSession(sessionId) { _todosFlow.value = parseTodos(value) }
+                    "goal" -> forViewedSession(sessionId) { _goalFlow.value = parseGoal(value) }
+                    "subagentCatalog" -> forViewedSession(sessionId) { _subagentsFlow.value = parseSubagents(value) }
+                    "inbox" -> forViewedSession(sessionId) { _queuedMessagesFlow.value = parseQueue(value) }
                 }
             }
         }
     }
 
+    /** Select/check and stream mutation share one owner, including after suspending event delivery. */
+    private inline fun forViewedSession(sessionId: String, action: () -> Unit): Boolean =
+        synchronized(viewedSessionLock) {
+            if (sessionId != viewedSessionId) false else {
+                action()
+                true
+            }
+        }
+
     private fun clearStreaming() {
-        _streamingTextFlow.value = ""
-        _streamingReasoningFlow.value = ""
+        streamingText.clear()
+        streamingReasoning.clear()
     }
 
     private companion object {

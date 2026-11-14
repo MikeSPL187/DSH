@@ -48,9 +48,32 @@ class NativeChatRecoveryTest {
             app.runtimeManager, mutableStateListOf(), { StorageAccess.workspaceRoot(app) })
         withContext(Dispatchers.Main) { sender.send(text, ModelChoice("qa-recovery", "qa-recovery")) }
         withTimeout(90_000) {
+            while (app.chatRunJournal.records.value.none { it.text == text && it.partial == "Native " }) delay(100)
+        }
+        // The provider cannot send another fragment until a distinct prefix checkpoint exists.
+        withContext(Dispatchers.IO) {
+            val peer = java.net.URL("http://127.0.0.1:38889/qa/recovery-tail")
+                .openConnection(java.net.Proxy.NO_PROXY) as java.net.HttpURLConnection
+            try {
+                peer.requestMethod = "POST"
+                peer.connectTimeout = 10_000
+                peer.readTimeout = 10_000
+                peer.doOutput = true
+                peer.outputStream.use { it.write("{}".toByteArray(Charsets.UTF_8)) }
+                assertEquals(200, peer.responseCode)
+                peer.inputStream.use { assertTrue(it.readBytes().toString(Charsets.UTF_8).contains("true")) }
+            } finally { peer.disconnect() }
+        }
+        withTimeout(90_000) {
             while (app.chatRunJournal.records.value.none { it.text == text && it.partial.contains("Native partial response") }) delay(100)
         }
         val record = app.chatRunJournal.records.value.single { it.text == text }
+        val disk = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+            .decodeFromString<List<SavedPrompt>>(File(app.filesDir, "chat-outbox-v1.json").readText())
+            .single { it.id == record.id }
+        assertEquals("Native partial response", disk.partial)
+        File(app.cacheDir, "qa-native-checkpoint.json").writeText(
+            """{"prefixDurable":true,"tailDurableWithoutNextDelta":true}""")
         assertNotNull(record.sessionId)
         assertTrue(record.status in ChatRunJournal.ACTIVE)
         compose.activityRule.scenario.recreate()
