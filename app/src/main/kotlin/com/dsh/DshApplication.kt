@@ -52,7 +52,7 @@ class DshApplication : Application() {
 
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     val backupExport by lazy { BackupExportController(applicationScope) }
-    val chatRunJournal by lazy { ChatRunJournal(java.io.File(filesDir, "chat-outbox-v1.json")) }
+    val chatRunJournal by lazy { ChatRunJournal(java.io.File(filesDir, "chat-outbox-v1.json"), applicationScope) }
 
     lateinit var runtimeLayout: RuntimeLayout
         private set

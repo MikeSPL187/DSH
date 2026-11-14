@@ -226,7 +226,7 @@ fun MainAppHost(
         dshRepository.getMessages(ui.activeHostId, ui.selectedSessionId ?: "")
     }
     val repoMessages by messagesFlow.collectAsState(initial = emptyList())
-    val savedPrompts by (context.applicationContext as DshApplication).chatRunJournal.records.collectAsState()
+    val savedPrompts by (context.applicationContext as DshApplication).chatRunJournal.messageRecords.collectAsState()
     LaunchedEffect(ui.activeHostId, ui.pendingChatId, savedPrompts) {
         if (ui.resumePendingConversation((context.applicationContext as DshApplication).chatRunJournal)) {
             runtimeUi.didInitialResume = true

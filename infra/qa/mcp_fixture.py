@@ -10,6 +10,7 @@ import threading
 def server():
     methods = []
     recovered = threading.Event()
+    recovery_tail = threading.Event()
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_):
@@ -35,6 +36,10 @@ def server():
 
         def do_POST(self):
             request = json.loads(self.rfile.read(int(self.headers.get('Content-Length', '0'))))
+            if self.path == '/qa/recovery-tail':
+                recovery_tail.set()
+                self.reply(200, {'ready': True})
+                return
             if self.path == '/qa/recovery-resume':
                 recovered.set()
                 self.reply(200, {'ready': True})
@@ -60,10 +65,17 @@ def server():
                     self.send_response(200)
                     self.send_header('Content-Type', 'text/event-stream')
                     self.end_headers()
-                    partial = dict(base, choices=[{'index': 0, 'delta': {'role': 'assistant', 'content': 'Native partial response'}, 'finish_reason': None}])
+                    partial = dict(base, choices=[{'index': 0, 'delta': {'role': 'assistant', 'content': 'Native '}, 'finish_reason': None}])
                     self.wfile.write(('data: ' + json.dumps(partial) + '\n\n').encode())
                     self.wfile.flush()
                     methods.append('llm/recovery-partial')
+                    # Release the tail only after Android confirms a durable prefix checkpoint.
+                    if not recovery_tail.wait(90):
+                        return
+                    trailing = dict(base, choices=[{'index': 0, 'delta': {'content': 'partial response'}, 'finish_reason': None}])
+                    methods.append('llm/recovery-tail')
+                    self.wfile.write(('data: ' + json.dumps(trailing) + '\n\n').encode())
+                    self.wfile.flush()
                     recovered.wait(180)
                     try:
                         self.wfile.write(b'data: [DONE]\n\n')
@@ -150,6 +162,7 @@ def server():
     try:
         yield http.server_port, methods
     finally:
+        recovery_tail.set()
         recovered.set()
         http.shutdown()
         http.server_close()
