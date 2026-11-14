@@ -150,6 +150,13 @@ class ChatRunJournal(private val file: File, private val checkpointScope: Corout
 
     private fun reconcileRecovery() {
         if (recovering.isEmpty()) return
+        // A replay can stream many deltas before its catalog/snapshot arrives.
+        // Do not materialize a growing tail until metadata can actually resolve a request.
+        val canReconcile = mutable.value.any { request ->
+            request.id in recovering && (request.sessionId == null ||
+                (request.hostId to request.sessionId) in snapshots && request.hostId in catalogs)
+        }
+        if (!canReconcile) return
         // Historical events have now replayed; only a current Host catalog can establish interruption.
         val current = currentRecords()
         val resolved = mutableSetOf<String>()
@@ -175,10 +182,12 @@ class ChatRunJournal(private val file: File, private val checkpointScope: Corout
     }
 
     private fun checkpointPartial() {
+        // One writer also owns retries. A later delta must not bypass a failed pending write.
+        if (checkpointJob != null) return
         val elapsed = lastPartialCheckpoint?.let { elapsedMillis() - it }
         if (elapsed == null || elapsed >= CHECKPOINT_MILLIS) {
             commit(currentRecords())
-        } else if (checkpointJob == null) {
+        } else {
             val generation = checkpointGeneration
             checkpointJob = checkpointScope.launch(Dispatchers.IO, start = CoroutineStart.LAZY) {
                 delay((CHECKPOINT_MILLIS - elapsed).coerceAtLeast(1))

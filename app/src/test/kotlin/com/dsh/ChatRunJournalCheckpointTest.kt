@@ -148,10 +148,12 @@ class ChatRunJournalCheckpointTest {
             try {
                 journal.onEvent("local-host", RemoteEvent.MessageDelta("session", " trailing"))
                 withTimeout(5000) { failed.await() }
+                // More data may arrive while the failed checkpoint is waiting to retry.
+                journal.onEvent("local-host", RemoteEvent.MessageDelta("session", " more"))
                 assertEquals("first", journal.records.value.single().partial)
                 assertEquals(journal.records.value, read(fixture.file))
                 assertTrue(temporary.delete())
-                withTimeout(5000) { journal.records.first { it.single().partial == "first trailing" } }
+                withTimeout(5000) { journal.records.first { it.single().partial == "first trailing more" } }
                 assertEquals(journal.records.value, read(fixture.file))
             } finally { logger.removeHandler(handler) }
         }
