@@ -32,6 +32,12 @@ after Host replay, requires the partial/reason/Retry to be visible in native
 Android accessibility, then clicks Retry and waits for Host completion. The AVD
 is kept awake; screenshots and native trees are captured before teardown.
 
+The recovery provider sends a prefix and waits for Android to confirm its
+checkpoint before releasing a trailing fragment. It then pauses without another
+delta. Native QA reads that tail from the actual journal file before force-stop;
+the prefix/tail checkpoint result is saved as `native-checkpoint.json`. This
+exercises a scheduled checkpoint independently of the next model token.
+
 Each of five cold starts must make navigation usable within 20 seconds, then
 keep Settings visible for eight seconds while Host/account/plugin hydration
 continues. This catches a second loading gate after the first visible frame.

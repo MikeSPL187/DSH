@@ -37,8 +37,27 @@ independent of which chat is viewed.
 Compose retains session/message Room flows by repository, host and selected
 session. Streaming recomposition must not recreate those subscriptions. Locale
 changes recreate Activity and restore navigation, recreating localized session
-mapping as well. The run journal remains application-owned and is not throttled
-by these presentation changes.
+mapping as well. The run journal remains application-owned.
+
+Journal `records` contains committed snapshots, published only after fsync and
+atomic rename. Text deltas accumulate in a bounded tail; one application-owned
+IO job schedules a checkpoint even when no following delta arrives. Status,
+queue, model and binding changes flush all pending tails before publication.
+The 500 ms target is a checkpoint cadence, not a hard storage-latency guarantee.
+Cancellation invalidates pending work, including a removed/replaced request.
+
+`messageRecords` is a history/navigation projection: it excludes the partial
+of active requests because the live reply comes from the repository stream.
+Terminal failures and interruptions include the full current recovery tail.
+Do not use this UI projection as the durable outbox or as an execution queue.
+
+```mermaid
+flowchart LR
+    R[Repository events] --> J[Journal recovery buffer]
+    R -->|8 ms live snapshots| C[Chat reply]
+    J -->|fsync + atomic rename| D[Committed records]
+    D -->|request metadata + terminal partials| H[History and navigation]
+```
 
 Native plugin SDK and parent-loaded AndroidX/Kotlin ABI remain preserved by R8
 rules. Benchmark fixtures exist in app/src/benchmark only; their Activity and

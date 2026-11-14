@@ -7,7 +7,7 @@ Target: ARM64 phones with at least 8 GiB RAM, tested at fixed 60 and 120 Hz. Pre
 | Workstream | Status |
 |---|---|
 | Directory virtualization | Implemented: one lazy item per entry, stable path keys, continuous card outline cached by geometry. Metadata is read on IO; child counts are loaded only for composed rows. |
-| Streaming presentation | Implemented: append to a buffer; publish immutable UI snapshots at most once per 8 ms. Baselines replace the buffer. Session switches and terminal events cancel pending publications. Raw session events and journal durability remain unchanged. |
+| Streaming presentation | Implemented: append to a buffer; publish immutable UI snapshots at most once per 8 ms. Baselines replace the buffer. Session switches and terminal events cancel pending publications. Every raw session event still reaches the application-owned journal. |
 | Markdown preparation | Implemented: block parsing on Default dispatcher, cancelled effects cannot publish obsolete results. Perfetto section `DSH.Markdown.parse`. Inline styling and rendering remain on the UI thread. |
 | Installed dependencies | Lockfile has one Zod 4.4.3 instance instead of 50 nested 4.4.3 instances and one 4.6.7 instance. All declared dependency and peer ranges accept 4.4.3; `npm ls --package-lock-only --all` passes. New rootfs image must be built, tested and pinned before this affects installed apps. |
 | Host entry bundle | Removed unused aggregate bundle creation from the rootfs recipe. Android already uses canonical `lib/bin.js`, sharing module identity with plugins. |
@@ -15,7 +15,7 @@ Target: ARM64 phones with at least 8 GiB RAM, tested at fixed 60 and 120 Hz. Pre
 | Build validation | Dependency resolution check added to Android CI. Gradle wrapper download timeout increased from 10 to 60 seconds after observed timeouts; later upstream HTTP 504 is still a separate infrastructure failure. |
 | Macrobenchmark / Baseline Profile | Opt-in release-like target and separate instrumentation controller implemented with keyless startup, directory and chat workloads. Signed-pair acceptance build 42472168962 passed with strict dependency verification and APK validation; no generated Baseline Profile or physical-device result is claimed. |
 | Sandbox preflight / profile diagnostics | Pending. No permission expansion or diagnostic failure suppression. |
-| Lifecycle subscriptions / journal / state ownership | Selected-session event projections and stream buffers now share one selection monitor. Session/message Room flows are remembered by repository/host/session instead of recreated on each recomposition. Journal publication and lifecycle/notification ownership remain pending; checkpoint and recovery guarantees are unchanged. |
+| Lifecycle subscriptions / journal / state ownership | Selected-session projections share one selection monitor. Room flows are remembered by repository/host/session. The journal buffers recovery tails, schedules checkpoints during pauses and exposes a separate history/navigation projection. Notification ownership and lifecycle collection remain pending. |
 | Kotlin quality gates and architecture rules | Dependency-direction guard covers 16 production modules (4 tests); performance comparator has 10 tests; verified compiler tooling has 3 tests, UI/rootfs separation has 3 tests and pinned-rootfs download has 5 tests. Detekt and Kotlin formatting gates remain pending. |
 
 ## Acceptance workloads
@@ -55,13 +55,47 @@ The Gradle 9.1.0 distribution SHA-256 is pinned to the checksum obtained from th
 - UI-only runs now skip Linux image download and do not claim Host coverage. Integration/full runs still require an image matching APK SHA-256 pins. Three selection tests cover missing images, valid images and checksum rejection, including explicitly supplied images in UI mode.
 - Official Gradle release asset is downloaded through GitHub API with the wrapper-pinned SHA-256. The Kotlin compiler JAR and POM are verified against existing reviewed dependency hashes and exposed through an exclusive CI-only local Maven repository, preventing failing remote HEAD probes. All normal dependency verification stays enabled. Local forced offline core:model compilation passed; corrupt/missing compiler hashes are rejected by tests.
 
-Remaining acceptance: physical benchmark execution/Perfetto/absolute budgets, Baseline Profile generation, sandbox/profile diagnostics, state ownership/journal/lifecycle refactor and remaining Kotlin quality gates. The optimized rootfs candidate is not pinned in the released/supplied APK yet; it continues to use published immutable rootfs 2.0.3.
+Remaining acceptance: physical benchmark execution/Perfetto/absolute budgets, Baseline Profile generation, sandbox/profile diagnostics, notification/lifecycle ownership and remaining Kotlin quality gates. The optimized rootfs candidate is not pinned in the released/supplied APK yet; it continues to use published immutable rootfs 2.0.3.
 
 Benchmark build 42471211772 compiled successfully with strict dependency verification, but post-build inspection found an unsigned controller APK. That artifact pair is rejected. The controller now has explicit debug signing and CI verifies both APK signatures, equal signers, separate instrumentation target, non-debuggable/profileable app, embedded source and R8 mapping presence. A negative check rejected the unsigned pair. Local opt-in Gradle task configuration passed. Acceptance run 42472168962 subsequently passed. Both APKs are signed with the same debug certificate; the controller targets its own package, the app is profileable/non-debuggable, and both R8 mappings exist. This confirms build/configuration/signatures, not physical execution. Ordinary release APK 42469004964 and native UI proof 42470141980 are independent and remain valid.
 
 Final benchmark evidence: [42472168962](https://github.com/MikeSPL187/DSH/actions/runs/42472168962), source `b8dca43adfc7baa99d57fef48657a15dac323a00`, artifact `13613961818`. Target package `app.dsh.mobile.benchmark`, 14,407,949 bytes, SHA-256 `d2deee7536c8adb16de49ba5af8376df7f84380d1c2a5312990d3d6172e4f4c2`; controller package `com.dsh.benchmark`, 40,906,341 bytes, SHA-256 `0b77f21d578bda148664ec3fdfa8801850c61d926ea5eccf3d86bd19447a13c3`. The controller contains test/tracing libraries and is not distributed as the ordinary mobile app. Neither benchmark APK is a replacement for the release APK. The normal Android build inputs are unchanged between release source 4406bc30 and benchmark source b8dca43a.
 
 Software preparation is verified. Physical execution, absolute performance targets, Baseline Profile, Host capability/profile diagnostics and remaining state/quality refactors are still pending; no claim of completing the whole optimization program is made.
+
+## Journal checkpoints and presentation
+
+Production source `898eee42384dd7c73544156443f0b98bba1acf4f` addresses a second streaming path. The repository already coalesces live replies, but the journal also concatenated the entire partial and notified the root UI for every delta. Chat history only needs a partial when a request fails or is interrupted.
+
+The journal now appends to a bounded recovery buffer and materializes immutable text for a checkpoint or structural change. The retained snapshot remains at most 128 Ki UTF-16 code units; trimming avoids a split surrogate pair. In-memory compaction happens after another tail's worth of data, rather than moving the retained prefix on every token at capacity. Large deltas copy only their required suffix.
+
+`records` now means committed snapshots: file write, fsync and atomic rename complete before publication. A single application-owned IO job checkpoints a trailing partial even when the provider pauses. The target interval remains 500 ms, measured with a monotonic clock; scheduling and storage latency are not hard real-time guarantees. A kill may lose text since the last successful checkpoint. Prompts, attachments, queue order, binding, model selection and terminal statuses still commit synchronously; each structural commit materializes all pending session tails. Background write failures keep the last committed snapshot and pending text, log the failure and retry. New deltas join the pending writer instead of bypassing its retry. Structural write errors still propagate to their caller.
+
+The root UI collects `messageRecords`, which omits unused active partials and changes for request metadata or terminal recovery. The live answer still uses the repository's 8 ms stream. A failed/interrupted request publishes its current recovery tail immediately after the commit. Activity recreation does not own or cancel either the journal writer or its application scope. Replaced/removed requests invalidate pending writes; publication releases the old job before notifying observers so a reentrant delta can schedule its own checkpoint.
+
+The existing `chat-outbox-v1.json` fields and serialized `com.dsh.ModelChoice` type are unchanged. `ModelChoice` moved from the sender into its own file. No permission, network-policy or visual-design change is included.
+
+Local evidence uses the actual journal/buffer/model sources, the project's Kotlin 2.1.10 serialization compiler plugin, JDK21 and cached project dependencies. It is a focused JVM run, not a full Android build. All 16 tests passed: 5 existing queue/recovery cases, 8 checkpoint/transaction cases and 3 Unicode/bounds cases. The initial old implementation failed 2 of 7 tests: a paused trailing fragment never reached disk within two seconds, and observable records acknowledged text absent from disk. An intermediate retry path also failed when more data arrived during a storage error; that case passes after retaining one writer. Injected storage failures in these tests are expected diagnostics.
+
+The 10,000-delta case observes no incremental update of the root message projection while the request is active, then verifies the complete tail and error status. This measures notification behavior, not frame rate. Recovery tests cover empty replay baselines, pending tails across structural changes, queued order, cancellation/removal, reentrant publication and storage recovery.
+
+Native QA gates its two-part provider response: Android must observe a committed prefix before the provider sends a trailing fragment and pauses. The driver reads the trailing text directly from the journal before force-stop, then checks replay, visible interruption and Retry. The local HTTP fixture contract passed.
+
+Signed build [43613951136](https://github.com/MikeSPL187/DSH/actions/runs/43613951136) passed full debug/release unit tests and release assembly (10m52s / 4m30s). APK: 14,404,593 bytes, SHA-256 `978bbcb57e0dd753957d6408968d78e095579f346d057275515adc4d30634b49`. SDK checks verified source `898eee42`, public signing-certificate continuity, app.dsh.mobile 1.1.4/114, unchanged published rootfs 2.0.3 pins and absence of the benchmark fixture. Its manifest dump matches the preceding ordinary APK.
+
+Full native run [43614106003](https://github.com/MikeSPL187/DSH/actions/runs/43614106003) passed on the same source `898eee42384dd7c73544156443f0b98bba1acf4f`: 35 checks per API30/33/35, 105 PASS total, three empty crash logs, no failure artifacts. Evidence artifact `14123716766` confirms the paused-tail checkpoint, preserved text before/after replay and visible interruption/Retry on every API. All tracked Android inputs match the production revision; the debug APK also embeds its complete source SHA. Test-APK artifact `14121811655` retains this provenance. API35 interruption/Retry and font1.3/IME screenshots were reviewed. The earlier `86eb7de5` runs were superseded; historical state-ownership results are not substituted for this run. These are functional emulator checks; physical performance remains unverified.
+
+### Exploratory JVM allocation probe
+
+[Common input](journal-probe/Probe.kt) and [all raw samples/context](journal-probe/result.json) are retained for review. This is a HotSpot JDK21 journal probe, not Android, UI frame rate, retained heap/RSS or N19 acceptance. Both revisions process 10,000 reused 16-character deltas, force a terminal failure commit and cancel/join their scope. Every trial verifies an identical 131,072-character tail on disk after the measured region. The original journal is taken from `af05873a`; the new one from `898eee42`. The serialized model type and cached project model/protocol dependencies are shared. Sources use the same Kotlin 2.1.10 serialization compiler, a 256 MiB heap and SerialGC, with three warmups and five measured trials in a separate JVM per revision. Values below are medians.
+
+| Metric per trial | Before | After |
+|---|---:|---:|
+| Calling-thread allocated bytes | 1,013,581,432 | 1,279,216 |
+| Total JVM allocated bytes | 1,013,581,432 | 1,279,592 |
+| Elapsed time including terminal commit and scope shutdown | 79.182 ms | 6.188 ms |
+
+This supports the reduction in repeated journal string/list allocation in this workload. It does not establish an application speedup factor or a physical-device performance result.
 
 ## Selected-session ownership
 
